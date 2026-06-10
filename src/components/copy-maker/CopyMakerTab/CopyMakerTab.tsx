@@ -1012,7 +1012,7 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
     await compareOutputsWithGrok(false, ctx);
   };
 
-  const performScoreAndNavigate = async (scoringContext?: import('../../types').ScoringContext) => {
+  const performScoreAndNavigate = async (scoringContext?: import('../../../types').ScoringContext) => {
     // comparative scoring state fix: reset stale comparison before rescoring
     if (!currentUser || !comparisonResult) return;
 
