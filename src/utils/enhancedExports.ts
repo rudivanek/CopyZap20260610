@@ -3058,7 +3058,8 @@ export const exportAsFormattedHtml = (
 
     // Add all generated outputs (excluding comparison/analysis cards)
     if (generatedOutputCards && generatedOutputCards.length > 0) {
-       const isComparison = card.sourceDisplayName?.includes('Analysis') ||
+      const contentCards = generatedOutputCards.filter((card) => {
+        const isComparison = card.sourceDisplayName?.includes('Analysis') ||
                             card.sourceDisplayName?.includes('Comparison');
         // The original is already emitted separately above (improve mode) — don't duplicate it here.
         const alreadyEmittedOriginal = formState.tab === 'improve' && !!formState.originalCopy?.trim()
