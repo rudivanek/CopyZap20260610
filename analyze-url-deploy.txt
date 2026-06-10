@@ -1,0 +1,232 @@
+import { createClient } from 'npm:@supabase/supabase-js@2';
+import OpenAI from 'npm:openai@4.43.0';
+
+const corsHeaders = {
+  'Access-Control-Allow-Origin': '*',
+  'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+  'Access-Control-Allow-Methods': 'POST, OPTIONS',
+};
+
+interface UrlAnalysisRequest {
+  url: string;
+  user_id: string;
+}
+
+interface ExtractedData {
+  whatCreating: string;
+  targetAudience: string;
+  tone: string;
+  painPoints: string;
+  features: string[];
+  benefits: string[];
+}
+
+Deno.serve(async (req) => {
+  if (req.method === 'OPTIONS') {
+    return new Response('ok', { headers: corsHeaders });
+  }
+
+  try {
+    const sb = createClient(
+      Deno.env.get('SUPABASE_URL') ?? '',
+      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      {
+        auth: { autoRefreshToken: false, persistSession: false }
+      }
+    );
+
+    const { url, user_id }: UrlAnalysisRequest = await req.json();
+
+    if (!url || !user_id) {
+      return new Response(
+        JSON.stringify({ error: 'Missing required fields: url and user_id' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      );
+    }
+
+    // Validate URL format
+    try {
+      new URL(url);
+    } catch {
+      return new Response(
+        JSON.stringify({ error: 'Invalid URL format' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      );
+    }
+
+    // Check cache first
+    const { data: cached } = await sb
+      .from('pmc_url_analysis_cache')
+      .select('*')
+      .eq('url', url)
+      .gt('expires_at', new Date().toISOString())
+      .maybeSingle();
+
+    if (cached) {
+      // Update access tracking
+      await sb
+        .from('pmc_url_analysis_cache')
+        .update({
+          access_count: cached.access_count + 1,
+          last_accessed_at: new Date().toISOString()
+        })
+        .eq('id', cached.id);
+
+      console.log(`Cache hit for URL: ${url}`);
+      return new Response(
+        JSON.stringify({
+          success: true,
+          cached: true,
+          data: cached.extracted_data,
+          title: cached.title,
+          description: cached.description
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        }
+      );
+    }
+
+    console.log(`Cache miss for URL: ${url}, fetching...`);
+
+    // Fetch the URL content
+    const fetchResponse = await fetch(url, {
+      headers: {
+        'User-Agent': 'Mozilla/5.0 (compatible; CopyZap/1.0; +https://copyzap.com)'
+      }
+    });
+
+    if (!fetchResponse.ok) {
+      return new Response(
+        JSON.stringify({ error: `Failed to fetch URL: ${fetchResponse.status} ${fetchResponse.statusText}` }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      );
+    }
+
+    const html = await fetchResponse.text();
+
+    // Extract title and description from HTML
+    const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+    const title = titleMatch ? titleMatch[1].trim() : '';
+
+    const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+                      html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+    const description = descMatch ? descMatch[1].trim() : '';
+
+    // Clean HTML: remove scripts, styles, and extract text
+    let cleanedContent = html
+      .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+      .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+      .replace(/<[^>]+>/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    // Limit content size for AI processing (first 8000 chars)
+    cleanedContent = cleanedContent.substring(0, 8000);
+
+    // Use OpenAI to analyze the content
+    const openai = new OpenAI({
+      apiKey: Deno.env.get('OPENAI_API_KEY'),
+    });
+
+    const analysisPrompt = `Analyze the following webpage content and extract key information in JSON format.
+
+Title: ${title}
+Description: ${description}
+Content: ${cleanedContent}
+
+Extract:
+1. whatCreating: What product/service/content is this (1-2 sentences)?
+2. targetAudience: Who is the target audience (be specific)?
+3. tone: What is the tone/voice (professional, casual, friendly, technical, etc.)?
+4. painPoints: What problems/pain points does it address (comma-separated)?
+5. features: List of key features mentioned (array of strings, max 5)
+6. benefits: List of main benefits (array of strings, max 5)
+
+Return ONLY valid JSON with these exact keys. Be concise and specific.`;
+
+    const completion = await openai.chat.completions.create({
+      model: 'gpt-4o-mini',
+      messages: [
+        {
+          role: 'system',
+          content: 'You are a marketing content analyzer. Extract structured data from webpage content. Return only valid JSON.'
+        },
+        { role: 'user', content: analysisPrompt }
+      ],
+      temperature: 0.3,
+      response_format: { type: 'json_object' }
+    });
+
+    const extractedData: ExtractedData = JSON.parse(
+      completion.choices[0].message.content || '{}'
+    );
+
+    // Cache the results
+    await sb
+      .from('pmc_url_analysis_cache')
+      .insert({
+        url,
+        title,
+        description,
+        content: cleanedContent.substring(0, 1000), // Store sample
+        extracted_data: extractedData,
+        access_count: 1,
+        last_accessed_at: new Date().toISOString()
+      });
+
+    // Track token usage
+    const tokensUsed = completion.usage?.total_tokens || 0;
+    const costUsd = (tokensUsed / 1000) * 0.0003; // GPT-4o-mini pricing
+
+    await sb
+      .from('pmc_user_tokens_used')
+      .insert({
+        user_id,
+        operation_type: 'url_analysis',
+        model: 'gpt-4o-mini',
+        tokens_used: tokensUsed,
+        cost_usd: costUsd
+      });
+
+    console.log(`Successfully analyzed URL: ${url}, tokens: ${tokensUsed}`);
+
+    return new Response(
+      JSON.stringify({
+        success: true,
+        cached: false,
+        data: extractedData,
+        title,
+        description,
+        tokensUsed
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 200
+      }
+    );
+
+  } catch (error) {
+    console.error('Error in analyze-url function:', error);
+    return new Response(
+      JSON.stringify({
+        error: 'Failed to analyze URL',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      }),
+      {
+        headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+        status: 500
+      }
+    );
+  }
+});

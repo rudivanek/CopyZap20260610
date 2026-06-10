@@ -1,0 +1,279 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Base styles that apply to both light and dark modes */
+@layer base {
+  body {
+    @apply transition-colors duration-200 bg-white text-gray-900 dark:bg-black dark:text-white;
+  }
+
+  body {
+    font-family: 'Geist', sans-serif;
+  }
+
+  /* Better focus styles for accessibility */
+  *:focus-visible {
+    @apply outline-none ring-2 ring-primary-500 ring-opacity-50;
+  }
+}
+
+/* Custom scrollbar styling */
+@layer utilities {
+  .custom-scrollbar {
+    scrollbar-width: thin; /* Firefox */
+  }
+  
+  /* Webkit browsers (Chrome, Safari, Edge) */
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background-color: transparent;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    @apply bg-gray-300 dark:bg-gray-700 rounded-full;
+    border: 2px solid transparent;
+    background-clip: content-box;
+  }
+  
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    @apply bg-gray-400 dark:bg-gray-600;
+  }
+
+  /* Disable animations for immediate appearance */
+  .no-animation {
+    animation: none !important;
+    -webkit-animation: none !important;
+    transition: none !important;
+    -webkit-transition: none !important;
+  }
+
+  /* Conversion boost: pulse highlight for Compare/Analyze button */
+  @keyframes pulseHighlight {
+    0% {
+      box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.5);
+    }
+    70% {
+      box-shadow: 0 0 0 8px rgba(249, 115, 22, 0);
+    }
+    100% {
+      box-shadow: 0 0 0 0 rgba(249, 115, 22, 0);
+    }
+  }
+
+  .highlight-action {
+    box-shadow: 0 0 0 0 rgba(249, 115, 22, 0.6);
+    animation: pulseHighlight 2s infinite;
+  }
+
+  /* Field highlight animation for template loading */
+  @keyframes fieldHighlight {
+    0% {
+      background-color: rgb(59 130 246 / 0.2);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+
+  .field-highlight {
+    animation: fieldHighlight 300ms ease-out;
+  }
+}
+
+/* Toaster customization */
+:root {
+  --toastify-color-light: #ffffff;
+  --toastify-color-dark: #1f2937;
+  --toastify-color-success: #6b7280;
+  --toastify-color-error: #4b5563;
+}
+
+/* Dark mode customization */
+html.dark {
+  --toastify-color-light: #1f2937;
+  --toastify-color-dark: #000000;
+  --toastify-text-color-light: #ffffff;
+}
+
+/* Smooth transition for theme changes */
+html, body, *:not(.no-transition):not(.no-animation) {
+  transition: background-color 0.2s ease-in-out, border-color 0.2s ease-in-out, color 0.2s ease-in-out;
+}
+
+/* Fix for initial loading state */
+html, body, #root {
+  height: 100%;
+  margin: 0;
+  padding: 0;
+}
+
+/* Animation for fade in */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease-in-out;
+}
+
+/* =================================================================
+   MAIN APP TYPOGRAPHY - Compact UI Scale (NOT Help Center or Home Page)
+   ================================================================= */
+
+/* Apply to main app UI only (when NOT in Help Center and NOT on Home Page) */
+body:not(.help-center-active):not(.home-page-active) {
+  font-size: 14px;
+  font-weight: 400;
+  line-height: 1.5;
+}
+
+body:not(.help-center-active):not(.home-page-active) h1 {
+  font-size: 22px;
+  font-weight: 600;
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+
+body:not(.help-center-active):not(.home-page-active) h2 {
+  font-size: 18px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+body:not(.help-center-active):not(.home-page-active) h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 6px;
+  line-height: 1.4;
+}
+
+body:not(.help-center-active):not(.home-page-active) p {
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+body:not(.help-center-active):not(.home-page-active) label {
+  font-size: 13px;
+  font-weight: 500;
+}
+
+body:not(.help-center-active):not(.home-page-active) button {
+  font-size: 14px;
+  font-weight: 500;
+}
+
+body:not(.help-center-active):not(.home-page-active) input,
+body:not(.help-center-active):not(.home-page-active) select,
+body:not(.help-center-active):not(.home-page-active) textarea {
+  font-size: 14px;
+  font-weight: 400;
+}
+
+/* Secondary text helper */
+body:not(.help-center-active):not(.home-page-active) .text-secondary {
+  font-size: 12.5px;
+  opacity: 0.85;
+}
+
+/* =================================================================
+   HELP CENTER TYPOGRAPHY - Dedicated Documentation Scale
+   ================================================================= */
+
+/* Help Center uses its own dedicated typography system */
+.help-center-root {
+  font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif !important;
+}
+
+.help-center-root h1 {
+  font-size: 32px;
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 16px;
+}
+
+.help-center-root h2 {
+  font-size: 24px;
+  font-weight: 600;
+  margin-top: 32px;
+  margin-bottom: 12px;
+  line-height: 1.3;
+}
+
+.help-center-root h3 {
+  font-size: 20px;
+  font-weight: 600;
+  margin-top: 24px;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.help-center-root p {
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 16px;
+}
+
+.help-center-root ul,
+.help-center-root ol {
+  font-size: 16px;
+  line-height: 1.6;
+  margin-bottom: 16px;
+  padding-left: 24px;
+}
+
+.help-center-root li {
+  margin-bottom: 8px;
+}
+
+.help-center-root code {
+  font-family: 'Monaco', 'Courier New', monospace;
+  font-size: 14px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.help-center-root pre {
+  margin-bottom: 16px;
+  padding: 16px;
+  border-radius: 8px;
+  overflow-x: auto;
+}
+
+.help-center-root blockquote {
+  border-left: 4px solid;
+  padding-left: 16px;
+  margin: 16px 0;
+  font-style: italic;
+}
+
+/* Smaller device mockups in help center */
+.help-center-phone {
+  max-width: 180px;
+  object-fit: contain;
+  opacity: 0.95;
+}
+
+@media (max-width: 768px) {
+  .help-center-phone {
+    max-width: 140px;
+  }
+
+  .help-center-root h1 {
+    font-size: 28px;
+  }
+
+  .help-center-root h2 {
+    font-size: 22px;
+  }
+
+  .help-center-root h3 {
+    font-size: 18px;
+  }
+}

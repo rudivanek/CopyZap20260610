@@ -1,0 +1,182 @@
+[
+  {
+    "slug": "getting-started",
+    "title": "Getting Started",
+    "description": "Learn how to create AI-powered marketing copy with CopyZap. Covers first generation steps, Start Hub launchpad, and Quick Prompt Wizard.",
+    "icon": "file-text",
+    "color": "blue",
+    "section": "main",
+    "url": "/help/getting-started",
+    "group": "getting-started",
+    "order": 1,
+    "keywords": ["start", "onboarding", "first generation", "Start Hub", "wizard", "Quick Wizard", "beginner", "how to start"]
+  },
+  {
+    "slug": "core-workflows",
+    "title": "Core Workflows",
+    "description": "The five core workflows: Create New Copy, Improve Existing Copy, Generate Alternatives, Compare & Select, and Apply Brand Voice. Includes step-by-step tutorials.",
+    "icon": "workflow",
+    "color": "blue",
+    "section": "main",
+    "url": "/help/core-workflows",
+    "group": "getting-started",
+    "order": 2,
+    "keywords": ["create copy", "improve copy", "alternatives", "compare", "brand voice", "workflow", "tutorial"]
+  },
+  {
+    "slug": "how-scoring-works",
+    "title": "Output, Scoring & Comparison",
+    "description": "Understand the output card, content scoring (clarity, persuasiveness, tone, SEO), Compare & Blend tools, and how features interact.",
+    "icon": "check-circle",
+    "color": "green",
+    "section": "main",
+    "url": "/help/how-scoring-works",
+    "group": "getting-started",
+    "order": 3,
+    "keywords": ["score", "scoring", "compare", "blend", "output", "evaluation", "quality", "rating"]
+  },
+  {
+    "slug": "setup-and-inputs",
+    "title": "Setup & Inputs",
+    "description": "Configure your project inputs, create and apply brand voices (manual, AI generation, URL scan, presets), and save configurations as reusable templates.",
+    "icon": "settings",
+    "color": "gray",
+    "section": "main",
+    "url": "/help/setup-and-inputs",
+    "group": "getting-started",
+    "order": 4,
+    "keywords": ["project setup", "brand voice", "templates", "customer", "tone", "language", "configuration", "presets"]
+  },
+  {
+    "slug": "about-copy-maker",
+    "title": "Copy Maker Overview",
+    "description": "Learn the philosophy behind Copy Maker and how to get the most from the platform.",
+    "icon": "info",
+    "color": "blue",
+    "section": "main",
+    "url": "/help/copy-maker",
+    "group": "core",
+    "order": 1
+  },
+  {
+    "slug": "optional-features",
+    "title": "Optional Output Features",
+    "description": "Learn what each optional output feature does — from SEO Metadata to GEO Optimization, TL;DR, and Keyword Integration.",
+    "icon": "sliders",
+    "color": "blue",
+    "section": "advanced",
+    "url": "/help/optional-features",
+    "group": "advanced",
+    "order": 1
+  },
+  {
+    "slug": "voice-styles-and-blending",
+    "title": "Voice Styles & Blending",
+    "description": "Apply voice style transformations (Alex Hormozi, Steve Jobs, Humanize, and more) to enhance your copy with specific stylistic approaches.",
+    "icon": "mic",
+    "color": "teal",
+    "section": "advanced",
+    "url": "/help/voice-styles-and-blending",
+    "group": "advanced",
+    "order": 2
+  },
+  {
+    "slug": "workflow-builder",
+    "title": "Workflow Builder",
+    "description": "Create automated multi-step workflows to streamline repetitive tasks and apply consistent transformations in one generation click.",
+    "icon": "workflow",
+    "color": "blue",
+    "section": "advanced",
+    "url": "/help/workflow-builder",
+    "group": "advanced",
+    "order": 3
+  },
+  {
+    "slug": "recommended-settings",
+    "title": "Recommended Settings",
+    "description": "The best configuration settings for different content types: blog posts, landing pages, ads, emails, and more.",
+    "icon": "lightbulb",
+    "color": "yellow",
+    "section": "advanced",
+    "url": "/help/recommended-settings",
+    "group": "advanced",
+    "order": 4
+  },
+  {
+    "slug": "export-management",
+    "title": "Export & File Management",
+    "description": "Export your copy as HTML or Markdown and manage your generation history efficiently.",
+    "icon": "download",
+    "color": "blue",
+    "section": "main",
+    "url": "/help/export-and-file-management",
+    "group": "account",
+    "order": 1
+  },
+  {
+    "slug": "dashboard-and-history",
+    "title": "Dashboard & History",
+    "description": "Use the Dashboard to find saved outputs, manage sessions, templates, workflows, and track your generation history.",
+    "icon": "layout-dashboard",
+    "color": "blue",
+    "section": "main",
+    "url": "/help/dashboard-and-history",
+    "group": "account",
+    "order": 2
+  },
+  {
+    "slug": "credits-and-billing",
+    "title": "Credits & Billing",
+    "description": "Understand the credit system, costs per action, billing, and best practices to optimize credit usage.",
+    "icon": "credit-card",
+    "color": "green",
+    "section": "main",
+    "url": "/help/credits-and-billing",
+    "group": "account",
+    "order": 3
+  },
+  {
+    "slug": "real-case-workflows",
+    "title": "Real-Case Workflows",
+    "description": "Real-world workflows showing how professionals use CopyZap for landing pages, blog posts, social media, and client work.",
+    "icon": "workflow",
+    "color": "teal",
+    "section": "tutorials",
+    "url": "/help/real-case-workflows",
+    "group": "tutorials",
+    "order": 1
+  },
+  {
+    "slug": "glossary",
+    "title": "Glossary of Terms",
+    "description": "Quick reference for all Copy Maker terms, features, and concepts.",
+    "icon": "book-open",
+    "color": "gray",
+    "section": "main",
+    "url": "/help/glossary",
+    "group": "reference",
+    "order": 1
+  },
+  {
+    "slug": "troubleshooting",
+    "title": "Troubleshooting & FAQs",
+    "description": "Solutions to common issues, error messages, and frequently asked questions about using CopyZap effectively.",
+    "icon": "life-buoy",
+    "color": "red",
+    "section": "main",
+    "url": "/help/troubleshooting",
+    "group": "support",
+    "order": 1
+  },
+  {
+    "slug": "contact",
+    "title": "Contact Support",
+    "description": "Need help, found a bug, or want to request a new feature? Our support team is here to help.",
+    "icon": "life-buoy",
+    "color": "blue",
+    "section": "main",
+    "url": "/help/contact",
+    "group": "support",
+    "order": 2
+  }
+]

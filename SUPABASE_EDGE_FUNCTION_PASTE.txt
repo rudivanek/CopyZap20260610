@@ -1,0 +1,245 @@
+SUPABASE EDGE FUNCTION - analyze-url
+====================================
+
+IMPORTANT: Type this manually into Supabase Dashboard > Edge Functions > analyze-url
+DO NOT copy/paste as your clipboard is corrupting the text!
+
+Line 1: import { createClient } from 'npm:@supabase/supabase-js@2';
+Line 2: import OpenAI from 'npm:openai@4.43.0';
+Line 3: (blank)
+Line 4: const corsHeaders = {
+Line 5:   'Access-Control-Allow-Origin': '*',
+Line 6:   'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+Line 7:   'Access-Control-Allow-Methods': 'POST, OPTIONS',
+Line 8: };
+Line 9: (blank)
+Line 10: interface UrlAnalysisRequest {
+Line 11:   url: string;
+Line 12:   user_id: string;
+Line 13: }
+Line 14: (blank)
+Line 15: interface ExtractedData {
+Line 16:   whatCreating: string;
+Line 17:   targetAudience: string;
+Line 18:   tone: string;
+Line 19:   painPoints: string;
+Line 20:   features: string[];
+Line 21:   benefits: string[];
+Line 22: }
+Line 23: (blank)
+Line 24: Deno.serve(async (req) => {
+Line 25:   if (req.method === 'OPTIONS') {
+Line 26:     return new Response('ok', { headers: corsHeaders });
+Line 27:   }
+Line 28: (blank)
+Line 29:   try {
+Line 30:     const sb = createClient(
+Line 31:       Deno.env.get('SUPABASE_URL') ?? '',
+Line 32:       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+Line 33:       {
+Line 34:         auth: { autoRefreshToken: false, persistSession: false }
+Line 35:       }
+Line 36:     );
+Line 37: (blank)
+Line 38:     const { url, user_id }: UrlAnalysisRequest = await req.json();
+Line 39: (blank)
+Line 40:     if (!url || !user_id) {
+Line 41:       return new Response(
+Line 42:         JSON.stringify({ error: 'Missing required fields: url and user_id' }),
+Line 43:         {
+Line 44:           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+Line 45:           status: 400
+Line 46:         }
+Line 47:       );
+Line 48:     }
+Line 49: (blank)
+Line 50:     // Validate URL format
+Line 51:     try {
+Line 52:       new URL(url);
+Line 53:     } catch {
+Line 54:       return new Response(
+Line 55:         JSON.stringify({ error: 'Invalid URL format' }),
+Line 56:         {
+Line 57:           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+Line 58:           status: 400
+Line 59:         }
+Line 60:       );
+Line 61:     }
+Line 62: (blank)
+Line 63:     // Check cache first
+Line 64:     const { data: cached } = await sb
+Line 65:       .from('pmc_url_analysis_cache')
+Line 66:       .select('*')
+Line 67:       .eq('url', url)
+Line 68:       .gt('expires_at', new Date().toISOString())
+Line 69:       .maybeSingle();
+Line 70: (blank)
+Line 71:     if (cached) {
+Line 72:       // Update access tracking
+Line 73:       await sb
+Line 74:         .from('pmc_url_analysis_cache')
+Line 75:         .update({
+Line 76:           access_count: cached.access_count + 1,
+Line 77:           last_accessed_at: new Date().toISOString()
+Line 78:         })
+Line 79:         .eq('id', cached.id);
+Line 80: (blank)
+Line 81:       console.log(`Cache hit for URL: ${url}`);
+Line 82:       return new Response(
+Line 83:         JSON.stringify({
+Line 84:           success: true,
+Line 85:           cached: true,
+Line 86:           data: cached.extracted_data,
+Line 87:           title: cached.title,
+Line 88:           description: cached.description
+Line 89:         }),
+Line 90:         {
+Line 91:           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+Line 92:           status: 200
+Line 93:         }
+Line 94:       );
+Line 95:     }
+Line 96: (blank)
+Line 97:     console.log(`Cache miss for URL: ${url}, fetching...`);
+Line 98: (blank)
+Line 99:     // Fetch the URL content
+Line 100:     const fetchResponse = await fetch(url, {
+Line 101:       headers: {
+Line 102:         'User-Agent': 'Mozilla/5.0 (compatible; CopyZap/1.0; +https://copyzap.com)'
+Line 103:       }
+Line 104:     });
+Line 105: (blank)
+Line 106:     if (!fetchResponse.ok) {
+Line 107:       return new Response(
+Line 108:         JSON.stringify({ error: `Failed to fetch URL: ${fetchResponse.status} ${fetchResponse.statusText}` }),
+Line 109:         {
+Line 110:           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+Line 111:           status: 400
+Line 112:         }
+Line 113:       );
+Line 114:     }
+Line 115: (blank)
+Line 116:     const html = await fetchResponse.text();
+Line 117: (blank)
+Line 118:     // Extract title and description from HTML
+Line 119:     const titleMatch = html.match(/<title[^>]*>([^<]+)<\/title>/i);
+Line 120:     const title = titleMatch ? titleMatch[1].trim() : '';
+Line 121: (blank)
+Line 122:     const descMatch = html.match(/<meta[^>]+name=["']description["'][^>]+content=["']([^"']+)["']/i) ||
+Line 123:                       html.match(/<meta[^>]+content=["']([^"']+)["'][^>]+name=["']description["']/i);
+Line 124:     const description = descMatch ? descMatch[1].trim() : '';
+Line 125: (blank)
+Line 126:     // Clean HTML: remove scripts, styles, and extract text
+Line 127:     let cleanedContent = html
+Line 128:       .replace(/<script[^>]*>[\s\S]*?<\/script>/gi, '')
+Line 129:       .replace(/<style[^>]*>[\s\S]*?<\/style>/gi, '')
+Line 130:       .replace(/<[^>]+>/g, ' ')
+Line 131:       .replace(/\s+/g, ' ')
+Line 132:       .trim();
+Line 133: (blank)
+Line 134:     // Limit content size for AI processing (first 8000 chars)
+Line 135:     cleanedContent = cleanedContent.substring(0, 8000);
+Line 136: (blank)
+Line 137:     // Use OpenAI to analyze the content
+Line 138:     const openai = new OpenAI({
+Line 139:       apiKey: Deno.env.get('OPENAI_API_KEY'),
+Line 140:     });
+Line 141: (blank)
+Line 142:     const analysisPrompt = `Analyze the following webpage content and extract key information in JSON format.
+Line 143: (blank)
+Line 144: Title: ${title}
+Line 145: Description: ${description}
+Line 146: Content: ${cleanedContent}
+Line 147: (blank)
+Line 148: Extract:
+Line 149: 1. whatCreating: What product/service/content is this (1-2 sentences)?
+Line 150: 2. targetAudience: Who is the target audience (be specific)?
+Line 151: 3. tone: What is the tone/voice (professional, casual, friendly, technical, etc.)?
+Line 152: 4. painPoints: What problems/pain points does it address (comma-separated)?
+Line 153: 5. features: List of key features mentioned (array of strings, max 5)
+Line 154: 6. benefits: List of main benefits (array of strings, max 5)
+Line 155: (blank)
+Line 156: Return ONLY valid JSON with these exact keys. Be concise and specific.`;
+Line 157: (blank)
+Line 158:     const completion = await openai.chat.completions.create({
+Line 159:       model: 'gpt-4o-mini',
+Line 160:       messages: [
+Line 161:         {
+Line 162:           role: 'system',
+Line 163:           content: 'You are a marketing content analyzer. Extract structured data from webpage content. Return only valid JSON.'
+Line 164:         },
+Line 165:         { role: 'user', content: analysisPrompt }
+Line 166:       ],
+Line 167:       temperature: 0.3,
+Line 168:       response_format: { type: 'json_object' }
+Line 169:     });
+Line 170: (blank)
+Line 171:     const extractedData: ExtractedData = JSON.parse(
+Line 172:       completion.choices[0].message.content || '{}'
+Line 173:     );
+Line 174: (blank)
+Line 175:     // Cache the results
+Line 176:     await sb
+Line 177:       .from('pmc_url_analysis_cache')
+Line 178:       .insert({
+Line 179:         url,
+Line 180:         title,
+Line 181:         description,
+Line 182:         content: cleanedContent.substring(0, 1000), // Store sample
+Line 183:         extracted_data: extractedData,
+Line 184:         access_count: 1,
+Line 185:         last_accessed_at: new Date().toISOString()
+Line 186:       });
+Line 187: (blank)
+Line 188:     // Track token usage
+Line 189:     const tokensUsed = completion.usage?.total_tokens || 0;
+Line 190:     const costUsd = (tokensUsed / 1000) * 0.0003; // GPT-4o-mini pricing
+Line 191: (blank)
+Line 192:     await sb
+Line 193:       .from('pmc_user_tokens_used')
+Line 194:       .insert({
+Line 195:         user_id,
+Line 196:         operation_type: 'url_analysis',
+Line 197:         model: 'gpt-4o-mini',
+Line 198:         tokens_used: tokensUsed,
+Line 199:         cost_usd: costUsd
+Line 200:       });
+Line 201: (blank)
+Line 202:     console.log(`Successfully analyzed URL: ${url}, tokens: ${tokensUsed}`);
+Line 203: (blank)
+Line 204:     return new Response(
+Line 205:       JSON.stringify({
+Line 206:         success: true,
+Line 207:         cached: false,
+Line 208:         data: extractedData,
+Line 209:         title,
+Line 210:         description,
+Line 211:         tokensUsed
+Line 212:       }),
+Line 213:       {
+Line 214:         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+Line 215:         status: 200
+Line 216:       }
+Line 217:     );
+Line 218: (blank)
+Line 219:   } catch (error) {
+Line 220:     console.error('Error in analyze-url function:', error);
+Line 221:     return new Response(
+Line 222:       JSON.stringify({
+Line 223:         error: 'Failed to analyze URL',
+Line 224:         details: error instanceof Error ? error.message : 'Unknown error'
+Line 225:       }),
+Line 226:       {
+Line 227:         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+Line 228:         status: 500
+Line 229:       }
+Line 230:     );
+Line 231:   }
+Line 232: });
+
+CRITICAL LINES TO TYPE CAREFULLY:
+- Line 31: Deno.env.get('SUPABASE_URL') ?? '',
+- Line 32: Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+- Line 139: apiKey: Deno.env.get('OPENAI_API_KEY'),
+
+Make sure these say SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, and OPENAI_API_KEY exactly!

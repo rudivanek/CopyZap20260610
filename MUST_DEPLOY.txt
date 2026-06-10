@@ -1,0 +1,41 @@
+================================================================================
+                          🚨 CRITICAL - MUST DEPLOY 🚨
+================================================================================
+
+The code changes are in your LOCAL FILES but NOT on Supabase servers!
+
+YOU MUST RUN THIS COMMAND:
+
+    npx supabase functions deploy analyze-url
+
+================================================================================
+
+WHY YOU'RE STILL GETTING THE ERROR:
+
+1. The updated code with fallback logic is in: supabase/functions/analyze-url/index.ts
+2. But Supabase is still running the OLD version without fallback support
+3. The OLD version fails immediately when OpenAI key is invalid
+4. The NEW version will fallback to DeepSeek
+
+================================================================================
+
+AFTER DEPLOYING:
+
+1. Make sure DEEPSEEK_API_KEY is set in Supabase Dashboard:
+   Settings → Edge Functions → Secrets → Add Secret
+
+2. Test the URL analyzer again
+
+3. Check logs: Dashboard → Edge Functions → analyze-url → Logs
+   You should see: "Fallback decision: { shouldFallback: true, ... }"
+
+================================================================================
+
+IMPORTANT: If you don't have DeepSeek API key, the function will STILL fail.
+You need EITHER:
+- A valid OpenAI API key, OR
+- A valid DeepSeek API key
+
+Right now you have an INVALID OpenAI key, so you MUST have DeepSeek key.
+
+================================================================================

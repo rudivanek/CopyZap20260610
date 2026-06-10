@@ -1,0 +1,188 @@
+{
+  "project": "CopyZap - Copy Snap IMPROVE Mode",
+  "version": "2.0.0",
+  "mode": "IMPROVE",
+  "description": "Full batch test specification with exhaustive option matrix",
+
+  "testCases": [
+    {
+      "id": 1,
+      "lang": "EN",
+      "category": "Tech/Product",
+      "originalText": "We've implemented a new caching layer that should help with performance issues some users have been experiencing lately, especially during peak hours."
+    },
+    {
+      "id": 2,
+      "lang": "EN",
+      "category": "Business/Marketing",
+      "originalText": "Our product helps teams collaborate better by providing tools that make it easier to share information and stay on the same page."
+    },
+    {
+      "id": 3,
+      "lang": "EN",
+      "category": "Founder Update",
+      "originalText": "Just wanted to share that we crossed 1000 users today which is pretty cool and we're grateful for everyone who has supported us along the way."
+    },
+    {
+      "id": 4,
+      "lang": "EN",
+      "category": "Email",
+      "originalText": "I wanted to reach out to see if you might be interested in learning more about what we're building and maybe we could set up a time to chat about it."
+    },
+    {
+      "id": 5,
+      "lang": "EN",
+      "category": "Tech Opinion",
+      "originalText": "A lot of startups are using AI these days but I think most of them are just adding it because it's trendy rather than solving real problems."
+    },
+    {
+      "id": 6,
+      "lang": "EN",
+      "category": "LinkedIn Insight",
+      "originalText": "After working in product for 5 years I've learned that talking to users regularly is more valuable than any amount of data analysis you can do."
+    },
+    {
+      "id": 7,
+      "lang": "EN",
+      "category": "Product Update",
+      "originalText": "We're deprecating the old API next month so if you're still using it you should probably start planning to migrate to the new version soon."
+    },
+    {
+      "id": 8,
+      "lang": "ES",
+      "category": "Tech/Product",
+      "originalText": "Hemos estado trabajando en mejorar la velocidad de la aplicación y creemos que ahora debería funcionar mucho mejor para la mayoría de los usuarios."
+    },
+    {
+      "id": 9,
+      "lang": "ES",
+      "category": "Business/Marketing",
+      "originalText": "Nuestra herramienta te ayuda a gestionar proyectos de una manera más eficiente y también facilita la comunicación entre los miembros del equipo."
+    },
+    {
+      "id": 10,
+      "lang": "ES",
+      "category": "Founder Update",
+      "originalText": "Después de 6 meses construyendo en público, hemos llegado a 500 usuarios y aunque no es mucho, estamos contentos con el progreso."
+    },
+    {
+      "id": 11,
+      "lang": "ES",
+      "category": "Email",
+      "originalText": "Quería contactarte para ver si estarías interesado en una demo de nuestro producto y tal vez podríamos agendar una llamada para la próxima semana."
+    },
+    {
+      "id": 12,
+      "lang": "ES",
+      "category": "Tech Opinion",
+      "originalText": "Muchas empresas están adoptando IA sin realmente entender cómo puede ayudar a su negocio específico y eso puede ser problemático."
+    },
+    {
+      "id": 13,
+      "lang": "ES",
+      "category": "LinkedIn Insight",
+      "originalText": "He aprendido que documentar tus procesos desde el principio te ahorra muchos dolores de cabeza cuando tu equipo empieza a crecer."
+    },
+    {
+      "id": 14,
+      "lang": "ES",
+      "category": "Product Update",
+      "originalText": "Estamos planeando lanzar nuevas funciones el próximo mes que incluyen modo oscuro y sincronización en tiempo real entre dispositivos."
+    },
+    {
+      "id": 15,
+      "lang": "DE",
+      "category": "Tech/Product",
+      "originalText": "Wir haben das Backend überarbeitet und die meisten Nutzer sollten jetzt eine deutlich bessere Performance bemerken, besonders bei großen Dateien."
+    },
+    {
+      "id": 16,
+      "lang": "DE",
+      "category": "Business/Marketing",
+      "originalText": "Unser Tool hilft Teams dabei, effizienter zusammenzuarbeiten, indem es die Kommunikation vereinfacht und alle Informationen an einem Ort bündelt."
+    },
+    {
+      "id": 17,
+      "lang": "DE",
+      "category": "Founder Update",
+      "originalText": "Nach einem Jahr harter Arbeit haben wir heute die 1000-Nutzer-Marke geknackt und sind dankbar für jeden, der uns unterstützt hat."
+    },
+    {
+      "id": 18,
+      "lang": "DE",
+      "category": "Email",
+      "originalText": "Ich würde mich freuen, wenn wir einen Termin vereinbaren könnten, um über mögliche Synergien zwischen unseren Unternehmen zu sprechen."
+    },
+    {
+      "id": 19,
+      "lang": "DE",
+      "category": "LinkedIn Insight",
+      "originalText": "In meiner Erfahrung als Produktmanager habe ich gelernt, dass regelmäßiges Feedback von Nutzern wichtiger ist als perfekte Planung."
+    },
+    {
+      "id": 20,
+      "lang": "DE",
+      "category": "Product Update",
+      "originalText": "Wir werden die alte API-Version nächsten Monat abschalten, daher sollten alle Nutzer bald auf die neue Version umsteigen."
+    }
+  ],
+
+  "optionMatrix": {
+    "totalCombinations": 180,
+    "goals": [
+      ["Clearer"],
+      ["Persuasive"],
+      ["Shorter"],
+      ["Punchier"],
+      ["Clearer", "Persuasive"],
+      ["Clearer", "Shorter"],
+      ["Clearer", "Punchier"],
+      ["Persuasive", "Shorter"],
+      ["Persuasive", "Punchier"],
+      ["Shorter", "Punchier"],
+      ["Clearer", "Persuasive", "Shorter"],
+      ["Clearer", "Persuasive", "Punchier"],
+      ["Clearer", "Shorter", "Punchier"],
+      ["Persuasive", "Shorter", "Punchier"],
+      ["Clearer", "Persuasive", "Shorter", "Punchier"]
+    ],
+    "platforms": ["General", "X", "LinkedIn", "Email"],
+    "lengths": ["Short", "Same", "Longer"]
+  },
+
+  "executionPlan": {
+    "totalTests": 3600,
+    "perTestCase": 180,
+    "description": "Each test case will be processed with all 180 option combinations (15 goals × 4 platforms × 3 lengths)"
+  },
+
+  "rules": [
+    "Preserve the original meaning and intent of the text",
+    "Do not invent facts, statistics, or details not present in the original",
+    "Match the language of the original text exactly (EN/ES/DE)",
+    "Respect platform norms and conventions",
+    "For platform=X: emojis and hashtags are acceptable",
+    "For platform=LinkedIn: professional tone, minimal emojis",
+    "For platform=Email: formal or semi-formal tone, no emojis",
+    "For platform=General: neutral, versatile tone",
+    "Apply all selected goals in combination",
+    "For goal=Clearer: simplify complex sentences, use concrete language",
+    "For goal=Persuasive: strengthen calls-to-action, emphasize benefits",
+    "For goal=Shorter: remove redundancy, use concise phrasing",
+    "For goal=Punchier: use strong verbs, active voice, impactful words",
+    "For length=Short: reduce word count by 20-40%",
+    "For length=Same: maintain similar word count (±10%)",
+    "For length=Longer: expand by 20-40% with relevant details",
+    "When multiple goals are selected, apply all simultaneously",
+    "No markdown formatting in outputs",
+    "No code blocks or technical formatting",
+    "Output should be ready-to-use text"
+  ],
+
+  "expectedOutput": {
+    "type": "text",
+    "count": 1,
+    "format": "plain text, no markdown",
+    "notes": "Return the improved version only, no explanation, no commentary, no quotation marks around the result"
+  }
+}

@@ -1,0 +1,282 @@
+{
+  "project": "CopyZap - Copy Snap ANSWER Mode",
+  "version": "1.0.0",
+  "mode": "ANSWER",
+  "description": "Full batch test specification for ANSWER mode with exhaustive option matrix (900 test scenarios)",
+
+  "testCases": [
+    {
+      "id": 1,
+      "lang": "EN",
+      "category": "Tech/Product",
+      "originalText": "Just shipped a new feature that lets users export their data in real-time. Took 3 months but finally done!"
+    },
+    {
+      "id": 2,
+      "lang": "EN",
+      "category": "Business/Marketing",
+      "originalText": "Most startups fail because they build what they want, not what customers need. Stop guessing and start talking to users."
+    },
+    {
+      "id": 3,
+      "lang": "EN",
+      "category": "Founder Update",
+      "originalText": "Officially at 10K MRR today. Started from $0 revenue 14 months ago. Grateful for every customer who believed in us."
+    },
+    {
+      "id": 4,
+      "lang": "EN",
+      "category": "Opinion",
+      "originalText": "AI is great but we're using it as a band-aid for bad UX. If your product needs AI to be usable, you have a design problem."
+    },
+    {
+      "id": 5,
+      "lang": "EN",
+      "category": "News/Announcement",
+      "originalText": "We're hiring a senior backend engineer! Fully remote, competitive salary, and you'll be working on infrastructure that handles 50M+ requests per day."
+    },
+    {
+      "id": 6,
+      "lang": "EN",
+      "category": "Light Humor",
+      "originalText": "My code before coffee: syntax errors everywhere. My code after coffee: logic errors everywhere. Progress."
+    },
+    {
+      "id": 7,
+      "lang": "EN",
+      "category": "Community/Cultural",
+      "originalText": "Shoutout to everyone who shares their startup journey publicly. Your transparency helps more people than you realize."
+    },
+    {
+      "id": 8,
+      "lang": "ES",
+      "category": "Tech/Product",
+      "originalText": "Acabamos de lanzar soporte multiidioma en nuestra app. Fue más complicado de lo que pensábamos pero valió la pena."
+    },
+    {
+      "id": 9,
+      "lang": "ES",
+      "category": "Business/Marketing",
+      "originalText": "El marketing no es spam. Si tu mensaje no ayuda a tu audiencia, no es marketing, es ruido."
+    },
+    {
+      "id": 10,
+      "lang": "ES",
+      "category": "Founder Update",
+      "originalText": "Hoy celebramos nuestro primer año como empresa. Han sido 365 días de aprendizaje intenso y crecimiento constante."
+    },
+    {
+      "id": 11,
+      "lang": "ES",
+      "category": "Opinion",
+      "originalText": "Trabajar remoto no significa estar disponible 24/7. Necesitamos normalizar los límites y el descanso."
+    },
+    {
+      "id": 12,
+      "lang": "ES",
+      "category": "News/Announcement",
+      "originalText": "Estamos buscando nuestro primer diseñador UI/UX. Si te apasiona crear experiencias simples y elegantes, hablemos."
+    },
+    {
+      "id": 13,
+      "lang": "ES",
+      "category": "Light Humor",
+      "originalText": "Mi proceso de debugging: 1) No funciona. 2) No sé por qué. 3) Funciona. 4) No sé por qué."
+    },
+    {
+      "id": 14,
+      "lang": "ES",
+      "category": "Community/Cultural",
+      "originalText": "Me encanta ver cómo la comunidad tech latina está creciendo. Cada día veo más proyectos increíbles saliendo de LATAM."
+    },
+    {
+      "id": 15,
+      "lang": "DE",
+      "category": "Tech/Product",
+      "originalText": "Wir haben gerade Dark Mode für unsere App ausgerollt. Die meistgewünschte Funktion unserer Community ist jetzt live!"
+    },
+    {
+      "id": 16,
+      "lang": "DE",
+      "category": "Business/Marketing",
+      "originalText": "Gute Kommunikation im Team ist wichtiger als alle Tools der Welt. Tools helfen nur, wenn die Basics stimmen."
+    },
+    {
+      "id": 17,
+      "lang": "DE",
+      "category": "Founder Update",
+      "originalText": "Nach 8 Monaten Entwicklung haben wir heute unsere Beta gestartet. Nervös und aufgeregt gleichzeitig."
+    },
+    {
+      "id": 18,
+      "lang": "DE",
+      "category": "Opinion",
+      "originalText": "Produktivität bedeutet nicht, 12 Stunden zu arbeiten. Es bedeutet, in weniger Zeit mehr zu erreichen."
+    },
+    {
+      "id": 19,
+      "lang": "DE",
+      "category": "Light Humor",
+      "originalText": "Ich: \"Das Feature ist in 2 Stunden fertig.\" Mein Code: \"Lass mich dir eine Geschichte über Edge Cases erzählen.\""
+    },
+    {
+      "id": 20,
+      "lang": "DE",
+      "category": "Community/Cultural",
+      "originalText": "Respekt an alle, die nebenbei an ihren Projekten arbeiten. Es ist nicht einfach, aber euer Durchhaltevermögen ist inspirierend."
+    }
+  ],
+
+  "optionMatrix": {
+    "totalCombinations": 45,
+    "replyStyles": [
+      "Helpful",
+      "Friendly",
+      "Confident",
+      "Witty",
+      "Direct"
+    ],
+    "stances": [
+      "Neutral",
+      "Agree",
+      "Disagree"
+    ],
+    "lengths": [
+      "Short",
+      "Medium",
+      "Long"
+    ]
+  },
+
+  "executionPlan": {
+    "totalTests": 900,
+    "perTestCase": 45,
+    "breakdown": {
+      "replyStyles": 5,
+      "stances": 3,
+      "lengths": 3
+    },
+    "calculation": "5 reply styles × 3 stances × 3 lengths = 45 combinations per test case",
+    "description": "Each test case will be processed with all 45 option combinations to generate replies"
+  },
+
+  "rules": [
+    "Respond in the same language as the original text (EN/ES/DE)",
+    "Do NOT invent facts, statistics, or details not present in the original",
+    "Respect the selected stance:",
+    "  - Neutral = balanced, non-committal, observational",
+    "  - Agree = supportive, aligned, reinforcing",
+    "  - Disagree = respectful, constructive, non-inflammatory",
+    "Respect Reply Style:",
+    "  - Helpful = informative, constructive, adds value",
+    "  - Friendly = warm, conversational, personable",
+    "  - Confident = assertive, clear, authoritative",
+    "  - Witty = light humor, clever phrasing (never sarcastic or rude)",
+    "  - Direct = concise, straight to the point, no fluff",
+    "Respect Length:",
+    "  - Short = 1-2 sentences (suitable for quick reply)",
+    "  - Medium = 2-4 sentences (balanced response)",
+    "  - Long = 4-6 sentences (detailed engagement)",
+    "Never be rude, aggressive, or dismissive",
+    "Avoid emojis unless Reply Style = Friendly or Witty (then use sparingly)",
+    "Avoid hashtags unless they clearly fit the context",
+    "No markdown formatting in outputs",
+    "No code blocks or technical formatting",
+    "Output should be ready-to-post text",
+    "For Stance=Disagree: always remain respectful and constructive",
+    "For Stance=Agree: add your own perspective, don't just echo",
+    "For Stance=Neutral: provide balanced viewpoint or ask questions",
+    "Match the tone and formality of the original post",
+    "If original is casual, reply casually",
+    "If original is professional, reply professionally",
+    "When Reply Style=Witty: be clever, not mean",
+    "When Reply Style=Direct: be concise, not blunt",
+    "Quality check: reply must be coherent as a standalone response",
+    "Quality check: reply must add value to the conversation",
+    "Quality check: reply must respect community norms (Twitter/LinkedIn style)"
+  ],
+
+  "expectedOutput": {
+    "type": "text",
+    "count": 1,
+    "format": "plain text, no markdown",
+    "notes": "Return the answer/reply only. No explanations, no quotes around the result, no commentary, no formatting. Just the raw reply text ready to be posted."
+  },
+
+  "exampleCombinations": [
+    {
+      "description": "Example 1: Supportive + Friendly + Short",
+      "options": {
+        "replyStyle": "Friendly",
+        "stance": "Agree",
+        "length": "Short"
+      },
+      "notes": "Should produce a warm, supportive 1-2 sentence reply"
+    },
+    {
+      "description": "Example 2: Constructive disagreement + Confident + Medium",
+      "options": {
+        "replyStyle": "Confident",
+        "stance": "Disagree",
+        "length": "Medium"
+      },
+      "notes": "Should produce a respectful but clear counterpoint in 2-4 sentences"
+    },
+    {
+      "description": "Example 3: Informative + Helpful + Long",
+      "options": {
+        "replyStyle": "Helpful",
+        "stance": "Neutral",
+        "length": "Long"
+      },
+      "notes": "Should provide balanced, informative response in 4-6 sentences"
+    },
+    {
+      "description": "Example 4: Quick wit + Witty + Short",
+      "options": {
+        "replyStyle": "Witty",
+        "stance": "Agree",
+        "length": "Short"
+      },
+      "notes": "Should be clever and supportive in 1-2 sentences with light humor"
+    },
+    {
+      "description": "Example 5: No-nonsense + Direct + Short",
+      "options": {
+        "replyStyle": "Direct",
+        "stance": "Neutral",
+        "length": "Short"
+      },
+      "notes": "Should be concise and to-the-point in 1-2 sentences"
+    }
+  ],
+
+  "qualityChecks": [
+    "Reply must be in the same language as original text",
+    "Reply must respect the stance (Neutral/Agree/Disagree)",
+    "Reply must match the selected reply style",
+    "Reply must fall within the length constraints",
+    "Reply must be coherent and grammatically correct",
+    "Reply must not be offensive, rude, or inflammatory",
+    "Reply must add value to the conversation",
+    "Reply must work as a standalone response (no context needed beyond original post)",
+    "For Disagree stance: must remain respectful and constructive",
+    "For Witty style: humor must be appropriate and not mean-spirited",
+    "No markdown formatting (**, __, etc.)",
+    "No code blocks or technical formatting",
+    "Emojis only if Reply Style = Friendly or Witty",
+    "Hashtags only if contextually appropriate"
+  ],
+
+  "notes": [
+    "This specification is designed for exhaustive batch testing",
+    "Total of 900 test scenarios (20 test cases × 45 combinations)",
+    "All test cases use realistic, tweet-like content",
+    "Language distribution: EN=7, ES=7, DE=6",
+    "Category distribution is balanced across tech, business, founder updates, opinions, news, humor, and community",
+    "Each combination should produce a unique, contextually appropriate reply",
+    "Test cases avoid extreme politics, hate speech, or unsafe content",
+    "All content is suitable for public social media platforms",
+    "This JSON serves as INPUT specification only - no generated answers included"
+  ]
+}

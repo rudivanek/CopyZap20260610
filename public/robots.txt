@@ -1,0 +1,28 @@
+# Robots.txt for CopyZap.app
+# Updated: 2025-01-13
+
+User-agent: *
+
+# --- Public pages (fully crawlable) ---
+Allow: /
+
+# --- Private / authenticated / app pages (blocked) ---
+Disallow: /login
+Disallow: /dashboard
+Disallow: /app
+Disallow: /copy-maker
+Disallow: /api/
+Disallow: /admin/
+Disallow: /_next/   # Only if using Next.js, otherwise remove
+
+# --- Static assets (already included under Allow: /) ---
+# These lines are optional; Remove if unnecessary
+# Allow: /assets/
+# Allow: /images/
+
+# --- Sitemaps ---
+Sitemap: https://copyzap.app/sitemap.xml
+Sitemap: https://copyzap.app/llm-sitemap.xml
+
+# --- Crawl delay (optional) ---
+Crawl-delay: 1

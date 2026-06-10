@@ -1,0 +1,18 @@
+# Static XML and text files must be served directly, NOT through the SPA
+/sitemap.xml /sitemap.xml 200
+/sitemap-main.xml /sitemap-main.xml 200
+/sitemap-help.xml /sitemap-help.xml 200
+/sitemap-app.xml /sitemap-app.xml 200
+/llm-sitemap.xml /llm-sitemap.xml 200
+/robots.txt /robots.txt 200
+/llms.txt /llms.txt 200
+
+# Redirect docs index to the React help center
+/docs/index.html /help 301
+/docs/ /help 301
+
+# Serve /docs/ directory as static files (not through React Router)
+/docs/* /docs/:splat 200
+
+# All other routes go to the SPA (React app)
+/* /index.html 200

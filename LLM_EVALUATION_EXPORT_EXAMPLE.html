@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LLM Evaluation Export Structure - Example</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    .section {
+      margin: 40px 0;
+      padding: 20px;
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+    }
+    .section h2 {
+      margin-top: 0;
+      color: #111827;
+    }
+    .hidden-section {
+      background: #fef3c7;
+      border-color: #f59e0b;
+    }
+    .visible-section {
+      background: #e0f2fe;
+      border-color: #0ea5e9;
+    }
+    .code-block {
+      background: #1f2937;
+      color: #e5e7eb;
+      padding: 16px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+    }
+    .note {
+      background: #dcfce7;
+      border: 1px solid #16a34a;
+      border-radius: 6px;
+      padding: 12px;
+      margin: 12px 0;
+      color: #166534;
+    }
+    .attribute {
+      color: #a855f7;
+      font-weight: bold;
+    }
+    .value {
+      color: #14b8a6;
+    }
+  </style>
+</head>
+<body>
+
+<h1>LLM Evaluation Export Structure - Example</h1>
+
+<p>This document shows the HTML structure added to exports for external LLM evaluation.</p>
+
+<!-- ============================================================================ -->
+<div class="section hidden-section">
+  <h2>🔒 HIDDEN: Context Section</h2>
+  <p><strong>Location:</strong> After input summary, before prompt evaluation</p>
+  <p><strong>Purpose:</strong> Provides configuration context for LLM evaluation</p>
+  <p><strong>Visibility:</strong> Hidden with <code>display: none;</code></p>
+
+  <div class="code-block">
+&lt;!-- LLM EVALUATION SECTION: Only use content inside #llm-evaluation-context
+     and #llm-evaluation-data when independently evaluating copy outputs.
+     Ignore all scoring and comparison UI elsewhere in this file. --&gt;
+
+&lt;section id=<span class="value">"llm-evaluation-context"</span>
+         data-purpose=<span class="value">"llm-context"</span>
+         style=<span class="value">"display: none;"</span>&gt;
+  &lt;div data-context-field=<span class="value">"language"</span>&gt;English&lt;/div&gt;
+  &lt;div data-context-field=<span class="value">"tone"</span>&gt;Professional&lt;/div&gt;
+  &lt;div data-context-field=<span class="value">"word-count"</span>&gt;Medium: 100-200&lt;/div&gt;
+  &lt;div data-context-field=<span class="value">"target-audience"</span>&gt;Business professionals&lt;/div&gt;
+  &lt;div data-context-field=<span class="value">"key-message"</span>&gt;Increase productivity&lt;/div&gt;
+  &lt;div data-context-field=<span class="value">"call-to-action"</span>&gt;Sign up for free trial&lt;/div&gt;
+&lt;/section&gt;
+  </div>
+
+  <div class="note">
+    ✅ Contains ONLY user input configuration<br>
+    ✅ NO scores, rankings, or evaluations<br>
+    ✅ Helps external LLMs understand the brief
+  </div>
+</div>
+
+<!-- ============================================================================ -->
+<div class="section hidden-section">
+  <h2>🔒 HIDDEN: Copy Data Section</h2>
+  <p><strong>Location:</strong> After context section</p>
+  <p><strong>Purpose:</strong> Provides raw copy versions without any scoring or UI</p>
+  <p><strong>Visibility:</strong> Hidden with <code>display: none;</code></p>
+
+  <div class="code-block">
+&lt;section id=<span class="value">"llm-evaluation-data"</span>
+         data-purpose=<span class="value">"llm-copy-extraction"</span>
+         data-evaluation-scope=<span class="value">"copy-only"</span>
+         style=<span class="value">"display: none;"</span>&gt;
+
+  &lt;!-- Original Copy (if in improve mode) --&gt;
+  &lt;article <span class="attribute">data-copy-id</span>=<span class="value">"__original__"</span>
+           <span class="attribute">data-copy</span>=<span class="value">"original"</span>
+           <span class="attribute">data-copy-kind</span>=<span class="value">"original"</span>
+           <span class="attribute">data-copy-label</span>=<span class="value">"Original Copy"</span>&gt;
+    &lt;h2&gt;Original Copy&lt;/h2&gt;
+    &lt;div <span class="attribute">data-copy-body</span>=<span class="value">"true"</span>&gt;
+      Transform your business with cutting-edge AI solutions
+      that streamline workflows and boost productivity.
+    &lt;/div&gt;
+  &lt;/article&gt;
+
+  &lt;!-- Generated Copy 1 --&gt;
+  &lt;article <span class="attribute">data-copy-id</span>=<span class="value">"abc-123"</span>
+           <span class="attribute">data-copy</span>=<span class="value">"generated-1"</span>
+           <span class="attribute">data-copy-kind</span>=<span class="value">"generated"</span>
+           <span class="attribute">data-copy-label</span>=<span class="value">"Generated Copy 1"</span>&gt;
+    &lt;h2&gt;Generated Copy 1&lt;/h2&gt;
+    &lt;div <span class="attribute">data-copy-body</span>=<span class="value">"true"</span>&gt;
+      Revolutionize Your Workflow with AI
+
+      Discover how artificial intelligence can transform
+      your business operations. Our platform helps you:
+
+      - Automate repetitive tasks
+      - Make data-driven decisions
+      - Scale efficiently
+
+      Start your free trial today and experience the future of work.
+    &lt;/div&gt;
+  &lt;/article&gt;
+
+  &lt;!-- Generated Copy 2 (Voice Applied) --&gt;
+  &lt;article <span class="attribute">data-copy-id</span>=<span class="value">"def-456"</span>
+           <span class="attribute">data-copy</span>=<span class="value">"generated-2"</span>
+           <span class="attribute">data-copy-kind</span>=<span class="value">"voice"</span>
+           <span class="attribute">data-copy-label</span>=<span class="value">"CEO's Voice"</span>&gt;
+    &lt;h2&gt;CEO's Voice&lt;/h2&gt;
+    &lt;div <span class="attribute">data-copy-body</span>=<span class="value">"true"</span>&gt;
+      Here's the truth: your competitors are already using AI.
+
+      The question isn't whether you should adopt AI—it's how fast you can move.
+
+      Our platform makes it simple:
+      → Automate in minutes, not months
+      → Scale without hiring
+      → Compete with enterprise-level efficiency
+
+      Try it free. No credit card required.
+    &lt;/div&gt;
+  &lt;/article&gt;
+
+&lt;/section&gt;
+  </div>
+
+  <div class="note">
+    ✅ Contains ONLY raw copy text<br>
+    ✅ NO scores, winner labels, or rankings<br>
+    ✅ NO recommendations or explanations<br>
+    ✅ Markdown stripped for clean text<br>
+    ✅ Each version clearly labeled and identified
+  </div>
+</div>
+
+<!-- ============================================================================ -->
+<div class="section visible-section">
+  <h2>👁️ VISIBLE: User Note</h2>
+  <p><strong>Location:</strong> After hidden sections, before output cards</p>
+  <p><strong>Purpose:</strong> Informs users about the structured data</p>
+  <p><strong>Visibility:</strong> Visible to users in the export</p>
+
+  <div class="code-block">
+&lt;div style=<span class="value">"background: #f9fafb; border: 1px solid #e5e7eb;
+            border-radius: 8px; padding: 16px; margin-bottom: 40px;
+            text-align: center;"</span>&gt;
+  &lt;p style=<span class="value">"margin: 0; font-size: 13px; color: #6b7280;"</span>&gt;
+    📊 &lt;em&gt;This export includes structured data for independent external
+    LLM evaluation. Hidden sections contain machine-readable copy versions
+    without scores or UI elements.&lt;/em&gt;
+  &lt;/p&gt;
+&lt;/div&gt;
+  </div>
+</div>
+
+<!-- ============================================================================ -->
+<div class="section visible-section">
+  <h2>👁️ VISIBLE: Enhanced Output Cards</h2>
+  <p><strong>Location:</strong> Main body of export</p>
+  <p><strong>Purpose:</strong> Display full output with scores AND provide data attributes</p>
+  <p><strong>Visibility:</strong> Fully visible with all formatting and scores</p>
+
+  <div class="code-block">
+&lt;div id=<span class="value">"output-abc-123"</span>
+     <span class="attribute">data-copy-id</span>=<span class="value">"abc-123"</span>
+     <span class="attribute">data-copy-kind</span>=<span class="value">"generated"</span>
+     <span class="attribute">data-copy-label</span>=<span class="value">"Generated Copy 1"</span>
+     style=<span class="value">"..."</span>&gt;
+
+  &lt;!-- Header Section --&gt;
+  &lt;div style=<span class="value">"..."</span>&gt;
+    &lt;h3&gt;Generated Copy 1&lt;/h3&gt;
+  &lt;/div&gt;
+
+  &lt;!-- Main Content with data-copy-body attribute --&gt;
+  &lt;div <span class="attribute">data-copy-body</span>=<span class="value">"true"</span> style=<span class="value">"..."</span>&gt;
+    &lt;h1&gt;Revolutionize Your Workflow with AI&lt;/h1&gt;
+    &lt;p&gt;Discover how artificial intelligence...&lt;/p&gt;
+    &lt;ul&gt;
+      &lt;li&gt;Automate repetitive tasks&lt;/li&gt;
+      &lt;li&gt;Make data-driven decisions&lt;/li&gt;
+      &lt;li&gt;Scale efficiently&lt;/li&gt;
+    &lt;/ul&gt;
+  &lt;/div&gt;
+
+  &lt;!-- Quality Score Section --&gt;
+  &lt;div style=<span class="value">"..."</span>&gt;
+    &lt;h3&gt;Quality Score&lt;/h3&gt;
+    &lt;div&gt;85&lt;/div&gt;
+    &lt;!-- Clarity, Persuasiveness, Tone, Engagement scores --&gt;
+  &lt;/div&gt;
+
+  &lt;!-- SEO Metadata Section --&gt;
+  &lt;div style=<span class="value">"..."</span>&gt;
+    &lt;h3&gt;SEO Metadata&lt;/h3&gt;
+    &lt;!-- URL slugs, meta descriptions, etc. --&gt;
+  &lt;/div&gt;
+
+&lt;/div&gt;
+  </div>
+
+  <div class="note">
+    ✅ Includes ALL content (copy + scores + metadata)<br>
+    ✅ Visible to users in the export<br>
+    ✅ Enhanced with data attributes for targeting<br>
+    ✅ <code>data-copy-body</code> marks the actual copy content
+  </div>
+</div>
+
+<!-- ============================================================================ -->
+<div class="section">
+  <h2>📖 How External LLMs Use This</h2>
+
+  <h3>Example Prompt for ChatGPT/Claude:</h3>
+  <div class="code-block" style="background: #f9fafb; color: #111827; border: 1px solid #e5e7eb;">
+I've uploaded an HTML export from CopyZap. Please analyze the copy versions.
+
+IMPORTANT INSTRUCTIONS:
+1. Only read content from these sections:
+   - #llm-evaluation-context (for configuration)
+   - #llm-evaluation-data (for copy versions)
+
+2. Ignore everything else, including:
+   - Scores and rankings
+   - Comparison tables
+   - Winner labels and explanations
+   - Performance metrics
+   - UI elements
+
+3. For each copy version:
+   - Extract the data-copy-label to identify it
+   - Read content from data-copy-body="true"
+   - Evaluate based on the context provided
+
+4. Provide your independent assessment of which version is best and why.
+  </div>
+
+  <h3>JavaScript Extraction Example:</h3>
+  <div class="code-block">
+<span class="value">// Extract evaluation context</span>
+const contextSection = document.getElementById('llm-evaluation-context');
+const context = {};
+contextSection.querySelectorAll('[data-context-field]').forEach(field => {
+  const key = field.getAttribute('data-context-field');
+  context[key] = field.textContent.trim();
+});
+
+<span class="value">// Extract copy versions</span>
+const dataSection = document.getElementById('llm-evaluation-data');
+const versions = [];
+dataSection.querySelectorAll('article[data-copy-id]').forEach(article => {
+  versions.push({
+    id: article.getAttribute('data-copy-id'),
+    kind: article.getAttribute('data-copy-kind'),
+    label: article.getAttribute('data-copy-label'),
+    content: article.querySelector('[data-copy-body]').textContent.trim()
+  });
+});
+
+console.log('Context:', context);
+console.log('Versions:', versions);
+
+<span class="value">// Result:</span>
+<span class="value">// Context: { language: "English", tone: "Professional", ... }</span>
+<span class="value">// Versions: [</span>
+<span class="value">//   { id: "__original__", kind: "original", label: "Original Copy", content: "..." },</span>
+<span class="value">//   { id: "abc-123", kind: "generated", label: "Generated Copy 1", content: "..." },</span>
+<span class="value">//   { id: "def-456", kind: "voice", label: "CEO's Voice", content: "..." }</span>
+<span class="value">// ]</span>
+  </div>
+</div>
+
+<!-- ============================================================================ -->
+<div class="section">
+  <h2>✅ Success Criteria Met</h2>
+  <ul>
+    <li>✅ Hidden context section with configuration only</li>
+    <li>✅ Hidden data section with raw copy versions only</li>
+    <li>✅ Clear data attributes on all containers</li>
+    <li>✅ HTML comment guidance for external LLMs</li>
+    <li>✅ No scores/rankings in hidden sections</li>
+    <li>✅ Dynamic generation for all output types</li>
+    <li>✅ Visible user note about structured data</li>
+    <li>✅ Clean content (markdown stripped)</li>
+    <li>✅ Backward compatible with existing exports</li>
+    <li>✅ Easy targeting with CSS selectors or JavaScript</li>
+  </ul>
+</div>
+
+<!-- ============================================================================ -->
+<div class="section">
+  <h2>🎯 Key Data Attributes Reference</h2>
+
+  <table style="width: 100%; border-collapse: collapse;">
+    <thead>
+      <tr style="background: #f3f4f6; text-align: left;">
+        <th style="padding: 12px; border: 1px solid #e5e7eb;">Attribute</th>
+        <th style="padding: 12px; border: 1px solid #e5e7eb;">Values</th>
+        <th style="padding: 12px; border: 1px solid #e5e7eb;">Purpose</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;"><code>data-purpose</code></td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;"><code>llm-context</code>, <code>llm-copy-extraction</code></td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;">Section type identifier</td>
+      </tr>
+      <tr style="background: #f9fafb;">
+        <td style="padding: 10px; border: 1px solid #e5e7eb;"><code>data-evaluation-scope</code></td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;"><code>copy-only</code></td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;">Indicates no scoring data</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;"><code>data-copy-id</code></td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;">UUID or <code>__original__</code></td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;">Unique version identifier</td>
+      </tr>
+      <tr style="background: #f9fafb;">
+        <td style="padding: 10px; border: 1px solid #e5e7eb;"><code>data-copy-kind</code></td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;"><code>original</code>, <code>generated</code>, <code>voice</code>, <code>modified</code></td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;">Type of copy version</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;"><code>data-copy-label</code></td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;">User-friendly name</td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;">Display name for version</td>
+      </tr>
+      <tr style="background: #f9fafb;">
+        <td style="padding: 10px; border: 1px solid #e5e7eb;"><code>data-copy-body</code></td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;"><code>true</code></td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;">Marks actual copy content</td>
+      </tr>
+      <tr>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;"><code>data-context-field</code></td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;"><code>language</code>, <code>tone</code>, <code>word-count</code>, etc.</td>
+        <td style="padding: 10px; border: 1px solid #e5e7eb;">Configuration field name</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+</body>
+</html>

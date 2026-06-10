@@ -1,0 +1,532 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>LLM Content Normalization - Before/After Example</title>
+  <style>
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      max-width: 1400px;
+      margin: 0 auto;
+      padding: 20px;
+      line-height: 1.6;
+    }
+    h1 {
+      color: #111827;
+      border-bottom: 3px solid #111827;
+      padding-bottom: 12px;
+    }
+    .comparison {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin: 40px 0;
+    }
+    .panel {
+      border: 2px solid #e5e7eb;
+      border-radius: 8px;
+      padding: 20px;
+    }
+    .before {
+      background: #fef2f2;
+      border-color: #ef4444;
+    }
+    .after {
+      background: #f0fdf4;
+      border-color: #22c55e;
+    }
+    .panel h2 {
+      margin-top: 0;
+      font-size: 18px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .before h2 {
+      color: #dc2626;
+    }
+    .after h2 {
+      color: #16a34a;
+    }
+    .code-block {
+      background: #1f2937;
+      color: #e5e7eb;
+      padding: 16px;
+      border-radius: 6px;
+      overflow-x: auto;
+      font-family: 'Courier New', monospace;
+      font-size: 13px;
+      margin: 12px 0;
+    }
+    .highlight {
+      background: #fef3c7;
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-weight: bold;
+    }
+    .problem {
+      color: #dc2626;
+      font-weight: bold;
+    }
+    .solution {
+      color: #16a34a;
+      font-weight: bold;
+    }
+    .note {
+      background: #e0f2fe;
+      border: 1px solid: #0ea5e9;
+      border-radius: 6px;
+      padding: 16px;
+      margin: 20px 0;
+    }
+    .example-section {
+      margin: 60px 0;
+      padding: 40px 0;
+      border-top: 2px solid #e5e7eb;
+    }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 20px 0;
+    }
+    th, td {
+      text-align: left;
+      padding: 12px;
+      border: 1px solid #e5e7eb;
+    }
+    th {
+      background: #f3f4f6;
+      font-weight: 600;
+    }
+    tr:nth-child(even) {
+      background: #f9fafb;
+    }
+  </style>
+</head>
+<body>
+
+<h1>LLM Content Normalization - Before/After Examples</h1>
+
+<p><strong>Purpose:</strong> Demonstrate how content normalization eliminates format bias in LLM evaluation exports.</p>
+
+<!-- ========================= EXAMPLE 1 ========================= -->
+<div class="example-section">
+  <h2>Example 1: Markdown-Heavy Copy</h2>
+
+  <div class="comparison">
+    <div class="panel before">
+      <h2>❌ Before Normalization</h2>
+      <p><span class="problem">Problem:</span> Mixed markdown artifacts</p>
+
+      <div class="code-block">
+<span class="highlight">**</span>Revolutionize Your Workflow with AI<span class="highlight">**</span>
+
+Transform your business with <span class="highlight">*</span>cutting-edge<span class="highlight">*</span> AI solutions.
+
+<span class="highlight">### Key Benefits</span>
+
+<span class="highlight">-</span> <span class="highlight">**</span>Automate<span class="highlight">**</span> repetitive tasks
+<span class="highlight">-</span> Make data-driven decisions
+<span class="highlight">-</span> Scale efficiently
+
+<span class="highlight">**CTA:**</span> Start your free trial today
+      </div>
+
+      <p><strong>Issues:</strong></p>
+      <ul>
+        <li>Markdown artifacts: <code>**</code>, <code>*</code>, <code>-</code></li>
+        <li>Inconsistent list formatting</li>
+        <li>Mixed heading styles</li>
+        <li>UI label present (<code>**CTA:**</code>)</li>
+      </ul>
+    </div>
+
+    <div class="panel after">
+      <h2>✅ After Normalization</h2>
+      <p><span class="solution">Solution:</span> Clean, consistent HTML</p>
+
+      <div class="code-block">
+&lt;p&gt;&lt;strong&gt;Revolutionize Your Workflow with AI&lt;/strong&gt;&lt;/p&gt;
+&lt;p&gt;Transform your business with &lt;em&gt;cutting-edge&lt;/em&gt; AI solutions.&lt;/p&gt;
+&lt;h3&gt;Key Benefits&lt;/h3&gt;
+&lt;ul&gt;
+  &lt;li&gt;&lt;strong&gt;Automate&lt;/strong&gt; repetitive tasks&lt;/li&gt;
+  &lt;li&gt;Make data-driven decisions&lt;/li&gt;
+  &lt;li&gt;Scale efficiently&lt;/li&gt;
+&lt;/ul&gt;
+&lt;p&gt;Start your free trial today&lt;/p&gt;
+      </div>
+
+      <p><strong>Results:</strong></p>
+      <ul>
+        <li>✅ Clean HTML tags</li>
+        <li>✅ Consistent structure</li>
+        <li>✅ No markdown artifacts</li>
+        <li>✅ UI labels removed</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ========================= EXAMPLE 2 ========================= -->
+<div class="example-section">
+  <h2>Example 2: Plain Text with UI Labels</h2>
+
+  <div class="comparison">
+    <div class="panel before">
+      <h2>❌ Before Normalization</h2>
+      <p><span class="problem">Problem:</span> UI labels and inconsistent structure</p>
+
+      <div class="code-block">
+<span class="highlight">Hero:</span> Revolutionize Your Workflow
+
+<span class="highlight">Section 1:</span> Transform your business with AI
+
+<span class="highlight">Benefits:</span>
+Automate repetitive tasks
+Make data-driven decisions
+Scale efficiently
+
+<span class="highlight">CTA:</span> Start your free trial
+      </div>
+
+      <p><strong>Issues:</strong></p>
+      <ul>
+        <li>UI labels: <code>Hero:</code>, <code>Section 1:</code>, <code>Benefits:</code>, <code>CTA:</code></li>
+        <li>No HTML structure</li>
+        <li>Plain text paragraphs</li>
+        <li>Unclear content hierarchy</li>
+      </ul>
+    </div>
+
+    <div class="panel after">
+      <h2>✅ After Normalization</h2>
+      <p><span class="solution">Solution:</span> Labels removed, structure added</p>
+
+      <div class="code-block">
+&lt;p&gt;Revolutionize Your Workflow&lt;/p&gt;
+&lt;p&gt;Transform your business with AI&lt;/p&gt;
+&lt;p&gt;Automate repetitive tasks
+Make data-driven decisions
+Scale efficiently&lt;/p&gt;
+&lt;p&gt;Start your free trial&lt;/p&gt;
+      </div>
+
+      <p><strong>Results:</strong></p>
+      <ul>
+        <li>✅ All UI labels removed</li>
+        <li>✅ Proper paragraphs</li>
+        <li>✅ Clean content</li>
+        <li>✅ Consistent formatting</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ========================= EXAMPLE 3 ========================= -->
+<div class="example-section">
+  <h2>Example 3: Structured Content Object</h2>
+
+  <div class="comparison">
+    <div class="panel before">
+      <h2>❌ Before Normalization</h2>
+      <p><span class="problem">Problem:</span> Inconsistent structured output</p>
+
+      <div class="code-block">
+{
+  "headline": "Revolutionize Your Workflow",
+  "sections": [
+    {
+      "title": "Key Benefits",
+      "content": "Transform your business.",
+      "listItems": [
+        "Automate tasks",
+        "Make decisions"
+      ]
+    }
+  ]
+}
+
+<span class="highlight">// Exported as plain text with markdown:</span>
+
+Revolutionize Your Workflow
+
+Key Benefits
+Transform your business.
+
+<span class="highlight">-</span> Automate tasks
+<span class="highlight">-</span> Make decisions
+      </div>
+
+      <p><strong>Issues:</strong></p>
+      <ul>
+        <li>Mixed format (object + markdown)</li>
+        <li>Inconsistent with other versions</li>
+        <li>List items as markdown</li>
+      </ul>
+    </div>
+
+    <div class="panel after">
+      <h2>✅ After Normalization</h2>
+      <p><span class="solution">Solution:</span> Structured HTML hierarchy</p>
+
+      <div class="code-block">
+&lt;h1&gt;Revolutionize Your Workflow&lt;/h1&gt;
+&lt;h2&gt;Key Benefits&lt;/h2&gt;
+&lt;p&gt;Transform your business.&lt;/p&gt;
+&lt;ul&gt;
+  &lt;li&gt;Automate tasks&lt;/li&gt;
+  &lt;li&gt;Make decisions&lt;/li&gt;
+&lt;/ul&gt;
+      </div>
+
+      <p><strong>Results:</strong></p>
+      <ul>
+        <li>✅ Proper HTML hierarchy</li>
+        <li>✅ Headline as H1</li>
+        <li>✅ Section title as H2</li>
+        <li>✅ Clean list structure</li>
+      </ul>
+    </div>
+  </div>
+</div>
+
+<!-- ========================= COMPARISON TABLE ========================= -->
+<div class="example-section">
+  <h2>Format Comparison Across 3 Versions</h2>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Element</th>
+        <th>Version 1 (Before)</th>
+        <th>Version 2 (Before)</th>
+        <th>Version 3 (Before)</th>
+        <th>All Versions (After)</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td><strong>Heading</strong></td>
+        <td><code>**Text**</code></td>
+        <td><code>Hero: Text</code></td>
+        <td>Object field</td>
+        <td class="solution"><code>&lt;h1&gt;Text&lt;/h1&gt;</code></td>
+      </tr>
+      <tr>
+        <td><strong>Bold Text</strong></td>
+        <td><code>**bold**</code></td>
+        <td>Plain text</td>
+        <td>Plain text</td>
+        <td class="solution"><code>&lt;strong&gt;bold&lt;/strong&gt;</code></td>
+      </tr>
+      <tr>
+        <td><strong>Italic Text</strong></td>
+        <td><code>*italic*</code></td>
+        <td>Plain text</td>
+        <td>Plain text</td>
+        <td class="solution"><code>&lt;em&gt;italic&lt;/em&gt;</code></td>
+      </tr>
+      <tr>
+        <td><strong>List Items</strong></td>
+        <td><code>- item</code></td>
+        <td>Plain text</td>
+        <td>Array items</td>
+        <td class="solution"><code>&lt;li&gt;item&lt;/li&gt;</code></td>
+      </tr>
+      <tr>
+        <td><strong>Paragraphs</strong></td>
+        <td>Double newline</td>
+        <td>Single line</td>
+        <td>Object field</td>
+        <td class="solution"><code>&lt;p&gt;text&lt;/p&gt;</code></td>
+      </tr>
+      <tr>
+        <td><strong>UI Labels</strong></td>
+        <td>None</td>
+        <td><code>Hero:</code>, <code>CTA:</code></td>
+        <td>None</td>
+        <td class="solution">None</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ========================= ACTUAL HTML STRUCTURE ========================= -->
+<div class="example-section">
+  <h2>Actual Exported HTML Structure</h2>
+
+  <p>This is exactly what appears in the hidden <code>#llm-evaluation-data</code> section:</p>
+
+  <div class="code-block">
+&lt;section id="llm-evaluation-data"
+         data-purpose="llm-copy-extraction"
+         data-evaluation-scope="copy-only"
+         style="display: none;"&gt;
+
+  &lt;!-- Original Copy --&gt;
+  &lt;article data-copy-id="__original__"
+           data-copy="original"
+           data-copy-kind="original"
+           data-copy-label="Original Copy"&gt;
+    &lt;h2&gt;Original Copy&lt;/h2&gt;
+    &lt;div data-copy-body="true" <span class="highlight">data-copy-normalized="true"</span>&gt;
+      &lt;p&gt;Transform your business with cutting-edge AI solutions.&lt;/p&gt;
+      &lt;ul&gt;
+        &lt;li&gt;Automate repetitive tasks&lt;/li&gt;
+        &lt;li&gt;Make data-driven decisions&lt;/li&gt;
+        &lt;li&gt;Scale efficiently&lt;/li&gt;
+      &lt;/ul&gt;
+    &lt;/div&gt;
+  &lt;/article&gt;
+
+  &lt;!-- Generated Copy 1 --&gt;
+  &lt;article data-copy-id="abc-123"
+           data-copy="generated-1"
+           data-copy-kind="generated"
+           data-copy-label="Generated Copy 1"&gt;
+    &lt;h2&gt;Generated Copy 1&lt;/h2&gt;
+    &lt;div data-copy-body="true" <span class="highlight">data-copy-normalized="true"</span>&gt;
+      &lt;h1&gt;Revolutionize Your Workflow with AI&lt;/h1&gt;
+      &lt;p&gt;Transform your business with cutting-edge AI solutions.&lt;/p&gt;
+      &lt;h2&gt;Key Benefits&lt;/h2&gt;
+      &lt;ul&gt;
+        &lt;li&gt;Automate repetitive tasks&lt;/li&gt;
+        &lt;li&gt;Make data-driven decisions&lt;/li&gt;
+        &lt;li&gt;Scale efficiently&lt;/li&gt;
+      &lt;/ul&gt;
+      &lt;p&gt;Start your free trial today&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/article&gt;
+
+  &lt;!-- Generated Copy 2 (Voice Applied) --&gt;
+  &lt;article data-copy-id="def-456"
+           data-copy="generated-2"
+           data-copy-kind="voice"
+           data-copy-label="CEO's Voice"&gt;
+    &lt;h2&gt;CEO's Voice&lt;/h2&gt;
+    &lt;div data-copy-body="true" <span class="highlight">data-copy-normalized="true"</span>&gt;
+      &lt;p&gt;Here's the truth: your competitors are already using AI.&lt;/p&gt;
+      &lt;p&gt;The question isn't whether you should adopt AI—it's how fast you can move.&lt;/p&gt;
+      &lt;ul&gt;
+        &lt;li&gt;Automate in minutes, not months&lt;/li&gt;
+        &lt;li&gt;Scale without hiring&lt;/li&gt;
+        &lt;li&gt;Compete with enterprise-level efficiency&lt;/li&gt;
+      &lt;/ul&gt;
+      &lt;p&gt;Try it free. No credit card required.&lt;/p&gt;
+    &lt;/div&gt;
+  &lt;/article&gt;
+
+&lt;/section&gt;
+  </div>
+
+  <div class="note">
+    <p><strong>Key Observations:</strong></p>
+    <ul>
+      <li>✅ All versions use <code>data-copy-normalized="true"</code></li>
+      <li>✅ All use consistent HTML tags (<code>&lt;p&gt;</code>, <code>&lt;ul&gt;</code>, <code>&lt;li&gt;</code>)</li>
+      <li>✅ No markdown artifacts remain</li>
+      <li>✅ No UI labels present</li>
+      <li>✅ Same structural patterns across versions</li>
+      <li>✅ Only content differs, not format</li>
+    </ul>
+  </div>
+</div>
+
+<!-- ========================= VALIDATION CHECKLIST ========================= -->
+<div class="example-section">
+  <h2>Validation Checklist</h2>
+
+  <p>Use this checklist to verify normalization is working correctly:</p>
+
+  <table>
+    <thead>
+      <tr>
+        <th>Check</th>
+        <th>What to Look For</th>
+        <th>Pass/Fail</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td>1. Attribute Present</td>
+        <td>All <code>div[data-copy-body]</code> have <code>data-copy-normalized="true"</code></td>
+        <td>✅ Pass</td>
+      </tr>
+      <tr>
+        <td>2. No Markdown</td>
+        <td>No <code>**</code>, <code>*</code>, or <code>-</code> at start of lines</td>
+        <td>✅ Pass</td>
+      </tr>
+      <tr>
+        <td>3. No UI Labels</td>
+        <td>No <code>Hero:</code>, <code>CTA:</code>, <code>Section:</code>, etc.</td>
+        <td>✅ Pass</td>
+      </tr>
+      <tr>
+        <td>4. Clean HTML Tags</td>
+        <td>Only <code>&lt;h1-3&gt;</code>, <code>&lt;p&gt;</code>, <code>&lt;ul&gt;</code>, <code>&lt;li&gt;</code>, <code>&lt;strong&gt;</code>, <code>&lt;em&gt;</code></td>
+        <td>✅ Pass</td>
+      </tr>
+      <tr>
+        <td>5. Consistent Structure</td>
+        <td>All versions with similar content use same tag hierarchy</td>
+        <td>✅ Pass</td>
+      </tr>
+      <tr>
+        <td>6. Normalized Spacing</td>
+        <td>Max 2 consecutive newlines, no excessive whitespace</td>
+        <td>✅ Pass</td>
+      </tr>
+      <tr>
+        <td>7. HTML Escaped</td>
+        <td>Special characters (<code>&lt;</code>, <code>&gt;</code>, <code>&amp;</code>) are escaped</td>
+        <td>✅ Pass</td>
+      </tr>
+      <tr>
+        <td>8. Meaning Preserved</td>
+        <td>Original content meaning unchanged, only format improved</td>
+        <td>✅ Pass</td>
+      </tr>
+    </tbody>
+  </table>
+</div>
+
+<!-- ========================= WHY THIS MATTERS ========================= -->
+<div class="example-section">
+  <h2>Why This Matters for LLM Evaluation</h2>
+
+  <div class="comparison">
+    <div class="panel before">
+      <h3>❌ Without Normalization</h3>
+      <p><strong>External LLM sees:</strong></p>
+      <ul>
+        <li>Version 1: Clean professional copy</li>
+        <li>Version 2: <span class="problem">Markdown artifacts everywhere</span></li>
+        <li>Version 3: <span class="problem">UI labels mixed in</span></li>
+      </ul>
+      <p><strong>Result:</strong> Version 1 scores higher because it <em>looks cleaner</em>, not because it's better copy.</p>
+      <p><strong>Bias:</strong> Format quality affects content score ❌</p>
+    </div>
+
+    <div class="panel after">
+      <h3>✅ With Normalization</h3>
+      <p><strong>External LLM sees:</strong></p>
+      <ul>
+        <li>Version 1: Clean HTML</li>
+        <li>Version 2: Clean HTML</li>
+        <li>Version 3: Clean HTML</li>
+      </ul>
+      <p><strong>Result:</strong> Scores based purely on content quality, message clarity, persuasiveness.</p>
+      <p><strong>Fair:</strong> Only content matters, not format ✅</p>
+    </div>
+  </div>
+
+  <div class="note">
+    <p><strong>Bottom Line:</strong></p>
+    <p>We're not improving the copy. We're <strong>removing evaluation noise</strong>.</p>
+    <p>This ensures fair, unbiased comparison of actual content quality.</p>
+  </div>
+</div>
+
+</body>
+</html>

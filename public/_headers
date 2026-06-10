@@ -1,0 +1,25 @@
+# Force correct MIME type for all XML files
+/sitemap.xml
+  Content-Type: application/xml
+
+/sitemap-main.xml
+  Content-Type: application/xml
+
+/sitemap-help.xml
+  Content-Type: application/xml
+
+/help/sitemap-help.xml
+  Content-Type: application/xml
+
+/sitemap-app.xml
+  Content-Type: application/xml
+
+/llm-sitemap.xml
+  Content-Type: application/xml
+
+# Ensure robots.txt and llms.txt are served as plain text
+/robots.txt
+  Content-Type: text/plain
+
+/llms.txt
+  Content-Type: text/plain
