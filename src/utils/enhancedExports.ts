@@ -2329,11 +2329,11 @@ export const formatAsEnhancedMarkdown = (
           markdown += `*Scoring context: ${ctxParts.join(' · ')}*\n\n`;
         }
         if (hasBaseline) {
-          markdown += `| Option | Words | Reading Level | Final Score | Δ vs Original | % Improved |\n`;
-          markdown += `|--------|:-----:|:-------------:|:-----------:|:-------------:|:----------:|\n`;
+          markdown += `| Option | Editorial Quality | Conversion Potential | Words | Reading Level | Final Score | Δ vs Original | % Improved |\n`;
+          markdown += `|--------|:-----------------:|:--------------------:|:-----:|:-------------:|:-----------:|:-------------:|:----------:|\n`;
         } else {
-          markdown += `| Option | Words | Reading Level | Final Score | Δ vs Best |\n`;
-          markdown += `|--------|:-----:|:-------------:|:-----------:|:---------:|\n`;
+          markdown += `| Option | Editorial Quality | Conversion Potential | Words | Reading Level | Final Score | Δ vs Best |\n`;
+          markdown += `|--------|:-----------------:|:--------------------:|:-----:|:-------------:|:-----------:|:---------:|\n`;
         }
         sortedRows.forEach((row: any) => {
           const winnerTag = row.isWinner ? ' **(Winner)**' : '';
@@ -2349,6 +2349,8 @@ export const formatAsEnhancedMarkdown = (
             else if (typeof matchingCardMd.content === 'object') contentTextMd = structuredToPlainText(matchingCardMd.content as StructuredCopyOutput);
           }
 
+          const editorialCol = contentTextMd ? `${computeEditorialQuality(contentTextMd)}/100` : '—';
+          const convPotentialCol = contentTextMd ? `${computeConversionPotential(contentTextMd)}/100` : '—';
           const wcrl = contentTextMd ? computeWordCountAndReadingLevel(contentTextMd) : null;
           const wordsCol = wcrl ? `${wcrl.wordCount}` : '—';
           const readingCol = wcrl ? wcrl.readingLevel : '—';
@@ -2358,13 +2360,13 @@ export const formatAsEnhancedMarkdown = (
             if (row.improvementPct === null) improvPct = '—';
             else if (row.improvementPct === 0) improvPct = '0%';
             else improvPct = `${row.improvementPct > 0 ? '+' : ''}${row.improvementPct}%`;
-            markdown += `| ${row.optionLabel}${winnerTag} | ${wordsCol} | ${readingCol} | ${row.finalScore} | ${mdDeltaLabel} | ${improvPct} |\n`;
+            markdown += `| ${row.optionLabel}${winnerTag} | ${editorialCol} | ${convPotentialCol} | ${wordsCol} | ${readingCol} | ${row.finalScore} | ${mdDeltaLabel} | ${improvPct} |\n`;
           } else {
-            markdown += `| ${row.optionLabel}${winnerTag} | ${wordsCol} | ${readingCol} | ${row.finalScore} | ${mdDeltaLabel} |\n`;
+            markdown += `| ${row.optionLabel}${winnerTag} | ${editorialCol} | ${convPotentialCol} | ${wordsCol} | ${readingCol} | ${row.finalScore} | ${mdDeltaLabel} |\n`;
           }
         });
         markdown += `\n`;
-        markdown += `> **Final Score** is 0–100.${hasBaseline ? ' **Δ vs Original** and **% Improved** are relative to the Original Copy baseline.' : ' **Δ vs Best** compares each option to the top-scoring version.'}\n\n`;
+        markdown += `> **Editorial Quality** measures writing clarity and professionalism. **Conversion Potential** measures likelihood of driving reader action. **Final Score** is 0–100.${hasBaseline ? ' **Δ vs Original** and **% Improved** are relative to the Original Copy baseline.' : ' **Δ vs Best** compares each option to the top-scoring version.'}\n\n`;
 
         // 3d. PER-ROW DECISION DETAILS (decisionSummary, decisionReason only)
         const rowsWithDecision = sortedRows.filter((r: any) => r.decisionSummary || r.decisionReason);
@@ -2420,6 +2422,12 @@ export const formatAsEnhancedMarkdown = (
               markdown += `\n`;
             }
 
+            // — ITEM 1: Dual scores —
+            const editorialQ = contentTextForMdScores ? computeEditorialQuality(contentTextForMdScores) : row.finalScore;
+            const convPotential = contentTextForMdScores ? computeConversionPotential(contentTextForMdScores) : row.finalScore;
+            markdown += `**Editorial Quality:** ${editorialQ}/100\n`;
+            markdown += `**Conversion Potential:** ${convPotential}/100\n\n`;
+
             // — ITEM 8: Word count + reading level —
             if (contentTextForMdScores) {
               const wcrl = computeWordCountAndReadingLevel(contentTextForMdScores);
@@ -2443,6 +2451,32 @@ export const formatAsEnhancedMarkdown = (
               statsLine += ` | **% Improved:** ${improvPctStr}`;
             }
             markdown += `${statsLine}\n\n`;
+
+            // — ITEM 2: Persuasion breakdown —
+            if (contentTextForMdScores) {
+              const pb = computePersuasionBreakdown(contentTextForMdScores);
+              markdown += `#### Persuasion Breakdown\n\n`;
+              markdown += `- Emotional Impact: ${pb.emotionalImpact}/100\n`;
+              markdown += `- Clarity: ${pb.clarity}/100\n`;
+              markdown += `- Trust: ${pb.trust}/100\n`;
+              markdown += `- Specificity: ${pb.specificity}/100\n`;
+              markdown += `- Urgency: ${pb.urgency}/100\n`;
+              markdown += `- Professionalism: ${pb.professionalism}/100\n`;
+              markdown += `- Readability: ${pb.readability}/100\n`;
+              markdown += `- CTA Strength: ${pb.ctaStrength}/100\n`;
+              markdown += `- Audience Fit: ${pb.audienceFit}/100\n`;
+              markdown += `- Differentiation: ${pb.differentiation}/100\n\n`;
+            }
+
+            // — ITEM 3: Audience Fit —
+            if (contentTextForMdScores) {
+              const af = computeAudienceFit(contentTextForMdScores, true);
+              markdown += `#### Audience Fit\n\n`;
+              markdown += `- SMB Owners: ${af.smbOwners}${af.smbReason ? ` — ${af.smbReason}` : ''}\n`;
+              markdown += `- Corporate Executives: ${af.corporateExecutives}${af.corporateReason ? ` — ${af.corporateReason}` : ''}\n`;
+              markdown += `- Traditional Industries: ${af.traditionalIndustries}${af.traditionalReason ? ` — ${af.traditionalReason}` : ''}\n`;
+              markdown += `- High-pressure sales teams: ${af.highPressureSales}${af.highPressureReason ? ` — ${af.highPressureReason}` : ''}\n\n`;
+            }
 
             // — ITEM 4: Risk Factors —
             if (contentTextForMdScores) {
@@ -3826,12 +3860,17 @@ export const exportLLMEvaluationAudit = (
         rows.sort((a: any, b: any) => (a.rank || 0) - (b.rank || 0)).forEach((row: any) => {
           const label = row.label || row.optionLabel || 'Unknown';
           const ct = contentMap[row.versionId] || contentMap[label] || '';
+          const rowScore = row.finalScore ?? 0;
+          const editorialQ = ct ? computeEditorialQuality(ct) : rowScore;
+          const convPotential = ct ? computeConversionPotential(ct) : rowScore;
           const wcrl = ct ? computeWordCountAndReadingLevel(ct) : null;
           const confidence = ct ? computeEvaluationConfidence(ct) : { confidence: 'Medium' as const };
           const strategy = ct ? computeConversionStrategy(ct) : 'ROI Framing' as const;
           const intensity = ct ? computeCommercialIntensity(ct) : 'Medium' as const;
           const driver = ct ? computeMostLikelyConversionDriver(ct) : 'Relevance to reader context.';
+          const af = ct ? computeAudienceFit(ct, true) : null;
           const risks = ct ? computeRiskFactors(ct, row.verificationFlags) : [];
+          const pb = ct ? computePersuasionBreakdown(ct) : null;
 
           markdown += `#### ${label}${row.isWinner ? ' (WINNER)' : ''}\n\n`;
 
@@ -3844,11 +3883,37 @@ export const exportLLMEvaluationAudit = (
             markdown += `\n`;
           }
 
+          markdown += `**Editorial Quality:** ${editorialQ}/100\n`;
+          markdown += `**Conversion Potential:** ${convPotential}/100\n`;
           if (wcrl) {
             markdown += `**Word Count:** ${wcrl.wordCount} words\n`;
             markdown += `**Reading Level:** ${wcrl.readingLevel}\n`;
           }
           markdown += `\n`;
+
+          // Persuasion breakdown
+          if (pb) {
+            markdown += `**Persuasion Breakdown:**\n`;
+            markdown += `- Emotional Impact: ${pb.emotionalImpact}/100\n`;
+            markdown += `- Clarity: ${pb.clarity}/100\n`;
+            markdown += `- Trust: ${pb.trust}/100\n`;
+            markdown += `- Specificity: ${pb.specificity}/100\n`;
+            markdown += `- Urgency: ${pb.urgency}/100\n`;
+            markdown += `- Professionalism: ${pb.professionalism}/100\n`;
+            markdown += `- Readability: ${pb.readability}/100\n`;
+            markdown += `- CTA Strength: ${pb.ctaStrength}/100\n`;
+            markdown += `- Audience Fit: ${pb.audienceFit}/100\n`;
+            markdown += `- Differentiation: ${pb.differentiation}/100\n\n`;
+          }
+
+          // Audience Fit
+          if (af) {
+            markdown += `**Audience Fit:**\n`;
+            markdown += `- SMB Owners: ${af.smbOwners}${af.smbReason ? ` — ${af.smbReason}` : ''}\n`;
+            markdown += `- Corporate Executives: ${af.corporateExecutives}${af.corporateReason ? ` — ${af.corporateReason}` : ''}\n`;
+            markdown += `- Traditional Industries: ${af.traditionalIndustries}${af.traditionalReason ? ` — ${af.traditionalReason}` : ''}\n`;
+            markdown += `- High-pressure sales teams: ${af.highPressureSales}${af.highPressureReason ? ` — ${af.highPressureReason}` : ''}\n\n`;
+          }
 
           // Risk Factors
           if (risks.length > 0) {
