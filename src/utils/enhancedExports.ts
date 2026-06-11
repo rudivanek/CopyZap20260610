@@ -411,41 +411,6 @@ function normalizeMarkdownSpacing(markdown: string): string {
   return normalized;
 }
 
-// Helper functions for comprehensive score explanations
-function getConversionExplanation(score: number): string {
-  if (score >= 80) {
-    return "Strong persuasive elements and clear value proposition drive action effectively.";
-  } else if (score >= 60) {
-    return "Moderate persuasiveness with room to strengthen urgency and call-to-action.";
-  } else if (score >= 40) {
-    return "Value is present but lacks compelling urgency or strong motivators for action.";
-  } else {
-    return "Limited persuasive elements; needs stronger value proposition and clearer call-to-action.";
-  }
-}
-
-function getTrustExplanation(score: number): string {
-  if (score >= 80) {
-    return "Highly credible with authentic tone, strong proof points, and trustworthy language.";
-  } else if (score >= 60) {
-    return "Generally credible but could benefit from more proof or softer claims.";
-  } else if (score >= 40) {
-    return "Some credibility concerns; claims may feel exaggerated or lack supporting evidence.";
-  } else {
-    return "Credibility issues detected; tone or claims may seem untrustworthy or overly aggressive.";
-  }
-}
-
-function getRiskExplanation(risk: string): string {
-  if (risk === 'Low') {
-    return "Safe, professional tone with no red flags for spam or compliance issues.";
-  } else if (risk === 'Medium') {
-    return "Generally safe but contains elements that could raise minor concerns in certain contexts.";
-  } else {
-    return "Contains language patterns that may trigger spam filters or compliance concerns.";
-  }
-}
-
 interface SeoMetadata {
   urlSlugs?: string[];
   metaDescriptions?: string[];
@@ -2118,44 +2083,6 @@ export const formatAsEnhancedMarkdown = (
       ? actualContentToProcess
       : structuredToPlainText(actualContentToProcess);
 
-    if (contentForScoring && contentForScoring.trim()) {
-      const comprehensiveScores = calculateMultiScoreDisplay(contentForScoring);
-
-      markdown += `#### Sub-Scores\n\n`;
-      markdown += `**Conversion:** ${comprehensiveScores.conversion}/100\n\n`;
-
-      // Conversion explanation
-      if (comprehensiveScores.conversion >= 60) {
-        markdown += `*Conversion:* Moderate persuasiveness with room to strengthen urgency and call-to-action.\n\n`;
-      } else if (comprehensiveScores.conversion >= 45) {
-        markdown += `*Conversion:* Value is present but lacks compelling urgency or strong motivators for action.\n\n`;
-      } else {
-        markdown += `*Conversion:* Limited persuasive elements; needs stronger value proposition and clearer call-to-action.\n\n`;
-      }
-
-      markdown += `**Trust:** ${comprehensiveScores.trust}/100\n\n`;
-
-      // Trust explanation
-      if (comprehensiveScores.trust >= 60) {
-        markdown += `*Trust:* Generally credible but could benefit from more proof or softer claims.\n\n`;
-      } else if (comprehensiveScores.trust >= 40) {
-        markdown += `*Trust:* Some credibility concerns; claims may feel exaggerated or lack supporting evidence.\n\n`;
-      } else {
-        markdown += `*Trust:* Credibility issues detected; tone or claims may seem untrustworthy or overly aggressive.\n\n`;
-      }
-
-      markdown += `**Risk:** ${comprehensiveScores.risk}\n\n`;
-
-      // Risk explanation
-      if (comprehensiveScores.risk === 'Low') {
-        markdown += `*Risk:* Safe, professional tone with no red flags for spam or compliance issues.\n\n`;
-      } else if (comprehensiveScores.risk === 'Medium') {
-        markdown += `*Risk:* Generally safe but contains elements that could raise minor concerns in certain contexts.\n\n`;
-      } else {
-        markdown += `*Risk:* Contains language patterns that may trigger spam filters or compliance concerns.\n\n`;
-      }
-    }
-
     // Deep Analysis Sections (Key Strengths and Suggested Improvements)
     // ALWAYS generate these on-the-fly from content, regardless of whether deep analysis was triggered in app
     if (contentForScoring && contentForScoring.trim()) {
@@ -2564,14 +2491,6 @@ export const formatAsEnhancedMarkdown = (
             const analysis = versionDeepAnalysis?.[row.versionId];
             if (analysis && !analysis.errorMessage) {
               markdown += `${analysis.summary}\n\n`;
-
-              // Legacy sub-scores (kept for reference alongside new breakdown)
-              if (contentTextForMdScores) {
-                const subScoresMd = calculateMultiScoreDisplay(contentTextForMdScores);
-                markdown += `- **Conversion (${subScoresMd.conversion}/100):** ${getConversionExplanation(subScoresMd.conversion)}\n`;
-                markdown += `- **Trust (${subScoresMd.trust}/100):** ${getTrustExplanation(subScoresMd.trust)}\n`;
-                markdown += `- **Risk (${subScoresMd.risk}):** ${getRiskExplanation(subScoresMd.risk)}\n\n`;
-              }
 
               // Absolute Score removed — shown in rankings table only
 
