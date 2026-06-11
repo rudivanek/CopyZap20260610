@@ -771,25 +771,9 @@ export const generateFullHtmlExportForCard = (
       ? structuredToPlainText(actualContent as StructuredCopyOutput) : '';
 
   if (contentForScoring.trim()) {
-    const sub = calculateMultiScoreDisplay(contentForScoring);
     const analysis = generateExportAnalysis(contentForScoring);
 
     html += '<div style="margin-bottom:32px;">\n';
-    html += '<p style="font-size:11px;letter-spacing:0.08em;color:#6b7280;text-transform:uppercase;font-weight:600;margin:0 0 8px 0;">SUB-SCORES</p>\n';
-    html += `<p style="font-size:13px;color:#6b7280;margin:0 0 8px 0;">Conversion: <strong style="color:#111827;">${sub.conversion}/100</strong> &nbsp;·&nbsp; Trust: <strong style="color:#111827;">${sub.trust}/100</strong> &nbsp;·&nbsp; Risk: <strong style="color:#111827;">${sub.risk}</strong></p>\n`;
-
-    const convExp = sub.conversion >= 60 ? 'Moderate persuasiveness with room to strengthen urgency and CTA.'
-      : sub.conversion >= 45 ? 'Value present but lacks compelling urgency or strong motivators.'
-      : 'Limited persuasive elements; needs stronger value proposition and clearer CTA.';
-    const trustExp = sub.trust >= 60 ? 'Generally credible but could benefit from more proof or softer claims.'
-      : sub.trust >= 40 ? 'Some credibility concerns; claims may feel exaggerated or lack evidence.'
-      : 'Credibility issues detected; tone or claims may seem untrustworthy.';
-    const riskExp = sub.risk === 'Low' ? 'Safe, professional tone — no red flags for spam or compliance.'
-      : sub.risk === 'Medium' ? 'Generally safe but contains elements that could raise minor concerns.'
-      : 'Contains language patterns that may trigger spam filters or compliance concerns.';
-    html += `<p style="font-size:13px;color:#6b7280;font-style:italic;margin:2px 0;">Conversion: ${convExp}</p>\n`;
-    html += `<p style="font-size:13px;color:#6b7280;font-style:italic;margin:2px 0;">Trust: ${trustExp}</p>\n`;
-    html += `<p style="font-size:13px;color:#6b7280;font-style:italic;margin:2px 0;">Risk: ${riskExp}</p>\n`;
 
     // Absolute Score breakdown removed — scores shown in rankings table only
 
