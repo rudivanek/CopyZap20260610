@@ -3155,54 +3155,6 @@ export const exportAsFormattedHtml = (
           }
           htmlContent += '</div>\n';
 
-          // ── ITEM 2: Persuasion breakdown grid (10 dimensions as progress bars) ──
-          if (htmlPb) {
-            const pbDims: [string, number][] = [
-              ['Emotional Impact', htmlPb.emotionalImpact],
-              ['Clarity', htmlPb.clarity],
-              ['Trust', htmlPb.trust],
-              ['Specificity', htmlPb.specificity],
-              ['Urgency', htmlPb.urgency],
-              ['Professionalism', htmlPb.professionalism],
-              ['Readability', htmlPb.readability],
-              ['CTA Strength', htmlPb.ctaStrength],
-              ['Audience Fit', htmlPb.audienceFit],
-              ['Differentiation', htmlPb.differentiation],
-            ];
-            htmlContent += '<div style="margin-top:10px;">\n';
-            htmlContent += '<div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Persuasion Breakdown</div>\n';
-            htmlContent += '<div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:4px 16px;">\n';
-            pbDims.forEach(([name, val]) => {
-              const barColor = val >= 75 ? '#22c55e' : val >= 50 ? '#f59e0b' : '#f87171';
-              htmlContent += `<div style="display:flex;align-items:center;gap:6px;">\n`;
-              htmlContent += `<span style="font-size:11px;color:#374151;min-width:110px;">${name}</span>\n`;
-              htmlContent += `<div style="flex:1;background:#f3f4f6;border-radius:3px;height:6px;overflow:hidden;">\n`;
-              htmlContent += `<div style="width:${val}%;height:6px;background:${barColor};border-radius:3px;"></div>\n`;
-              htmlContent += `</div>\n`;
-              htmlContent += `<span style="font-size:10px;font-weight:600;color:#374151;min-width:28px;text-align:right;">${val}</span>\n`;
-              htmlContent += `</div>\n`;
-            });
-            htmlContent += '</div>\n</div>\n';
-          }
-
-          // ── ITEM 3: Audience Fit ──
-          if (htmlAf) {
-            const fitColor = (f: string) => f === 'High' ? '#15803d' : f === 'Medium' ? '#92400e' : '#9ca3af';
-            const fitBg = (f: string) => f === 'High' ? '#f0fdf4' : f === 'Medium' ? '#fefce8' : '#f9fafb';
-            htmlContent += '<div style="margin-top:10px;">\n';
-            htmlContent += '<div style="font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:6px;">Audience Fit</div>\n';
-            htmlContent += '<div style="display:flex;gap:6px;flex-wrap:wrap;">\n';
-            [
-              ['SMB Owners', htmlAf.smbOwners],
-              ['Corporate Exec', htmlAf.corporateExecutives],
-              ['Traditional Industries', htmlAf.traditionalIndustries],
-              ['High-Pressure Sales', htmlAf.highPressureSales],
-            ].forEach(([label, fit]) => {
-              htmlContent += `<span style="background:${fitBg(fit as string)};color:${fitColor(fit as string)};border:1px solid currentColor;border-radius:4px;padding:2px 8px;font-size:10px;font-weight:600;">${label}: ${fit}</span>\n`;
-            });
-            htmlContent += '</div>\n</div>\n';
-          }
-
           // ── ITEM 4: Risk Factors ──
           if (htmlRisks.length > 0) {
             htmlContent += '<div style="margin-top:10px;padding:8px 12px;background:#fef2f2;border-left:3px solid #fca5a5;border-radius:4px;">\n';
