@@ -15,7 +15,6 @@ import { GeneratedContentItem, Model, ScoringContext } from '../../types';
 import { makeApiRequestWithFallback, cleanJsonResponse } from './utils';
 import { SCORING_MODEL } from '../../constants';
 import { calculateMultiScoreDisplay } from '../../utils/multiScoreDisplay';
-import comparisonPrompt from '../../prompts/copyzap-comparison-prompt.md?raw';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES
@@ -124,11 +123,7 @@ ${sanitizedContent}
     : 'None provided';
   const sectionInfo = section?.trim() || null;
 
-  const prompt = `${comparisonPrompt}
-
----
-
-You are a senior marketing strategist performing a RELATIVE evaluation of multiple copy versions.
+  const prompt = `You are a senior marketing strategist performing a RELATIVE evaluation of multiple copy versions.
 
 Your goal: Compare all versions against each other and rank them from best to worst.
 

@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Save, FileText, Code, FileCode, Sparkles, FlaskConical, CheckCircle2, BookmarkPlus, ChevronDown, ChevronRight, Wand2, CreditCard as Edit, Zap, Globe, BookCheck, MapPin, Copy, Check, BookOpen, PanelRight, X, Trash2, RefreshCw, GitMerge, File as FileEdit, Rocket, PenLine, Camera, LayoutDashboard, Loader2, Scale } from 'lucide-react';
+import { Save, FileText, Code, FileCode, Sparkles, FlaskConical, CheckCircle2, BookmarkPlus, ChevronDown, ChevronRight, Wand2, CreditCard as Edit, Zap, Globe, BookCheck, MapPin, Copy, Check, BookOpen, PanelRight, X, Trash2, RefreshCw, GitMerge, File as FileEdit, Rocket, PenLine, Camera, LayoutDashboard, Loader2 } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getUserSavedOutputsMeta, getUserCopySessions } from '../../services/supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -1422,15 +1422,6 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                 <SidebarBtn onClick={handleCopyAllMarkdown} title="Copy all content as Markdown">
                   <FileText size={10} />
                   Copy as Markdown
-                </SidebarBtn>
-              )}
-              {hasContent && scorableVersions.length >= 2 && onCompareWithGrok && (
-                <SidebarBtn
-                  onClick={() => onCompareWithGrok(false)}
-                  title="Compare all outputs and generate analysis"
-                >
-                  <Scale size={10} />
-                  {comparisonResult ? 'Re-compare' : 'Compare Outputs'}
                 </SidebarBtn>
               )}
               {hasContent && (
