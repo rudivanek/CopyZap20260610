@@ -1213,6 +1213,9 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
   };
 
   // ── Evaluation Report state ───────────────────────────────────────────────
+  const SCAFFOLD_PATTERNS = [/12960/i, /column widths sum/i, /Before generating/i, /Verify:/i];
+  const filterScaffoldingLines = (html: string): string =>
+    html.split('\n').filter(line => !SCAFFOLD_PATTERNS.some(p => p.test(line))).join('\n');
   const [isGeneratingEvalReport, setIsGeneratingEvalReport] = useState(false);
   const [evalReportMarkdown, setEvalReportMarkdown] = useState<string | null>(null);
   const [evalReportFilename, setEvalReportFilename] = useState<string>('');
@@ -1277,140 +1280,251 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
       const {
         Document, Packer, Paragraph, TextRun, HeadingLevel,
         Table, TableRow, TableCell, WidthType, ShadingType,
-        AlignmentType, PageOrientation,
+        AlignmentType, PageOrientation, BorderStyle,
+        LevelFormat, AbstractNumbering, Numbering,
+        NumberFormat,
       } = await import('docx');
 
-      const lines = evalReportMarkdown.split('\n');
-      const children: any[] = [];
+      // ── Constants ──────────────────────────────────────────────────────────
+      const CONTENT_WIDTH = 12960; // DXA (landscape Letter minus 2×1440 margins)
+      const C_PRIMARY   = '000000';
+      const C_MUTED     = '404040';
+      const C_HDR_FILL  = 'D9D9D9';
+      const C_ALT_FILL  = 'F2F2F2';
+      const C_WHITE     = 'FFFFFF';
+      const C_BORDER    = 'BFBFBF';
 
-      // Locate the comparison table block
-      let tableStartIdx = -1;
-      let tableEndIdx = -1;
-      for (let i = 0; i < lines.length; i++) {
-        if (/comparison table/i.test(lines[i]) && tableStartIdx === -1) {
-          // Look ahead for the table
-          for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
-            if (lines[j].includes('|') && lines[j].trim().startsWith('|')) {
-              tableStartIdx = j;
-              break;
-            }
+      const cellBorder = (color = C_BORDER) => ({
+        top:    { style: BorderStyle.SINGLE, size: 4, color },
+        bottom: { style: BorderStyle.SINGLE, size: 4, color },
+        left:   { style: BorderStyle.SINGLE, size: 4, color },
+        right:  { style: BorderStyle.SINGLE, size: 4, color },
+      });
+
+      // Column-width lookup keyed by column count
+      const COL_WIDTH_MAP: Record<number, number[]> = {
+        6: [2600, 1500, 1700, 1760, 1700, 3700],
+        4: [4600, 3000, 3360, 2000],          // sum = 12960 (note: 3000+3360=6360; 4600+6360+2000=12960)
+        3: [4200, 1600, 7160],
+      };
+      const getColWidths = (colCount: number): number[] => {
+        if (COL_WIDTH_MAP[colCount]) return COL_WIDTH_MAP[colCount];
+        // Distribute evenly; last column absorbs remainder
+        const base = Math.floor(CONTENT_WIDTH / colCount);
+        const widths = Array(colCount).fill(base);
+        widths[colCount - 1] = CONTENT_WIDTH - base * (colCount - 1);
+        return widths;
+      };
+
+      // Guard: verify sum
+      const assertWidths = (widths: number[]) => {
+        const sum = widths.reduce((a, b) => a + b, 0);
+        if (sum !== CONTENT_WIDTH) {
+          console.error(`[docx] Column widths sum to ${sum}, expected ${CONTENT_WIDTH}`, widths);
+        }
+      };
+
+      // Scaffold lines that must never appear in output
+      const SCAFFOLD_RE = [/12960/i, /column widths sum/i, /Before generating/i, /Verify:/i];
+      const isScaffold = (text: string) => SCAFFOLD_RE.some(p => p.test(text));
+
+      // ── Inline-bold text parser ────────────────────────────────────────────
+      const parseInlineRuns = (text: string, opts: { size?: number; color?: string } = {}): any[] => {
+        const { size = 20, color = C_PRIMARY } = opts;
+        const parts = text.split(/(\*\*[^*]+\*\*)/g);
+        return parts.map(part => {
+          if (part.startsWith('**') && part.endsWith('**')) {
+            return new TextRun({ text: part.slice(2, -2), bold: true, font: 'Arial', size, color });
           }
-        }
-        if (tableStartIdx !== -1 && i >= tableStartIdx && lines[i].trim().startsWith('|')) {
-          tableEndIdx = i;
-        } else if (tableStartIdx !== -1 && tableEndIdx !== -1 && i > tableEndIdx && !lines[i].trim().startsWith('|')) {
-          break;
-        }
-      }
+          return new TextRun({ text: part, font: 'Arial', size, color });
+        });
+      };
 
-      const tableLineSet = new Set<number>();
-      if (tableStartIdx !== -1 && tableEndIdx !== -1) {
-        for (let i = tableStartIdx; i <= tableEndIdx; i++) tableLineSet.add(i);
-      }
-
-      // Column widths for comparison table (DXA, sum = 12960)
-      const COL_WIDTHS_DXA = [1800, 1400, 1700, 1700, 1800, 4560];
-
-      // Parse a markdown table block into a docx Table
+      // ── Table builder ─────────────────────────────────────────────────────
       const buildDocxTable = (tableLines: string[]): any => {
-        const nonSepLines = tableLines.filter(l => !l.match(/^\|[\s:|-]+\|$/));
-        const rows = nonSepLines.map(l =>
+        const nonSep = tableLines.filter(l => !/^\|[\s:|-]+\|$/.test(l.trim()));
+        const rows = nonSep.map(l =>
           l.split('|').map(c => c.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
-        );
+        ).filter(r => r.length > 0);
         if (rows.length === 0) return null;
+
+        const colCount = rows[0].length;
+        const widths = getColWidths(colCount);
+        assertWidths(widths);
 
         const docxRows = rows.map((cells, rowIdx) => {
           const isHeader = rowIdx === 0;
+          const isEvenBody = !isHeader && rowIdx % 2 === 0;
+          const fillColor = isHeader ? C_HDR_FILL : isEvenBody ? C_ALT_FILL : C_WHITE;
+
           return new TableRow({
-            children: cells.map((cell, colIdx) =>
-              new TableCell({
-                width: { size: COL_WIDTHS_DXA[colIdx] ?? 1440, type: WidthType.DXA },
-                shading: !isHeader && rowIdx % 2 === 0
-                  ? { type: ShadingType.CLEAR, fill: 'F3F4F6' }
-                  : undefined,
+            tableHeader: isHeader,
+            cantSplit: true,
+            children: cells.map((cell, colIdx) => {
+              const w = widths[colIdx] ?? Math.floor(CONTENT_WIDTH / colCount);
+              return new TableCell({
+                width: { size: w, type: WidthType.DXA },
+                shading: { type: ShadingType.CLEAR, fill: fillColor, color: fillColor },
+                borders: cellBorder(),
+                margins: { top: 60, bottom: 60, left: 120, right: 120 },
                 children: [
                   new Paragraph({
-                    children: [
-                      new TextRun({
-                        text: cell,
-                        bold: isHeader,
-                        font: 'Arial',
-                        size: 18,
-                      }),
-                    ],
+                    children: parseInlineRuns(cell, { size: 18, color: C_PRIMARY }).map(r =>
+                      isHeader ? new TextRun({ ...r, bold: true }) : r
+                    ),
                   }),
                 ],
-              })
-            ),
+              });
+            }),
           });
         });
 
         return new Table({
-          width: { size: 12960, type: WidthType.DXA },
+          width: { size: CONTENT_WIDTH, type: WidthType.DXA },
           layout: 'fixed' as any,
           rows: docxRows,
         });
       };
 
-      // Process lines into docx children
-      let i = 0;
-      while (i < lines.length) {
-        const line = lines[i];
+      // ── Parse markdown into docx children ────────────────────────────────
+      // First pass: identify ALL markdown table blocks
+      const rawLines = evalReportMarkdown.split('\n');
+      // Filter scaffold lines
+      const lines = rawLines.filter(l => !isScaffold(l));
 
-        // Comparison table block
-        if (tableLineSet.has(i)) {
+      // Locate all markdown table spans
+      type TableSpan = { start: number; end: number };
+      const tableSpans: TableSpan[] = [];
+      let spanStart = -1;
+      for (let i = 0; i < lines.length; i++) {
+        const inTable = lines[i].trim().startsWith('|');
+        if (inTable && spanStart === -1) spanStart = i;
+        if (!inTable && spanStart !== -1) {
+          tableSpans.push({ start: spanStart, end: i - 1 });
+          spanStart = -1;
+        }
+      }
+      if (spanStart !== -1) tableSpans.push({ start: spanStart, end: lines.length - 1 });
+
+      const inTableLine = new Set<number>();
+      tableSpans.forEach(({ start, end }) => {
+        for (let i = start; i <= end; i++) inTableLine.add(i);
+      });
+
+      const children: any[] = [];
+      let idx = 0;
+      while (idx < lines.length) {
+        const line = lines[idx];
+
+        // Table block
+        if (inTableLine.has(idx)) {
           const blockLines: string[] = [];
-          while (i < lines.length && tableLineSet.has(i)) {
-            blockLines.push(lines[i]);
-            i++;
+          while (idx < lines.length && inTableLine.has(idx)) {
+            blockLines.push(lines[idx]);
+            idx++;
           }
           const tbl = buildDocxTable(blockLines);
           if (tbl) children.push(tbl);
+          // spacing after table
+          children.push(new Paragraph({ children: [new TextRun({ text: '' })] }));
           continue;
         }
 
-        // Headings
-        if (line.startsWith('### ')) {
+        // Heading 4
+        if (line.startsWith('#### ')) {
+          children.push(new Paragraph({
+            heading: HeadingLevel.HEADING_4,
+            children: [new TextRun({ text: line.slice(5), bold: true, font: 'Arial', size: 20, color: C_PRIMARY })],
+          }));
+        // Heading 3
+        } else if (line.startsWith('### ')) {
           children.push(new Paragraph({
             heading: HeadingLevel.HEADING_3,
-            children: [new TextRun({ text: line.slice(4), bold: true, font: 'Arial', size: 24 })],
+            children: [new TextRun({ text: line.slice(4), bold: true, font: 'Arial', size: 21, color: C_PRIMARY })],
           }));
+        // Heading 2
         } else if (line.startsWith('## ')) {
           children.push(new Paragraph({
             heading: HeadingLevel.HEADING_2,
-            children: [new TextRun({ text: line.slice(3), bold: true, font: 'Arial', size: 28 })],
+            children: [new TextRun({ text: line.slice(3), bold: true, font: 'Arial', size: 24, color: C_PRIMARY })],
           }));
+        // Heading 1
         } else if (line.startsWith('# ')) {
           children.push(new Paragraph({
             heading: HeadingLevel.HEADING_1,
-            children: [new TextRun({ text: line.slice(2), bold: true, font: 'Arial', size: 36 })],
+            children: [new TextRun({ text: line.slice(2), bold: true, font: 'Arial', size: 32, color: C_PRIMARY })],
           }));
-        } else if (line.trim() === '' || line.trim() === '---') {
+        // Bullet list item
+        } else if (/^[-*] /.test(line)) {
+          children.push(new Paragraph({
+            bullet: { level: 0 },
+            children: parseInlineRuns(line.slice(2)),
+          }));
+        // Numbered list item
+        } else if (/^\d+\. /.test(line)) {
+          const text = line.replace(/^\d+\. /, '');
+          children.push(new Paragraph({
+            numbering: { reference: 'eval-list', level: 0 },
+            children: parseInlineRuns(text),
+          }));
+        // Horizontal rule
+        } else if (line.trim() === '---' || line.trim() === '***') {
+          children.push(new Paragraph({
+            border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C_BORDER } },
+            children: [new TextRun({ text: '' })],
+          }));
+        // Blank line
+        } else if (line.trim() === '') {
           children.push(new Paragraph({ children: [new TextRun({ text: '' })] }));
+        // Normal paragraph
         } else {
-          // Parse inline bold (**text**)
-          const parts = line.split(/(\*\*[^*]+\*\*)/g);
-          const runs = parts.map(part => {
-            if (part.startsWith('**') && part.endsWith('**')) {
-              return new TextRun({ text: part.slice(2, -2), bold: true, font: 'Arial', size: 20 });
-            }
-            return new TextRun({ text: part, font: 'Arial', size: 20 });
-          });
-          children.push(new Paragraph({ children: runs }));
+          children.push(new Paragraph({ children: parseInlineRuns(line) }));
         }
 
-        i++;
+        idx++;
       }
 
+      // ── Header block ──────────────────────────────────────────────────────
       const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
-      const projectName = formState.projectDescription?.slice(0, 40) || 'CopyZap';
+      const projectName = formState.projectDescription?.slice(0, 60)?.trim() || 'CopyZap Session';
+      const versionCount = generatedOutputCards.length;
+      const lang = formState.language || 'English';
+
+      const headerChildren: any[] = [
+        new Paragraph({
+          children: [new TextRun({ text: 'Reporte de Evaluación — CopyZap vs. Claude', bold: true, font: 'Arial', size: 32, color: C_PRIMARY })],
+        }),
+        new Paragraph({
+          children: [new TextRun({ text: projectName, font: 'Arial', size: 22, color: C_PRIMARY })],
+        }),
+        new Paragraph({
+          border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C_BORDER } },
+          children: [new TextRun({ text: `${today} · ${versionCount} versiones evaluadas · Idioma: ${lang}`, font: 'Arial', size: 18, color: C_MUTED })],
+        }),
+        new Paragraph({ children: [new TextRun({ text: '' })] }),
+      ];
+
+      // ── Numbering for ordered lists ────────────────────────────────────────
+      const numbering = new Numbering({
+        config: [{
+          reference: 'eval-list',
+          levels: [{
+            level: 0,
+            format: LevelFormat.DECIMAL,
+            text: '%1.',
+            alignment: AlignmentType.LEFT,
+            style: { paragraph: { indent: { left: 360, hanging: 360 } } },
+          }],
+        }],
+      });
 
       const doc = new Document({
+        numbering,
         sections: [{
           properties: {
             page: {
-              size: { width: 15840, height: 12240, orientation: PageOrientation.LANDSCAPE },
-              margin: { top: 1440, bottom: 1440, left: 1440, right: 1440 },
+              size: { width: 12240, height: 15840, orientation: PageOrientation.LANDSCAPE },
+              margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
             },
           },
           footers: {
@@ -1419,20 +1533,18 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                 children: [
                   new Paragraph({
                     alignment: AlignmentType.CENTER,
-                    children: [
-                      new TextRun({
-                        text: `${projectName} · ${today} · Generated by CopyZap + Claude`,
-                        font: 'Arial',
-                        size: 16,
-                        color: '6B7280',
-                      }),
-                    ],
+                    children: [new TextRun({
+                      text: `${projectName} · ${today} · Generated by CopyZap + Claude`,
+                      font: 'Arial',
+                      size: 16,
+                      color: C_MUTED,
+                    })],
                   }),
                 ],
               },
             },
           },
-          children,
+          children: [...headerChildren, ...children],
         }],
       });
 
@@ -1908,30 +2020,52 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
       )}
       {showEvalPreview && evalReportMarkdown && ReactDOM.createPortal(
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
-          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col rounded-lg overflow-hidden">
-            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
+          <div className="bg-white border border-gray-200 shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 flex-shrink-0" style={{ backgroundColor: '#ffffff' }}>
               <div>
-                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Evaluation Report</h2>
-                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">AI-powered copy critique vs. CopyZap scores</p>
+                <h2 className="text-sm font-semibold" style={{ color: '#000000' }}>Evaluation Report</h2>
+                <p className="text-xs mt-0.5" style={{ color: '#404040' }}>AI-powered copy critique vs. CopyZap scores</p>
               </div>
               <button
                 type="button"
                 onClick={() => setShowEvalPreview(false)}
-                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+                className="p-1 transition-colors"
+                style={{ color: '#404040' }}
               >
                 <X size={16} />
               </button>
             </div>
-            <div
-              className="flex-1 overflow-y-auto px-6 py-4 prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200"
-              style={{ fontSize: '13px', lineHeight: '1.65' }}
-              dangerouslySetInnerHTML={{ __html: markdownToHtml(evalReportMarkdown) }}
-            />
-            <div className="flex gap-3 px-5 py-3 border-t border-gray-100 dark:border-gray-800 flex-shrink-0">
+            <div className="flex-1 overflow-y-auto" style={{ backgroundColor: '#ffffff' }}>
+              <style>{`
+                .eval-report-preview { font-family: Arial, system-ui, sans-serif; font-size: 13px; line-height: 1.65; color: #000000; background: #ffffff; padding: 24px; }
+                .eval-report-preview h1, .eval-report-preview h2, .eval-report-preview h3, .eval-report-preview h4 { color: #000000; font-weight: bold; margin: 1.2em 0 0.4em; }
+                .eval-report-preview h1 { font-size: 18px; }
+                .eval-report-preview h2 { font-size: 15px; }
+                .eval-report-preview h3 { font-size: 13px; }
+                .eval-report-preview p { margin: 0.5em 0; color: #000000; }
+                .eval-report-preview a { color: #000000; text-decoration: underline; }
+                .eval-report-preview strong, .eval-report-preview b { color: #000000; font-weight: bold; }
+                .eval-report-preview em, .eval-report-preview i { color: #000000; }
+                .eval-report-preview ul, .eval-report-preview ol { margin: 0.5em 0 0.5em 1.5em; color: #000000; }
+                .eval-report-preview li { margin: 0.25em 0; color: #000000; }
+                .eval-report-preview table { width: 100%; border-collapse: collapse; margin: 1em 0; }
+                .eval-report-preview th { background: #D9D9D9; color: #000000; font-weight: bold; padding: 6px 10px; border: 1px solid #BFBFBF; text-align: left; }
+                .eval-report-preview td { border: 1px solid #BFBFBF; padding: 6px 10px; color: #000000; background: #ffffff; }
+                .eval-report-preview tr:nth-child(even) td { background: #F2F2F2; }
+                .eval-report-preview hr { border: none; border-top: 1px solid #BFBFBF; margin: 1em 0; }
+                .eval-report-preview code, .eval-report-preview pre { color: #000000; background: #F2F2F2; border: 1px solid #BFBFBF; border-radius: 3px; padding: 1px 4px; font-family: Arial, system-ui, sans-serif; }
+              `}</style>
+              <div
+                className="eval-report-preview"
+                dangerouslySetInnerHTML={{ __html: filterScaffoldingLines(markdownToHtml(evalReportMarkdown)) }}
+              />
+            </div>
+            <div className="flex gap-3 px-5 py-3 border-t flex-shrink-0" style={{ borderColor: '#BFBFBF', backgroundColor: '#ffffff' }}>
               <button
                 type="button"
                 onClick={handleDownloadEvalMd}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gray-800 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600 rounded transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors"
+                style={{ backgroundColor: '#000000', color: '#ffffff' }}
               >
                 <FileText size={12} />
                 Download .md
@@ -1939,7 +2073,8 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
               <button
                 type="button"
                 onClick={handleExportEvalDocx}
-                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors"
+                style={{ backgroundColor: '#404040', color: '#ffffff' }}
               >
                 <FileCode size={12} />
                 Output as Word file?
@@ -1947,7 +2082,8 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
               <button
                 type="button"
                 onClick={() => setShowEvalPreview(false)}
-                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors"
+                style={{ border: '1px solid #BFBFBF', color: '#404040', backgroundColor: '#ffffff' }}
               >
                 Close
               </button>
