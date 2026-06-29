@@ -1486,6 +1486,14 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
       const projectName = formState.projectDescription?.slice(0, 60)?.trim() || 'CopyZap Session';
       const versionCount = generatedOutputCards.length;
       const lang = formState.language || 'English';
+      const NATIVE_LANG: Record<string, string> = {
+        English: 'English', Spanish: 'Español', French: 'Français',
+        German: 'Deutsch', Italian: 'Italiano', Portuguese: 'Português',
+        Dutch: 'Nederlands', Polish: 'Polski', Russian: 'Русский',
+        Japanese: '日本語', Chinese: '中文', Korean: '한국어',
+        Arabic: 'العربية', Hindi: 'हिन्दी',
+      };
+      const displayLang = NATIVE_LANG[lang] ?? lang;
 
       const headerChildren: any[] = [
         new Paragraph({
@@ -1496,7 +1504,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         }),
         new Paragraph({
           border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C_BORDER } },
-          children: [new TextRun({ text: `${today} · ${versionCount} versiones evaluadas · Idioma: ${lang}`, font: 'Arial', size: 18, color: C_MUTED })],
+          children: [new TextRun({ text: `${today} · ${versionCount} versiones evaluadas · Idioma: ${displayLang}`, font: 'Arial', size: 18, color: C_MUTED })],
         }),
         new Paragraph({ children: [new TextRun({ text: '' })] }),
       ];

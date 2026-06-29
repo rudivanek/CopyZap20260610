@@ -43,15 +43,14 @@ Write PART 1 in plain language for a business owner: no scoring jargon, no metho
 
 **PART 1 — CLIENT REPORT**
 
-1. **Header** — project (URL/name), date, number of versions evaluated, language.
-2. **Executive Summary** — 3–4 plain sentences: which version to use, how confident you are, and the single most important action to take. No jargon.
-3. **Comparison Table** — the 6-column table specified under TABLE SHAPES. Add one plain-language sentence beneath it saying what it shows.
-4. **Winning Version** — which version wins, who it is for (awareness / consideration / decision stage), and a short bulleted list of what to fix before publishing.
-5. **Concrete Improvements** (winning version only):
+1. **Executive Summary** — 3–4 plain sentences: which version to use, how confident you are, and the single most important action to take. No jargon.
+2. **Comparison Table** — the 6-column table specified under TABLE SHAPES. Add one plain-language sentence beneath it saying what it shows.
+3. **Winning Version** — which version wins, who it is for (awareness / consideration / decision stage), and a short bulleted list of what to fix before publishing.
+4. **Concrete Improvements** (winning version only):
    - **Line Rewrites** — 2–3 weakest lines/CTAs with exact before/after replacement copy, in the source language. Obey the INTEGRITY RULE.
    - **Structural Conversion Gaps** — 1–2 problems no line edit fixes (missing social proof, no urgency, CTA placement). Name it, say why it limits conversion, give a specific structural fix.
    - **Impact Prioritization** — the 3-column table specified under TABLE SHAPES.
-6. **Disclaimer** — one sentence: professional opinion, not objective truth; scores vary between evaluators.
+5. **Disclaimer** — one sentence: professional opinion, not objective truth; scores vary between evaluators.
 
 **PART 2 — APPENDIX: DETAILED ANALYSIS (CopyZap vs. Claude)**
 

@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-06-29T16:00:00Z
+Last Updated: 2026-06-29T17:00:00Z
 
 ---
 
@@ -60,7 +60,13 @@ The preview modal uses a scoped `.eval-report-preview` CSS class injected inline
 
 `parseInlineRuns` returned `TextRun` class instances. The header-row code then did `new TextRun({ ...r, bold: true })`, spreading a class instance whose properties are non-enumerable — the `text` value was lost, rendering every header cell blank. Fix: added a `bold` parameter to `parseInlineRuns`; the header path now calls `parseInlineRuns(cell, { size: 18, color: C_PRIMARY, bold: isHeader })` directly. The broken map/spread was removed.
 
-### Eval Prompt Update (2026-06-29)
+### Eval Prompt — Remove Duplicate Header Item (2026-06-29)
+
+PART 1 item "1. Header" removed from `src/prompts/copyzap-eval-prompt.md`. The app already prepends the header block in `handleExportEvalDocx`; the model must not produce its own. Remaining PART 1 items renumbered 1–5 (Executive Summary → Disclaimer).
+
+### Docx Header — Native Language Display (2026-06-29)
+
+The `Idioma:` line in the Word export header now shows the language's native name instead of its English key. A `NATIVE_LANG` lookup table maps the 14 supported `formState.language` values (e.g. `"Spanish"` → `"Español"`, `"French"` → `"Français"`) with a passthrough fallback for unmapped values.
 
 `src/prompts/copyzap-eval-prompt.md` replaced verbatim. Key structural changes from previous version:
 
