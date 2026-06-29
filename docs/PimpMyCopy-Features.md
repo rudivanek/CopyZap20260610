@@ -5,6 +5,14 @@ Last Updated: 2026-06-29T00:00:00Z
 
 ---
 
+## Compare Outputs Button in Sidebar Output Section (2026-06-29)
+
+**Location:** `src/components/copy-maker/CopyMakerSidebar.tsx` — Section 2 (Output), after "Copy as Markdown"
+
+**Change:** Added a "Compare Outputs" / "Re-compare" button directly in the sidebar Output section. Conditionally rendered when `scorableVersions.length >= 2` and `onCompareWithGrok` is available. Clicking it calls `onCompareWithGrok(false)`, triggering the full comparison pipeline. Label reads "Compare Outputs" before any comparison exists, and "Re-compare" once a result is already present. Icon: `Scale` (lucide-react), added to the existing import line.
+
+---
+
 ## Comparison Prompt Injection from External File (2026-06-29)
 
 **Purpose:** Allow the CopyZap comparison LLM call to be prefixed with a custom evaluation protocol stored in a versioned markdown file, without modifying application logic each time the protocol changes.
@@ -15,15 +23,13 @@ Last Updated: 2026-06-29T00:00:00Z
 - `src/services/api/comparativeScoring.ts` — Added import: `import comparisonPrompt from '../../prompts/copyzap-comparison-prompt.md?raw';`. The `prompt` string now opens with `${comparisonPrompt}\n\n---\n\n` before the existing comparative scoring instructions.
 - `src/vite-env.d.ts` — Added ambient module declaration `declare module '*.md' { const content: string; export default content; }` to satisfy TypeScript for `?raw` imports of `.md` files.
 
-**Behavior:** Every time the comparison button is triggered (`compareOutputsWithGrok` in `useGeneration.ts` → `generateUnifiedComparison` → `compareVersionsRelatively`), the LLM receives the evaluation protocol prepended to the existing comparative scoring prompt. The protocol covers: three-score-type labeling rules (CopyZap session, Claude session, Claude Absolute), blind evaluation phase, ten report sections, and DOCX export rules.
+**Behavior:** Every time the comparison button is triggered (`compareOutputsWithGrok` in `useGeneration.ts` → `generateUnifiedComparison` → `compareVersionsRelatively`), the LLM receives the evaluation protocol prepended to the existing comparative scoring prompt.
 
 **To update the protocol:** Edit `src/prompts/copyzap-comparison-prompt.md` only — no TypeScript changes required. Changes take effect on next build.
 
 ---
 
 
-
-**Location:** `src/components/copy-maker/CopyMakerSidebar.tsx` — Section 2D block
 
 **Changes:**
 - Description paragraph font size reduced from `text-[9px]` to `text-[8px]` for visual tightness
