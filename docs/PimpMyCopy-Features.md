@@ -1,11 +1,27 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-06-09T13:00:00Z
+Last Updated: 2026-06-29T00:00:00Z
 
 ---
 
-## Best Elements Summary — UX Polish (2026-06-09)
+## Comparison Prompt Injection from External File (2026-06-29)
+
+**Purpose:** Allow the CopyZap comparison LLM call to be prefixed with a custom evaluation protocol stored in a versioned markdown file, without modifying application logic each time the protocol changes.
+
+**Files changed:**
+
+- `src/prompts/copyzap-comparison-prompt.md` — New file. Contains the full CopyZap evaluation protocol (blind scoring phases, report section definitions, DOCX output rules, score source labeling). Loaded at build time as a raw string via Vite's `?raw` import.
+- `src/services/api/comparativeScoring.ts` — Added import: `import comparisonPrompt from '../../prompts/copyzap-comparison-prompt.md?raw';`. The `prompt` string now opens with `${comparisonPrompt}\n\n---\n\n` before the existing comparative scoring instructions.
+- `src/vite-env.d.ts` — Added ambient module declaration `declare module '*.md' { const content: string; export default content; }` to satisfy TypeScript for `?raw` imports of `.md` files.
+
+**Behavior:** Every time the comparison button is triggered (`compareOutputsWithGrok` in `useGeneration.ts` → `generateUnifiedComparison` → `compareVersionsRelatively`), the LLM receives the evaluation protocol prepended to the existing comparative scoring prompt. The protocol covers: three-score-type labeling rules (CopyZap session, Claude session, Claude Absolute), blind evaluation phase, ten report sections, and DOCX export rules.
+
+**To update the protocol:** Edit `src/prompts/copyzap-comparison-prompt.md` only — no TypeScript changes required. Changes take effect on next build.
+
+---
+
+
 
 **Location:** `src/components/copy-maker/CopyMakerSidebar.tsx` — Section 2D block
 
