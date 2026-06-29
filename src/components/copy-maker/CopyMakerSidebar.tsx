@@ -25,6 +25,7 @@ import {
   exportLLMEvaluationMarkdown,
   exportLLMEvaluationAudit,
   buildLLMEvaluationMarkdown,
+  buildLLMEvaluationAudit,
 } from '../../utils/enhancedExports';
 import {
   formatSingleGeneratedItemContentAsHTML,
@@ -44,6 +45,259 @@ import { calculateTargetWordCount } from '../../services/api/utils';
 import { makeApiRequestWithFallback } from '../../services/api/utils';
 import { playSuccessSound } from '../../utils/soundEffects';
 import evalPrompt from '../../prompts/copyzap-eval-prompt.md?raw';
+import comparePrompt from '../../prompts/copyzap-compare-prompt.md?raw';
+
+// ─── Shared docx builder ──────────────────────────────────────────────────────
+
+interface ReportDocxMeta {
+  title: string;
+  project: string;
+  date: string;
+  displayLang: string;
+  versionCount: number;
+  footerText: string;
+  filePrefix: string;
+  filename: string;
+}
+
+async function buildReportDocx(markdown: string, meta: ReportDocxMeta): Promise<Blob> {
+  const {
+    Document, Packer, Paragraph, TextRun, HeadingLevel,
+    Table, TableRow, TableCell, WidthType, ShadingType,
+    AlignmentType, PageOrientation, BorderStyle,
+    LevelFormat,
+  } = await import('docx');
+
+  const CONTENT_WIDTH = 12960;
+  const C_PRIMARY  = '000000';
+  const C_MUTED    = '404040';
+  const C_HDR_FILL = 'D9D9D9';
+  const C_ALT_FILL = 'F2F2F2';
+  const C_WHITE    = 'FFFFFF';
+  const C_BORDER   = 'BFBFBF';
+
+  const cellBorder = (color = C_BORDER) => ({
+    top:    { style: BorderStyle.SINGLE, size: 4, color },
+    bottom: { style: BorderStyle.SINGLE, size: 4, color },
+    left:   { style: BorderStyle.SINGLE, size: 4, color },
+    right:  { style: BorderStyle.SINGLE, size: 4, color },
+  });
+
+  const COL_WIDTH_MAP: Record<number, number[]> = {
+    6: [2600, 1500, 1700, 1760, 1700, 3700],
+    4: [4600, 3000, 3360, 2000],
+    3: [4200, 1600, 7160],
+  };
+  const getColWidths = (colCount: number): number[] => {
+    if (COL_WIDTH_MAP[colCount]) return COL_WIDTH_MAP[colCount];
+    const base = Math.floor(CONTENT_WIDTH / colCount);
+    const widths = Array(colCount).fill(base);
+    widths[colCount - 1] = CONTENT_WIDTH - base * (colCount - 1);
+    return widths;
+  };
+  const assertWidths = (widths: number[]) => {
+    const sum = widths.reduce((a, b) => a + b, 0);
+    if (sum !== CONTENT_WIDTH) {
+      console.error(`[docx] Column widths sum to ${sum}, expected ${CONTENT_WIDTH}`, widths);
+    }
+  };
+
+  const SCAFFOLD_RE = [/12960/i, /column widths sum/i, /Before generating/i, /Verify:/i];
+  const isScaffold = (text: string) => SCAFFOLD_RE.some(p => p.test(text));
+
+  const parseInlineRuns = (text: string, opts: { size?: number; color?: string; bold?: boolean } = {}): any[] => {
+    const { size = 20, color = C_PRIMARY, bold = false } = opts;
+    const parts = text.split(/(\*\*[^*]+\*\*)/g);
+    return parts.map(part => {
+      if (part.startsWith('**') && part.endsWith('**')) {
+        return new TextRun({ text: part.slice(2, -2), bold: true, font: 'Arial', size, color });
+      }
+      return new TextRun({ text: part, bold, font: 'Arial', size, color });
+    });
+  };
+
+  const buildDocxTable = (tableLines: string[]): any => {
+    const nonSep = tableLines.filter(l => !/^\|[\s:|-]+\|$/.test(l.trim()));
+    const rows = nonSep.map(l =>
+      l.split('|').map(c => c.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
+    ).filter(r => r.length > 0);
+    if (rows.length === 0) return null;
+
+    const colCount = rows[0].length;
+    const widths = getColWidths(colCount);
+    assertWidths(widths);
+
+    const docxRows = rows.map((cells, rowIdx) => {
+      const isHeader = rowIdx === 0;
+      const isEvenBody = !isHeader && rowIdx % 2 === 0;
+      const fillColor = isHeader ? C_HDR_FILL : isEvenBody ? C_ALT_FILL : C_WHITE;
+      return new TableRow({
+        tableHeader: isHeader,
+        cantSplit: true,
+        children: cells.map((cell, colIdx) => {
+          const w = widths[colIdx] ?? Math.floor(CONTENT_WIDTH / colCount);
+          return new TableCell({
+            width: { size: w, type: WidthType.DXA },
+            shading: { type: ShadingType.CLEAR, fill: fillColor, color: fillColor },
+            borders: cellBorder(),
+            margins: { top: 60, bottom: 60, left: 120, right: 120 },
+            children: [
+              new Paragraph({
+                children: parseInlineRuns(cell, { size: 18, color: C_PRIMARY, bold: isHeader }),
+              }),
+            ],
+          });
+        }),
+      });
+    });
+
+    return new Table({
+      width: { size: CONTENT_WIDTH, type: WidthType.DXA },
+      layout: 'fixed' as any,
+      rows: docxRows,
+    });
+  };
+
+  const rawLines = markdown.split('\n');
+  const lines = rawLines.filter(l => !isScaffold(l));
+
+  type TableSpan = { start: number; end: number };
+  const tableSpans: TableSpan[] = [];
+  let spanStart = -1;
+  for (let i = 0; i < lines.length; i++) {
+    const inTable = lines[i].trim().startsWith('|');
+    if (inTable && spanStart === -1) spanStart = i;
+    if (!inTable && spanStart !== -1) {
+      tableSpans.push({ start: spanStart, end: i - 1 });
+      spanStart = -1;
+    }
+  }
+  if (spanStart !== -1) tableSpans.push({ start: spanStart, end: lines.length - 1 });
+
+  const inTableLine = new Set<number>();
+  tableSpans.forEach(({ start, end }) => {
+    for (let i = start; i <= end; i++) inTableLine.add(i);
+  });
+
+  const children: any[] = [];
+  let idx = 0;
+  while (idx < lines.length) {
+    const line = lines[idx];
+
+    if (inTableLine.has(idx)) {
+      const blockLines: string[] = [];
+      while (idx < lines.length && inTableLine.has(idx)) {
+        blockLines.push(lines[idx]);
+        idx++;
+      }
+      const tbl = buildDocxTable(blockLines);
+      if (tbl) children.push(tbl);
+      children.push(new Paragraph({ children: [new TextRun({ text: '' })] }));
+      continue;
+    }
+
+    if (line.startsWith('#### ')) {
+      children.push(new Paragraph({
+        heading: HeadingLevel.HEADING_4,
+        children: [new TextRun({ text: line.slice(5), bold: true, font: 'Arial', size: 20, color: C_PRIMARY })],
+      }));
+    } else if (line.startsWith('### ')) {
+      children.push(new Paragraph({
+        heading: HeadingLevel.HEADING_3,
+        children: [new TextRun({ text: line.slice(4), bold: true, font: 'Arial', size: 21, color: C_PRIMARY })],
+      }));
+    } else if (line.startsWith('## ')) {
+      children.push(new Paragraph({
+        heading: HeadingLevel.HEADING_2,
+        children: [new TextRun({ text: line.slice(3), bold: true, font: 'Arial', size: 24, color: C_PRIMARY })],
+      }));
+    } else if (line.startsWith('# ')) {
+      children.push(new Paragraph({
+        heading: HeadingLevel.HEADING_1,
+        children: [new TextRun({ text: line.slice(2), bold: true, font: 'Arial', size: 32, color: C_PRIMARY })],
+      }));
+    } else if (/^[-*] /.test(line)) {
+      children.push(new Paragraph({
+        bullet: { level: 0 },
+        children: parseInlineRuns(line.slice(2)),
+      }));
+    } else if (/^\d+\. /.test(line)) {
+      const text = line.replace(/^\d+\. /, '');
+      children.push(new Paragraph({
+        numbering: { reference: 'report-list', level: 0 },
+        children: parseInlineRuns(text),
+      }));
+    } else if (line.trim() === '---' || line.trim() === '***') {
+      children.push(new Paragraph({
+        border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C_BORDER } },
+        children: [new TextRun({ text: '' })],
+      }));
+    } else if (line.trim() === '') {
+      children.push(new Paragraph({ children: [new TextRun({ text: '' })] }));
+    } else {
+      children.push(new Paragraph({ children: parseInlineRuns(line) }));
+    }
+
+    idx++;
+  }
+
+  const headerChildren: any[] = [
+    new Paragraph({
+      children: [new TextRun({ text: meta.title, bold: true, font: 'Arial', size: 32, color: C_PRIMARY })],
+    }),
+    new Paragraph({
+      children: [new TextRun({ text: meta.project, font: 'Arial', size: 22, color: C_PRIMARY })],
+    }),
+    new Paragraph({
+      border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C_BORDER } },
+      children: [new TextRun({ text: `${meta.date} · ${meta.versionCount} versiones evaluadas · Idioma: ${meta.displayLang}`, font: 'Arial', size: 18, color: C_MUTED })],
+    }),
+    new Paragraph({ children: [new TextRun({ text: '' })] }),
+  ];
+
+  const doc = new Document({
+    numbering: {
+      config: [{
+        reference: 'report-list',
+        levels: [{
+          level: 0,
+          format: LevelFormat.DECIMAL,
+          text: '%1.',
+          alignment: AlignmentType.LEFT,
+          style: { paragraph: { indent: { left: 360, hanging: 360 } } },
+        }],
+      }],
+    },
+    sections: [{
+      properties: {
+        page: {
+          size: { width: 12240, height: 15840, orientation: PageOrientation.LANDSCAPE },
+          margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
+        },
+      },
+      footers: {
+        default: {
+          options: {
+            children: [
+              new Paragraph({
+                alignment: AlignmentType.CENTER,
+                children: [new TextRun({
+                  text: meta.footerText,
+                  font: 'Arial',
+                  size: 16,
+                  color: C_MUTED,
+                })],
+              }),
+            ],
+          },
+        },
+      },
+      children: [...headerChildren, ...children],
+    }],
+  });
+
+  return Packer.toBlob(doc);
+}
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -1221,6 +1475,11 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
   const [evalReportFilename, setEvalReportFilename] = useState<string>('');
   const [showEvalPreview, setShowEvalPreview] = useState(false);
 
+  const [isGeneratingCompareReport, setIsGeneratingCompareReport] = useState(false);
+  const [compareReportMarkdown, setCompareReportMarkdown] = useState<string | null>(null);
+  const [compareReportFilename, setCompareReportFilename] = useState<string>('');
+  const [showComparePreview, setShowComparePreview] = useState(false);
+
   const handleGenerateEvalReport = async () => {
     setIsGeneratingEvalReport(true);
     try {
@@ -1277,214 +1536,8 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
   const handleExportEvalDocx = async () => {
     if (!evalReportMarkdown) return;
     try {
-      const {
-        Document, Packer, Paragraph, TextRun, HeadingLevel,
-        Table, TableRow, TableCell, WidthType, ShadingType,
-        AlignmentType, PageOrientation, BorderStyle,
-        LevelFormat,
-      } = await import('docx');
-
-      // ── Constants ──────────────────────────────────────────────────────────
-      const CONTENT_WIDTH = 12960; // DXA (landscape Letter minus 2×1440 margins)
-      const C_PRIMARY   = '000000';
-      const C_MUTED     = '404040';
-      const C_HDR_FILL  = 'D9D9D9';
-      const C_ALT_FILL  = 'F2F2F2';
-      const C_WHITE     = 'FFFFFF';
-      const C_BORDER    = 'BFBFBF';
-
-      const cellBorder = (color = C_BORDER) => ({
-        top:    { style: BorderStyle.SINGLE, size: 4, color },
-        bottom: { style: BorderStyle.SINGLE, size: 4, color },
-        left:   { style: BorderStyle.SINGLE, size: 4, color },
-        right:  { style: BorderStyle.SINGLE, size: 4, color },
-      });
-
-      // Column-width lookup keyed by column count
-      const COL_WIDTH_MAP: Record<number, number[]> = {
-        6: [2600, 1500, 1700, 1760, 1700, 3700],
-        4: [4600, 3000, 3360, 2000],          // sum = 12960 (note: 3000+3360=6360; 4600+6360+2000=12960)
-        3: [4200, 1600, 7160],
-      };
-      const getColWidths = (colCount: number): number[] => {
-        if (COL_WIDTH_MAP[colCount]) return COL_WIDTH_MAP[colCount];
-        // Distribute evenly; last column absorbs remainder
-        const base = Math.floor(CONTENT_WIDTH / colCount);
-        const widths = Array(colCount).fill(base);
-        widths[colCount - 1] = CONTENT_WIDTH - base * (colCount - 1);
-        return widths;
-      };
-
-      // Guard: verify sum
-      const assertWidths = (widths: number[]) => {
-        const sum = widths.reduce((a, b) => a + b, 0);
-        if (sum !== CONTENT_WIDTH) {
-          console.error(`[docx] Column widths sum to ${sum}, expected ${CONTENT_WIDTH}`, widths);
-        }
-      };
-
-      // Scaffold lines that must never appear in output
-      const SCAFFOLD_RE = [/12960/i, /column widths sum/i, /Before generating/i, /Verify:/i];
-      const isScaffold = (text: string) => SCAFFOLD_RE.some(p => p.test(text));
-
-      // ── Inline-bold text parser ────────────────────────────────────────────
-      const parseInlineRuns = (text: string, opts: { size?: number; color?: string; bold?: boolean } = {}): any[] => {
-        const { size = 20, color = C_PRIMARY, bold = false } = opts;
-        const parts = text.split(/(\*\*[^*]+\*\*)/g);
-        return parts.map(part => {
-          if (part.startsWith('**') && part.endsWith('**')) {
-            return new TextRun({ text: part.slice(2, -2), bold: true, font: 'Arial', size, color });
-          }
-          return new TextRun({ text: part, bold, font: 'Arial', size, color });
-        });
-      };
-
-      // ── Table builder ─────────────────────────────────────────────────────
-      const buildDocxTable = (tableLines: string[]): any => {
-        const nonSep = tableLines.filter(l => !/^\|[\s:|-]+\|$/.test(l.trim()));
-        const rows = nonSep.map(l =>
-          l.split('|').map(c => c.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
-        ).filter(r => r.length > 0);
-        if (rows.length === 0) return null;
-
-        const colCount = rows[0].length;
-        const widths = getColWidths(colCount);
-        assertWidths(widths);
-
-        const docxRows = rows.map((cells, rowIdx) => {
-          const isHeader = rowIdx === 0;
-          const isEvenBody = !isHeader && rowIdx % 2 === 0;
-          const fillColor = isHeader ? C_HDR_FILL : isEvenBody ? C_ALT_FILL : C_WHITE;
-
-          return new TableRow({
-            tableHeader: isHeader,
-            cantSplit: true,
-            children: cells.map((cell, colIdx) => {
-              const w = widths[colIdx] ?? Math.floor(CONTENT_WIDTH / colCount);
-              return new TableCell({
-                width: { size: w, type: WidthType.DXA },
-                shading: { type: ShadingType.CLEAR, fill: fillColor, color: fillColor },
-                borders: cellBorder(),
-                margins: { top: 60, bottom: 60, left: 120, right: 120 },
-                children: [
-                  new Paragraph({
-                    children: parseInlineRuns(cell, { size: 18, color: C_PRIMARY, bold: isHeader }),
-                  }),
-                ],
-              });
-            }),
-          });
-        });
-
-        return new Table({
-          width: { size: CONTENT_WIDTH, type: WidthType.DXA },
-          layout: 'fixed' as any,
-          rows: docxRows,
-        });
-      };
-
-      // ── Parse markdown into docx children ────────────────────────────────
-      // First pass: identify ALL markdown table blocks
-      const rawLines = evalReportMarkdown.split('\n');
-      // Filter scaffold lines
-      const lines = rawLines.filter(l => !isScaffold(l));
-
-      // Locate all markdown table spans
-      type TableSpan = { start: number; end: number };
-      const tableSpans: TableSpan[] = [];
-      let spanStart = -1;
-      for (let i = 0; i < lines.length; i++) {
-        const inTable = lines[i].trim().startsWith('|');
-        if (inTable && spanStart === -1) spanStart = i;
-        if (!inTable && spanStart !== -1) {
-          tableSpans.push({ start: spanStart, end: i - 1 });
-          spanStart = -1;
-        }
-      }
-      if (spanStart !== -1) tableSpans.push({ start: spanStart, end: lines.length - 1 });
-
-      const inTableLine = new Set<number>();
-      tableSpans.forEach(({ start, end }) => {
-        for (let i = start; i <= end; i++) inTableLine.add(i);
-      });
-
-      const children: any[] = [];
-      let idx = 0;
-      while (idx < lines.length) {
-        const line = lines[idx];
-
-        // Table block
-        if (inTableLine.has(idx)) {
-          const blockLines: string[] = [];
-          while (idx < lines.length && inTableLine.has(idx)) {
-            blockLines.push(lines[idx]);
-            idx++;
-          }
-          const tbl = buildDocxTable(blockLines);
-          if (tbl) children.push(tbl);
-          // spacing after table
-          children.push(new Paragraph({ children: [new TextRun({ text: '' })] }));
-          continue;
-        }
-
-        // Heading 4
-        if (line.startsWith('#### ')) {
-          children.push(new Paragraph({
-            heading: HeadingLevel.HEADING_4,
-            children: [new TextRun({ text: line.slice(5), bold: true, font: 'Arial', size: 20, color: C_PRIMARY })],
-          }));
-        // Heading 3
-        } else if (line.startsWith('### ')) {
-          children.push(new Paragraph({
-            heading: HeadingLevel.HEADING_3,
-            children: [new TextRun({ text: line.slice(4), bold: true, font: 'Arial', size: 21, color: C_PRIMARY })],
-          }));
-        // Heading 2
-        } else if (line.startsWith('## ')) {
-          children.push(new Paragraph({
-            heading: HeadingLevel.HEADING_2,
-            children: [new TextRun({ text: line.slice(3), bold: true, font: 'Arial', size: 24, color: C_PRIMARY })],
-          }));
-        // Heading 1
-        } else if (line.startsWith('# ')) {
-          children.push(new Paragraph({
-            heading: HeadingLevel.HEADING_1,
-            children: [new TextRun({ text: line.slice(2), bold: true, font: 'Arial', size: 32, color: C_PRIMARY })],
-          }));
-        // Bullet list item
-        } else if (/^[-*] /.test(line)) {
-          children.push(new Paragraph({
-            bullet: { level: 0 },
-            children: parseInlineRuns(line.slice(2)),
-          }));
-        // Numbered list item
-        } else if (/^\d+\. /.test(line)) {
-          const text = line.replace(/^\d+\. /, '');
-          children.push(new Paragraph({
-            numbering: { reference: 'eval-list', level: 0 },
-            children: parseInlineRuns(text),
-          }));
-        // Horizontal rule
-        } else if (line.trim() === '---' || line.trim() === '***') {
-          children.push(new Paragraph({
-            border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C_BORDER } },
-            children: [new TextRun({ text: '' })],
-          }));
-        // Blank line
-        } else if (line.trim() === '') {
-          children.push(new Paragraph({ children: [new TextRun({ text: '' })] }));
-        // Normal paragraph
-        } else {
-          children.push(new Paragraph({ children: parseInlineRuns(line) }));
-        }
-
-        idx++;
-      }
-
-      // ── Header block ──────────────────────────────────────────────────────
       const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
       const projectName = formState.projectDescription?.slice(0, 60)?.trim() || 'CopyZap Session';
-      const versionCount = generatedOutputCards.length;
       const lang = formState.language || 'English';
       const NATIVE_LANG: Record<string, string> = {
         English: 'English', Spanish: 'Español', French: 'Français',
@@ -1494,67 +1547,111 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         Arabic: 'العربية', Hindi: 'हिन्दी',
       };
       const displayLang = NATIVE_LANG[lang] ?? lang;
-
-      const headerChildren: any[] = [
-        new Paragraph({
-          children: [new TextRun({ text: 'Reporte de Evaluación — CopyZap vs. Claude', bold: true, font: 'Arial', size: 32, color: C_PRIMARY })],
-        }),
-        new Paragraph({
-          children: [new TextRun({ text: projectName, font: 'Arial', size: 22, color: C_PRIMARY })],
-        }),
-        new Paragraph({
-          border: { bottom: { style: BorderStyle.SINGLE, size: 4, color: C_BORDER } },
-          children: [new TextRun({ text: `${today} · ${versionCount} versiones evaluadas · Idioma: ${displayLang}`, font: 'Arial', size: 18, color: C_MUTED })],
-        }),
-        new Paragraph({ children: [new TextRun({ text: '' })] }),
-      ];
-
-      const doc = new Document({
-        numbering: {
-          config: [{
-            reference: 'eval-list',
-            levels: [{
-              level: 0,
-              format: LevelFormat.DECIMAL,
-              text: '%1.',
-              alignment: AlignmentType.LEFT,
-              style: { paragraph: { indent: { left: 360, hanging: 360 } } },
-            }],
-          }],
-        },
-        sections: [{
-          properties: {
-            page: {
-              size: { width: 12240, height: 15840, orientation: PageOrientation.LANDSCAPE },
-              margin: { top: 1440, right: 1440, bottom: 1440, left: 1440 },
-            },
-          },
-          footers: {
-            default: {
-              options: {
-                children: [
-                  new Paragraph({
-                    alignment: AlignmentType.CENTER,
-                    children: [new TextRun({
-                      text: `${projectName} · ${today} · Generated by CopyZap + Claude`,
-                      font: 'Arial',
-                      size: 16,
-                      color: C_MUTED,
-                    })],
-                  }),
-                ],
-              },
-            },
-          },
-          children: [...headerChildren, ...children],
-        }],
+      const blob = await buildReportDocx(evalReportMarkdown, {
+        title: 'Reporte de Evaluación — CopyZap vs. Claude',
+        project: projectName,
+        date: today,
+        displayLang,
+        versionCount: generatedOutputCards.length,
+        footerText: `${projectName} · ${today} · Generated by CopyZap + Claude`,
+        filePrefix: 'CLAUDE',
+        filename: `CLAUDE-${evalReportFilename}.docx`,
       });
-
-      const buffer = await Packer.toBlob(doc);
-      const url = URL.createObjectURL(buffer);
+      const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
       link.download = `CLAUDE-${evalReportFilename}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('Word document downloaded');
+    } catch (err: any) {
+      toast.error('Word export failed: ' + (err?.message ?? 'Unknown error'));
+    }
+  };
+
+  const handleGenerateCompareReport = async () => {
+    setIsGeneratingCompareReport(true);
+    try {
+      const { markdown: auditContent, filename: auditFilename } = buildLLMEvaluationAudit(
+        formState,
+        generatedOutputCards,
+        originalInputScore,
+        formState.promptEvaluation,
+        comparisonResult,
+        versionDeepAnalysis,
+        comparisonDeepAnalysisMeta,
+      );
+
+      const language = formState.language;
+      const languageDirective = language
+        ? `IMPORTANT: Write the entire report in ${language}. Every heading, table header, and sentence must be in ${language}.\n\n`
+        : '';
+      const llmInput = languageDirective + comparePrompt + '\n\n' + auditContent;
+
+      const result = await makeApiRequestWithFallback(
+        'claude-sonnet-4-5',
+        [{ role: 'user', content: llmInput }],
+        0.4,
+        8000,
+      );
+
+      const reportMarkdown = result.choices?.[0]?.message?.content ?? '';
+      if (!reportMarkdown.trim()) throw new Error('Empty response from model');
+
+      setCompareReportMarkdown(reportMarkdown);
+      setCompareReportFilename(auditFilename.replace(/\.md$/, ''));
+      setShowComparePreview(true);
+      playSuccessSound();
+    } catch (err: any) {
+      toast.error('Compare Report failed: ' + (err?.message ?? 'Unknown error'));
+    } finally {
+      setIsGeneratingCompareReport(false);
+    }
+  };
+
+  const handleDownloadCompareMd = () => {
+    if (!compareReportMarkdown) return;
+    const blob = new Blob([compareReportMarkdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `CLAUDE-REPORT-${compareReportFilename}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportCompareDocx = async () => {
+    if (!compareReportMarkdown) return;
+    try {
+      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      const projectName = formState.projectDescription?.slice(0, 60)?.trim() || 'CopyZap Session';
+      const lang = formState.language || 'English';
+      const NATIVE_LANG: Record<string, string> = {
+        English: 'English', Spanish: 'Español', French: 'Français',
+        German: 'Deutsch', Italian: 'Italiano', Portuguese: 'Português',
+        Dutch: 'Nederlands', Polish: 'Polski', Russian: 'Русский',
+        Japanese: '日本語', Chinese: '中文', Korean: '한국어',
+        Arabic: 'العربية', Hindi: 'हिन्दी',
+      };
+      const displayLang = NATIVE_LANG[lang] ?? lang;
+      const blob = await buildReportDocx(compareReportMarkdown, {
+        title: 'Compare Report — CopyZap vs. Claude',
+        project: projectName,
+        date: today,
+        displayLang,
+        versionCount: generatedOutputCards.length,
+        footerText: `${projectName} · ${today} · Generated by CopyZap + Claude`,
+        filePrefix: 'CLAUDE-REPORT',
+        filename: `CLAUDE-REPORT-${compareReportFilename}.docx`,
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `CLAUDE-REPORT-${compareReportFilename}.docx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -1806,6 +1903,16 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                 >
                   <Scale size={10} className={isGeneratingEvalReport ? 'animate-pulse' : ''} />
                   {isGeneratingEvalReport ? 'Generating…' : 'Evaluation Report'}
+                </SidebarBtn>
+              )}
+              {hasContent && !!comparisonResult && sortedGeneratedVersions.length >= 2 && isAdmin && (
+                <SidebarBtn
+                  onClick={handleGenerateCompareReport}
+                  disabled={isGeneratingCompareReport}
+                  title="Generate a Compare Report with absolute score breakdown and divergence analysis"
+                >
+                  <GitMerge size={10} className={isGeneratingCompareReport ? 'animate-pulse' : ''} />
+                  {isGeneratingCompareReport ? 'Generating…' : 'Compare Report'}
                 </SidebarBtn>
               )}
               {isAdmin && (
@@ -2084,6 +2191,88 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
               <button
                 type="button"
                 onClick={() => setShowEvalPreview(false)}
+                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors"
+                style={{ border: '1px solid #BFBFBF', color: '#404040', backgroundColor: '#ffffff' }}
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+      {isGeneratingCompareReport && ReactDOM.createPortal(
+        <ProcessingModal
+          isOpen={isGeneratingCompareReport}
+          message="Generating Compare Report…"
+          onCancel={() => {}}
+        />,
+        document.body
+      )}
+      {showComparePreview && compareReportMarkdown && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white border border-gray-200 shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 flex-shrink-0" style={{ backgroundColor: '#ffffff' }}>
+              <div>
+                <h2 className="text-sm font-semibold" style={{ color: '#000000' }}>Compare Report</h2>
+                <p className="text-xs mt-0.5" style={{ color: '#404040' }}>Absolute score breakdown and divergence analysis</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowComparePreview(false)}
+                className="p-1 transition-colors"
+                style={{ color: '#404040' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto" style={{ backgroundColor: '#ffffff' }}>
+              <style>{`
+                .compare-report-preview { font-family: Arial, system-ui, sans-serif; font-size: 13px; line-height: 1.65; color: #000000; background: #ffffff; padding: 24px; }
+                .compare-report-preview h1, .compare-report-preview h2, .compare-report-preview h3, .compare-report-preview h4 { color: #000000; font-weight: bold; margin: 1.2em 0 0.4em; }
+                .compare-report-preview h1 { font-size: 18px; }
+                .compare-report-preview h2 { font-size: 15px; }
+                .compare-report-preview h3 { font-size: 13px; }
+                .compare-report-preview p { margin: 0.5em 0; color: #000000; }
+                .compare-report-preview a { color: #000000; text-decoration: underline; }
+                .compare-report-preview strong, .compare-report-preview b { color: #000000; font-weight: bold; }
+                .compare-report-preview em, .compare-report-preview i { color: #000000; }
+                .compare-report-preview ul, .compare-report-preview ol { margin: 0.5em 0 0.5em 1.5em; color: #000000; }
+                .compare-report-preview li { margin: 0.25em 0; color: #000000; }
+                .compare-report-preview table { width: 100%; border-collapse: collapse; margin: 1em 0; }
+                .compare-report-preview th { background: #D9D9D9; color: #000000; font-weight: bold; padding: 6px 10px; border: 1px solid #BFBFBF; text-align: left; }
+                .compare-report-preview td { border: 1px solid #BFBFBF; padding: 6px 10px; color: #000000; background: #ffffff; }
+                .compare-report-preview tr:nth-child(even) td { background: #F2F2F2; }
+                .compare-report-preview hr { border: none; border-top: 1px solid #BFBFBF; margin: 1em 0; }
+                .compare-report-preview code, .compare-report-preview pre { color: #000000; background: #F2F2F2; border: 1px solid #BFBFBF; border-radius: 3px; padding: 1px 4px; font-family: Arial, system-ui, sans-serif; }
+              `}</style>
+              <div
+                className="compare-report-preview"
+                dangerouslySetInnerHTML={{ __html: filterScaffoldingLines(markdownToHtml(compareReportMarkdown)) }}
+              />
+            </div>
+            <div className="flex gap-3 px-5 py-3 border-t flex-shrink-0" style={{ borderColor: '#BFBFBF', backgroundColor: '#ffffff' }}>
+              <button
+                type="button"
+                onClick={handleDownloadCompareMd}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors"
+                style={{ backgroundColor: '#000000', color: '#ffffff' }}
+              >
+                <FileText size={12} />
+                Download .md
+              </button>
+              <button
+                type="button"
+                onClick={handleExportCompareDocx}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors"
+                style={{ backgroundColor: '#404040', color: '#ffffff' }}
+              >
+                <FileCode size={12} />
+                Output as Word file?
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowComparePreview(false)}
                 className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors"
                 style={{ border: '1px solid #BFBFBF', color: '#404040', backgroundColor: '#ffffff' }}
               >

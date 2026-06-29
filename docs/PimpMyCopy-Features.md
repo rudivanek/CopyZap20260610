@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-06-29T17:00:00Z
+Last Updated: 2026-06-29T23:30:00Z
 
 ---
 
@@ -4878,5 +4878,98 @@ Previously the verdict only addressed overall ranking reliability.
 - No changes to the scoring engine, ranking logic, or `finalScore` calculation
 - No changes to file naming conventions or Section A/B structure
 - `computeRiskFactors` accepts optional `verificationFlags[]` from the existing `comparisonResult.rows[].verificationFlags` to enrich the risk list without duplication
+
+---
+
+## Shared docx Builder & Compare Report Feature (2026-06-29)
+
+**Files changed:**
+- `src/components/copy-maker/CopyMakerSidebar.tsx`
+- `src/utils/enhancedExports.ts`
+- `src/prompts/copyzap-compare-prompt.md` *(new)*
+
+---
+
+### PART A — Shared `buildReportDocx` function
+
+**Location:** `CopyMakerSidebar.tsx` lines 50–290 (module-level, before the component)
+
+A shared async function `buildReportDocx(markdown: string, meta: ReportDocxMeta): Promise<Blob>` was extracted from the previously inline `handleExportEvalDocx` handler and placed at module level. All docx generation logic (dynamic `import('docx')`, constants, `cellBorder`, `getColWidths`, `assertWidths`, `parseInlineRuns`, `buildDocxTable`, markdown parser loop, header block, `Document` construction) now lives here.
+
+The `handleExportEvalDocx` handler was replaced with a thin 38-line wrapper that calls `buildReportDocx` — producing identical output. The numbering reference in `buildReportDocx` is `report-list` (shared between both report types).
+
+**`ReportDocxMeta` interface:**
+```typescript
+interface ReportDocxMeta {
+  title: string;       // Document title in header block
+  project: string;     // Project/session name
+  date: string;        // Formatted date string
+  displayLang: string; // Native language name (e.g. "Español")
+  versionCount: number;// Number of copy versions evaluated
+  footerText: string;  // Footer center text
+  filePrefix: string;  // Used in numbering reference
+  filename: string;    // Full .docx filename for download
+}
+```
+
+**Document spec:** US Letter landscape (12240×15840 DXA), 1440 DXA margins on all sides, Arial font, monochrome palette (`#000000` / `#404040` / `#D9D9D9` / `#F2F2F2` / `#FFFFFF` / `#BFBFBF`).
+
+**Column width map (sums to 12960 DXA each):**
+- 6-col: `[2600, 1500, 1700, 1760, 1700, 3700]`
+- 4-col: `[4600, 3000, 3360, 2000]`
+- 3-col: `[4200, 1600, 7160]`
+
+**Scaffold filtering:** Lines matching `/12960/i`, `/column widths sum/i`, `/Before generating/i`, `/Verify:/i` are stripped before rendering.
+
+**Header row bold fix:** `parseInlineRuns` accepts a `bold` parameter; header cells pass `bold: true` directly — resolving the blank-cell bug caused by spreading a class instance.
+
+---
+
+### PART B — `buildLLMEvaluationAudit` string-builder
+
+**Location:** `src/utils/enhancedExports.ts` line ~3595
+
+The previously 400-line inline body of `exportLLMEvaluationAudit` was extracted into a new exported function `buildLLMEvaluationAudit(...)` returning `{ markdown: string; filename: string }`. The `exportLLMEvaluationAudit` function is now a thin wrapper that calls `buildLLMEvaluationAudit` and triggers a browser download.
+
+This separation allows the sidebar to call `buildLLMEvaluationAudit` directly (to get the markdown string for the Compare Report LLM prompt) without triggering a file download.
+
+---
+
+### PART C — `copyzap-compare-prompt.md` and Compare Report button
+
+**File:** `src/prompts/copyzap-compare-prompt.md`
+
+A new prompt file for the Compare Report workflow, distinct from the Evaluation Report prompt. Key differences from the eval prompt:
+
+- Introduces three score types: **CopyZap Session Score**, **Claude Session Score**, **Claude Absolute Score** (4 dimensions × 0–25, total 0–100)
+- Phase 1 includes both relative and absolute blind scoring
+- Phase 2 computes Δ between CopyZap Session and Claude Session; flags any Δ > 10
+- PART 1 (client-facing): Executive Summary, Comparison Table, Winning Version, Concrete Improvements, Disclaimer
+- PART 2 (appendix): A1 Absolute Breakdown (6-col), A2 Absolute Score Analysis, A3 Divergence Table (6-col), A4 Shared Strengths & Weaknesses, A5 Methodology Note
+- Output file prefix: `CLAUDE-REPORT-` (distinct from Eval Report's `CLAUDE-` prefix)
+
+**Button added** in the Export block of `CopyMakerSidebar.tsx`, below the Evaluation Report button. Same visibility gating: `hasContent && !!comparisonResult && sortedGeneratedVersions.length >= 2 && isAdmin`. Uses `GitMerge` icon.
+
+---
+
+### PART D — Compare Report state, handler, preview, and export
+
+**State added** (alongside eval report state):
+```typescript
+const [isGeneratingCompareReport, setIsGeneratingCompareReport] = useState(false);
+const [compareReportMarkdown, setCompareReportMarkdown] = useState<string | null>(null);
+const [compareReportFilename, setCompareReportFilename] = useState<string>('');
+const [showComparePreview, setShowComparePreview] = useState(false);
+```
+
+**`handleGenerateCompareReport`:** Calls `buildLLMEvaluationAudit` to get the audit markdown, prepends a language directive, concatenates `comparePrompt`, sends to `makeApiRequestWithFallback('claude-sonnet-4-5', ..., 0.4, 8000)`, stores result in state, opens preview.
+
+**`handleDownloadCompareMd`:** Downloads the report as `CLAUDE-REPORT-<filename>.md`.
+
+**`handleExportCompareDocx`:** Calls `buildReportDocx` with `title: 'Compare Report — CopyZap vs. Claude'` and `filePrefix: 'CLAUDE-REPORT'`, downloads as `CLAUDE-REPORT-<filename>.docx`.
+
+**Preview modal:** Matches the Evaluation Report preview style (`.compare-report-preview` CSS class, monochrome palette, Arial font, scaffold-filtered rendered markdown). Footer buttons: Download .md, Output as Word file?, Close.
+
+**Processing modal:** Shown during generation via `ReactDOM.createPortal`.
 
 ---

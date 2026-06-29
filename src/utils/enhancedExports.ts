@@ -3592,6 +3592,408 @@ function hasCompleteEvaluationData(
  * @param comparisonDeepAnalysisMeta - Metadata for deep analysis
  * @throws Error if evaluation data is incomplete
  */
+export const buildLLMEvaluationAudit = (
+  formState: FormState,
+  generatedOutputCards: GeneratedContentItem[],
+  originalInputScore?: any,
+  promptEvaluation?: PromptEvaluation,
+  comparisonResult?: ComparisonResult,
+  versionDeepAnalysis?: Record<string, VersionDeepAnalysis>,
+  comparisonDeepAnalysisMeta?: ComparisonDeepAnalysisMeta
+): { markdown: string; filename: string } => {
+  // STEP 1: VALIDATE EVALUATION COMPLETENESS
+  const validation = hasCompleteEvaluationData(
+    comparisonResult,
+    versionDeepAnalysis,
+    generatedOutputCards
+  );
+
+  if (!validation.isComplete) {
+    console.warn('LLM audit export blocked: incomplete evaluation data', {
+      missingFields: validation.missingFields,
+    });
+    const errorMessage = `Comparison audit export is only available after scoring and ranking data has been fully generated.\n\nMissing: ${validation.missingFields.join(', ')}\n\nPlease run Compare/Re-score first to generate complete evaluation data.`;
+    throw new Error(errorMessage);
+  }
+
+  // STEP 2: BUILD MARKDOWN STRING
+  let markdown = '';
+
+  // FILE HEADER
+  markdown += `# LLM Evaluation Audit File\n\n`;
+  markdown += `**Generated:** ${formatExportTimestamp()}\n\n`;
+  markdown += `---\n\n`;
+
+  // INSTRUCTIONS
+  markdown += `## INSTRUCTIONS FOR LLM\n\n`;
+  markdown += `You will receive:\n\n`;
+  markdown += `- **SECTION A** → Copy versions (neutral, blind input)\n`;
+  markdown += `- **SECTION B** → App evaluation (biased system output)\n\n`;
+  markdown += `**IMPORTANT:**\n\n`;
+  markdown += `1. First, independently evaluate ONLY SECTION A\n`;
+  markdown += `2. Then compare your evaluation with SECTION B\n`;
+  markdown += `3. Do NOT assume the app is correct\n`;
+  markdown += `4. Be critical and analytical\n\n`;
+  markdown += `---\n\n`;
+
+  // SECTION A - COPY VERSIONS (BLIND INPUT)
+  markdown += `## SECTION A — COPY VERSIONS (BLIND INPUT)\n\n`;
+  markdown += `**IMPORTANT:**\n`;
+  markdown += `- Evaluate ONLY content between \`<START_COPY>\` and \`<END_COPY>\`\n`;
+  markdown += `- Ignore formatting inconsistencies\n`;
+  markdown += `- Ignore minor boilerplate (cookies, navigation, etc.)\n\n`;
+  markdown += `---\n\n`;
+
+  // ORIGINAL COPY (if in improve mode)
+  if (formState.tab === 'improve' && formState.originalCopy) {
+    markdown += `### [Original Copy]\n\n`;
+    markdown += `<START_COPY>\n\n`;
+    const normalizedOriginal = normalizeCopyForLLMExport(formState.originalCopy);
+    const cleanOriginal = extractPureCopy(normalizedOriginal);
+    const finalOriginal = finalCleanForLLM(cleanOriginal);
+    markdown += finalOriginal + '\n\n';
+    markdown += `<END_COPY>\n\n`;
+    markdown += `---\n\n`;
+  }
+
+  // GENERATED VERSIONS
+  generatedOutputCards.forEach((item, index) => {
+    let versionLabel = item.sourceDisplayName || item.type || `Version ${index + 1}`;
+    if (item.persona) {
+      versionLabel += ` (${item.persona}'s Voice)`;
+    }
+
+    markdown += `### [${versionLabel}]\n\n`;
+    markdown += `<START_COPY>\n\n`;
+
+    let actualContent = item.content;
+    if (typeof item.content === 'object' && item.content !== null && 'content' in item.content) {
+      actualContent = (item.content as any).content;
+    }
+
+    const normalizedContent = normalizeCopyForLLMExport(actualContent);
+    const cleanContent = extractPureCopy(normalizedContent);
+    const finalContent = finalCleanForLLM(cleanContent);
+    markdown += finalContent + '\n\n';
+
+    markdown += `<END_COPY>\n\n`;
+    markdown += `---\n\n`;
+  });
+
+  // SECTION B - APP EVALUATION
+  markdown += `## SECTION B — APP EVALUATION (FOR COMPARISON ONLY)\n\n`;
+  markdown += `**IMPORTANT:**\n`;
+  markdown += `- Do NOT read this before completing your own evaluation\n`;
+  markdown += `- This section represents the app's judgment\n\n`;
+  markdown += `---\n\n`;
+
+  // Extract winner and ranking data
+  let winnerLabel = 'Unknown';
+  let rankingList: string[] = [];
+  let scoresList: { label: string; score: number }[] = [];
+  let shortWhyWinner = '';
+  let winnerId = '';
+
+  if (comparisonResult) {
+    winnerId = (comparisonResult as any).winnerVersionId || comparisonResult.winner || '';
+
+    if (winnerId) {
+      const winnerVersion = generatedOutputCards.find(item =>
+        item.id === winnerId ||
+        item.sourceDisplayName === winnerId ||
+        item.type === winnerId
+      );
+      if (winnerVersion) {
+        winnerLabel = winnerVersion.sourceDisplayName || winnerVersion.type || 'Winner';
+        if (winnerVersion.persona) {
+          winnerLabel += ` (${winnerVersion.persona}'s Voice)`;
+        }
+      } else if (winnerId === '__original__') {
+        winnerLabel = 'Original Copy';
+      } else {
+        winnerLabel = winnerId || 'Unknown';
+      }
+    }
+
+    const rows = (comparisonResult as any).rows;
+    if (rows && Array.isArray(rows)) {
+      rankingList = rows
+        .sort((a: any, b: any) => (a.rank || 0) - (b.rank || 0))
+        .map((row: any) => {
+          const rank = row.rank || 0;
+          const label = row.label || row.optionLabel || `Version ${rank}`;
+          return `${rank}. ${label}`;
+        });
+      scoresList = rows.map((row: any) => ({
+        label: row.label || row.optionLabel || 'Unknown',
+        score: row.score || row.finalScore || 0
+      }));
+    } else if (comparisonResult.ranking && Array.isArray(comparisonResult.ranking)) {
+      rankingList = comparisonResult.ranking.map((item: any, idx: number) => {
+        const rank = idx + 1;
+        const versionName = typeof item === 'string' ? item : item?.version || item?.label || `Version ${idx + 1}`;
+        const versionData = generatedOutputCards.find(v =>
+          v.sourceDisplayName === versionName || v.type === versionName
+        );
+        let displayName = versionName;
+        if (versionData?.persona) {
+          displayName += ` (${versionData.persona}'s Voice)`;
+        }
+        return `${rank}. ${displayName}`;
+      });
+
+      if (comparisonResult.scores && typeof comparisonResult.scores === 'object') {
+        scoresList = Object.entries(comparisonResult.scores).map(([key, value]) => {
+          const versionData = generatedOutputCards.find(v =>
+            v.sourceDisplayName === key || v.type === key
+          );
+          let displayName = key;
+          if (versionData?.persona) {
+            displayName += ` (${versionData.persona}'s Voice)`;
+          }
+          return {
+            label: displayName,
+            score: typeof value === 'number' ? value : 0
+          };
+        });
+      }
+    }
+
+    shortWhyWinner = (comparisonResult as any).winnerExplanation ||
+                     comparisonResult.shortWhyWinner ||
+                     comparisonResult.whyWinner ||
+                     '';
+  }
+
+  markdown += `### WINNER\n\n`;
+  markdown += `${winnerLabel}\n\n`;
+
+  markdown += `### RANKING\n\n`;
+  if (rankingList.length > 0) {
+    rankingList.forEach(rank => { markdown += `${rank}\n`; });
+  } else {
+    markdown += `No ranking available\n`;
+  }
+  markdown += `\n`;
+
+  markdown += `### SCORES\n\n`;
+  if (scoresList.length > 0) {
+    const contentMap: Record<string, string> = {};
+    const absScoreMap: Record<string, any> = {};
+    generatedOutputCards.forEach(item => {
+      let ct = '';
+      const actualContent = (typeof item.content === 'object' && item.content !== null && 'content' in item.content)
+        ? (item.content as any).content
+        : item.content;
+      if (typeof actualContent === 'string') ct = actualContent;
+      else if (Array.isArray(actualContent)) ct = actualContent.join('\n');
+      else if (typeof actualContent === 'object' && actualContent !== null) ct = JSON.stringify(actualContent);
+      const key = item.sourceDisplayName || item.type || '';
+      if (key) contentMap[key] = ct;
+      if (item.id) contentMap[item.id] = ct;
+      if (item.absoluteScore && item.absoluteScore.total > 0) {
+        if (key) absScoreMap[key] = item.absoluteScore;
+        if (item.id) absScoreMap[item.id] = item.absoluteScore;
+      }
+    });
+
+    scoresList.forEach(({ label, score }) => {
+      markdown += `- **${label}**: ${score}/100\n`;
+    });
+    markdown += `\n`;
+
+    const auditRows = (comparisonResult as any).rows;
+    if (auditRows && Array.isArray(auditRows)) {
+      markdown += `### PER-VERSION ANALYSIS\n\n`;
+      auditRows.sort((a: any, b: any) => (a.rank || 0) - (b.rank || 0)).forEach((row: any) => {
+        const label = row.label || row.optionLabel || 'Unknown';
+        const ct = contentMap[row.versionId] || contentMap[label] || '';
+        const wcrl = ct ? computeWordCountAndReadingLevel(ct) : null;
+        const confidence = ct ? computeEvaluationConfidence(ct) : { confidence: 'Medium' as const };
+        const strategy = ct ? computeConversionStrategy(ct) : 'ROI Framing' as const;
+        const intensity = ct ? computeCommercialIntensity(ct) : 'Medium' as const;
+        const driver = ct ? computeMostLikelyConversionDriver(ct) : 'Relevance to reader context.';
+        const risks = ct ? computeRiskFactors(ct, row.verificationFlags) : [];
+
+        markdown += `#### ${label}${row.isWinner ? ' (WINNER)' : ''}\n\n`;
+
+        if (row.verificationFlags && row.verificationFlags.length > 0) {
+          markdown += `⚠️ **Verify before publishing:**\n`;
+          row.verificationFlags.forEach((flag: string) => {
+            markdown += `- "${flag}" — source unknown\n`;
+          });
+          markdown += `\n`;
+        }
+
+        if (wcrl) {
+          markdown += `**Word Count:** ${wcrl.wordCount} words\n`;
+          markdown += `**Reading Level:** ${wcrl.readingLevel}\n`;
+        }
+        markdown += `\n`;
+        if (risks.length > 0) {
+          markdown += `**Risk Factors:**\n`;
+          risks.forEach(r => { markdown += `- ${r}\n`; });
+          markdown += `\n`;
+        }
+
+        markdown += `**Evaluation Confidence:** ${confidence.confidence}${confidence.reason ? ` — ${confidence.reason}` : ''}\n`;
+        markdown += `**Primary Conversion Strategy:** ${strategy}\n`;
+        markdown += `**Commercial Intensity:** ${intensity}\n`;
+        markdown += `**Most Likely Conversion Driver:** ${driver}\n\n`;
+      });
+    }
+  } else {
+    markdown += `No scores available\n\n`;
+  }
+
+  markdown += `### SUMMARY\n\n`;
+  markdown += shortWhyWinner || 'No summary available';
+  markdown += `\n\n`;
+
+  const auditRows2 = (comparisonResult as any).rows;
+  if (auditRows2 && auditRows2.length >= 2) {
+    const sortedAuditRows = [...auditRows2].sort((a: any, b: any) => (b.finalScore || 0) - (a.finalScore || 0));
+    const wt = classifyWinnerType(sortedAuditRows[0].finalScore || 0, sortedAuditRows[1].finalScore || 0);
+    markdown += `### WINNER TYPE\n\n`;
+    markdown += `**${wt.type}** — ${wt.reason}\n\n`;
+  }
+
+  markdown += `### STRENGTHS\n\n`;
+  if (versionDeepAnalysis && winnerId) {
+    const winnerAnalysis = versionDeepAnalysis[winnerId];
+    if (winnerAnalysis?.keyStrengths && Array.isArray(winnerAnalysis.keyStrengths) && winnerAnalysis.keyStrengths.length > 0) {
+      winnerAnalysis.keyStrengths.forEach((strength: string) => { markdown += `- ${strength}\n`; });
+    } else {
+      markdown += `No strengths data available\n`;
+    }
+  } else {
+    markdown += `No strengths data available\n`;
+  }
+  markdown += `\n`;
+
+  markdown += `### SUGGESTED IMPROVEMENTS\n\n`;
+  if (versionDeepAnalysis && winnerId) {
+    const winnerAnalysis = versionDeepAnalysis[winnerId];
+    if (winnerAnalysis?.suggestedImprovements && Array.isArray(winnerAnalysis.suggestedImprovements) && winnerAnalysis.suggestedImprovements.length > 0) {
+      winnerAnalysis.suggestedImprovements.forEach((improvement: any) => {
+        const text = typeof improvement === 'object' && improvement !== null ? improvement.text : improvement;
+        if (text) markdown += `- ${text}\n`;
+      });
+    } else {
+      markdown += `No improvements data available\n`;
+    }
+  } else {
+    markdown += `No improvements data available\n`;
+  }
+  markdown += `\n`;
+
+  markdown += `---\n\n`;
+
+  // SECTION C - TASK
+  markdown += `## SECTION C — TASK\n\n`;
+  markdown += `Perform the following:\n\n`;
+  markdown += `**1. Rank all versions (best → worst)**\n\n`;
+  markdown += `**2. Choose a winner**\n\n`;
+  markdown += `**3. Score each version on TWO separate dimensions:**\n`;
+  markdown += `   - Editorial Quality (0–100): how well-written, clear, and professional\n`;
+  markdown += `   - Conversion Potential (0–100): how likely to make the reader take action\n`;
+  markdown += `   - Do NOT combine them into a single score\n\n`;
+  markdown += `**4. Score each version on the 10 Persuasion Sub-Dimensions:**\n`;
+  markdown += `   - Emotional Impact / Clarity / Trust / Specificity / Urgency\n`;
+  markdown += `   - Professionalism / Readability / CTA Strength / Audience Fit / Differentiation\n\n`;
+  markdown += `**5. Classify winner:**\n`;
+  markdown += `   - Clear Winner (≥10 pt gap over next best)\n`;
+  markdown += `   - Moderate Winner (5–9 pt gap)\n`;
+  markdown += `   - Close Call (<5 pt gap)\n\n`;
+  markdown += `**6. Compare with SECTION B:**\n`;
+  markdown += `   - Where do you AGREE?\n`;
+  markdown += `   - Where do you DISAGREE?\n\n`;
+  markdown += `**7. For each disagreement:**\n`;
+  markdown += `   - Explain why\n`;
+  markdown += `   - State who is more correct (you or the app)\n\n`;
+  markdown += `**8. Evaluate the app scoring system:**\n`;
+  markdown += `   - Is it directionally correct?\n`;
+  markdown += `   - Does it over/under score?\n`;
+  markdown += `   - Does it miss important factors?\n\n`;
+  markdown += `**9. Score comparison analysis (REQUIRED):**\n`;
+  markdown += `   - Compare Editorial Quality scores between app and your judgment. Flag any version with a gap greater than 10 points and explain why.\n`;
+  markdown += `   - Compare Conversion Potential scores separately. Flag any gap greater than 10 points and explain why.\n`;
+  markdown += `   - For each Persuasion Sub-Dimension, flag disagreements greater than 15 points.\n`;
+  markdown += `   - State explicitly: does the app conflate Editorial Quality with Conversion Potential? Provide evidence from the scores.\n\n`;
+  markdown += `**10. Final reliability verdict (answer all three):**\n`;
+  markdown += `   - Is the app reliable for **ranking**? (yes/no + reason)\n`;
+  markdown += `   - Is the app reliable for **Editorial Quality scoring**? (yes/no + reason)\n`;
+  markdown += `   - Is the app reliable for **Conversion Potential scoring**? (yes/no + reason)\n\n`;
+  markdown += `---\n\n`;
+
+  // OUTPUT FORMAT
+  markdown += `## OUTPUT FORMAT\n\n`;
+  markdown += `**WINNER:**\n`;
+  markdown += `...\n\n`;
+  markdown += `**RANKING:**\n`;
+  markdown += `...\n\n`;
+  markdown += `**EDITORIAL QUALITY SCORES:**\n`;
+  markdown += `- [Version label]: XX/100\n`;
+  markdown += `...\n\n`;
+  markdown += `**CONVERSION POTENTIAL SCORES:**\n`;
+  markdown += `- [Version label]: XX/100\n`;
+  markdown += `...\n\n`;
+  markdown += `**PERSUASION BREAKDOWN:**\n`;
+  markdown += `[Version label]: Emotional Impact XX | Clarity XX | Trust XX | Specificity XX | Urgency XX | Professionalism XX | Readability XX | CTA Strength XX | Audience Fit XX | Differentiation XX\n`;
+  markdown += `...\n\n`;
+  markdown += `**WINNER TYPE:**\n`;
+  markdown += `...\n\n`;
+  markdown += `**AGREEMENT:**\n`;
+  markdown += `...\n\n`;
+  markdown += `**DISAGREEMENTS:**\n`;
+  markdown += `...\n\n`;
+  markdown += `**WHO IS MORE CORRECT:**\n`;
+  markdown += `...\n\n`;
+  markdown += `**EDITORIAL QUALITY GAP ANALYSIS:**\n`;
+  markdown += `...\n\n`;
+  markdown += `**CONVERSION POTENTIAL GAP ANALYSIS:**\n`;
+  markdown += `...\n\n`;
+  markdown += `**DOES APP CONFLATE EDITORIAL AND CONVERSION?**\n`;
+  markdown += `...\n\n`;
+  markdown += `**APP RELIABILITY FOR RANKING:**\n`;
+  markdown += `...\n\n`;
+  markdown += `**APP RELIABILITY FOR EDITORIAL QUALITY SCORING:**\n`;
+  markdown += `...\n\n`;
+  markdown += `**APP RELIABILITY FOR CONVERSION POTENTIAL SCORING:**\n`;
+  markdown += `...\n\n`;
+  markdown += `**BIGGEST ERROR:**\n`;
+  markdown += `...\n\n`;
+  markdown += `**BIGGEST STRENGTH:**\n`;
+  markdown += `...\n\n`;
+  markdown += `**FINAL VERDICT:**\n`;
+  markdown += `...\n\n`;
+
+  markdown += `---\n\n`;
+  markdown += `*End of audit file*\n`;
+
+  // Build filename
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  const dateTime = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+
+  const projectDesc = formState.projectDescription
+    ? formState.projectDescription
+        .trim()
+        .replace(/[^a-zA-Z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .substring(0, 50)
+    : 'untitled';
+
+  const filename = `llm-COMPARE_${projectDesc}_${dateTime}.md`;
+
+  return { markdown, filename };
+};
+
 export const exportLLMEvaluationAudit = (
   formState: FormState,
   generatedOutputCards: GeneratedContentItem[],
@@ -3602,436 +4004,16 @@ export const exportLLMEvaluationAudit = (
   comparisonDeepAnalysisMeta?: ComparisonDeepAnalysisMeta
 ): void => {
   try {
-    // STEP 1: VALIDATE EVALUATION COMPLETENESS
-    const validation = hasCompleteEvaluationData(
+    const { markdown, filename } = buildLLMEvaluationAudit(
+      formState,
+      generatedOutputCards,
+      originalInputScore,
+      promptEvaluation,
       comparisonResult,
       versionDeepAnalysis,
-      generatedOutputCards
+      comparisonDeepAnalysisMeta,
     );
 
-    if (!validation.isComplete) {
-      // Log detailed information about missing fields for debugging
-      console.warn('LLM audit export blocked: incomplete evaluation data', {
-        missingFields: validation.missingFields,
-        hasComparisonResult: !!comparisonResult,
-        hasVersionDeepAnalysis: !!versionDeepAnalysis,
-        winner: (comparisonResult as any)?.winnerVersionId || comparisonResult?.winner || null,
-        rankingLength: (comparisonResult as any)?.rows?.length || comparisonResult?.ranking?.length || 0,
-        scoresCount: (comparisonResult as any)?.rows?.length ||
-                     (comparisonResult?.scores ? Object.keys(comparisonResult.scores).length : 0),
-        generatedVersionsCount: generatedOutputCards.length
-      });
-
-      // Create user-friendly error message
-      const errorMessage = `Comparison audit export is only available after scoring and ranking data has been fully generated.\n\nMissing: ${validation.missingFields.join(', ')}\n\nPlease run Compare/Re-score first to generate complete evaluation data.`;
-
-      throw new Error(errorMessage);
-    }
-
-    // STEP 2: PROCEED WITH EXPORT (data is complete)
-    let markdown = '';
-
-    // FILE HEADER
-    markdown += `# LLM Evaluation Audit File\n\n`;
-    markdown += `**Generated:** ${formatExportTimestamp()}\n\n`;
-    markdown += `---\n\n`;
-
-    // INSTRUCTIONS
-    markdown += `## INSTRUCTIONS FOR LLM\n\n`;
-    markdown += `You will receive:\n\n`;
-    markdown += `- **SECTION A** → Copy versions (neutral, blind input)\n`;
-    markdown += `- **SECTION B** → App evaluation (biased system output)\n\n`;
-    markdown += `**IMPORTANT:**\n\n`;
-    markdown += `1. First, independently evaluate ONLY SECTION A\n`;
-    markdown += `2. Then compare your evaluation with SECTION B\n`;
-    markdown += `3. Do NOT assume the app is correct\n`;
-    markdown += `4. Be critical and analytical\n\n`;
-    markdown += `---\n\n`;
-
-    // SECTION A - COPY VERSIONS (BLIND INPUT)
-    markdown += `## SECTION A — COPY VERSIONS (BLIND INPUT)\n\n`;
-    markdown += `**IMPORTANT:**\n`;
-    markdown += `- Evaluate ONLY content between \`<START_COPY>\` and \`<END_COPY>\`\n`;
-    markdown += `- Ignore formatting inconsistencies\n`;
-    markdown += `- Ignore minor boilerplate (cookies, navigation, etc.)\n\n`;
-    markdown += `---\n\n`;
-
-    // ORIGINAL COPY (if in improve mode)
-    if (formState.tab === 'improve' && formState.originalCopy) {
-      markdown += `### [Original Copy]\n\n`;
-      markdown += `<START_COPY>\n\n`;
-      const normalizedOriginal = normalizeCopyForLLMExport(formState.originalCopy);
-      const cleanOriginal = extractPureCopy(normalizedOriginal);
-      const finalOriginal = finalCleanForLLM(cleanOriginal);
-      markdown += finalOriginal + '\n\n';
-      markdown += `<END_COPY>\n\n`;
-      markdown += `---\n\n`;
-    }
-
-    // GENERATED VERSIONS
-    generatedOutputCards.forEach((item, index) => {
-      let versionLabel = item.sourceDisplayName || item.type || `Version ${index + 1}`;
-      if (item.persona) {
-        versionLabel += ` (${item.persona}'s Voice)`;
-      }
-
-      markdown += `### [${versionLabel}]\n\n`;
-      markdown += `<START_COPY>\n\n`;
-
-      let actualContent = item.content;
-      if (typeof item.content === 'object' && item.content !== null && 'content' in item.content) {
-        actualContent = (item.content as any).content;
-      }
-
-      const normalizedContent = normalizeCopyForLLMExport(actualContent);
-      const cleanContent = extractPureCopy(normalizedContent);
-      const finalContent = finalCleanForLLM(cleanContent);
-      markdown += finalContent + '\n\n';
-
-      markdown += `<END_COPY>\n\n`;
-      markdown += `---\n\n`;
-    });
-
-    // SECTION B - APP EVALUATION
-    markdown += `## SECTION B — APP EVALUATION (FOR COMPARISON ONLY)\n\n`;
-    markdown += `**IMPORTANT:**\n`;
-    markdown += `- Do NOT read this before completing your own evaluation\n`;
-    markdown += `- This section represents the app's judgment\n\n`;
-    markdown += `---\n\n`;
-
-    // Extract winner and ranking data
-    let winnerLabel = 'Unknown';
-    let rankingList: string[] = [];
-    let scoresList: { label: string; score: number }[] = [];
-    let shortWhyWinner = '';
-    let winnerId = '';
-
-    if (comparisonResult) {
-      // Support both old and new formats
-      // New format: winnerVersionId, rows[], winnerExplanation
-      // Old format: winner, ranking[], scores{}, shortWhyWinner/whyWinner
-
-      winnerId = (comparisonResult as any).winnerVersionId || comparisonResult.winner || '';
-
-      // Get winner label
-      if (winnerId) {
-        const winnerVersion = generatedOutputCards.find(item =>
-          item.id === winnerId ||
-          item.sourceDisplayName === winnerId ||
-          item.type === winnerId
-        );
-        if (winnerVersion) {
-          winnerLabel = winnerVersion.sourceDisplayName || winnerVersion.type || 'Winner';
-          if (winnerVersion.persona) {
-            winnerLabel += ` (${winnerVersion.persona}'s Voice)`;
-          }
-        } else if (winnerId === '__original__') {
-          winnerLabel = 'Original Copy';
-        } else {
-          winnerLabel = winnerId || 'Unknown';
-        }
-      }
-
-      // Get ranking - support both formats
-      const rows = (comparisonResult as any).rows;
-      if (rows && Array.isArray(rows)) {
-        // New format: rows array with versionId, label, score, rank
-        rankingList = rows
-          .sort((a: any, b: any) => (a.rank || 0) - (b.rank || 0))
-          .map((row: any) => {
-            const rank = row.rank || 0;
-            const label = row.label || row.optionLabel || `Version ${rank}`;
-            return `${rank}. ${label}`;
-          });
-
-        // Get scores from rows
-        scoresList = rows.map((row: any) => ({
-          label: row.label || row.optionLabel || 'Unknown',
-          score: row.score || row.finalScore || 0
-        }));
-      } else if (comparisonResult.ranking && Array.isArray(comparisonResult.ranking)) {
-        // Old format: ranking array
-        rankingList = comparisonResult.ranking.map((item: any, idx: number) => {
-          const rank = idx + 1;
-          const versionName = typeof item === 'string' ? item : item?.version || item?.label || `Version ${idx + 1}`;
-          const versionData = generatedOutputCards.find(v =>
-            v.sourceDisplayName === versionName || v.type === versionName
-          );
-          let displayName = versionName;
-          if (versionData?.persona) {
-            displayName += ` (${versionData.persona}'s Voice)`;
-          }
-          return `${rank}. ${displayName}`;
-        });
-
-        // Get scores from old format
-        if (comparisonResult.scores && typeof comparisonResult.scores === 'object') {
-          scoresList = Object.entries(comparisonResult.scores).map(([key, value]) => {
-            const versionData = generatedOutputCards.find(v =>
-              v.sourceDisplayName === key || v.type === key
-            );
-            let displayName = key;
-            if (versionData?.persona) {
-              displayName += ` (${versionData.persona}'s Voice)`;
-            }
-            return {
-              label: displayName,
-              score: typeof value === 'number' ? value : 0
-            };
-          });
-        }
-      }
-
-      // Get explanation - support both formats
-      shortWhyWinner = (comparisonResult as any).winnerExplanation ||
-                       comparisonResult.shortWhyWinner ||
-                       comparisonResult.whyWinner ||
-                       '';
-    }
-
-    // Winner
-    markdown += `### WINNER\n\n`;
-    markdown += `${winnerLabel}\n\n`;
-
-    // Ranking
-    markdown += `### RANKING\n\n`;
-    if (rankingList.length > 0) {
-      rankingList.forEach(rank => {
-        markdown += `${rank}\n`;
-      });
-    } else {
-      markdown += `No ranking available\n`;
-    }
-    markdown += `\n`;
-
-    // Scores — dual score system: Editorial Quality + Conversion Potential
-    markdown += `### SCORES\n\n`;
-    if (scoresList.length > 0) {
-      // Build content text map for computing dual scores
-      const contentMap: Record<string, string> = {};
-      const absScoreMap: Record<string, any> = {};
-      generatedOutputCards.forEach(item => {
-        let ct = '';
-        const actualContent = (typeof item.content === 'object' && item.content !== null && 'content' in item.content)
-          ? (item.content as any).content
-          : item.content;
-        if (typeof actualContent === 'string') ct = actualContent;
-        else if (Array.isArray(actualContent)) ct = actualContent.join('\n');
-        else if (typeof actualContent === 'object' && actualContent !== null) ct = JSON.stringify(actualContent);
-        const key = item.sourceDisplayName || item.type || '';
-        if (key) contentMap[key] = ct;
-        if (item.id) contentMap[item.id] = ct;
-        if (item.absoluteScore && item.absoluteScore.total > 0) {
-          if (key) absScoreMap[key] = item.absoluteScore;
-          if (item.id) absScoreMap[item.id] = item.absoluteScore;
-        }
-      });
-
-      scoresList.forEach(({ label, score }) => {
-        markdown += `- **${label}**: ${score}/100\n`;
-      });
-      markdown += `\n`;
-
-      // Per-version dual scores + extended fields
-      const rows = (comparisonResult as any).rows;
-      if (rows && Array.isArray(rows)) {
-        markdown += `### PER-VERSION ANALYSIS\n\n`;
-        rows.sort((a: any, b: any) => (a.rank || 0) - (b.rank || 0)).forEach((row: any) => {
-          const label = row.label || row.optionLabel || 'Unknown';
-          const ct = contentMap[row.versionId] || contentMap[label] || '';
-          const rowScore = row.finalScore ?? 0;
-          const wcrl = ct ? computeWordCountAndReadingLevel(ct) : null;
-          const confidence = ct ? computeEvaluationConfidence(ct) : { confidence: 'Medium' as const };
-          const strategy = ct ? computeConversionStrategy(ct) : 'ROI Framing' as const;
-          const intensity = ct ? computeCommercialIntensity(ct) : 'Medium' as const;
-          const driver = ct ? computeMostLikelyConversionDriver(ct) : 'Relevance to reader context.';
-          const risks = ct ? computeRiskFactors(ct, row.verificationFlags) : [];
-
-          markdown += `#### ${label}${row.isWinner ? ' (WINNER)' : ''}\n\n`;
-
-          // Verification flags at top
-          if (row.verificationFlags && row.verificationFlags.length > 0) {
-            markdown += `⚠️ **Verify before publishing:**\n`;
-            row.verificationFlags.forEach((flag: string) => {
-              markdown += `- "${flag}" — source unknown\n`;
-            });
-            markdown += `\n`;
-          }
-
-          if (wcrl) {
-            markdown += `**Word Count:** ${wcrl.wordCount} words\n`;
-            markdown += `**Reading Level:** ${wcrl.readingLevel}\n`;
-          }
-          markdown += `\n`;
-          if (risks.length > 0) {
-            markdown += `**Risk Factors:**\n`;
-            risks.forEach(r => { markdown += `- ${r}\n`; });
-            markdown += `\n`;
-          }
-
-          // Absolute Score removed — shown in rankings table only
-
-          // .md-only fields (items 9-12)
-          markdown += `**Evaluation Confidence:** ${confidence.confidence}${confidence.reason ? ` — ${confidence.reason}` : ''}\n`;
-          markdown += `**Primary Conversion Strategy:** ${strategy}\n`;
-          markdown += `**Commercial Intensity:** ${intensity}\n`;
-          markdown += `**Most Likely Conversion Driver:** ${driver}\n\n`;
-        });
-      }
-    } else {
-      markdown += `No scores available\n\n`;
-    }
-
-    // Summary
-    markdown += `### SUMMARY\n\n`;
-    markdown += shortWhyWinner || 'No summary available';
-    markdown += `\n\n`;
-
-    // Winner Type classification
-    const auditRows = (comparisonResult as any).rows;
-    if (auditRows && auditRows.length >= 2) {
-      const sortedAuditRows = [...auditRows].sort((a: any, b: any) => (b.finalScore || 0) - (a.finalScore || 0));
-      const wt = classifyWinnerType(sortedAuditRows[0].finalScore || 0, sortedAuditRows[1].finalScore || 0);
-      markdown += `### WINNER TYPE\n\n`;
-      markdown += `**${wt.type}** — ${wt.reason}\n\n`;
-    }
-
-    // Strengths and Improvements (from deep analysis)
-    markdown += `### STRENGTHS\n\n`;
-    if (versionDeepAnalysis && winnerId) {
-      const winnerAnalysis = versionDeepAnalysis[winnerId];
-      if (winnerAnalysis?.keyStrengths && Array.isArray(winnerAnalysis.keyStrengths) && winnerAnalysis.keyStrengths.length > 0) {
-        winnerAnalysis.keyStrengths.forEach((strength: string) => { markdown += `- ${strength}\n`; });
-      } else {
-        markdown += `No strengths data available\n`;
-      }
-    } else {
-      markdown += `No strengths data available\n`;
-    }
-    markdown += `\n`;
-
-    markdown += `### SUGGESTED IMPROVEMENTS\n\n`;
-    if (versionDeepAnalysis && winnerId) {
-      const winnerAnalysis = versionDeepAnalysis[winnerId];
-      if (winnerAnalysis?.suggestedImprovements && Array.isArray(winnerAnalysis.suggestedImprovements) && winnerAnalysis.suggestedImprovements.length > 0) {
-        winnerAnalysis.suggestedImprovements.forEach((improvement: any) => {
-          const text = typeof improvement === 'object' && improvement !== null ? improvement.text : improvement;
-          if (text) markdown += `- ${text}\n`;
-        });
-      } else {
-        markdown += `No improvements data available\n`;
-      }
-    } else {
-      markdown += `No improvements data available\n`;
-    }
-    markdown += `\n`;
-
-    markdown += `---\n\n`;
-
-    // SECTION C - TASK
-    markdown += `## SECTION C — TASK\n\n`;
-    markdown += `Perform the following:\n\n`;
-    markdown += `**1. Rank all versions (best → worst)**\n\n`;
-    markdown += `**2. Choose a winner**\n\n`;
-    markdown += `**3. Score each version on TWO separate dimensions:**\n`;
-    markdown += `   - Editorial Quality (0–100): how well-written, clear, and professional\n`;
-    markdown += `   - Conversion Potential (0–100): how likely to make the reader take action\n`;
-    markdown += `   - Do NOT combine them into a single score\n\n`;
-    markdown += `**4. Score each version on the 10 Persuasion Sub-Dimensions:**\n`;
-    markdown += `   - Emotional Impact / Clarity / Trust / Specificity / Urgency\n`;
-    markdown += `   - Professionalism / Readability / CTA Strength / Audience Fit / Differentiation\n\n`;
-    markdown += `**5. Classify winner:**\n`;
-    markdown += `   - Clear Winner (≥10 pt gap over next best)\n`;
-    markdown += `   - Moderate Winner (5–9 pt gap)\n`;
-    markdown += `   - Close Call (<5 pt gap)\n\n`;
-    markdown += `**6. Compare with SECTION B:**\n`;
-    markdown += `   - Where do you AGREE?\n`;
-    markdown += `   - Where do you DISAGREE?\n\n`;
-    markdown += `**7. For each disagreement:**\n`;
-    markdown += `   - Explain why\n`;
-    markdown += `   - State who is more correct (you or the app)\n\n`;
-    markdown += `**8. Evaluate the app scoring system:**\n`;
-    markdown += `   - Is it directionally correct?\n`;
-    markdown += `   - Does it over/under score?\n`;
-    markdown += `   - Does it miss important factors?\n\n`;
-    markdown += `**9. Score comparison analysis (REQUIRED):**\n`;
-    markdown += `   - Compare Editorial Quality scores between app and your judgment. Flag any version with a gap greater than 10 points and explain why.\n`;
-    markdown += `   - Compare Conversion Potential scores separately. Flag any gap greater than 10 points and explain why.\n`;
-    markdown += `   - For each Persuasion Sub-Dimension, flag disagreements greater than 15 points.\n`;
-    markdown += `   - State explicitly: does the app conflate Editorial Quality with Conversion Potential? Provide evidence from the scores.\n\n`;
-    markdown += `**10. Final reliability verdict (answer all three):**\n`;
-    markdown += `   - Is the app reliable for **ranking**? (yes/no + reason)\n`;
-    markdown += `   - Is the app reliable for **Editorial Quality scoring**? (yes/no + reason)\n`;
-    markdown += `   - Is the app reliable for **Conversion Potential scoring**? (yes/no + reason)\n\n`;
-    markdown += `---\n\n`;
-
-    // OUTPUT FORMAT
-    markdown += `## OUTPUT FORMAT\n\n`;
-    markdown += `**WINNER:**\n`;
-    markdown += `...\n\n`;
-    markdown += `**RANKING:**\n`;
-    markdown += `...\n\n`;
-    markdown += `**EDITORIAL QUALITY SCORES:**\n`;
-    markdown += `- [Version label]: XX/100\n`;
-    markdown += `...\n\n`;
-    markdown += `**CONVERSION POTENTIAL SCORES:**\n`;
-    markdown += `- [Version label]: XX/100\n`;
-    markdown += `...\n\n`;
-    markdown += `**PERSUASION BREAKDOWN:**\n`;
-    markdown += `[Version label]: Emotional Impact XX | Clarity XX | Trust XX | Specificity XX | Urgency XX | Professionalism XX | Readability XX | CTA Strength XX | Audience Fit XX | Differentiation XX\n`;
-    markdown += `...\n\n`;
-    markdown += `**WINNER TYPE:**\n`;
-    markdown += `...\n\n`;
-    markdown += `**AGREEMENT:**\n`;
-    markdown += `...\n\n`;
-    markdown += `**DISAGREEMENTS:**\n`;
-    markdown += `...\n\n`;
-    markdown += `**WHO IS MORE CORRECT:**\n`;
-    markdown += `...\n\n`;
-    markdown += `**EDITORIAL QUALITY GAP ANALYSIS:**\n`;
-    markdown += `...\n\n`;
-    markdown += `**CONVERSION POTENTIAL GAP ANALYSIS:**\n`;
-    markdown += `...\n\n`;
-    markdown += `**DOES APP CONFLATE EDITORIAL AND CONVERSION?**\n`;
-    markdown += `...\n\n`;
-    markdown += `**APP RELIABILITY FOR RANKING:**\n`;
-    markdown += `...\n\n`;
-    markdown += `**APP RELIABILITY FOR EDITORIAL QUALITY SCORING:**\n`;
-    markdown += `...\n\n`;
-    markdown += `**APP RELIABILITY FOR CONVERSION POTENTIAL SCORING:**\n`;
-    markdown += `...\n\n`;
-    markdown += `**BIGGEST ERROR:**\n`;
-    markdown += `...\n\n`;
-    markdown += `**BIGGEST STRENGTH:**\n`;
-    markdown += `...\n\n`;
-    markdown += `**FINAL VERDICT:**\n`;
-    markdown += `...\n\n`;
-
-    markdown += `---\n\n`;
-    markdown += `*End of audit file*\n`;
-
-    // Create filename
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    const dateTime = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
-
-    // Sanitize project description for filename
-    const projectDesc = formState.projectDescription
-      ? formState.projectDescription
-          .trim()
-          .replace(/[^a-zA-Z0-9\s-]/g, '') // Remove special characters
-          .replace(/\s+/g, '-') // Replace spaces with hyphens
-          .substring(0, 50) // Limit length
-      : 'untitled';
-
-    const filename = `llm-COMPARE_${projectDesc}_${dateTime}.md`;
-
-    // Create and download the file
     const blob = new Blob([markdown], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
@@ -4046,6 +4028,7 @@ export const exportLLMEvaluationAudit = (
     throw error;
   }
 };
+
 
 /**
  * Enhanced PDF export with professional typography and hierarchy
