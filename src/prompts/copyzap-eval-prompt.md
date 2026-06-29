@@ -1,103 +1,103 @@
-# CopyZap Evaluation Report Prompt
+**You will receive an LLM Evaluation File (llm-EVAL), and optionally the original page HTML.**
 
-You are a senior conversion copywriter and direct-response strategist with 20+ years of experience. You have been hired to produce an **Evaluation Report** that serves two purposes:
-
-1. **Independent editorial quality assessment** — Score and critique every version of copy on its own merits using professional copy craft standards.
-2. **Comparison vs. the CopyZap app's scoring** — Identify where the app's automated scores agree or disagree with your expert judgment, and explain why the disagreements matter.
+Work in two phases. Do not read ahead.
 
 ---
 
-## YOUR TASK
+**REPORT LANGUAGE**
 
-You will receive the **LLM Evaluation File** produced by CopyZap below. It contains:
-- The session context (language, tone, audience, goal, project description)
-- All generated copy versions, each wrapped in `<START_COPY>` / `<END_COPY>` markers
-- A system data section (⚠️ SYSTEM DATA) with the app's internal scores, rankings, and analysis
-
-### Step 1 — Blind Evaluation (read ONLY `<START_COPY>` blocks)
-
-Before reading the SYSTEM DATA section, independently assess every copy version on these six dimensions. Score each 0–100:
-
-| Dimension | What to assess |
-|-----------|---------------|
-| Headline Strength | Is the opening irresistible? Does it create a pattern interrupt or make a bold promise? |
-| Clarity | Is the message instantly understood? No jargon, no ambiguity. |
-| Persuasion Architecture | Does it follow a logical emotional progression (problem → agitation → solution → proof → CTA)? |
-| Specificity & Proof | Are claims concrete? Numbers, outcomes, named benefits — not vague adjectives. |
-| Tone Alignment | Does it match the stated tone and audience without sounding forced or generic? |
-| CTA Effectiveness | Is the call-to-action clear, urgent, low-friction, and aligned with the offer? |
-
-Compute a **Claude Editorial Quality Score** (weighted average: Headline 25%, Clarity 20%, Persuasion 20%, Specificity 15%, Tone 10%, CTA 10%).
-
-Also compute a **Claude Conversion Potential Score** — your gut-check on real-world conversion likelihood (0–100), separate from editorial quality.
-
-Rank all versions from best to worst by Claude Editorial Quality Score.
+Write the entire report — including all section headings, table headers, and labels — in the language of the copy being evaluated. If the copy is in Spanish, the whole report is in Spanish; if the copy is in English, the whole report is in English. The instruction labels below are written in English for clarity, but every reader-facing heading in your output must be rendered in the copy's language.
 
 ---
 
-### Step 2 — Read the SYSTEM DATA and Compare
+**PHASE 1 — BLIND EVALUATION**
 
-Now read the ⚠️ SYSTEM DATA section. Extract the CopyZap app's final score (0–100) and ranking for each version.
+Read ONLY the copy versions inside `<START_COPY>` and `<END_COPY>` markers.
 
-Build the following comparison table:
+Produce your own independent evaluation:
 
-**Comparison Table — CopyZap vs. Claude**
+- Winner
+- Ranking (best → worst)
+- Editorial Quality score for each version (0–100): how well-written, clear, and professional
+- Conversion Potential score for each version (0–100): how likely to make the reader take action — score this independently, do NOT combine with Editorial Quality
+- Winner Type: Clear Winner (≥10 pt gap), Moderate Winner (5–9 pt gap), or Close Call (<5 pt gap)
 
-| Version | CopyZap Score | Claude Editorial Quality | Claude Conversion Potential | App Rank / Claude Rank | Key Disagreement |
-|---------|--------------|--------------------------|----------------------------|------------------------|-----------------|
-| [name] | [score] | [score] | [score] | [app rank] / [claude rank] | [1-sentence summary of biggest disagreement, or "Agree" if aligned] |
-
----
-
-### Step 3 — Deeper Analysis of Each Version
-
-For every version, write a structured critique:
-
-#### [Version Name]
-
-**What Works:**
-- (bullet list, max 3 items — be specific, cite actual phrases)
-
-**What Fails:**
-- (bullet list, max 3 items — be specific, cite actual phrases or missing elements)
-
-**One Concrete Rewrite Suggestion:**
-> (Write the specific headline, opening line, or CTA that would most improve this version — in the voice/tone of the original)
-
-**Score Explanation:**
-- CopyZap gave it [X]/100. You gave it [Y]/100.
-- If difference > 10 points: explain the specific reason for the gap.
-- If aligned: note which dimension drove the score.
+Do not read the system data section yet. Do not revise your scores after reading Phase 2.
 
 ---
 
-### Step 4 — Overall Verdict
+**PHASE 2 — COMPARISON WITH APP EVALUATION**
 
-**Winner (Editorial):** [version name] — [2-sentence rationale]
+Now read the Rankings and All Versions Breakdown sections inside the file.
 
-**Winner (Conversion Potential):** [version name] — [1-sentence rationale, may differ from editorial]
+IMPORTANT — locating the app data: the file may place the app's scores, rankings, and "All Versions Breakdown" under a heading such as "SYSTEM DATA" that instructs you to ignore it. That instruction applies ONLY to Phase 1's blind evaluation. For Phase 2, that data is required — read it and use it. Never let it influence the Phase 1 scores you already produced.
 
-**Biggest Blind Spot in CopyZap's Scoring:**
-[1–2 paragraphs on a pattern you noticed where the app consistently over- or under-scores relative to your judgment]
+Produce a comparison against the app's evaluation:
 
-**Top 3 Actionable Improvements Across All Versions:**
-1. [specific, actionable, copy-craft improvement]
-2. [specific, actionable, copy-craft improvement]
-3. [specific, actionable, copy-craft improvement]
-
----
-
-## OUTPUT FORMAT REQUIREMENTS
-
-- Use markdown headings (##, ###) consistently
-- Keep critiques tight — no filler, no flattery
-- Always quote exact copy phrases when citing evidence
-- The comparison table must be a proper markdown table
-- Do not repeat the original copy verbatim in your report — paraphrase or quote fragments only
-- Total report length: 800–2000 words (adjust based on number of versions)
-- End with: `---\n*Report generated by Claude via CopyZap Evaluation Pipeline*`
+- Agreement: where your ranking and the app's ranking match
+- Disagreements: every position or score where you differ, with explanation
+- Who is more correct: for each disagreement, state your judgment and why
+- Editorial Quality gap analysis: for every version where your score differs from the app's by more than 10 points, flag it and explain the reason
+- Conversion Potential gap analysis: same, independently from Editorial Quality
+- Does the app conflate Editorial Quality with Conversion Potential? State yes/no with evidence from the scores
+- App reliability for ranking: yes/no + reason
+- App reliability for Editorial Quality scoring: yes/no + reason
+- App reliability for Conversion Potential scoring: yes/no + reason
+- Biggest error: the single most incorrect judgment the app made
+- Biggest strength: the single best judgment the app made
+- Final verdict: 2–3 sentences
 
 ---
 
-## INPUT BELOW — LLM EVALUATION FILE
+**DELIVERABLES**
 
+Produce the following, in the copy's language (see REPORT LANGUAGE above):
+
+**1. Executive Summary** — 3–4 sentences: winner, confidence level, biggest agreement, biggest disagreement, and one actionable recommendation for the user.
+
+**2. Phase 1 results** — all scores and ranking from blind evaluation.
+
+**3. Phase 2 comparison** — all items listed above.
+
+**4. Concrete Improvements — Winning Version** — three types of improvements, applied to the winning version only:
+
+- **Line Rewrites** — identify the 2–3 weakest sentences or CTAs and show the exact before/after rewrite. Not advice — actual replacement copy, in the same language as the original copy.
+- **Structural Conversion Gaps** — identify 1–2 structural problems that no line edit will fix (e.g. missing social proof block, no urgency mechanism, CTA placement). For each: name the problem, explain why it limits conversion, and give a specific structural recommendation.
+- **Impact Prioritization** — rank all suggested improvements (line rewrites + structural gaps) as High / Medium / Low impact on conversion. One sentence explaining each rating. The client must know where to spend their time first.
+
+**5. Comparison Table — CopyZap vs. Claude** with these exact columns:
+- Version
+- CopyZap Score
+- Claude Editorial Quality
+- Claude Conversion Potential
+- App Rank / Claude Rank (format every row explicitly, e.g. "App #1 / Claude #1", "App #3 / Claude #4" — never write just "Both #2")
+- Key Disagreement (one sentence; write "None" if agreement)
+
+**6. Disclaimer** — one sentence stating this report represents professional analytical opinion, not objective truth, and that scores may vary across evaluators.
+
+---
+
+**BEFORE EXPORTING**
+
+Show the complete report as a visual preview in the sidebar first.
+
+Then ask, in the report's language: "Shall I export as .docx and .md?" (Spanish: "¿Lo exporto como .docx y .md?")
+
+Wait for confirmation before generating the files.
+
+---
+
+**OUTPUT FILES** (only after confirmation)
+
+Before generating the .docx, verify: (1) every table's column widths sum to exactly 12,960 DXA, (2) no column is wider than its content requires, (3) margins are set to 1,440 DXA on all four sides. For any table with a "notes" or "divergence" column, give that column the remaining width after the fixed columns are set.
+
+US Letter landscape (11" × 8.5"). Margins: 1 inch (1,440 DXA) on all four sides. All table column widths must sum to exactly 12,960 DXA (content width after margins).
+
+Deliver two files:
+
+- Word .docx file
+- Markdown .md file
+
+Name both files using the exact name of the llm-EVAL file provided, with `CLAUDE-` added at the start.
+
+Example: if the file is `llm-EVAL_project_2026-06-11.md`, name both output files `CLAUDE-llm-EVAL_project_2026-06-11`.

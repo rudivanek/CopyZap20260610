@@ -1231,7 +1231,11 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         comparisonDeepAnalysisMeta,
       );
 
-      const llmInput = evalPrompt + '\n\n' + evalContent;
+      const language = formState.language;
+      const languageDirective = language
+        ? `IMPORTANT: Write the entire report in ${language}. Every heading, table header, and sentence must be in ${language}.\n\n`
+        : '';
+      const llmInput = languageDirective + evalPrompt + '\n\n' + evalContent;
 
       const result = await makeApiRequestWithFallback(
         'claude-sonnet-4-5',
