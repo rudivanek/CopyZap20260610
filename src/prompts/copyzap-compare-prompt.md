@@ -4,6 +4,12 @@ Do the evaluation work in two internal phases (below), then assemble the report 
 
 ---
 
+**CRITICAL — OUTPUT ONLY THE FINAL REPORT**
+
+Do NOT print Phase 1 or Phase 2 working notes. Do NOT output raw scores, version lists, or internal rankings before the report. Do NOT print transitional phrases like "Fase 1", "Preparando reporte", "Ahora procederé a", or any reasoning narration. Start your visible output at PART 1 — CLIENT REPORT, with no preamble.
+
+---
+
 **REPORT LANGUAGE**
 
 Write the entire report — every heading, table header, and label — in the language of the copy being evaluated. Spanish copy → the whole report in Spanish; English copy → the whole report in English. The instruction labels below are in English for clarity, but every reader-facing heading must be in the copy's language.
@@ -13,6 +19,8 @@ Write the entire report — every heading, table header, and label — in the la
 **INTEGRITY RULE — no invented numbers (applies everywhere)**
 
 When you propose rewritten copy or recommendations, do NOT insert specific statistics, percentages, testimonials, named institutions, or result figures unless they actually appear in the source material. If a rewrite would be stronger with such a figure, insert a clearly marked placeholder and flag it, e.g. "[dato — verificar antes de publicar]". Never present fabricated figures as if they were real. A client may paste your rewrites straight onto their site.
+
+This rule explicitly covers testimonials: do NOT write invented testimonials attributed to named or located persons (e.g. "Laura M. from CDMX" or "Juan, empresario en Monterrey"). If a testimonial would help, use the placeholder: [testimonio de ejemplo — reemplazar con uno real y verificado].
 
 ---
 
@@ -24,25 +32,25 @@ When you propose rewritten copy or recommendations, do NOT insert specific stati
 
 ---
 
-**PHASE 1 — BLIND EVALUATION (internal working step)**
+**PHASE 1 — BLIND EVALUATION (SILENT — do not print; see CRITICAL rule above)**
 
 Read ONLY the copy in Section A, between `<START_COPY>` and `<END_COPY>`. For each version produce, for your own use:
 
 - **Claude Session Score** (0–100): relative quality vs. the other versions
-- **Claude Absolute Score** (0–100): four dimensions, 0–25 each — Clarity & Readability, Persuasion & Conversion, Audience Fit, Structure & Flow — with a one-sentence note per dimension
+- **Claude Absolute Score** (0–100): four dimensions, 0–25 each — Clarity & Readability, Persuasion & Conversion, Audience Fit, Structure & Flow — with a one-sentence note per dimension (Use only these four dimensions. Do not invent additional dimensions.)
 - Winner; ranking (best → worst); Winner Type: Clear (≥10 pt gap), Moderate (5–9), Close Call (<5)
 
 Do not read Section B yet. Do not revise these after Phase 2.
 
 ---
 
-**PHASE 2 — COMPARISON WITH APP (internal working step)**
+**PHASE 2 — COMPARISON WITH APP (SILENT — do not print)**
 
 Now read Section B (the app's scores, ranking, per-version analysis). Determine, for your own use: the Δ between CopyZap Session and Claude Session per version (flag any Δ > 10); agreements; divergences with who is more correct and why; per-dimension Absolute patterns across versions (flag any single dimension more than 4 points below that version's own average across its four dimensions, and say what it reveals); shared strengths and weaknesses; app reliability.
 
 ---
 
-**REPORT STRUCTURE — assemble in exactly this order**
+**REPORT STRUCTURE — this is the entire visible output, assembled in exactly this order**
 
 Write PART 1 in plain language for a business owner: no scoring jargon, no methodology talk. Keep it to roughly two pages. Put everything technical in PART 2.
 
@@ -53,7 +61,7 @@ Write PART 1 in plain language for a business owner: no scoring jargon, no metho
 3. **Winning Version** — which wins, who it is for (awareness / consideration / decision stage), and a short bulleted list of what to fix before publishing.
 4. **Concrete Improvements** (winning version only):
    - **Line Rewrites** — 2–3 weakest lines/CTAs with exact before/after replacement copy, in the source language. Obey the INTEGRITY RULE.
-   - **Structural Conversion Gaps** — 1–2 problems no line edit fixes; name it, say why it limits conversion, give a specific structural fix.
+   - **Structural Conversion Gaps** — 1–2 problems no line edit fixes; name it, say why it limits conversion, give a specific structural fix. Obey the INTEGRITY RULE: if you suggest adding social proof or a testimonial, use the placeholder [testimonio de ejemplo — reemplazar con uno real y verificado] — do NOT invent names, locations, or attributed quotes.
    - **Impact Prioritization** — the 3-column table under TABLE SHAPES.
 5. **Disclaimer** — one sentence: professional opinion, not objective truth; scores vary between evaluators.
 

@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-06-29T23:55:00Z
+Last Updated: 2026-06-29T24:00:00Z
 
 ---
 
@@ -4994,6 +4994,38 @@ Added a streaming branch that activates when `stream: true` is in the request bo
 3. Returns `Content-Type: text/event-stream` with `Cache-Control: no-cache`
 
 This keeps the connection active (data flowing continuously), preventing the idle timeout entirely. The non-streaming path is unchanged for all other callers.
+
+---
+
+## Compare Prompt Hardening — Output-Only + Integrity Rule (2026-06-29)
+
+**File:** `src/prompts/copyzap-compare-prompt.md`
+
+Replaced the prompt file verbatim with a hardened version addressing two quality failures:
+
+**1. Phase leakage (report was ~17 pages instead of ~9)**
+
+Added a `CRITICAL — OUTPUT ONLY THE FINAL REPORT` block immediately after the opening paragraph. This block explicitly prohibits:
+- Printing Phase 1 or Phase 2 working notes
+- Outputting raw scores, version lists, or internal rankings before the report begins
+- Printing transitional phrases such as "Fase 1", "Preparando reporte", "Ahora procederé a", or any reasoning narration
+
+Both PHASE 1 and PHASE 2 headers now carry the label "(SILENT — do not print; see CRITICAL rule above)" so the instruction applies at the point of each phase.
+
+**2. Fabricated testimonials (structural gaps section invented named persons)**
+
+Strengthened the `INTEGRITY RULE` with an explicit sub-clause:
+
+> This rule explicitly covers testimonials: do NOT write invented testimonials attributed to named or located persons (e.g. "Laura M. from CDMX" or "Juan, empresario en Monterrey"). If a testimonial would help, use the placeholder: [testimonio de ejemplo — reemplazar con uno real y verificado].
+
+Added a direct callout in **item 4 — Structural Conversion Gaps** under REPORT STRUCTURE:
+
+> Obey the INTEGRITY RULE: if you suggest adding social proof or a testimonial, use the placeholder [testimonio de ejemplo — reemplazar con uno real y verificado] — do NOT invent names, locations, or attributed quotes.
+
+**Other changes:**
+- PHASE 1 note: "(Use only these four dimensions. Do not invent additional dimensions.)"
+- REPORT STRUCTURE opening: "this is the entire visible output, assembled in exactly this order"
+- TABLE SHAPES and BEFORE EXPORTING sections unchanged
 
 ---
 
