@@ -1281,8 +1281,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         Document, Packer, Paragraph, TextRun, HeadingLevel,
         Table, TableRow, TableCell, WidthType, ShadingType,
         AlignmentType, PageOrientation, BorderStyle,
-        LevelFormat, AbstractNumbering, Numbering,
-        NumberFormat,
+        LevelFormat,
       } = await import('docx');
 
       // ── Constants ──────────────────────────────────────────────────────────
@@ -1504,22 +1503,19 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         new Paragraph({ children: [new TextRun({ text: '' })] }),
       ];
 
-      // ── Numbering for ordered lists ────────────────────────────────────────
-      const numbering = new Numbering({
-        config: [{
-          reference: 'eval-list',
-          levels: [{
-            level: 0,
-            format: LevelFormat.DECIMAL,
-            text: '%1.',
-            alignment: AlignmentType.LEFT,
-            style: { paragraph: { indent: { left: 360, hanging: 360 } } },
-          }],
-        }],
-      });
-
       const doc = new Document({
-        numbering,
+        numbering: {
+          config: [{
+            reference: 'eval-list',
+            levels: [{
+              level: 0,
+              format: LevelFormat.DECIMAL,
+              text: '%1.',
+              alignment: AlignmentType.LEFT,
+              style: { paragraph: { indent: { left: 360, hanging: 360 } } },
+            }],
+          }],
+        },
         sections: [{
           properties: {
             page: {
