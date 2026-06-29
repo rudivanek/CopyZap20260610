@@ -1241,7 +1241,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         'claude-sonnet-4-5',
         [{ role: 'user', content: llmInput }],
         0.4,
-        16000,
+        8000,
       );
 
       const reportMarkdown = result.choices?.[0]?.message?.content ?? '';
