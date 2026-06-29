@@ -1328,14 +1328,14 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
       const isScaffold = (text: string) => SCAFFOLD_RE.some(p => p.test(text));
 
       // ── Inline-bold text parser ────────────────────────────────────────────
-      const parseInlineRuns = (text: string, opts: { size?: number; color?: string } = {}): any[] => {
-        const { size = 20, color = C_PRIMARY } = opts;
+      const parseInlineRuns = (text: string, opts: { size?: number; color?: string; bold?: boolean } = {}): any[] => {
+        const { size = 20, color = C_PRIMARY, bold = false } = opts;
         const parts = text.split(/(\*\*[^*]+\*\*)/g);
         return parts.map(part => {
           if (part.startsWith('**') && part.endsWith('**')) {
             return new TextRun({ text: part.slice(2, -2), bold: true, font: 'Arial', size, color });
           }
-          return new TextRun({ text: part, font: 'Arial', size, color });
+          return new TextRun({ text: part, bold, font: 'Arial', size, color });
         });
       };
 
@@ -1368,9 +1368,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                 margins: { top: 60, bottom: 60, left: 120, right: 120 },
                 children: [
                   new Paragraph({
-                    children: parseInlineRuns(cell, { size: 18, color: C_PRIMARY }).map(r =>
-                      isHeader ? new TextRun({ ...r, bold: true }) : r
-                    ),
+                    children: parseInlineRuns(cell, { size: 18, color: C_PRIMARY, bold: isHeader }),
                   }),
                 ],
               });

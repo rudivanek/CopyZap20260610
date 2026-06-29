@@ -1,103 +1,82 @@
 **You will receive an LLM Evaluation File (llm-EVAL), and optionally the original page HTML.**
 
-Work in two phases. Do not read ahead.
+Do the evaluation work in two internal phases (below), then assemble the report in the exact order given under REPORT STRUCTURE. The two phases are how you THINK; REPORT STRUCTURE is what the reader SEES. Do not read ahead.
 
 ---
 
 **REPORT LANGUAGE**
 
-Write the entire report — including all section headings, table headers, and labels — in the language of the copy being evaluated. If the copy is in Spanish, the whole report is in Spanish; if the copy is in English, the whole report is in English. The instruction labels below are written in English for clarity, but every reader-facing heading in your output must be rendered in the copy's language.
+Write the entire report — every heading, table header, and label — in the language of the copy being evaluated. Spanish copy → the whole report in Spanish; English copy → the whole report in English. The instruction labels below are in English for clarity, but every reader-facing heading in your output must be in the copy's language.
 
 ---
 
-**PHASE 1 — BLIND EVALUATION**
+**INTEGRITY RULE — no invented numbers (applies everywhere)**
 
-Read ONLY the copy versions inside `<START_COPY>` and `<END_COPY>` markers.
-
-Produce your own independent evaluation:
-
-- Winner
-- Ranking (best → worst)
-- Editorial Quality score for each version (0–100): how well-written, clear, and professional
-- Conversion Potential score for each version (0–100): how likely to make the reader take action — score this independently, do NOT combine with Editorial Quality
-- Winner Type: Clear Winner (≥10 pt gap), Moderate Winner (5–9 pt gap), or Close Call (<5 pt gap)
-
-Do not read the system data section yet. Do not revise your scores after reading Phase 2.
+When you propose rewritten copy or recommendations, do NOT insert specific statistics, percentages, testimonials, named institutions, or result figures unless they actually appear in the source material. If a rewrite would be stronger with such a figure, insert a clearly marked placeholder instead and flag it, e.g. "[dato — verificar antes de publicar]". Never present fabricated figures (for example "el 87% de las familias" or "340 familias atendidas") as if they were real. A client may paste your rewrites directly onto their site; invented numbers are a liability.
 
 ---
 
-**PHASE 2 — COMPARISON WITH APP EVALUATION**
+**PHASE 1 — BLIND EVALUATION (internal working step — not the first thing the reader sees)**
 
-Now read the Rankings and All Versions Breakdown sections inside the file.
+Read ONLY the copy versions inside `<START_COPY>` and `<END_COPY>` markers. Produce, for your own use:
 
-IMPORTANT — locating the app data: the file may place the app's scores, rankings, and "All Versions Breakdown" under a heading such as "SYSTEM DATA" that instructs you to ignore it. That instruction applies ONLY to Phase 1's blind evaluation. For Phase 2, that data is required — read it and use it. Never let it influence the Phase 1 scores you already produced.
+- Winner; ranking (best → worst)
+- Editorial Quality score per version (0–100): how well-written, clear, professional
+- Conversion Potential score per version (0–100): how likely to drive action — scored independently of Editorial Quality
+- Winner Type: Clear Winner (≥10 pt gap), Moderate Winner (5–9 pt), or Close Call (<5 pt)
 
-Produce a comparison against the app's evaluation:
-
-- Agreement: where your ranking and the app's ranking match
-- Disagreements: every position or score where you differ, with explanation
-- Who is more correct: for each disagreement, state your judgment and why
-- Editorial Quality gap analysis: for every version where your score differs from the app's by more than 10 points, flag it and explain the reason
-- Conversion Potential gap analysis: same, independently from Editorial Quality
-- Does the app conflate Editorial Quality with Conversion Potential? State yes/no with evidence from the scores
-- App reliability for ranking: yes/no + reason
-- App reliability for Editorial Quality scoring: yes/no + reason
-- App reliability for Conversion Potential scoring: yes/no + reason
-- Biggest error: the single most incorrect judgment the app made
-- Biggest strength: the single best judgment the app made
-- Final verdict: 2–3 sentences
+Do not read the system data section yet. Do not revise these scores after Phase 2.
 
 ---
 
-**DELIVERABLES**
+**PHASE 2 — COMPARISON WITH APP EVALUATION (internal working step)**
 
-Produce the following, in the copy's language (see REPORT LANGUAGE above):
+Now read the Rankings and All Versions Breakdown sections. The file may place this data under a heading such as "SYSTEM DATA" that says to ignore it. That instruction applies ONLY to Phase 1. For Phase 2 the data is required; read and use it, but never let it change the Phase 1 scores you already set.
 
-**1. Executive Summary** — 3–4 sentences: winner, confidence level, biggest agreement, biggest disagreement, and one actionable recommendation for the user.
+Determine, for your own use: agreements; disagreements (per position/score) with who is more correct; Editorial Quality gaps >10 pts; Conversion Potential gaps >10 pts; whether the app conflates Editorial with Conversion (yes/no + evidence); app reliability for ranking / Editorial / Conversion (each yes-no + reason); biggest error; biggest strength; final verdict.
 
-**2. Phase 1 results** — all scores and ranking from blind evaluation.
+---
 
-**3. Phase 2 comparison** — all items listed above.
+**REPORT STRUCTURE — assemble in exactly this order**
 
-**4. Concrete Improvements — Winning Version** — three types of improvements, applied to the winning version only:
+Write PART 1 in plain language for a business owner: no scoring jargon, no methodology talk, no discussion of whether the app is reliable. Keep PART 1 to roughly two pages. Put everything technical in PART 2.
 
-- **Line Rewrites** — identify the 2–3 weakest sentences or CTAs and show the exact before/after rewrite. Not advice — actual replacement copy, in the same language as the original copy.
-- **Structural Conversion Gaps** — identify 1–2 structural problems that no line edit will fix (e.g. missing social proof block, no urgency mechanism, CTA placement). For each: name the problem, explain why it limits conversion, and give a specific structural recommendation.
-- **Impact Prioritization** — rank all suggested improvements (line rewrites + structural gaps) as High / Medium / Low impact on conversion. One sentence explaining each rating. The client must know where to spend their time first.
+**PART 1 — CLIENT REPORT**
 
-**5. Comparison Table — CopyZap vs. Claude** with these exact columns:
-- Version
-- CopyZap Score
-- Claude Editorial Quality
-- Claude Conversion Potential
-- App Rank / Claude Rank (format every row explicitly, e.g. "App #1 / Claude #1", "App #3 / Claude #4" — never write just "Both #2")
-- Key Disagreement (one sentence; write "None" if agreement)
+1. **Header** — project (URL/name), date, number of versions evaluated, language.
+2. **Executive Summary** — 3–4 plain sentences: which version to use, how confident you are, and the single most important action to take. No jargon.
+3. **Comparison Table** — the 6-column table specified under TABLE SHAPES. Add one plain-language sentence beneath it saying what it shows.
+4. **Winning Version** — which version wins, who it is for (awareness / consideration / decision stage), and a short bulleted list of what to fix before publishing.
+5. **Concrete Improvements** (winning version only):
+   - **Line Rewrites** — 2–3 weakest lines/CTAs with exact before/after replacement copy, in the source language. Obey the INTEGRITY RULE.
+   - **Structural Conversion Gaps** — 1–2 problems no line edit fixes (missing social proof, no urgency, CTA placement). Name it, say why it limits conversion, give a specific structural fix.
+   - **Impact Prioritization** — the 3-column table specified under TABLE SHAPES.
+6. **Disclaimer** — one sentence: professional opinion, not objective truth; scores vary between evaluators.
 
-**6. Disclaimer** — one sentence stating this report represents professional analytical opinion, not objective truth, and that scores may vary across evaluators.
+**PART 2 — APPENDIX: DETAILED ANALYSIS (CopyZap vs. Claude)**
+
+Open this part with a one-line note that it is a technical appendix the client may skip.
+
+- **A1. Phase 1 — Claude's Blind Evaluation** — the 4-column table specified under TABLE SHAPES, plus the Winner Type.
+- **A2. Phase 2 — Comparison with the App** — agreements; disagreements with who is more correct; Editorial gap analysis (>10 pts); Conversion gap analysis (>10 pts); does the app conflate Editorial with Conversion (yes/no + evidence); app reliability for ranking / Editorial / Conversion; biggest error; biggest strength; final verdict.
+- **A3. Methodology note** — scores are blind and relative and vary ±3–5 pts between sessions; CopyZap's scores are relative to the versions evaluated and shift when versions are added.
+
+---
+
+**TABLE SHAPES — use exactly these column counts so the tables render correctly. Do not split them into other shapes (no separate 2-column score tables).**
+
+- **Comparison Table (6 columns):** Version · CopyZap Score · Claude Editorial Quality · Claude Conversion Potential · App Rank / Claude Rank · Key Disagreement. Format every rank explicitly ("App #1 / Claude #1", "App #3 / Claude #4"), never "Both #2". Write "None" where there is agreement.
+- **Phase 1 Table (4 columns):** Version · Editorial Quality · Conversion Potential · Claude Rank.
+- **Impact Prioritization Table (3 columns):** Improvement · Impact (High/Medium/Low) · Reason.
 
 ---
 
 **BEFORE EXPORTING**
 
-Show the complete report as a visual preview in the sidebar first.
-
-Then ask, in the report's language: "Shall I export as .docx and .md?" (Spanish: "¿Lo exporto como .docx y .md?")
-
-Wait for confirmation before generating the files.
+Show the complete report as a preview first. Then ask, in the report's language: "Shall I export as .docx and .md?" (Spanish: "¿Lo exporto como .docx y .md?"). Wait for confirmation before generating files.
 
 ---
 
 **OUTPUT FILES** (only after confirmation)
 
-Before generating the .docx, verify: (1) every table's column widths sum to exactly 12,960 DXA, (2) no column is wider than its content requires, (3) margins are set to 1,440 DXA on all four sides. For any table with a "notes" or "divergence" column, give that column the remaining width after the fixed columns are set.
-
-US Letter landscape (11" × 8.5"). Margins: 1 inch (1,440 DXA) on all four sides. All table column widths must sum to exactly 12,960 DXA (content width after margins).
-
-Deliver two files:
-
-- Word .docx file
-- Markdown .md file
-
-Name both files using the exact name of the llm-EVAL file provided, with `CLAUDE-` added at the start.
-
-Example: if the file is `llm-EVAL_project_2026-06-11.md`, name both output files `CLAUDE-llm-EVAL_project_2026-06-11`.
+A landscape Word `.docx` and a Markdown `.md`. Name both with the exact name of the llm-EVAL file provided, prefixed with `CLAUDE-` (e.g. `llm-EVAL_project.md` → `CLAUDE-llm-EVAL_project`). Do not include any layout, column-width, or DXA instructions in the report text itself — formatting is handled by the app.

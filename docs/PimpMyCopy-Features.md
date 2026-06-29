@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-06-29T15:00:00Z
+Last Updated: 2026-06-29T16:00:00Z
 
 ---
 
@@ -56,7 +56,20 @@ The preview modal uses a scoped `.eval-report-preview` CSS class injected inline
 - **Fonts**: Arial throughout; sizes: H1 32, H2 24, H3 21, body 20, table cells 18, muted 16 half-pts.
 - **Lists**: bullet and numbered list items mapped to real docx `bullet`/`numbering` paragraphs (no literal `•` characters). Numbered lists use a `numbering.config` entry with reference `eval-list` and `LevelFormat.DECIMAL`, passed directly to `Document` (no `Numbering` class instantiation — incompatible with docx v9.7.x).
 
-### Bug Fix — "options.config is not iterable" (2026-06-29)
+### Bug Fix — blank header cells in Word export (2026-06-29)
+
+`parseInlineRuns` returned `TextRun` class instances. The header-row code then did `new TextRun({ ...r, bold: true })`, spreading a class instance whose properties are non-enumerable — the `text` value was lost, rendering every header cell blank. Fix: added a `bold` parameter to `parseInlineRuns`; the header path now calls `parseInlineRuns(cell, { size: 18, color: C_PRIMARY, bold: isHeader })` directly. The broken map/spread was removed.
+
+### Eval Prompt Update (2026-06-29)
+
+`src/prompts/copyzap-eval-prompt.md` replaced verbatim. Key structural changes from previous version:
+
+- Two phases are now labelled as internal working steps (not reader-facing deliverables)
+- REPORT STRUCTURE section added with explicit PART 1 / PART 2 ordering
+- PART 1 is a plain-language Client Report (~2 pages); PART 2 is a technical appendix (A1, A2, A3)
+- INTEGRITY RULE added — forbids invented statistics/percentages in rewritten copy
+- TABLE SHAPES section specifies exact column counts for all three tables (6-col Comparison, 4-col Phase 1, 3-col Impact Prioritization)
+- BEFORE EXPORTING simplified; OUTPUT FILES note clarifies no layout instructions in report text
 
 Runtime error thrown when clicking the Word export button. Root cause: `new Numbering({ config: [...] })` was instantiated separately and passed as `numbering` to `Document`. In docx v9.7.x the `Numbering` class does not accept this shape; the constructor iterates `options.config` which is undefined in that code path. Fix: removed the `new Numbering(...)` call and the unused `Numbering`, `AbstractNumbering`, `NumberFormat` imports; the numbering config is now passed inline as `numbering: { config: [...] }` directly on the `Document` constructor. Build confirmed clean.
 - **Scaffold filter**: same `SCAFFOLD_RE` patterns applied before building docx children.
