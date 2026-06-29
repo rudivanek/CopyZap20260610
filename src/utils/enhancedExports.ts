@@ -3294,11 +3294,170 @@ function finalCleanForLLM(text: string): string {
 }
 
 /**
+ * Build LLM Evaluation Markdown string without triggering a download.
+ * Returns both the markdown content and the canonical filename.
+ */
+export const buildLLMEvaluationMarkdown = (
+  formState: FormState,
+  generatedOutputCards: GeneratedContentItem[],
+  originalInputScore?: any,
+  promptEvaluation?: PromptEvaluation,
+  comparisonResult?: ComparisonResult,
+  versionDeepAnalysis?: Record<string, VersionDeepAnalysis>,
+  comparisonDeepAnalysisMeta?: ComparisonDeepAnalysisMeta
+): { markdown: string; filename: string } => {
+  let markdown = '';
+
+  // WARNING HEADER
+  markdown += `# LLM EVALUATION FILE\n\n`;
+  markdown += `⚠️ **IMPORTANT:**\n`;
+  markdown += `- Only evaluate content inside \`<START_COPY>\` and \`<END_COPY>\`\n`;
+  markdown += `- Ignore EVERYTHING else\n`;
+  markdown += `- Do NOT use any scores, rankings, or analysis\n`;
+  markdown += `- Treat this as a blind evaluation\n\n`;
+  markdown += `**If you read outside \`<START_COPY>\` blocks, your evaluation will be incorrect.**\n\n`;
+  markdown += `---\n\n`;
+
+  // CONTEXT SECTION
+  markdown += `## CONTEXT\n\n`;
+
+  if (formState.language) {
+    markdown += `**Language:** ${formState.language}\n\n`;
+  }
+
+  if (formState.tone) {
+    markdown += `**Tone:** ${formState.tone}\n\n`;
+  }
+
+  if (formState.targetAudience) {
+    markdown += `**Audience:** ${formState.targetAudience}\n\n`;
+  }
+
+  if (formState.copyGoal) {
+    markdown += `**Goal:** ${formState.copyGoal}\n\n`;
+  }
+
+  if (formState.projectDescription) {
+    markdown += `**Project:** ${formState.projectDescription}\n\n`;
+  }
+
+  markdown += `---\n\n`;
+
+  // COPY VERSIONS SECTION
+  markdown += `## COPY VERSIONS\n\n`;
+  markdown += `Below are the different versions of copy to evaluate. Each version is wrapped in \`<START_COPY>\` and \`<END_COPY>\` markers.\n\n`;
+  markdown += `---\n\n`;
+
+  // ORIGINAL COPY (if in improve mode)
+  if (formState.tab === 'improve' && formState.originalCopy) {
+    markdown += `### [Original Copy]\n\n`;
+    markdown += `<START_COPY>\n\n`;
+    const normalizedOriginal = normalizeCopyForLLMExport(formState.originalCopy);
+    const cleanOriginal = extractPureCopy(normalizedOriginal);
+    const finalOriginal = finalCleanForLLM(cleanOriginal);
+    markdown += finalOriginal + '\n\n';
+    markdown += `<END_COPY>\n\n`;
+    markdown += `---\n\n`;
+  }
+
+  // GENERATED VERSIONS
+  generatedOutputCards.forEach((item, index) => {
+    let versionLabel = item.sourceDisplayName || item.type || `Version ${index + 1}`;
+    if (item.persona) {
+      versionLabel += ` (${item.persona}'s Voice)`;
+    }
+
+    markdown += `### [${versionLabel}]\n\n`;
+    markdown += `<START_COPY>\n\n`;
+
+    let actualContent = item.content;
+    if (typeof item.content === 'object' && item.content !== null && 'content' in item.content) {
+      actualContent = (item.content as any).content;
+    }
+
+    const normalizedContent = normalizeCopyForLLMExport(actualContent);
+    const cleanContent = extractPureCopy(normalizedContent);
+    const finalContent = finalCleanForLLM(cleanContent);
+    markdown += finalContent + '\n\n';
+
+    markdown += `<END_COPY>\n\n`;
+    markdown += `---\n\n`;
+  });
+
+  // SYSTEM DATA SECTION (IGNORE)
+  markdown += `\n\n`;
+  markdown += `## ⚠️ SYSTEM DATA (IGNORE THIS SECTION)\n\n`;
+  markdown += `The content below is internal system data.\n`;
+  markdown += `It may contain scores, rankings, and analysis.\n\n`;
+  markdown += `**DO NOT USE THIS FOR EVALUATION.**\n\n`;
+  markdown += `---\n\n`;
+  markdown += `### Internal Metadata\n\n`;
+  markdown += `- Export Date: ${formatExportTimestamp()}\n`;
+  markdown += `- Mode: ${formState.tab}\n`;
+  markdown += `- Total Versions: ${generatedOutputCards.length}\n`;
+
+  if (comparisonResult) {
+    markdown += `- Comparison Data: Available (ignored)\n`;
+  }
+
+  if (versionDeepAnalysis && Object.keys(versionDeepAnalysis).length > 0) {
+    markdown += `- Deep Analysis: Available (ignored)\n`;
+  }
+
+  markdown += `\n---\n\n`;
+
+  try {
+    const fullMarkdown = formatAsEnhancedMarkdown(
+      formState,
+      generatedOutputCards,
+      originalInputScore,
+      promptEvaluation,
+      comparisonResult,
+      versionDeepAnalysis,
+      comparisonDeepAnalysisMeta
+    );
+
+    if (fullMarkdown && fullMarkdown.trim()) {
+      markdown += `### Full Export (Reference Only)\n\n`;
+      markdown += `<details>\n`;
+      markdown += `<summary>Click to expand complete data export</summary>\n\n`;
+      markdown += `\`\`\`\n`;
+      markdown += fullMarkdown;
+      markdown += `\n\`\`\`\n\n`;
+      markdown += `</details>\n\n`;
+    }
+  } catch (e) {
+    console.warn('Could not generate full markdown export for reference:', e);
+  }
+
+  markdown += `---\n\n`;
+  markdown += `*End of file*\n`;
+
+  // Build canonical filename
+  const now = new Date();
+  const year = now.getFullYear();
+  const month = String(now.getMonth() + 1).padStart(2, '0');
+  const day = String(now.getDate()).padStart(2, '0');
+  const hours = String(now.getHours()).padStart(2, '0');
+  const minutes = String(now.getMinutes()).padStart(2, '0');
+  const seconds = String(now.getSeconds()).padStart(2, '0');
+  const dateTime = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
+
+  const projectDesc = formState.projectDescription
+    ? formState.projectDescription
+        .trim()
+        .replace(/[^a-zA-Z0-9\s-]/g, '')
+        .replace(/\s+/g, '-')
+        .substring(0, 50)
+    : 'untitled';
+
+  const filename = `llm-EVAL_${projectDesc}_${dateTime}.md`;
+
+  return { markdown, filename };
+};
+
+/**
  * Export as LLM Evaluation Markdown - Clean, bias-free format for external LLM evaluation
- *
- * This export creates a markdown file optimized for unbiased evaluation by external LLMs.
- * It includes ONLY normalized copy content inside <START_COPY> and <END_COPY> markers,
- * with all scores, rankings, and analysis moved to an IGNORE section at the bottom.
  */
 export const exportLLMEvaluationMarkdown = (
   formState: FormState,
@@ -3310,162 +3469,16 @@ export const exportLLMEvaluationMarkdown = (
   comparisonDeepAnalysisMeta?: ComparisonDeepAnalysisMeta
 ): void => {
   try {
-    let markdown = '';
+    const { markdown, filename } = buildLLMEvaluationMarkdown(
+      formState,
+      generatedOutputCards,
+      originalInputScore,
+      promptEvaluation,
+      comparisonResult,
+      versionDeepAnalysis,
+      comparisonDeepAnalysisMeta
+    );
 
-    // WARNING HEADER
-    markdown += `# LLM EVALUATION FILE\n\n`;
-    markdown += `⚠️ **IMPORTANT:**\n`;
-    markdown += `- Only evaluate content inside \`<START_COPY>\` and \`<END_COPY>\`\n`;
-    markdown += `- Ignore EVERYTHING else\n`;
-    markdown += `- Do NOT use any scores, rankings, or analysis\n`;
-    markdown += `- Treat this as a blind evaluation\n\n`;
-    markdown += `**If you read outside \`<START_COPY>\` blocks, your evaluation will be incorrect.**\n\n`;
-    markdown += `---\n\n`;
-
-    // CONTEXT SECTION
-    markdown += `## CONTEXT\n\n`;
-
-    if (formState.language) {
-      markdown += `**Language:** ${formState.language}\n\n`;
-    }
-
-    if (formState.tone) {
-      markdown += `**Tone:** ${formState.tone}\n\n`;
-    }
-
-    if (formState.targetAudience) {
-      markdown += `**Audience:** ${formState.targetAudience}\n\n`;
-    }
-
-    if (formState.copyGoal) {
-      markdown += `**Goal:** ${formState.copyGoal}\n\n`;
-    }
-
-    if (formState.projectDescription) {
-      markdown += `**Project:** ${formState.projectDescription}\n\n`;
-    }
-
-    markdown += `---\n\n`;
-
-    // COPY VERSIONS SECTION
-    markdown += `## COPY VERSIONS\n\n`;
-    markdown += `Below are the different versions of copy to evaluate. Each version is wrapped in \`<START_COPY>\` and \`<END_COPY>\` markers.\n\n`;
-    markdown += `---\n\n`;
-
-    // ORIGINAL COPY (if in improve mode)
-    if (formState.tab === 'improve' && formState.originalCopy) {
-      markdown += `### [Original Copy]\n\n`;
-      markdown += `<START_COPY>\n\n`;
-      const normalizedOriginal = normalizeCopyForLLMExport(formState.originalCopy);
-      const cleanOriginal = extractPureCopy(normalizedOriginal);
-      const finalOriginal = finalCleanForLLM(cleanOriginal);
-      markdown += finalOriginal + '\n\n';
-      markdown += `<END_COPY>\n\n`;
-      markdown += `---\n\n`;
-    }
-
-    // GENERATED VERSIONS
-    generatedOutputCards.forEach((item, index) => {
-      // Get version label
-      let versionLabel = item.sourceDisplayName || item.type || `Version ${index + 1}`;
-      if (item.persona) {
-        versionLabel += ` (${item.persona}'s Voice)`;
-      }
-
-      markdown += `### [${versionLabel}]\n\n`;
-      markdown += `<START_COPY>\n\n`;
-
-      // Get actual content
-      let actualContent = item.content;
-
-      // Handle nested content structure
-      if (typeof item.content === 'object' && item.content !== null && 'content' in item.content) {
-        actualContent = (item.content as any).content;
-      }
-
-      // Three-stage cleaning: Normalize → Extract Pure Copy → Final Clean
-      const normalizedContent = normalizeCopyForLLMExport(actualContent);
-      const cleanContent = extractPureCopy(normalizedContent);
-      const finalContent = finalCleanForLLM(cleanContent);
-      markdown += finalContent + '\n\n';
-
-      markdown += `<END_COPY>\n\n`;
-      markdown += `---\n\n`;
-    });
-
-    // SYSTEM DATA SECTION (IGNORE)
-    markdown += `\n\n`;
-    markdown += `## ⚠️ SYSTEM DATA (IGNORE THIS SECTION)\n\n`;
-    markdown += `The content below is internal system data.\n`;
-    markdown += `It may contain scores, rankings, and analysis.\n\n`;
-    markdown += `**DO NOT USE THIS FOR EVALUATION.**\n\n`;
-    markdown += `---\n\n`;
-    markdown += `### Internal Metadata\n\n`;
-    markdown += `- Export Date: ${formatExportTimestamp()}\n`;
-    markdown += `- Mode: ${formState.tab}\n`;
-    markdown += `- Total Versions: ${generatedOutputCards.length}\n`;
-
-    if (comparisonResult) {
-      markdown += `- Comparison Data: Available (ignored)\n`;
-    }
-
-    if (versionDeepAnalysis && Object.keys(versionDeepAnalysis).length > 0) {
-      markdown += `- Deep Analysis: Available (ignored)\n`;
-    }
-
-    markdown += `\n---\n\n`;
-
-    // Optionally include full markdown export for reference (with all scoring/analysis intact)
-    try {
-      const fullMarkdown = formatAsEnhancedMarkdown(
-        formState,
-        generatedOutputCards,
-        originalInputScore,
-        promptEvaluation,
-        comparisonResult,
-        versionDeepAnalysis,
-        comparisonDeepAnalysisMeta
-      );
-
-      if (fullMarkdown && fullMarkdown.trim()) {
-        markdown += `### Full Export (Reference Only)\n\n`;
-        markdown += `<details>\n`;
-        markdown += `<summary>Click to expand complete data export</summary>\n\n`;
-        markdown += `\`\`\`\n`;
-        markdown += fullMarkdown;
-        markdown += `\n\`\`\`\n\n`;
-        markdown += `</details>\n\n`;
-      }
-    } catch (e) {
-      // Silently fail if full export generation fails
-      console.warn('Could not generate full markdown export for reference:', e);
-    }
-
-    markdown += `---\n\n`;
-    markdown += `*End of file*\n`;
-
-    // Create filename
-    const now = new Date();
-    const year = now.getFullYear();
-    const month = String(now.getMonth() + 1).padStart(2, '0');
-    const day = String(now.getDate()).padStart(2, '0');
-    const hours = String(now.getHours()).padStart(2, '0');
-    const minutes = String(now.getMinutes()).padStart(2, '0');
-    const seconds = String(now.getSeconds()).padStart(2, '0');
-    const dateTime = `${year}-${month}-${day}_${hours}-${minutes}-${seconds}`;
-
-    // Sanitize project description for filename
-    const projectDesc = formState.projectDescription
-      ? formState.projectDescription
-          .trim()
-          .replace(/[^a-zA-Z0-9\s-]/g, '') // Remove special characters
-          .replace(/\s+/g, '-') // Replace spaces with hyphens
-          .substring(0, 50) // Limit length
-      : 'untitled';
-
-    const filename = `llm-EVAL_${projectDesc}_${dateTime}.md`;
-
-    // Create and download the file
     const blob = new Blob([markdown], { type: 'text/markdown' });
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');

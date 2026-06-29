@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Save, FileText, Code, FileCode, Sparkles, FlaskConical, CheckCircle2, BookmarkPlus, ChevronDown, ChevronRight, Wand2, CreditCard as Edit, Zap, Globe, BookCheck, MapPin, Copy, Check, BookOpen, PanelRight, X, Trash2, RefreshCw, GitMerge, File as FileEdit, Rocket, PenLine, Camera, LayoutDashboard, Loader2 } from 'lucide-react';
+import { Save, FileText, Code, FileCode, Sparkles, FlaskConical, CheckCircle2, BookmarkPlus, ChevronDown, ChevronRight, Wand2, CreditCard as Edit, Zap, Globe, BookCheck, MapPin, Copy, Check, BookOpen, PanelRight, X, Trash2, RefreshCw, GitMerge, File as FileEdit, Rocket, PenLine, Camera, LayoutDashboard, Loader2, Scale } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getUserSavedOutputsMeta, getUserCopySessions } from '../../services/supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -24,6 +24,7 @@ import {
   exportAsFormattedHtml,
   exportLLMEvaluationMarkdown,
   exportLLMEvaluationAudit,
+  buildLLMEvaluationMarkdown,
 } from '../../utils/enhancedExports';
 import {
   formatSingleGeneratedItemContentAsHTML,
@@ -40,6 +41,9 @@ import { calculateGeoScore } from '../../services/api/geoScoring';
 import { generateContentScores } from '../../services/api/contentScoring';
 import { generateGeoContent } from '../../services/api/geoGeneration';
 import { calculateTargetWordCount } from '../../services/api/utils';
+import { makeApiRequestWithFallback } from '../../services/api/utils';
+import { playSuccessSound } from '../../utils/soundEffects';
+import evalPrompt from '../../prompts/copyzap-eval-prompt.md?raw';
 
 // ─── Props ────────────────────────────────────────────────────────────────────
 
@@ -1208,9 +1212,243 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
     }
   };
 
+  // ── Evaluation Report state ───────────────────────────────────────────────
+  const [isGeneratingEvalReport, setIsGeneratingEvalReport] = useState(false);
+  const [evalReportMarkdown, setEvalReportMarkdown] = useState<string | null>(null);
+  const [evalReportFilename, setEvalReportFilename] = useState<string>('');
+  const [showEvalPreview, setShowEvalPreview] = useState(false);
+
+  const handleGenerateEvalReport = async () => {
+    setIsGeneratingEvalReport(true);
+    try {
+      const { markdown: evalContent, filename: evalFilename } = buildLLMEvaluationMarkdown(
+        formState,
+        generatedOutputCards,
+        originalInputScore,
+        formState.promptEvaluation,
+        comparisonResult,
+        versionDeepAnalysis,
+        comparisonDeepAnalysisMeta,
+      );
+
+      const llmInput = evalPrompt + '\n\n' + evalContent;
+
+      const result = await makeApiRequestWithFallback(
+        'claude-sonnet-4-5',
+        [{ role: 'user', content: llmInput }],
+        0.4,
+        16000,
+      );
+
+      const reportMarkdown = result.choices?.[0]?.message?.content ?? '';
+      if (!reportMarkdown.trim()) throw new Error('Empty response from model');
+
+      setEvalReportMarkdown(reportMarkdown);
+      setEvalReportFilename(evalFilename.replace(/\.md$/, ''));
+      setShowEvalPreview(true);
+      playSuccessSound();
+    } catch (err: any) {
+      toast.error('Evaluation Report failed: ' + (err?.message ?? 'Unknown error'));
+    } finally {
+      setIsGeneratingEvalReport(false);
+    }
+  };
+
+  const handleDownloadEvalMd = () => {
+    if (!evalReportMarkdown) return;
+    const blob = new Blob([evalReportMarkdown], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `CLAUDE-${evalReportFilename}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportEvalDocx = async () => {
+    if (!evalReportMarkdown) return;
+    try {
+      const {
+        Document, Packer, Paragraph, TextRun, HeadingLevel,
+        Table, TableRow, TableCell, WidthType, ShadingType,
+        AlignmentType, PageOrientation,
+      } = await import('docx');
+
+      const lines = evalReportMarkdown.split('\n');
+      const children: any[] = [];
+
+      // Locate the comparison table block
+      let tableStartIdx = -1;
+      let tableEndIdx = -1;
+      for (let i = 0; i < lines.length; i++) {
+        if (/comparison table/i.test(lines[i]) && tableStartIdx === -1) {
+          // Look ahead for the table
+          for (let j = i + 1; j < Math.min(i + 10, lines.length); j++) {
+            if (lines[j].includes('|') && lines[j].trim().startsWith('|')) {
+              tableStartIdx = j;
+              break;
+            }
+          }
+        }
+        if (tableStartIdx !== -1 && i >= tableStartIdx && lines[i].trim().startsWith('|')) {
+          tableEndIdx = i;
+        } else if (tableStartIdx !== -1 && tableEndIdx !== -1 && i > tableEndIdx && !lines[i].trim().startsWith('|')) {
+          break;
+        }
+      }
+
+      const tableLineSet = new Set<number>();
+      if (tableStartIdx !== -1 && tableEndIdx !== -1) {
+        for (let i = tableStartIdx; i <= tableEndIdx; i++) tableLineSet.add(i);
+      }
+
+      // Column widths for comparison table (DXA, sum = 12960)
+      const COL_WIDTHS_DXA = [1800, 1400, 1700, 1700, 1800, 4560];
+
+      // Parse a markdown table block into a docx Table
+      const buildDocxTable = (tableLines: string[]): any => {
+        const nonSepLines = tableLines.filter(l => !l.match(/^\|[\s:|-]+\|$/));
+        const rows = nonSepLines.map(l =>
+          l.split('|').map(c => c.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1)
+        );
+        if (rows.length === 0) return null;
+
+        const docxRows = rows.map((cells, rowIdx) => {
+          const isHeader = rowIdx === 0;
+          return new TableRow({
+            children: cells.map((cell, colIdx) =>
+              new TableCell({
+                width: { size: COL_WIDTHS_DXA[colIdx] ?? 1440, type: WidthType.DXA },
+                shading: !isHeader && rowIdx % 2 === 0
+                  ? { type: ShadingType.CLEAR, fill: 'F3F4F6' }
+                  : undefined,
+                children: [
+                  new Paragraph({
+                    children: [
+                      new TextRun({
+                        text: cell,
+                        bold: isHeader,
+                        font: 'Arial',
+                        size: 18,
+                      }),
+                    ],
+                  }),
+                ],
+              })
+            ),
+          });
+        });
+
+        return new Table({
+          width: { size: 12960, type: WidthType.DXA },
+          layout: 'fixed' as any,
+          rows: docxRows,
+        });
+      };
+
+      // Process lines into docx children
+      let i = 0;
+      while (i < lines.length) {
+        const line = lines[i];
+
+        // Comparison table block
+        if (tableLineSet.has(i)) {
+          const blockLines: string[] = [];
+          while (i < lines.length && tableLineSet.has(i)) {
+            blockLines.push(lines[i]);
+            i++;
+          }
+          const tbl = buildDocxTable(blockLines);
+          if (tbl) children.push(tbl);
+          continue;
+        }
+
+        // Headings
+        if (line.startsWith('### ')) {
+          children.push(new Paragraph({
+            heading: HeadingLevel.HEADING_3,
+            children: [new TextRun({ text: line.slice(4), bold: true, font: 'Arial', size: 24 })],
+          }));
+        } else if (line.startsWith('## ')) {
+          children.push(new Paragraph({
+            heading: HeadingLevel.HEADING_2,
+            children: [new TextRun({ text: line.slice(3), bold: true, font: 'Arial', size: 28 })],
+          }));
+        } else if (line.startsWith('# ')) {
+          children.push(new Paragraph({
+            heading: HeadingLevel.HEADING_1,
+            children: [new TextRun({ text: line.slice(2), bold: true, font: 'Arial', size: 36 })],
+          }));
+        } else if (line.trim() === '' || line.trim() === '---') {
+          children.push(new Paragraph({ children: [new TextRun({ text: '' })] }));
+        } else {
+          // Parse inline bold (**text**)
+          const parts = line.split(/(\*\*[^*]+\*\*)/g);
+          const runs = parts.map(part => {
+            if (part.startsWith('**') && part.endsWith('**')) {
+              return new TextRun({ text: part.slice(2, -2), bold: true, font: 'Arial', size: 20 });
+            }
+            return new TextRun({ text: part, font: 'Arial', size: 20 });
+          });
+          children.push(new Paragraph({ children: runs }));
+        }
+
+        i++;
+      }
+
+      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      const projectName = formState.projectDescription?.slice(0, 40) || 'CopyZap';
+
+      const doc = new Document({
+        sections: [{
+          properties: {
+            page: {
+              size: { width: 15840, height: 12240, orientation: PageOrientation.LANDSCAPE },
+              margin: { top: 1440, bottom: 1440, left: 1440, right: 1440 },
+            },
+          },
+          footers: {
+            default: {
+              options: {
+                children: [
+                  new Paragraph({
+                    alignment: AlignmentType.CENTER,
+                    children: [
+                      new TextRun({
+                        text: `${projectName} · ${today} · Generated by CopyZap + Claude`,
+                        font: 'Arial',
+                        size: 16,
+                        color: '6B7280',
+                      }),
+                    ],
+                  }),
+                ],
+              },
+            },
+          },
+          children,
+        }],
+      });
+
+      const buffer = await Packer.toBlob(doc);
+      const url = URL.createObjectURL(buffer);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `CLAUDE-${evalReportFilename}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('Word document downloaded');
+    } catch (err: any) {
+      toast.error('Word export failed: ' + (err?.message ?? 'Unknown error'));
+    }
+  };
+
   const toggleCardGroup = (id: string) =>
     setCardGroupOpen((prev) => ({ ...prev, [id]: !prev[id] }));
-
   // Default is collapsed: only open when explicitly set to true
   const isCardGroupOpen = (id: string) => cardGroupOpen[id] === true;
 
@@ -1442,6 +1680,16 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                   LLM Audit Export
                 </SidebarBtn>
               )}
+              {hasContent && !!comparisonResult && sortedGeneratedVersions.length >= 2 && isAdmin && (
+                <SidebarBtn
+                  onClick={handleGenerateEvalReport}
+                  disabled={isGeneratingEvalReport}
+                  title="Generate an AI-powered Evaluation Report comparing CopyZap scores with expert copy critique"
+                >
+                  <Scale size={10} className={isGeneratingEvalReport ? 'animate-pulse' : ''} />
+                  {isGeneratingEvalReport ? 'Generating…' : 'Evaluation Report'}
+                </SidebarBtn>
+              )}
               {isAdmin && (
                 <SidebarBtn onClick={onViewPrompts} title="View Prompts">
                   <Code size={10} />
@@ -1646,6 +1894,64 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
           </div>
         )}
       </div>
+      {isGeneratingEvalReport && ReactDOM.createPortal(
+        <ProcessingModal
+          isOpen={isGeneratingEvalReport}
+          message="Generating Evaluation Report…"
+          onCancel={() => {}}
+        />,
+        document.body
+      )}
+      {showEvalPreview && evalReportMarkdown && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-100 dark:border-gray-800 flex-shrink-0">
+              <div>
+                <h2 className="text-sm font-semibold text-gray-900 dark:text-gray-100">Evaluation Report</h2>
+                <p className="text-xs text-gray-500 dark:text-gray-400 mt-0.5">AI-powered copy critique vs. CopyZap scores</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowEvalPreview(false)}
+                className="p-1 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div
+              className="flex-1 overflow-y-auto px-6 py-4 prose prose-sm dark:prose-invert max-w-none text-gray-800 dark:text-gray-200"
+              style={{ fontSize: '13px', lineHeight: '1.65' }}
+              dangerouslySetInnerHTML={{ __html: markdownToHtml(evalReportMarkdown) }}
+            />
+            <div className="flex gap-3 px-5 py-3 border-t border-gray-100 dark:border-gray-800 flex-shrink-0">
+              <button
+                type="button"
+                onClick={handleDownloadEvalMd}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-gray-800 dark:bg-gray-700 text-white hover:bg-gray-700 dark:hover:bg-gray-600 rounded transition-colors"
+              >
+                <FileText size={12} />
+                Download .md
+              </button>
+              <button
+                type="button"
+                onClick={handleExportEvalDocx}
+                className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium bg-blue-600 hover:bg-blue-700 text-white rounded transition-colors"
+              >
+                <FileCode size={12} />
+                Output as Word file?
+              </button>
+              <button
+                type="button"
+                onClick={() => setShowEvalPreview(false)}
+                className="ml-auto flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium border border-gray-200 dark:border-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 rounded transition-colors"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
     </aside>
   );
 };
