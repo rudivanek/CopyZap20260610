@@ -42,7 +42,7 @@ import { calculateGeoScore } from '../../services/api/geoScoring';
 import { generateContentScores } from '../../services/api/contentScoring';
 import { generateGeoContent } from '../../services/api/geoGeneration';
 import { calculateTargetWordCount } from '../../services/api/utils';
-import { makeApiRequestWithFallback } from '../../services/api/utils';
+import { makeApiRequestWithFallback, makeStreamingReportRequest } from '../../services/api/utils';
 import { playSuccessSound } from '../../utils/soundEffects';
 import evalPrompt from '../../prompts/copyzap-eval-prompt.md?raw';
 import comparePrompt from '../../prompts/copyzap-compare-prompt.md?raw';
@@ -1499,15 +1499,12 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         : '';
       const llmInput = languageDirective + evalPrompt + '\n\n' + evalContent;
 
-      const result = await makeApiRequestWithFallback(
+      const reportMarkdown = await makeStreamingReportRequest(
         'claude-sonnet-4-5',
         [{ role: 'user', content: llmInput }],
         0.4,
         8000,
       );
-
-      const reportMarkdown = result.choices?.[0]?.message?.content ?? '';
-      if (!reportMarkdown.trim()) throw new Error('Empty response from model');
 
       setEvalReportMarkdown(reportMarkdown);
       setEvalReportFilename(evalFilename.replace(/\.md$/, ''));
@@ -1590,15 +1587,12 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         : '';
       const llmInput = languageDirective + comparePrompt + '\n\n' + auditContent;
 
-      const result = await makeApiRequestWithFallback(
+      const reportMarkdown = await makeStreamingReportRequest(
         'claude-sonnet-4-5',
         [{ role: 'user', content: llmInput }],
         0.4,
         8000,
       );
-
-      const reportMarkdown = result.choices?.[0]?.message?.content ?? '';
-      if (!reportMarkdown.trim()) throw new Error('Empty response from model');
 
       setCompareReportMarkdown(reportMarkdown);
       setCompareReportFilename(auditFilename.replace(/\.md$/, ''));

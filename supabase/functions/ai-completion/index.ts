@@ -31,7 +31,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { messages, model, temperature, maxTokens, responseFormat } = requestBody;
+    const { messages, model, temperature, maxTokens, responseFormat, stream: useStream } = requestBody;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
@@ -284,7 +284,78 @@ Deno.serve(async (req: Request) => {
     let lastError: Error | null = null;
     let usedModel = useModel;
 
-    // Handle Claude separately (different API format)
+    // ── Streaming Claude path (used for long-output requests to avoid idle timeout) ──
+    if (useStream && useModel.startsWith('claude-') && claudeKey) {
+      console.log('Attempting streaming request with Claude...');
+
+      const systemMessage = messages.find((msg: any) => msg.role === 'system');
+      const userMessages = messages.filter((msg: any) => msg.role !== 'system');
+
+      const requestBody: any = {
+        model: useModel,
+        max_tokens: useMaxTokens,
+        stream: true,
+        messages: userMessages.map((msg: any) => ({
+          role: msg.role === 'assistant' ? 'assistant' : 'user',
+          content: msg.content
+        })),
+        temperature: useTemperature
+      };
+
+      if (systemMessage) {
+        requestBody.system = systemMessage.content;
+      }
+
+      const anthropicResponse = await fetch('https://api.anthropic.com/v1/messages', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'x-api-key': claudeKey,
+          'anthropic-version': '2023-06-01'
+        },
+        body: JSON.stringify(requestBody)
+      });
+
+      if (!anthropicResponse.ok) {
+        const errorText = await anthropicResponse.text();
+        throw new Error(`Claude streaming API error (${anthropicResponse.status}): ${errorText}`);
+      }
+
+      // Pipe the SSE stream straight through to the browser
+      const { readable, writable } = new TransformStream();
+      const writer = writable.getWriter();
+      const encoder = new TextEncoder();
+
+      (async () => {
+        const reader = anthropicResponse.body!.getReader();
+        const decoder = new TextDecoder();
+        try {
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+            // Forward each chunk verbatim — client will parse Anthropic SSE format
+            await writer.write(value);
+          }
+          // Send a terminal marker so the client knows the stream ended cleanly
+          await writer.write(encoder.encode('\n'));
+        } catch (e) {
+          console.error('Streaming pipe error:', e);
+        } finally {
+          await writer.close();
+        }
+      })();
+
+      return new Response(readable, {
+        headers: {
+          ...corsHeaders,
+          'Content-Type': 'text/event-stream',
+          'Cache-Control': 'no-cache',
+          'X-Model-Used': useModel,
+        }
+      });
+    }
+
+    // Handle Claude separately (different API format) — non-streaming path
     if (useModel.startsWith('claude-')) {
       if (!claudeKey) {
         console.log('Claude API key not configured, will attempt fallback models...');

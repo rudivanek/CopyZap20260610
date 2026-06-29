@@ -277,6 +277,75 @@ export function getApiConfig(model: Model): { apiKey: string; baseUrl: string; h
 
 
 /**
+/**
+ * Make a streaming Claude API request via the edge function (avoids 150s idle timeout).
+ * Reads the Anthropic SSE stream and returns the assembled text.
+ */
+export async function makeStreamingReportRequest(
+  model: Model,
+  messages: { role: string; content: string }[],
+  temperature: number,
+  maxTokens: number,
+): Promise<string> {
+  const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+  const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
+
+  if (!supabaseUrl || !supabaseAnonKey) {
+    throw new Error('Supabase configuration missing');
+  }
+
+  const { supabase } = await import('../supabaseClient');
+  const { data: { session } } = await supabase.auth.getSession();
+  if (!session) throw new Error('No active session. Please log in.');
+
+  const response = await fetch(`${supabaseUrl}/functions/v1/ai-completion`, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      'Authorization': `Bearer ${session.access_token}`,
+    },
+    body: JSON.stringify({ messages, model, temperature, maxTokens, stream: true }),
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    throw new Error(`Edge function error (${response.status}): ${errorText}`);
+  }
+
+  // Read Anthropic SSE stream and collect text_delta chunks
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let fullText = '';
+  let buffer = '';
+
+  while (true) {
+    const { done, value } = await reader.read();
+    if (done) break;
+    buffer += decoder.decode(value, { stream: true });
+
+    const lines = buffer.split('\n');
+    buffer = lines.pop() ?? '';
+
+    for (const line of lines) {
+      if (!line.startsWith('data:')) continue;
+      const json = line.slice(5).trim();
+      if (!json || json === '[DONE]') continue;
+      try {
+        const evt = JSON.parse(json);
+        if (evt.type === 'content_block_delta' && evt.delta?.type === 'text_delta') {
+          fullText += evt.delta.text ?? '';
+        }
+      } catch {
+        // non-JSON SSE line — skip
+      }
+    }
+  }
+
+  if (!fullText.trim()) throw new Error('Empty response from model');
+  return fullText;
+}
+
+/**
  * Make an API request using the selected model (no fallback)
  */
 export async function makeApiRequestWithFallback(

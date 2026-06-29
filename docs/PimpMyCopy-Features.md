@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-06-29T23:30:00Z
+Last Updated: 2026-06-29T23:55:00Z
 
 ---
 
@@ -4971,5 +4971,46 @@ const [showComparePreview, setShowComparePreview] = useState(false);
 **Preview modal:** Matches the Evaluation Report preview style (`.compare-report-preview` CSS class, monochrome palette, Arial font, scaffold-filtered rendered markdown). Footer buttons: Download .md, Output as Word file?, Close.
 
 **Processing modal:** Shown during generation via `ReactDOM.createPortal`.
+
+---
+
+## Streaming Report Generation — Fix for 504 IDLE_TIMEOUT (2026-06-29)
+
+**Root cause:** The `ai-completion` edge function awaited the full Anthropic response before returning. With `max_tokens: 8000`, Claude's response takes >150 seconds on long reports, exceeding Supabase's IDLE_TIMEOUT limit.
+
+**Files changed:**
+- `supabase/functions/ai-completion/index.ts`
+- `src/services/api/utils.ts`
+- `src/components/copy-maker/CopyMakerSidebar.tsx`
+
+---
+
+### Edge function changes (`supabase/functions/ai-completion/index.ts`)
+
+Added a streaming branch that activates when `stream: true` is in the request body and the model is a Claude model. In this path:
+
+1. Requests `stream: true` on the Anthropic API call
+2. Pipes the raw SSE byte stream through a `TransformStream` directly to the browser response
+3. Returns `Content-Type: text/event-stream` with `Cache-Control: no-cache`
+
+This keeps the connection active (data flowing continuously), preventing the idle timeout entirely. The non-streaming path is unchanged for all other callers.
+
+---
+
+### Client-side streaming reader (`src/services/api/utils.ts`)
+
+New exported function `makeStreamingReportRequest(model, messages, temperature, maxTokens)`:
+
+- Sends `{ ..., stream: true }` to the edge function
+- Reads the Anthropic SSE stream chunk-by-chunk via `response.body.getReader()`
+- Parses each `data:` line, extracts `content_block_delta` events with `type: "text_delta"`
+- Concatenates all `delta.text` fragments into the final string
+- Throws if the assembled text is empty
+
+---
+
+### Sidebar handler changes (`CopyMakerSidebar.tsx`)
+
+Both `handleGenerateEvalReport` and `handleGenerateCompareReport` now call `makeStreamingReportRequest` instead of `makeApiRequestWithFallback`. The return value is the assembled string directly (no `.choices[0].message.content` unwrap needed).
 
 ---
