@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Save, FileText, Code, FileCode, Sparkles, FlaskConical, CheckCircle2, BookmarkPlus, ChevronDown, ChevronRight, Wand2, CreditCard as Edit, Zap, Globe, BookCheck, MapPin, Copy, Check, BookOpen, PanelRight, X, Trash2, RefreshCw, GitMerge, File as FileEdit, Rocket, PenLine, Camera, LayoutDashboard, Loader2, Scale } from 'lucide-react';
+import { Save, FileText, Code, FileCode, Sparkles, FlaskConical, CheckCircle2, BookmarkPlus, ChevronDown, ChevronRight, Wand2, CreditCard as Edit, Zap, Globe, BookCheck, MapPin, Copy, Check, BookOpen, PanelRight, X, Trash2, RefreshCw, GitMerge, File as FileEdit, Rocket, PenLine, Camera, LayoutDashboard, Loader2, Scale, UserCheck } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getUserSavedOutputsMeta, getUserCopySessions } from '../../services/supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -46,6 +46,7 @@ import { makeApiRequestWithFallback, makeStreamingReportRequest } from '../../se
 import { playSuccessSound } from '../../utils/soundEffects';
 import evalPrompt from '../../prompts/copyzap-eval-prompt.md?raw';
 import comparePrompt from '../../prompts/copyzap-compare-prompt.md?raw';
+import clientPrompt from '../../prompts/copyzap-client-prompt.md?raw';
 
 // ─── Shared docx builder ──────────────────────────────────────────────────────
 
@@ -1490,6 +1491,12 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
   const [compareReportFilename, setCompareReportFilename] = useState<string>('');
   const [showComparePreview, setShowComparePreview] = useState(false);
 
+  const [isGeneratingClientReport, setIsGeneratingClientReport] = useState(false);
+  const [clientReportMarkdown, setClientReportMarkdown] = useState<string | null>(null);
+  const [clientReportFilename, setClientReportFilename] = useState<string>('');
+  const [showClientPreview, setShowClientPreview] = useState(false);
+  const [includeInternalSection, setIncludeInternalSection] = useState(false);
+
   const handleGenerateEvalReport = async () => {
     setIsGeneratingEvalReport(true);
     try {
@@ -1656,6 +1663,100 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
       const link = document.createElement('a');
       link.href = url;
       link.download = `CLAUDE-REPORT-${compareReportFilename}.docx`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('Word document downloaded');
+    } catch (err: any) {
+      toast.error('Word export failed: ' + (err?.message ?? 'Unknown error'));
+    }
+  };
+
+  const stripInternalSection = (md: string): string => {
+    const match = md.match(/^#{1,6}\s*(PARTE|PART)\s*2\b/im);
+    if (!match || match.index === undefined) return md;
+    return md.slice(0, match.index).trimEnd();
+  };
+
+  const handleGenerateClientReport = async () => {
+    setIsGeneratingClientReport(true);
+    try {
+      const { markdown: auditContent, filename: auditFilename } = buildLLMEvaluationAudit(
+        formState,
+        generatedOutputCards,
+        originalInputScore,
+        formState.promptEvaluation,
+        comparisonResult,
+        versionDeepAnalysis,
+        comparisonDeepAnalysisMeta,
+      );
+
+      const language = formState.language;
+      const languageDirective = language
+        ? `IMPORTANT: Write the entire report in ${language}. Every heading, table header, and sentence must be in ${language}.\n\n`
+        : '';
+      const llmInput = languageDirective + clientPrompt + '\n\n' + auditContent;
+
+      const reportMarkdown = await makeStreamingReportRequest(
+        'claude-sonnet-4-5',
+        [{ role: 'user', content: llmInput }],
+        0.4,
+        8000,
+      );
+
+      setClientReportMarkdown(reportMarkdown);
+      setClientReportFilename(auditFilename.replace(/\.md$/, ''));
+      setIncludeInternalSection(false);
+      setShowClientPreview(true);
+      playSuccessSound();
+    } catch (err: any) {
+      toast.error('Client Report failed: ' + (err?.message ?? 'Unknown error'));
+    } finally {
+      setIsGeneratingClientReport(false);
+    }
+  };
+
+  const handleDownloadClientMd = () => {
+    if (!clientReportMarkdown) return;
+    const content = includeInternalSection ? clientReportMarkdown : stripInternalSection(clientReportMarkdown);
+    const blob = new Blob([content], { type: 'text/markdown' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `CLIENT-${clientReportFilename}.md`;
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
+  const handleExportClientDocx = async () => {
+    if (!clientReportMarkdown) return;
+    try {
+      const today = new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      const projectName = formState.projectDescription?.slice(0, 60)?.trim() || 'CopyZap Session';
+      const lang = formState.language || 'English';
+      const NATIVE_LANG: Record<string, string> = {
+        English: 'English', Spanish: 'Español', French: 'Français', Portuguese: 'Português',
+        German: 'Deutsch', Italian: 'Italiano', Dutch: 'Nederlands', Arabic: 'العربية', Hindi: 'हिन्दी',
+      };
+      const displayLang = NATIVE_LANG[lang] ?? lang;
+      const content = includeInternalSection ? clientReportMarkdown : stripInternalSection(clientReportMarkdown);
+      const blob = await buildReportDocx(content, {
+        title: 'Client Report — CopyZap',
+        project: projectName,
+        date: today,
+        displayLang,
+        versionCount: generatedOutputCards.length,
+        footerText: `${projectName} · ${today} · Generated by CopyZap + Claude`,
+        filePrefix: 'CLIENT',
+        filename: `CLIENT-${clientReportFilename}.docx`,
+      });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `CLIENT-${clientReportFilename}.docx`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -1917,6 +2018,16 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                 >
                   <GitMerge size={10} className={isGeneratingCompareReport ? 'animate-pulse' : ''} />
                   {isGeneratingCompareReport ? 'Generating…' : 'Compare Report'}
+                </SidebarBtn>
+              )}
+              {hasContent && !!comparisonResult && sortedGeneratedVersions.length >= 2 && isAdmin && (
+                <SidebarBtn
+                  onClick={handleGenerateClientReport}
+                  disabled={isGeneratingClientReport}
+                  title="Generate a client-ready report with scores, validation, and improvements"
+                >
+                  <UserCheck size={10} className={isGeneratingClientReport ? 'animate-pulse' : ''} />
+                  {isGeneratingClientReport ? 'Generating…' : 'Client Report'}
                 </SidebarBtn>
               )}
               {isAdmin && (
@@ -2282,6 +2393,82 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
               >
                 Close
               </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+      {isGeneratingClientReport && ReactDOM.createPortal(
+        <ProcessingModal
+          isOpen={isGeneratingClientReport}
+          message="Generating Client Report…"
+          onCancel={() => {}}
+        />,
+        document.body
+      )}
+      {showClientPreview && clientReportMarkdown && ReactDOM.createPortal(
+        <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 p-4">
+          <div className="bg-white border border-gray-200 shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col rounded-lg overflow-hidden">
+            <div className="flex items-center justify-between px-5 py-3 border-b border-gray-200 flex-shrink-0" style={{ backgroundColor: '#ffffff' }}>
+              <div>
+                <h2 className="text-sm font-semibold" style={{ color: '#000000' }}>Client Report</h2>
+                <p className="text-xs mt-0.5" style={{ color: '#404040' }}>Client-ready evaluation with scores, validation, and improvements</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setShowClientPreview(false)}
+                className="p-1 transition-colors"
+                style={{ color: '#404040' }}
+              >
+                <X size={16} />
+              </button>
+            </div>
+            <div className="flex-1 overflow-y-auto px-6 py-4" style={{ backgroundColor: '#fafafa' }}>
+              <div
+                className="compare-report-preview"
+                dangerouslySetInnerHTML={{ __html: filterScaffoldingLines(markdownToHtml(
+                  includeInternalSection ? clientReportMarkdown : stripInternalSection(clientReportMarkdown)
+                )) }}
+              />
+            </div>
+            <div className="flex flex-wrap items-center gap-3 px-5 py-3 border-t flex-shrink-0" style={{ borderColor: '#BFBFBF', backgroundColor: '#ffffff' }}>
+              <label className="flex items-center gap-2 text-xs cursor-pointer select-none" style={{ color: '#404040' }}>
+                <input
+                  type="checkbox"
+                  checked={includeInternalSection}
+                  onChange={(e) => setIncludeInternalSection(e.target.checked)}
+                  className="rounded"
+                />
+                Incluir análisis interno (Parte 2)
+              </label>
+              <div className="flex gap-3 ml-auto">
+                <button
+                  type="button"
+                  onClick={handleDownloadClientMd}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors"
+                  style={{ backgroundColor: '#000000', color: '#ffffff' }}
+                >
+                  <FileText size={12} />
+                  Download .md
+                </button>
+                <button
+                  type="button"
+                  onClick={handleExportClientDocx}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors"
+                  style={{ backgroundColor: '#404040', color: '#ffffff' }}
+                >
+                  <FileCode size={12} />
+                  Output as Word file?
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowClientPreview(false)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 text-xs font-medium rounded transition-colors"
+                  style={{ border: '1px solid #BFBFBF', color: '#404040', backgroundColor: '#ffffff' }}
+                >
+                  Close
+                </button>
+              </div>
             </div>
           </div>
         </div>,

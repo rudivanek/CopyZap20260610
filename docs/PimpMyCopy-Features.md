@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-06-30T01:00:00Z
+Last Updated: 2026-06-30T02:00:00Z
 
 ---
 
@@ -4994,6 +4994,59 @@ Added a streaming branch that activates when `stream: true` is in the request bo
 3. Returns `Content-Type: text/event-stream` with `Cache-Control: no-cache`
 
 This keeps the connection active (data flowing continuously), preventing the idle timeout entirely. The non-streaming path is unchanged for all other callers.
+
+---
+
+## Client Report Feature (2026-06-30)
+
+**Files changed:**
+- `src/prompts/copyzap-client-prompt.md` *(new)*
+- `src/components/copy-maker/CopyMakerSidebar.tsx`
+
+### Overview
+
+A third admin report type, placed below Compare Report in the Output section. Produces a client-ready document that separates the shareable Part 1 (copy evaluation, scores, improvements) from an internal Part 2 (divergence analysis, CopyZap reliability critique). Uses the same streaming pipeline and docx builder as Evaluation Report and Compare Report.
+
+### PART A — Prompt file + button
+
+**`src/prompts/copyzap-client-prompt.md`** — new prompt file, imported raw. Key differences from the Compare prompt:
+- **AUDIENCE RULE** — explicit two-audience split: Part 1 is handed to the client (never mentions who is "more correct" or compares evaluators); Part 2 is internal only
+- **Score types** — renamed to "Editorial Quality", "Conversion Potential", and "Absolute Score" (4 dimensions × 0–25)
+- **TABLE SHAPES** — new 6-column Version Scores table; new 4-column Independent Validation table; 6-column Dimensional Breakdown; 6-column Detailed Divergence; 3-column Impact Prioritization
+- **File prefix** — `CLIENT-` (not `CLAUDE-` or `CLAUDE-REPORT-`)
+- INTEGRITY RULE, streaming, CRITICAL output-only block, and REPORT LANGUAGE rule all inherited from the same standards
+
+**Button** — `UserCheck` icon, below Compare Report, same visibility gating: `hasContent && !!comparisonResult && sortedGeneratedVersions.length >= 2 && isAdmin`.
+
+### PART B — State, handler, preview modal
+
+**State added:**
+```typescript
+const [isGeneratingClientReport, setIsGeneratingClientReport] = useState(false);
+const [clientReportMarkdown, setClientReportMarkdown] = useState<string | null>(null);
+const [clientReportFilename, setClientReportFilename] = useState<string>('');
+const [showClientPreview, setShowClientPreview] = useState(false);
+const [includeInternalSection, setIncludeInternalSection] = useState(false);
+```
+
+**`handleGenerateClientReport`** — mirrors `handleGenerateCompareReport` exactly: builds LLM input as `[language directive] + clientPrompt + '\n\n' + buildLLMEvaluationAudit(...)`, calls `makeStreamingReportRequest('claude-sonnet-4-5', ..., 0.4, 8000)`, stores result, resets `includeInternalSection` to `false`, opens preview, plays sound.
+
+**Preview modal** — reuses the same structure as the Compare Report preview (`.compare-report-preview` CSS class, monochrome scaffold filtering). Footer contains: checkbox toggle, Download .md, Output as Word file?, Close.
+
+### PART C — Export toggle (stripInternalSection)
+
+**`stripInternalSection(markdown)`** — helper function:
+- Searches for the first heading matching `/^#{1,6}\s*(PARTE|PART)\s*2\b/im`
+- If found, returns only the text before that heading (trimmed)
+- If not found, returns the full markdown unchanged
+
+**Checkbox** — labelled "Incluir análisis interno (Parte 2)", bound to `includeInternalSection`, default `false` (unchecked).
+
+Both `handleDownloadClientMd` and `handleExportClientDocx` pass `includeInternalSection ? fullMarkdown : stripInternalSection(fullMarkdown)` as the content — so an unchecked box yields a clean client-only Part 1 document. The preview in the modal also reflects the checkbox state in real time.
+
+### Files not changed
+
+Evaluation Report and Compare Report handlers, state, prompts, and modals are unchanged.
 
 ---
 
