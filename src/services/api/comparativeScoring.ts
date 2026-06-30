@@ -838,11 +838,58 @@ export function mapToComparisonResultWithAnchors(
       : 0;
   });
 
+  // NARRATIVE MISMATCH FIX: the LLM only ever sees the NEW versions, so its
+  // winnerExplanation/winnerBreakdown/decisionLayer text describes whichever new
+  // version it picked — even when an anchored (locked, previously-scored) version
+  // actually has the highest finalScore after merging. If the LLM's pick isn't the
+  // actual top-ranked row, the narrative text would contradict the winner badge and
+  // score table. In that case, fall back to neutral text instead of carrying over
+  // a description that names the wrong version as the winner.
+  const llmWinnerId = comparativeResult.winnerVersionId;
+  const actualWinnerId = winnerRow?.versionId;
+  const winnerMismatch = !!llmWinnerId && !!actualWinnerId && llmWinnerId !== actualWinnerId;
+
+  const winnerLabel = winnerRow?.label ?? freshResult.winnerLabel;
+
+  const winnerExplanation = winnerMismatch
+    ? `${winnerLabel} remains the top-ranked version with a locked score of ${winnerFinalScore}/100 from an earlier scoring round. It was not re-evaluated in this round — see its individual reason below for why it originally won.`
+    : freshResult.winnerExplanation;
+
+  const winnerBreakdown = winnerMismatch
+    ? {
+        coreStrength: `${winnerLabel} holds the highest score (${winnerFinalScore}/100) from a prior scoring round and was not re-evaluated this round.`,
+        whatItDoesBetter: [],
+        tradeoffs: []
+      }
+    : freshResult.winnerBreakdown;
+
+  const finalRecommendation = winnerMismatch
+    ? {
+        why: `${winnerLabel} is still the strongest version based on its locked score. Review the new version(s) added this round individually before deciding whether to challenge it.`,
+        priorityActions: freshResult.finalRecommendation?.priorityActions ?? [],
+        whyOthersLose: []
+      }
+    : freshResult.finalRecommendation;
+
+  const decisionLayer = winnerMismatch
+    ? {
+        ...freshResult.decisionLayer,
+        recommendedVersionId: actualWinnerId,
+        recommendedLabel: winnerLabel,
+        nextBestVersionId: freshResult.decisionLayer?.recommendedVersionId,
+        nextBestLabel: freshResult.decisionLayer?.recommendedLabel
+      }
+    : freshResult.decisionLayer;
+
   return {
     ...freshResult,
     rows: allRows,
-    winnerVersionId: winnerRow?.versionId ?? freshResult.winnerVersionId,
-    winnerLabel: winnerRow?.label ?? freshResult.winnerLabel,
+    winnerVersionId: actualWinnerId ?? freshResult.winnerVersionId,
+    winnerLabel,
+    winnerExplanation,
+    winnerBreakdown,
+    finalRecommendation,
+    decisionLayer,
     versionSetKey: allRows.map(r => r.versionId).sort().join(',')
   };
 }
