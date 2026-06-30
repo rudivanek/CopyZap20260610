@@ -1,4 +1,4 @@
-import React from 'react';
+6import React from 'react';
 import { Link } from 'react-router-dom';
 
 const PublicFooter: React.FC = () => {
@@ -25,7 +25,7 @@ const PublicFooter: React.FC = () => {
       </div>
       <div className="mt-1 text-xs" style={{ color: '#ff6b35' }}>
   <span>CopyZap</span>
-  <span className="text-[8px] sm:text-[10px] font-normal ml-1">v.35.0</span>
+  <span className="text-[8px] sm:text-[10px] font-normal ml-1">v.36.0</span>
 </div>
     </footer>
   );
