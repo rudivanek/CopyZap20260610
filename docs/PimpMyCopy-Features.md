@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-06-30T02:00:00Z
+Last Updated: 2026-06-30T02:30:00Z
 
 ---
 
@@ -4994,6 +4994,24 @@ Added a streaming branch that activates when `stream: true` is in the request bo
 3. Returns `Content-Type: text/event-stream` with `Cache-Control: no-cache`
 
 This keeps the connection active (data flowing continuously), preventing the idle timeout entirely. The non-streaming path is unchanged for all other callers.
+
+---
+
+## Client Report — Filename Rename (2026-06-30)
+
+**File:** `src/components/copy-maker/CopyMakerSidebar.tsx` — `handleDownloadClientMd`, `handleExportClientDocx`
+
+Changed the output filename prefix for Client Report exports only. Evaluation Report and Compare Report are unchanged.
+
+**Before:** `CLIENT-<source>.md` / `CLIENT-<source>.docx`
+
+**After:** `CopyZap-CLIENT-REPORT-<source>.md` / `CopyZap-CLIENT-REPORT-<source>.docx`
+
+Additionally, a leading `llm-` (case-insensitive) in the source base name is uppercased to `LLM-` via `.replace(/^llm-/i, 'LLM-')`.
+
+**Example:** source base name `llm-COMPARE_1--...18-52-53` becomes `CopyZap-CLIENT-REPORT-LLM-COMPARE_1--...18-52-53.docx`.
+
+The `filePrefix` metadata field passed to `buildReportDocx` was also updated to `'CopyZap-CLIENT-REPORT'` to match.
 
 ---
 
