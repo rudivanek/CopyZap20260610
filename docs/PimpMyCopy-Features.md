@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-06-30T00:30:00Z
+Last Updated: 2026-06-30T01:00:00Z
 
 ---
 
@@ -4994,6 +4994,35 @@ Added a streaming branch that activates when `stream: true` is in the request bo
 3. Returns `Content-Type: text/event-stream` with `Cache-Control: no-cache`
 
 This keeps the connection active (data flowing continuously), preventing the idle timeout entirely. The non-streaming path is unchanged for all other callers.
+
+---
+
+## buildReportDocx — Blockquote + Emoji Normalization (2026-06-30)
+
+**File:** `src/components/copy-maker/CopyMakerSidebar.tsx` — `buildReportDocx`, line ~161
+
+Added a `normalizeDocxLine` pre-processing step applied to every line of the markdown before any further parsing (heading detection, list detection, table detection, body text). Runs immediately after `markdown.split('\n')`.
+
+**Two normalizations applied (in order):**
+
+1. **Strip blockquote markers** — removes a leading `>` (with or without a trailing space) so quoted text renders as normal body copy rather than with a literal `>` character. Pattern: `l.replace(/^>\s?/, '')`.
+
+2. **Strip emoji** — removes all characters in the standard emoji Unicode blocks:
+   - Miscellaneous Symbols and Pictographs (U+1F300–U+1F5FF)
+   - Emoticons (U+1F600–U+1F64F)
+   - Transport and Map Symbols (U+1F680–U+1F6FF)
+   - Additional Symbol blocks (U+1F700–U+1FAFF)
+   - Miscellaneous Symbols (U+2600–U+26FF)
+   - Dingbats (U+2700–U+27BF)
+   - Variation Selectors (U+FE00–U+FE0F)
+   - Regional Indicator Symbols (U+1F1E0–U+1F1FF)
+   - Preserved (not removed): `→` (U+2192, plain arrow) and `★` (U+2605, black star) — both monochrome and intentional in report copy
+
+3. **Collapse double spaces** — any `  +` left after emoji removal is reduced to a single space.
+
+**Scope:** Applies to all body text, list items, heading text, and table cells — because `normalizeDocxLine` runs before the line is categorized. The scaffold filter (`isScaffold`) continues to run after normalization.
+
+**Why not in parseInlineRuns:** Normalization at the line level is simpler and ensures table cells (which call `parseInlineRuns` directly) also benefit without extra plumbing.
 
 ---
 
