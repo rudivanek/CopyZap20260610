@@ -1,7 +1,44 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-06-30T02:30:00Z
+Last Updated: 2026-06-30T10:00:00Z
+
+---
+
+## Rankings Snapshot — Split Row Actions (2026-06-30)
+
+**Files modified:**
+- `src/components/results/decision/RankingsSnapshotCard.tsx`
+- `src/components/results/ComprehensiveComparisonTable.tsx`
+
+### Overview
+
+Each non-baseline row in the Rankings Snapshot card now exposes two separate action links on the right side instead of a single clickable row. This gives users distinct entry points for viewing the copy output versus jumping to the version's analysis card.
+
+### Changes
+
+#### RankingsSnapshotCard
+
+- Added optional prop `onViewAnalysis?: (versionId: string) => void` to `RankingsSnapshotCardProps`.
+- Removed the row-level `onClick` handler (which called `onRowClick?.(row.versionId)` on the entire row div).
+- Added two small text buttons rendered for non-baseline rows, placed to the right of the score column:
+  - **"Output"** — calls `onRowClick?.(row.versionId)`. Preserves the original scroll-to-output behavior.
+  - **"Analysis"** — calls `onViewAnalysis?.(row.versionId)`. Scrolls to the version's analysis card top anchor.
+  - Both buttons call `e.stopPropagation()` to prevent any parent click handlers from firing.
+  - Styling: `text-[9px] font-semibold uppercase tracking-wider`, consistent with the file's existing micro-label convention. A thin `|` divider separates the two links when both are present.
+- The "Output" link only renders when `onRowClick` is provided; the "Analysis" link only renders when `onViewAnalysis` is provided. Both are independent — either can be omitted without breaking the other.
+
+#### ComprehensiveComparisonTable
+
+- Added new handler `handleJumpToAnalysisTop(versionId: string)`:
+  - Ensures the version's analysis card is expanded (`setExpandedVersionIds` → adds `versionId: true` if not already set).
+  - Triggers `onEnsureVersionDeepAnalysis(versionId)` if deep analysis is not yet loaded.
+  - Scrolls to `document.getElementById(`breakdown-${versionId}`)` — the top-level anchor of the `VersionAnalysisCard` — using the same `setTimeout(150) + requestAnimationFrame` pattern as `handleJumpToBreakdown` for timing reliability.
+- Passed `onViewAnalysis={handleJumpToAnalysisTop}` to `RankingsSnapshotCard` (alongside the existing `onRowClick={onVersionClick}`).
+
+### Anchor reference
+
+`VersionAnalysisCard` renders `id={`breakdown-${row.versionId}`}` as the outermost `div` (line 131). The "Analysis" link targets this anchor, landing at the top of the version's analysis card rather than at an inner sub-section.
 
 ---
 

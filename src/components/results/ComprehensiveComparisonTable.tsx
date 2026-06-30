@@ -151,6 +151,24 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
     }, 150);
   };
 
+  const handleJumpToAnalysisTop = (versionId: string) => {
+    setExpandedVersionIds(prev => {
+      if (prev[versionId]) return prev;
+      return { ...prev, [versionId]: true };
+    });
+
+    if (!versionDeepAnalysis?.[versionId] && onEnsureVersionDeepAnalysis) {
+      onEnsureVersionDeepAnalysis(versionId);
+    }
+
+    setTimeout(() => {
+      requestAnimationFrame(() => {
+        const el = document.getElementById(`breakdown-${versionId}`);
+        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      });
+    }, 150);
+  };
+
   const handleGenerateAllMissing = async () => {
     if (!onEnsureVersionDeepAnalysis || isBulkGenerating) return;
     const allIds = safeRows.map(r => r.versionId);
@@ -417,6 +435,7 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
                   baselineVersionId={baselineRow?.versionId}
                   baselineScore={baselineRow?.finalScore ?? null}
                   onRowClick={onVersionClick}
+                  onViewAnalysis={handleJumpToAnalysisTop}
                 />
               </div>
             )}

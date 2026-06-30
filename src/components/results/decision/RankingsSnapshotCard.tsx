@@ -37,6 +37,7 @@ interface RankingsSnapshotCardProps {
   hasBaseline?: boolean;
   latestEvaluatedAt?: number | null;
   onRowClick?: (versionId: string) => void;
+  onViewAnalysis?: (versionId: string) => void;
 }
 
 function getAbsoluteDelta(
@@ -80,6 +81,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
   baselineVersionId,
   baselineScore,
   onRowClick,
+  onViewAnalysis,
 }) => {
   // Absolute column is hidden by default — can be toggled on by user
   const [showAbsolute, setShowAbsolute] = useState(false);
@@ -194,13 +196,9 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
           return (
             <div
               key={row.versionId}
-              onClick={() => !isBaseline && onRowClick?.(row.versionId)}
               className={[
                 'flex items-center gap-3 py-3 transition-colors',
                 row.isWinner ? 'border-l-2 border-l-green-600 pl-3 pr-4' : 'px-4',
-                !isBaseline && !row.isWinner
-                  ? 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-900/50'
-                  : '',
                 !row.isWinner ? 'opacity-80' : '',
               ].join(' ')}
             >
@@ -299,6 +297,33 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                   </div>
                 )}
               </div>
+
+              {/* Per-row action links — only for non-baseline rows */}
+              {!isBaseline && (
+                <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
+                  {onRowClick && (
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); onRowClick(row.versionId); }}
+                      className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
+                    >
+                      Output
+                    </button>
+                  )}
+                  {onRowClick && onViewAnalysis && (
+                    <span className="text-[9px] text-gray-200 dark:text-gray-800 select-none">|</span>
+                  )}
+                  {onViewAnalysis && (
+                    <button
+                      type="button"
+                      onClick={e => { e.stopPropagation(); onViewAnalysis(row.versionId); }}
+                      className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
+                    >
+                      Analysis
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           );
         })}
