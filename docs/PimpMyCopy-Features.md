@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-06-30T11:00:00Z
+Last Updated: 2026-06-30T12:00:00Z
 
 ---
 
@@ -4246,6 +4246,16 @@ The `<table>` implementation has been replaced with a flex-div layout matching t
 - All rows use `padding: 14px 0 14px 12px` so content aligns consistently regardless of border color
 - Sub-score pills: Conversion (`#eff6ff` / `#1e40af` / `#bfdbfe`), Trust (`#faf5ff` / `#7e22ce` / `#e9d5ff`), Risk (color-coded: Low green, Medium amber, High red)
 - Delta baseline score is taken from `comparisonResult.rows` where `versionId === '__original__'`
+
+---
+
+## Rankings Snapshot — Row Divider Contrast Fix (2026-06-30)
+
+**File modified:** `src/components/results/decision/RankingsSnapshotCard.tsx`
+
+### Change
+
+Darkened the horizontal row divider between rankings rows from `divide-gray-50 dark:divide-gray-900` to `divide-gray-200 dark:divide-gray-700`. The previous values were nearly invisible against the card background. The updated values produce clearly visible separators in both light and dark mode without being visually heavy or distracting.
 
 ---
 

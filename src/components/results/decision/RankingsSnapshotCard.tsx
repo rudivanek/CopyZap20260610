@@ -160,7 +160,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
       </div>
 
       {/* Rows */}
-      <div className="divide-y divide-gray-50 dark:divide-gray-900">
+      <div className="divide-y divide-gray-200 dark:divide-gray-700">
         {rows.map((row, idx) => {
           const isBaseline =
             row.versionId === baselineVersionId ||
