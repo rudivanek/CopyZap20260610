@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-06-29T24:00:00Z
+Last Updated: 2026-06-30T00:30:00Z
 
 ---
 
@@ -4994,6 +4994,40 @@ Added a streaming branch that activates when `stream: true` is in the request bo
 3. Returns `Content-Type: text/event-stream` with `Cache-Control: no-cache`
 
 This keeps the connection active (data flowing continuously), preventing the idle timeout entirely. The non-streaming path is unchanged for all other callers.
+
+---
+
+## Compare Prompt v3 — Durations + A2 Qualitative Fix (2026-06-30)
+
+**File:** `src/prompts/copyzap-compare-prompt.md`
+
+Third revision of the compare prompt, addressing two remaining quality failures found in client reports:
+
+**1. Invented durations/statistics in rewrites (e.g. "6–8 semanas")**
+
+Strengthened the INTEGRITY RULE to cover statistics, timeframes, and institutions explicitly. The rule now states:
+
+> Never insert a specific number, percentage, duration, date, or named institution into rewritten copy unless it appears in the source material. This applies EVEN to figures that sound reasonable or generic — for example "6–8 semanas", "en 3 meses", "el 40% de las familias".
+
+Placeholder examples added: `[plazo — verificar antes de publicar]`, `[porcentaje — verificar]`, `[dato — verificar antes de publicar]`.
+
+The coverage note now explicitly lists: "rewrites, the executive summary, the 'what to fix' list, and every other part of the report."
+
+**2. A2 section quoting numeric gaps ("X points below average")**
+
+The PHASE 2 instruction now reads:
+
+> note any dimension that is notably weaker than that version's other dimensions and what it reveals (describe it qualitatively; do NOT compute or quote exact gap figures or per-version averages)
+
+The A2 instruction mirrors this:
+
+> describe it qualitatively ("its weakest dimension", "clearly lower than its others"). Do NOT calculate averages or state numeric gaps like "X points below its average"; that arithmetic is error-prone and unnecessary.
+
+**Other changes:**
+- CRITICAL block strengthened: explicitly lists banned Spanish transitional phrases ("Evaluación ciega", "Análisis ciego") alongside English ones
+- PHASE 1/2 headers simplified to "(SILENT — do not print; see CRITICAL rule above)" / "(SILENT — do not print)"
+- Phases reframed as "Work out, for your own reasoning only" (not "produce, for your own use") to reinforce silent nature
+- INTEGRITY RULE title changed from "no invented numbers" to "no invented facts (applies everywhere, strictly)"
 
 ---
 

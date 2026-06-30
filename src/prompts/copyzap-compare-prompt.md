@@ -1,12 +1,12 @@
 **You will receive a CopyZap Audit Evaluation File (llm-COMPARE / Audit Export), and optionally the original page HTML.**
 
-Do the evaluation work in two internal phases (below), then assemble the report in the exact order under REPORT STRUCTURE. The phases are how you THINK; REPORT STRUCTURE is what the reader SEES. Do not read ahead.
+Do the evaluation work in two SILENT internal phases (below), then output ONLY the report defined under REPORT STRUCTURE. Do not read ahead.
 
 ---
 
 **CRITICAL — OUTPUT ONLY THE FINAL REPORT**
 
-Do NOT print Phase 1 or Phase 2 working notes. Do NOT output raw scores, version lists, or internal rankings before the report. Do NOT print transitional phrases like "Fase 1", "Preparando reporte", "Ahora procederé a", or any reasoning narration. Start your visible output at PART 1 — CLIENT REPORT, with no preamble.
+Phase 1 and Phase 2 are silent reasoning steps. Do NOT print them. Your response must begin directly with the report (PART 1) and contain nothing before it — no Phase 1 or Phase 2 write-up, no raw score lists, no ranking dump, no extra dimension breakdowns, and no announcements or transitions of any kind (for example: "Fase 1", "Evaluación ciega", "Análisis ciego", "Preparando reporte", "Ahora procederé", "Reporte completo"). The conclusions from your phases appear ONLY where REPORT STRUCTURE places them — mainly PART 2, the appendix. If you find yourself writing anything that is not part of the final report as structured below, delete it.
 
 ---
 
@@ -16,11 +16,14 @@ Write the entire report — every heading, table header, and label — in the la
 
 ---
 
-**INTEGRITY RULE — no invented numbers (applies everywhere)**
+**INTEGRITY RULE — no invented facts (applies everywhere, strictly)**
 
-When you propose rewritten copy or recommendations, do NOT insert specific statistics, percentages, testimonials, named institutions, or result figures unless they actually appear in the source material. If a rewrite would be stronger with such a figure, insert a clearly marked placeholder and flag it, e.g. "[dato — verificar antes de publicar]". Never present fabricated figures as if they were real. A client may paste your rewrites straight onto their site.
+Never present invented information as real. This applies with special force to two things:
 
-This rule explicitly covers testimonials: do NOT write invented testimonials attributed to named or located persons (e.g. "Laura M. from CDMX" or "Juan, empresario en Monterrey"). If a testimonial would help, use the placeholder: [testimonio de ejemplo — reemplazar con uno real y verificado].
+- **Testimonials:** Never write a testimonial attributed to a named or located person (e.g. "— Laura M., madre en CDMX"). If you recommend adding social proof, show it ONLY as a clearly labeled placeholder — e.g. "[testimonio de ejemplo — reemplazar con uno real y verificado]" — with no invented name, quote, result, or location presented as genuine.
+- **Statistics, timeframes, institutions:** Never insert a specific number, percentage, duration, date, or named institution into rewritten copy unless it appears in the source material. This applies EVEN to figures that sound reasonable or generic — for example "6–8 semanas", "en 3 meses", "el 40% de las familias", "más de 40 años de investigación". A figure feeling plausible is not permission to state it. Use a flagged placeholder instead — e.g. "[plazo — verificar antes de publicar]", "[porcentaje — verificar]", or "[dato — verificar antes de publicar]". This rule covers the rewrites, the executive summary, the "what to fix" list, and every other part of the report.
+
+A client may paste your rewrites straight onto their site; fabricated figures or testimonials are a liability, not a polish.
 
 ---
 
@@ -34,11 +37,11 @@ This rule explicitly covers testimonials: do NOT write invented testimonials att
 
 **PHASE 1 — BLIND EVALUATION (SILENT — do not print; see CRITICAL rule above)**
 
-Read ONLY the copy in Section A, between `<START_COPY>` and `<END_COPY>`. For each version produce, for your own use:
+Read ONLY the copy in Section A, between `<START_COPY>` and `<END_COPY>`. Work out, for your own reasoning only:
 
-- **Claude Session Score** (0–100): relative quality vs. the other versions
-- **Claude Absolute Score** (0–100): four dimensions, 0–25 each — Clarity & Readability, Persuasion & Conversion, Audience Fit, Structure & Flow — with a one-sentence note per dimension (Use only these four dimensions. Do not invent additional dimensions.)
-- Winner; ranking (best → worst); Winner Type: Clear (≥10 pt gap), Moderate (5–9), Close Call (<5)
+- **Claude Session Score** (0–100) per version
+- **Claude Absolute Score** across exactly four dimensions, 0–25 each — Clarity & Readability, Persuasion & Conversion, Audience Fit, Structure & Flow — with a one-sentence note per dimension. (Use only these four dimensions. Do not invent additional dimensions.)
+- Winner; ranking; Winner Type: Clear (≥10 pt gap), Moderate (5–9), Close Call (<5)
 
 Do not read Section B yet. Do not revise these after Phase 2.
 
@@ -46,7 +49,7 @@ Do not read Section B yet. Do not revise these after Phase 2.
 
 **PHASE 2 — COMPARISON WITH APP (SILENT — do not print)**
 
-Now read Section B (the app's scores, ranking, per-version analysis). Determine, for your own use: the Δ between CopyZap Session and Claude Session per version (flag any Δ > 10); agreements; divergences with who is more correct and why; per-dimension Absolute patterns across versions (flag any single dimension more than 4 points below that version's own average across its four dimensions, and say what it reveals); shared strengths and weaknesses; app reliability.
+Read Section B (the app's scores, ranking, per-version analysis). Work out, for your own reasoning only: the Δ between CopyZap Session and Claude Session per version (flag Δ > 10); agreements; divergences with who is more correct and why; per-dimension Absolute patterns — note any dimension that is notably weaker than that version's other dimensions and what it reveals (describe it qualitatively; do NOT compute or quote exact gap figures or per-version averages); shared strengths and weaknesses; app reliability.
 
 ---
 
@@ -61,7 +64,7 @@ Write PART 1 in plain language for a business owner: no scoring jargon, no metho
 3. **Winning Version** — which wins, who it is for (awareness / consideration / decision stage), and a short bulleted list of what to fix before publishing.
 4. **Concrete Improvements** (winning version only):
    - **Line Rewrites** — 2–3 weakest lines/CTAs with exact before/after replacement copy, in the source language. Obey the INTEGRITY RULE.
-   - **Structural Conversion Gaps** — 1–2 problems no line edit fixes; name it, say why it limits conversion, give a specific structural fix. Obey the INTEGRITY RULE: if you suggest adding social proof or a testimonial, use the placeholder [testimonio de ejemplo — reemplazar con uno real y verificado] — do NOT invent names, locations, or attributed quotes.
+   - **Structural Conversion Gaps** — 1–2 problems no line edit fixes; name it, say why it limits conversion, give a specific structural fix. If the fix is "add a testimonial," obey the INTEGRITY RULE (placeholder only).
    - **Impact Prioritization** — the 3-column table under TABLE SHAPES.
 5. **Disclaimer** — one sentence: professional opinion, not objective truth; scores vary between evaluators.
 
@@ -70,7 +73,7 @@ Write PART 1 in plain language for a business owner: no scoring jargon, no metho
 Open with a one-line note that this is a technical appendix the client may skip.
 
 - **A1. Claude Absolute Score — Breakdown** — the 6-column table under TABLE SHAPES, plus the dimension notes for the winning version.
-- **A2. Absolute Score Analysis** — for each of the four dimensions, the pattern across versions; flag any version whose single dimension is more than 4 points below its own average, and state what it reveals.
+- **A2. Absolute Score Analysis** — for each of the four dimensions, describe the pattern across versions in words. Where a version has a dimension that is notably weaker than its other three, point it out and say what it reveals — but describe it qualitatively ("its weakest dimension", "clearly lower than its others"). Do NOT calculate averages or state numeric gaps like "X points below its average"; that arithmetic is error-prone and unnecessary.
 - **A3. Session-Score Divergence** — the 6-column divergence table under TABLE SHAPES; flag any Δ > 10 and state who is more correct.
 - **A4. Shared Strengths & Weaknesses** — what all versions do well, what they all lack, and the single priority fix.
 - **A5. Methodology Note** — Absolute Scores are blind and vary ±3–5 pts between sessions; CopyZap session scores are relative to the versions evaluated and shift when versions are added.
@@ -79,7 +82,7 @@ Open with a one-line note that this is a technical appendix the client may skip.
 
 **TABLE SHAPES — use exactly these column counts. Do not split into other shapes.**
 
-- **Comparison Table (6 columns):** Version · CopyZap Session · Claude Session · Claude Absolute Score · App Rank / Claude Rank · Key Difference. Format ranks explicitly ("App #1 / Claude #1", "App #3 / Claude #4"), never "Both #2". Write "None" where there is agreement.
+- **Comparison Table (6 columns):** Version · CopyZap Session · Claude Session · Claude Absolute Score · App Rank / Claude Rank · Key Difference. Format ranks explicitly ("App #1 / Claude #1"), never "Both #2". Write "None" where there is agreement.
 - **Absolute Breakdown (6 columns):** Version · Clarity & Readability · Persuasion & Conversion · Audience Fit · Structure & Flow · Note.
 - **Divergence Table (6 columns):** Version · CopyZap Session · Claude Session · Δ Session · Claude Absolute · Who is more correct (one sentence).
 - **Impact Prioritization (3 columns):** Improvement · Impact (High/Medium/Low) · Reason.
@@ -94,4 +97,4 @@ Show the complete report as a preview first. Then ask, in the report's language:
 
 **OUTPUT FILES** (only after confirmation)
 
-A landscape Word `.docx` and a Markdown `.md`. Name both with the exact name of the source file, prefixed with `CLAUDE-REPORT-` (e.g. `llm-COMPARE_Neural.md` → `CLAUDE-REPORT-llm-COMPARE_Neural`). Do not include any layout, column-width, or DXA instructions in the report text itself — formatting is handled by the app.
+A landscape Word `.docx` and a Markdown `.md`. Name both with the exact name of the source file, prefixed with `CLAUDE-REPORT-`. Do not include any layout, column-width, or DXA instructions in the report text itself — formatting is handled by the app.
