@@ -39,7 +39,8 @@ A client may paste your rewrites straight onto their site; fabricated figures or
 **SCORE TYPES**
 
 - **CopyZap Score** — from Section B of the file (the app's own scoring).
-- **Independent review (blind) ranking & Absolute Score** — your own blind evaluation. The Absolute Score has four dimensions (Clarity & Readability, Persuasion & Conversion, Audience Fit, Structure & Flow), 0–25 each. CopyZap does not produce the Absolute Score.
+- **CopyZap relative score (session)** — read from Section B of the file (the `### SCORES` list). This is the HEADLINE score in the client report. Use the exact numbers from Section B verbatim; NEVER invent or recompute them. These are relative session scores that differentiate the versions, and they are the signal the client should see.
+- **Independent review (blind)** — your own blind evaluation. You use it for two things only: (a) the RANKING shown in the validation block, and (b) the qualitative four-dimension guidance (Clarity & Readability, Persuasion & Conversion, Audience Fit, Structure & Flow, 0–25 each). Do NOT show a single absolute 0–100 number for the independent review anywhere in PART 1 — the absolute score is unreliable as a headline and is confined to PART 2.
 
 ---
 
@@ -60,9 +61,9 @@ Read Section B (the app's scores and ranking). Work out, for your own reasoning:
 **PART 1 — CLIENT REPORT**
 
 1. **Executive Summary** — 3–4 plain sentences: which version to use, how confident, and the single most important action. No jargon.
-2. **Version Scores** — the 6-column table under TABLE SHAPES.
+2. **Version Scores** — the 4-column table under TABLE SHAPES. Its score column is CopyZap's relative score copied verbatim from Section B (`### SCORES`). Do not add an absolute-score column and do not invent numbers.
 3. **Independent Validation** — 2–3 plain sentences stating that, to ensure the evaluation is not CopyZap simply grading itself, the same versions were given an independent blind review with no access to CopyZap's scores, and that the two **agreed on the ranking**. Then the 4-column validation table under TABLE SHAPES. Add one sentence noting the agreement is measured on ranking (the most stable signal), and that exact scores may differ by a few points. State the agreement honestly: if every rank matches, say the review confirmed the ranking; if one differs, note it neutrally ("coincidió en 3 de 4 posiciones") — but do NOT analyze who is more correct here (that belongs in PART 2).
-4. **Where Each Version Is Strong and Weak** — the 6-column dimensional table under TABLE SHAPES, then one plain sentence on how to read it.
+4. **Where Each Version Is Strong and Weak** — the 6-column dimensional table under TABLE SHAPES, then one plain sentence noting these dimension scores are a qualitative guide to *where* a version is strong or weak, not a competing headline score (the headline score is CopyZap's relative score above).
 5. **Winning Version** — which wins, who it is for (awareness / consideration / decision stage), and a short bulleted list of what to fix before publishing.
 6. **Concrete Improvements** (winning version only): **Line Rewrites** (2–3 before/after, source language, obey INTEGRITY RULE); **Structural Conversion Gaps** (1–2); **Impact Prioritization** (the 3-column table under TABLE SHAPES).
 7. **Disclaimer** — one sentence: professional opinion, not objective truth; scores vary between evaluators.
@@ -79,7 +80,7 @@ Open with a one-line note: this section is internal and must not be shared with 
 
 **TABLE SHAPES — use exactly these column counts. Do not split into other shapes.**
 
-- **Version Scores (6 columns):** Version · Editorial Quality · Conversion Potential · Absolute Score · Rank · Takeaway (one short plain-language line).
+- **Version Scores (4 columns):** Version · CopyZap Score · Rank · Takeaway. The "CopyZap Score" column is copied verbatim from Section B's `### SCORES`. The last column ("Takeaway") is a short plain-language line. Do not include editorial, conversion, or absolute columns here.
 - **Independent Validation (4 columns):** Version · CopyZap Rank · Independent Review Rank · Agrees? (Yes / No).
 - **Dimensional Breakdown (6 columns):** Version · Clarity · Persuasion · Audience Fit · Structure · Weakest area.
 - **Impact Prioritization (3 columns):** Improvement · Impact (High/Medium/Low) · Reason.

@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-06-30T12:00:00Z
+Last Updated: 2026-06-30T13:00:00Z
 
 ---
 
@@ -4246,6 +4246,39 @@ The `<table>` implementation has been replaced with a flex-div layout matching t
 - All rows use `padding: 14px 0 14px 12px` so content aligns consistently regardless of border color
 - Sub-score pills: Conversion (`#eff6ff` / `#1e40af` / `#bfdbfe`), Trust (`#faf5ff` / `#7e22ce` / `#e9d5ff`), Risk (color-coded: Low green, Medium amber, High red)
 - Delta baseline score is taken from `comparisonResult.rows` where `versionId === '__original__'`
+
+---
+
+## Client Report Prompt — v2 Rewrite (2026-06-30)
+
+**File modified:** `src/prompts/copyzap-client-prompt.md`
+
+### Changes
+
+**Score type restructuring.** The prompt previously showed a 6-column Version Scores table (Version · Editorial Quality · Conversion Potential · Absolute Score · Rank · Takeaway) and instructed the LLM to invent or derive multiple score columns. The new version replaces this with a strict 4-column table (Version · CopyZap Score · Rank · Takeaway) whose score column is copied verbatim from Section B's `### SCORES` list — the app's own relative session scores. No editorial, conversion, or absolute columns appear in PART 1.
+
+**New SCORE TYPES block.** Clarifies three score types:
+- CopyZap relative score (session) — the headline score, from Section B verbatim, never recomputed
+- Independent review (blind) — used only for ranking validation and the qualitative four-dimension guidance; the absolute 0–100 single number is confined to PART 2
+- "CopyZap Score" alias for Section B
+
+**Dimensional table retitled.** Section 4 ("Where Each Version Is Strong and Weak") now carries a sentence clarifying that the 6-column dimensional breakdown is a qualitative guide to where a version is strong or weak, not a competing headline score, and that the headline score is CopyZap's relative score from Section 2.
+
+**TABLE SHAPES updated.** Version Scores changed from 6 to 4 columns. Validation and Divergence tables unchanged. All other table shapes unchanged.
+
+**Eval and Compare reports unaffected.** `copyzap-eval-prompt.md` and `copyzap-compare-prompt.md` were not modified.
+
+---
+
+## .docx Export — 4-Column Wide-Last Profile (2026-06-30)
+
+**File modified:** `src/components/copy-maker/CopyMakerSidebar.tsx`
+
+### Change
+
+**Header-aware width selection for 4-column tables.** Previously, every 4-column table used the fixed profile `[4600, 3000, 3360, 2000]`. The `buildDocxTable` function now checks the last header cell of 4-column tables (case-insensitive, trimmed). If it matches any of: `Takeaway`, `Conclusión`, `Conclusion`, `Resumen`, `Nota`, `Note`, the table uses the wide-last profile `[3400, 1700, 1400, 6460]` (sum = 12960). All other 4-column tables continue to use the original `[4600, 3000, 3360, 2000]` profile unchanged.
+
+This means the Client Report's Version Scores table (last header: Takeaway/Conclusión) and the Dimensional Breakdown's last-column tables get a wide narrative column, while the Evaluation Report's appendix table (last header: Rank / Claude Rank) and all Compare Report tables remain on the original widths.
 
 ---
 

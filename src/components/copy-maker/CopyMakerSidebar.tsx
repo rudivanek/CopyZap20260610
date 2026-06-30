@@ -125,7 +125,12 @@ async function buildReportDocx(markdown: string, meta: ReportDocxMeta): Promise<
     if (rows.length === 0) return null;
 
     const colCount = rows[0].length;
-    const widths = getColWidths(colCount);
+    const WIDE_LAST_4_HEADERS = ['takeaway', 'conclusión', 'conclusion', 'resumen', 'nota', 'note'];
+    const lastHeader = rows[0][colCount - 1]?.toLowerCase().trim() ?? '';
+    const widths =
+      colCount === 4 && WIDE_LAST_4_HEADERS.includes(lastHeader)
+        ? [3400, 1700, 1400, 6460]
+        : getColWidths(colCount);
     assertWidths(widths);
 
     const docxRows = rows.map((cells, rowIdx) => {
