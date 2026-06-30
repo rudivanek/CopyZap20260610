@@ -1,9 +1,45 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-06-30T13:00:00Z
+Last Updated: 2026-06-30T14:00:00Z
 
 ---
+
+## Score Stability — Anchored Incremental Rescoring (2026-06-30)
+
+**Files modified:**
+- `src/services/api/comparativeScoring.ts`
+- `src/components/copy-maker/CopyMakerTab/CopyMakerTab.tsx`
+
+### Problem
+
+When a user added a new generated version and triggered a rescore, the entire version set was re-sent to the LLM via `generateUnifiedComparison`. Because the LLM uses rank-based banding relative to the batch composition, introducing one new version caused all previously-scored versions to receive different scores. This produced confusing UX where adding a weak version lowered all scores, or adding a strong version raised them.
+
+### Root Cause
+
+`performScoreAndNavigate` (in `CopyMakerTab.tsx`) previously rebuilt the full version list — including already-scored versions — and called `generateUnifiedComparison` every time. The LLM has no memory of prior scores, so each call produced an independent relative ranking calibrated to the current batch composition.
+
+### Fix
+
+**`comparativeScoring.ts`**
+
+1. Added optional 9th parameter `anchors?: { versionId: string; label: string; score: number }[]` to `compareVersionsRelatively`.
+2. When anchors are provided, an `anchorSection` block is injected into the LLM prompt listing each previously-scored version with its locked score and instructing the model to calibrate new versions against that fixed scale rather than ranking them relative to each other.
+3. The scoring scale instruction is dynamic: with anchors it switches from rank-based band instructions to anchor-relative instructions ("if a new version is clearly better than a locked anchor at score X, assign it X+5 to X+15").
+4. New exported function `mapToComparisonResultWithAnchors(comparativeResult, newVersions, anchorRows)` merges fresh LLM results for new versions with the immutable anchor rows, re-sorts all rows by `finalScore`, recomputes `rank`, `isWinner`, `deltaVsBest`, and `improvementPct` client-side.
+
+**`CopyMakerTab.tsx` — `performScoreAndNavigate`**
+
+1. Removed the `generateUnifiedComparison` call (full rescore of all versions).
+2. Now only `missingVersions` (new, un-scored versions) are sent to `compareVersionsRelatively`.
+3. `anchorRows` are built from the existing `comparisonResult.rows` (locked — not sent to LLM).
+4. `anchors` array (versionId, label, finalScore) is passed as the 9th argument.
+5. Result is merged via `mapToComparisonResultWithAnchors` so existing scores are fully preserved.
+6. Removed stale `existingCache`/`updatedCache` references and `winnerId`/`cleanedRows` re-mapping (no longer needed — `mapToComparisonResultWithAnchors` handles this).
+
+### Outcome
+
+Adding new versions no longer shifts previously-scored versions' scores. Existing scores are immutable anchors; only new versions receive LLM scores calibrated against the established quality baseline.
 
 ## Rankings Snapshot — Visual Polish Pass (2026-06-30)
 

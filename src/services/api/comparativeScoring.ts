@@ -80,7 +80,8 @@ export async function compareVersionsRelatively(
   keywords: string[] = [],
   scoringContext?: ScoringContext,
   model?: Model,
-  section?: string
+  section?: string,
+  anchors?: { versionId: string; label: string; score: number }[]
 ): Promise<ComparativeResult> {
   console.log('[comparative-scoring] started');
   console.log(`[comparative-scoring] received ${versions.length} versions`);
@@ -115,6 +116,15 @@ ${sanitizedContent}
 `;
   }).join('\n\n');
 
+  // Build anchor block if locked reference scores are provided
+  const hasAnchors = !!anchors && anchors.length > 0;
+  const anchorBlock = hasAnchors
+    ? anchors!.map(a => `- "${a.label}" — LOCKED SCORE: ${a.score}/100`).join('\n')
+    : '';
+  const anchorSection = hasAnchors
+    ? `\nALREADY-SCORED VERSIONS (reference only — do NOT re-score these):\n${anchorBlock}\nThese versions were scored in a previous session and their scores are fixed. Use them as calibration anchors when scoring the NEW versions above. Your scores for the new versions must be consistent with this scale.\n`
+    : '';
+
   // Build context information
   const audienceInfo = scoringContext?.audienceTone || 'Not specified';
   const contentTypeInfo = scoringContext?.contentType || 'Marketing copy';
@@ -122,6 +132,23 @@ ${sanitizedContent}
     ? keywords.map(k => `"${k}"`).join(', ')
     : 'None provided';
   const sectionInfo = section?.trim() || null;
+
+  const scoringScaleInstructions = hasAnchors
+    ? `2. SCORING SCALE (0-100) — ANCHORED, NOT RANK-BASED:
+   - The already-scored reference versions above define the quality scale for this session.
+   - Score new versions relative to those anchors, not relative to each other alone.
+   - If a new version is clearly better than a locked anchor at score X, assign it X+5 to X+15.
+   - If a new version is clearly worse than a locked anchor at score X, assign it X-5 to X-15.
+   - If a new version is comparable, assign it within ±4 points of that anchor.
+   - Standard bands still apply: Winner 80-92, Strong 70-85, Acceptable 60-75, Weak 50-65, Poor <50.
+   - ENFORCE 5-10 POINT GAPS between clearly different quality levels.`
+    : `2. SCORING SCALE (0-100):
+   - Winner: 80-92 (reserve 93+ for exceptional cases only)
+   - Strong alternatives: 70-85
+   - Acceptable: 60-75
+   - Weak: 50-65
+   - Poor: below 50
+   - ENFORCE 5-10 POINT GAPS between clearly different quality levels`;
 
   const prompt = `You are a senior marketing strategist performing a RELATIVE evaluation of multiple copy versions.
 
@@ -134,7 +161,7 @@ CONTEXT:
 
 VERSIONS TO COMPARE:
 ${versionBlocks}
-
+${anchorSection}
 STEP 1 — SILENT POSITIONING INFERENCE (internal only, never shown to user):
 Before scoring, silently analyze the audience, tone, content type, and copy to infer the brand positioning category. Use this to adjust how scoring dimensions are weighted in your ranking decisions. Do NOT include this inference in your JSON response.
 
@@ -152,13 +179,7 @@ EVALUATION RULES:
    - NO TIES unless versions are truly identical
    - Force separation: best version must be noticeably better than second
 
-2. SCORING SCALE (0-100):
-   - Winner: 80-92 (reserve 93+ for exceptional cases only)
-   - Strong alternatives: 70-85
-   - Acceptable: 60-75
-   - Weak: 50-65
-   - Poor: below 50
-   - ENFORCE 5-10 POINT GAPS between clearly different quality levels
+${scoringScaleInstructions}
 
 3. RANKING CRITERIA (IN ORDER, weighted by inferred positioning):
    a) Audience-tone fit (does the voice match the audience?)
@@ -779,5 +800,49 @@ export function mapToComparisonResult(
 
     // comparative scoring state fix: version-set fingerprint for staleness detection
     versionSetKey: versions.map(v => v.id).sort().join(',')
+  };
+}
+
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+// ANCHORED RESULT MERGER
+// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+/**
+ * Merge freshly-scored new versions with previously locked anchor rows.
+ * Anchor rows are never re-scored — their scores are treated as immutable.
+ * After merging, re-rank all rows by finalScore and recompute winner/delta fields.
+ */
+export function mapToComparisonResultWithAnchors(
+  comparativeResult: ComparativeResult,
+  newVersions: GeneratedContentItem[],
+  anchorRows: any[]
+): any {
+  const freshResult = mapToComparisonResult(comparativeResult, newVersions);
+  const freshRows: any[] = freshResult.rows;
+
+  const allRows = [...anchorRows, ...freshRows];
+
+  // Re-rank all rows by finalScore (descending)
+  allRows.sort((a, b) => (b.finalScore ?? 0) - (a.finalScore ?? 0));
+  allRows.forEach((row, idx) => { row.rank = idx + 1; });
+
+  const winnerRow = allRows[0];
+  const winnerFinalScore = winnerRow?.finalScore ?? 0;
+
+  allRows.forEach(row => {
+    row.isWinner = row.versionId === winnerRow.versionId;
+    const delta = (row.finalScore ?? 0) - winnerFinalScore;
+    row.deltaVsBest = delta;
+    row.improvementPct = winnerFinalScore > 0
+      ? Math.round((delta / winnerFinalScore) * 100)
+      : 0;
+  });
+
+  return {
+    ...freshResult,
+    rows: allRows,
+    winnerVersionId: winnerRow?.versionId ?? freshResult.winnerVersionId,
+    winnerLabel: winnerRow?.label ?? freshResult.winnerLabel,
+    versionSetKey: allRows.map(r => r.versionId).sort().join(',')
   };
 }

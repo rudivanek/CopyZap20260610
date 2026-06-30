@@ -1028,82 +1028,59 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
     setIsScoringNewOutputs(true);
 
     try {
-      console.log('[comparative-scoring] rescoring after adding new outputs');
+      console.log('[comparative-scoring] incremental rescore: scoring only new outputs');
       console.log('[comparative-scoring] missing versions:', missingVersions.length);
-
-      // comparative scoring state fix: get ALL current versions for fresh comparison
-      const allGeneratedVersions = formState.copyResult?.generatedVersions || [];
-      const versionsToCompare = allGeneratedVersions.filter(v => !v.comparedContent);
-
-      // Add original copy as baseline if present
-      const originalCopyText = formState.originalCopy?.trim() || undefined;
-      const { ORIGINAL_VERSION_ID } = await import('./hooks/useGeneration');
-
-      let versionsWithOriginal = versionsToCompare;
-      if (originalCopyText) {
-        const hasOriginal = versionsToCompare.some(v => v.type === 'original');
-        if (!hasOriginal) {
-          const syntheticOriginal: GeneratedContentItem = {
-            id: ORIGINAL_VERSION_ID,
-            type: 'original' as any,
-            content: originalCopyText,
-            generatedAt: formState.originalCopyEnteredAt || new Date().toISOString(),
-            sourceDisplayName: 'Original Copy',
-            analysisMode: 'batch'
-          };
-          versionsWithOriginal = [syntheticOriginal, ...versionsToCompare];
-        }
-      }
-
-      console.log('[comparative-scoring] version set key:', versionsWithOriginal.map(v => v.id).sort().join(','));
-
-      // comparative scoring state fix: use unified comparison to respect feature flag
-      const { generateUnifiedComparison } = await import('../../../services/api/unifiedComparison');
 
       const parsedKw = formState.keywords
         ? [...new Set(formState.keywords.split(/[\n,;]+/).map(k => k.trim()).filter(Boolean))]
         : [];
       const scoringKeywords = formState.keywordsExplicit ? parsedKw : [];
 
-      const existingCache = formState.copyResult?.versionScores || {};
-
       const contextToUse = scoringContext || comparisonResult?.scoringContext;
 
-      const unifiedResult = await generateUnifiedComparison(
-        originalCopyText,
-        versionsWithOriginal,
-        currentUser,
+      // Build versionLabels map for new versions only
+      const versionLabels: Record<string, string> = {};
+      missingVersions.forEach((v, idx) => {
+        versionLabels[v.id] = v.sourceDisplayName || `Version ${idx + 1}`;
+      });
+
+      // Build anchor list from existing scored rows (locked — will not be re-sent to LLM)
+      const anchorRows = comparisonResult.rows.map((r: any) => ({ ...r }));
+      const anchors = anchorRows.map((r: any) => ({
+        versionId: r.versionId,
+        label: r.label || r.optionLabel || r.versionId,
+        score: r.finalScore ?? r.score ?? 0
+      }));
+
+      const { compareVersionsRelatively, mapToComparisonResultWithAnchors } = await import('../../../services/api/comparativeScoring');
+
+      const comparativeResult = await compareVersionsRelatively(
+        missingVersions,
+        versionLabels,
+        currentUser?.id,
         formState.sessionId,
-        undefined,
-        formState.model,
-        existingCache,
         scoringKeywords,
         contextToUse,
-        formState.section || undefined
+        formState.model,
+        formState.section || undefined,
+        anchors
       );
 
-      const { comparisonResult: newComparisonResult } = unifiedResult;
+      const newComparisonResult = mapToComparisonResultWithAnchors(
+        comparativeResult,
+        missingVersions,
+        anchorRows
+      );
 
-      console.log('[comparative-scoring] rebuilt comparison from scratch');
+      console.log('[comparative-scoring] incremental merge complete');
       console.log('[comparative-scoring] winner set to:', newComparisonResult.winnerVersionId);
-
-      // comparative scoring state fix: enforce single winner and fresh row mapping
-      const winnerId = newComparisonResult.winnerVersionId;
-      const cleanedRows = newComparisonResult.rows.map((r: any) => ({
-        ...r,
-        isWinner: r.versionId === winnerId
-      }));
 
       const finalComparisonResult = {
         ...newComparisonResult,
-        rows: cleanedRows,
         scoringContext: contextToUse
       };
 
-      // phase 2 scoring cleanup: comparative scoring doesn't use cache
-      const updatedCache = existingCache;
-
-      // comparative scoring state fix: clear stale winner flags before setting new state
+      // Clear stale winner flags before setting new state
       setComparisonResult(null);
 
       setTimeout(() => {
@@ -1112,7 +1089,6 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
           ...prev,
           copyResult: prev.copyResult ? {
             ...prev.copyResult,
-            versionScores: updatedCache,
             comparisonResult: finalComparisonResult,
             comparisonDeepAnalysisMeta: undefined
           } : prev.copyResult
