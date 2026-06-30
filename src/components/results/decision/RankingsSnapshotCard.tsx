@@ -132,18 +132,16 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
           Rankings
         </span>
         <div className="flex items-center gap-3">
-          {/* Column labels — only shown when absolute is visible */}
+          {/* Session label always visible; Absolute label only when toggled on */}
+          <ScoreColumnLabel
+            label="Session"
+            tip="Relative to other versions generated in this session — may shift slightly when new versions are added"
+          />
           {showAbsolute && hasAnyAbsoluteScore && (
-            <>
-              <ScoreColumnLabel
-                label="Session"
-                tip="Relative to other versions generated in this session — may shift slightly when new versions are added"
-              />
-              <ScoreColumnLabel
-                label="Absolute"
-                tip="Evaluated in isolation — does not change as new versions are added. Use this for a stable quality benchmark."
-              />
-            </>
+            <ScoreColumnLabel
+              label="Absolute"
+              tip="Evaluated in isolation — does not change as new versions are added. Use this for a stable quality benchmark."
+            />
           )}
           {/* Toggle button — only shown when absolute scores exist */}
           {hasAnyAbsoluteScore && (
@@ -194,7 +192,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
           const shouldShowBadge =
             decisionBadge && !(decisionBadge.type === 'best-overall' && row.isWinner);
 
-          const hasActionChips = !isBaseline && (onRowClick || onViewAnalysis);
+          const hasActionChips = onRowClick || (!isBaseline && onViewAnalysis);
 
           return (
             <div
@@ -251,23 +249,23 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                     />
                   </div>
                 )}
-                {/* Action chips — on their own line, right-aligned */}
+                {/* Action chips */}
                 {hasActionChips && (
                   <div className="flex items-center gap-1.5 mt-1.5">
                     {onRowClick && (
                       <button
                         type="button"
                         onClick={e => { e.stopPropagation(); onRowClick(row.versionId); }}
-                        className="text-[10px] font-semibold px-2.5 py-1 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer"
+                        className="text-[10px] font-medium px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer"
                       >
                         Output
                       </button>
                     )}
-                    {onViewAnalysis && (
+                    {!isBaseline && onViewAnalysis && (
                       <button
                         type="button"
                         onClick={e => { e.stopPropagation(); onViewAnalysis(row.versionId); }}
-                        className="text-[10px] font-semibold px-2.5 py-1 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer"
+                        className="text-[10px] font-medium px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer"
                       >
                         Analysis
                       </button>
