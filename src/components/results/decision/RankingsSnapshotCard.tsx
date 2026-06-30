@@ -55,18 +55,21 @@ function getAbsoluteDelta(
   };
 }
 
+// Fixed width for score columns so header labels align with values
+const SCORE_COL_CLASS = 'w-10 text-right tabular-nums';
+
 const ScoreColumnLabel: React.FC<{ label: string; tip: string }> = ({ label, tip }) => {
   const [show, setShow] = React.useState(false);
   return (
     <span
-      className="relative inline-flex items-center gap-0.5 cursor-default"
+      className={`relative inline-flex items-center justify-end gap-0.5 cursor-default ${SCORE_COL_CLASS}`}
       onMouseEnter={() => setShow(true)}
       onMouseLeave={() => setShow(false)}
     >
       <span className="text-[9px] font-bold text-gray-300 dark:text-gray-700 uppercase tracking-widest">
         {label}
       </span>
-      <Info size={9} className="text-gray-200 dark:text-gray-800" />
+      <Info size={9} className="text-gray-200 dark:text-gray-800 flex-shrink-0" />
       {show && (
         <span className="absolute bottom-full right-0 mb-1.5 z-50 w-44 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-[10px] leading-snug rounded px-2 py-1.5 shadow-lg pointer-events-none whitespace-normal text-center">
           {tip}
@@ -83,7 +86,6 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
   onRowClick,
   onViewAnalysis,
 }) => {
-  // Absolute column is hidden by default — can be toggled on by user
   const [showAbsolute, setShowAbsolute] = useState(false);
 
   const decisionBadges = useMemo(() => {
@@ -117,7 +119,6 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
     null;
   const baselineAbsTotal = baselineRow?.absoluteScore?.total ?? null;
 
-  // Only show the toggle button if at least one row has an absolute score
   const hasAnyAbsoluteScore = rows.some(r => r.absoluteScore != null);
 
   return (
@@ -193,40 +194,41 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
           const shouldShowBadge =
             decisionBadge && !(decisionBadge.type === 'best-overall' && row.isWinner);
 
+          const hasActionChips = !isBaseline && (onRowClick || onViewAnalysis);
+
           return (
             <div
               key={row.versionId}
               className={[
-                'flex items-center gap-3 py-3 transition-colors',
+                'flex items-start gap-3 py-3 transition-colors',
                 row.isWinner ? 'border-l-2 border-l-green-600 pl-3 pr-4' : 'px-4',
-                !row.isWinner ? 'opacity-80' : '',
               ].join(' ')}
             >
               {/* Rank number */}
-              <span className="text-[10px] tabular-nums w-4 flex-shrink-0 text-gray-300 dark:text-gray-700 font-bold">
+              <span className="text-[10px] tabular-nums w-4 flex-shrink-0 text-gray-300 dark:text-gray-700 font-bold mt-0.5">
                 {idx + 1}
               </span>
 
-              {/* Name + tags */}
+              {/* Name + tags + action chips */}
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1.5 flex-wrap mb-0.5">
                   <span
                     className={`text-sm truncate ${
                       row.isWinner
                         ? 'font-bold text-gray-900 dark:text-white'
-                        : 'font-normal text-gray-500 dark:text-gray-500'
+                        : 'font-normal text-gray-400 dark:text-gray-500'
                     }`}
                   >
                     {row.optionLabel}
                   </span>
                   {isBaseline && (
-                    <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-1.5 py-0.5 rounded-full whitespace-nowrap">
+                    <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded-full whitespace-nowrap">
                       Baseline
                     </span>
                   )}
                   {shouldShowBadge && decisionBadge && (
                     <span
-                      className={`text-[10px] font-semibold px-1.5 py-0.5 rounded whitespace-nowrap ${getBadgeStyles(
+                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${getBadgeStyles(
                         decisionBadge.type
                       )}`}
                     >
@@ -249,9 +251,32 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                     />
                   </div>
                 )}
+                {/* Action chips — on their own line, right-aligned */}
+                {hasActionChips && (
+                  <div className="flex items-center gap-1.5 mt-1.5">
+                    {onRowClick && (
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); onRowClick(row.versionId); }}
+                        className="text-[10px] font-semibold px-2.5 py-1 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer"
+                      >
+                        Output
+                      </button>
+                    )}
+                    {onViewAnalysis && (
+                      <button
+                        type="button"
+                        onClick={e => { e.stopPropagation(); onViewAnalysis(row.versionId); }}
+                        className="text-[10px] font-semibold px-2.5 py-1 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer"
+                      >
+                        Analysis
+                      </button>
+                    )}
+                  </div>
+                )}
               </div>
 
-              {/* Session score + delta */}
+              {/* Score columns — fixed width to align with header labels */}
               <div className="flex items-center gap-2 flex-shrink-0">
                 {delta && !delta.neutral && (
                   <span
@@ -261,7 +286,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                   </span>
                 )}
                 <span
-                  className={`text-sm tabular-nums w-7 text-right ${
+                  className={`text-sm ${SCORE_COL_CLASS} ${
                     row.isWinner
                       ? 'font-black text-gray-900 dark:text-white'
                       : 'font-bold text-gray-400 dark:text-gray-500'
@@ -282,7 +307,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                     )}
                     {row.absoluteScore ? (
                       <span
-                        className={`text-sm tabular-nums w-7 text-right ${
+                        className={`text-sm ${SCORE_COL_CLASS} ${
                           row.isWinner ? 'font-bold' : 'font-semibold'
                         }`}
                         style={{ color: getAbsoluteScoreColor(row.absoluteScore.total) }}
@@ -290,40 +315,13 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                         {row.absoluteScore.total}
                       </span>
                     ) : (
-                      <span className="text-[11px] tabular-nums w-7 text-right text-gray-300 dark:text-gray-700 font-normal">
+                      <span className={`text-[11px] ${SCORE_COL_CLASS} text-gray-300 dark:text-gray-700 font-normal`}>
                         ...
                       </span>
                     )}
                   </div>
                 )}
               </div>
-
-              {/* Per-row action links — only for non-baseline rows */}
-              {!isBaseline && (
-                <div className="flex items-center gap-1.5 flex-shrink-0 ml-1">
-                  {onRowClick && (
-                    <button
-                      type="button"
-                      onClick={e => { e.stopPropagation(); onRowClick(row.versionId); }}
-                      className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
-                    >
-                      Output
-                    </button>
-                  )}
-                  {onRowClick && onViewAnalysis && (
-                    <span className="text-[9px] text-gray-200 dark:text-gray-800 select-none">|</span>
-                  )}
-                  {onViewAnalysis && (
-                    <button
-                      type="button"
-                      onClick={e => { e.stopPropagation(); onViewAnalysis(row.versionId); }}
-                      className="text-[9px] font-semibold uppercase tracking-wider text-gray-400 dark:text-gray-600 hover:text-gray-700 dark:hover:text-gray-300 transition-colors cursor-pointer"
-                    >
-                      Analysis
-                    </button>
-                  )}
-                </div>
-              )}
             </div>
           );
         })}

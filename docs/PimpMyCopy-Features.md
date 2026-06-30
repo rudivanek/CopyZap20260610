@@ -1,7 +1,27 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-06-30T10:00:00Z
+Last Updated: 2026-06-30T11:00:00Z
+
+---
+
+## Rankings Snapshot — Visual Polish Pass (2026-06-30)
+
+**File modified:** `src/components/results/decision/RankingsSnapshotCard.tsx`
+
+### Changes
+
+1. **Output/Analysis chips → pill buttons.** Replaced plain-text uppercase labels + pipe divider with proper `rounded-full` pill buttons: `px-2.5 py-1`, `border border-gray-200 dark:border-gray-700`, `bg-gray-50 dark:bg-gray-900`, `text-gray-500 dark:text-gray-400`, with `hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600`. Pipe divider span removed — visual boundary is now the pill border. `stopPropagation` and click handlers unchanged.
+
+2. **Chips moved to their own line.** Action chips are now inside the name/tags column (the `flex-1` div), rendered below the date/subscores row with `mt-1.5`. No longer inline-right next to score numbers. This gives numeric columns clean right-side alignment and avoids crowding.
+
+3. **Score column fixed width.** Introduced `SCORE_COL_CLASS = 'w-10 text-right tabular-nums'` constant applied to both the `ScoreColumnLabel` wrapper and every `finalScore` / `absoluteScore.total` / placeholder `...` span. `ScoreColumnLabel` now also uses `justify-end` so its label text and icon align to the right edge. This ensures per-row numbers line up directly under their header labels when "Show Absolute" is toggled on.
+
+4. **Removed `opacity-80` from row wrapper.** `opacity-80` was applied to the entire non-winner row div, washing out action chips and text together. Removed from the wrapper. Muted styling is now applied directly and only to the elements that need it: `optionLabel` uses `text-gray-400 dark:text-gray-500` on non-winner rows (was `text-gray-500`), `finalScore` retains its existing `text-gray-400 dark:text-gray-500`. Action chips render at full legibility on all rows.
+
+5. **Decision badge → `rounded-full`.** Changed decision badge from `rounded` to `rounded-full` and from `px-1.5` to `px-2` to match the Baseline tag and new chip style consistently. Baseline tag was already `rounded-full px-1.5 py-0.5` — updated to `px-2 py-0.5` for uniform padding.
+
+6. **Row wrapper changed to `items-start`.** Changed from `items-center` to `items-start` so the rank number and score column align to the top of the name block (which now may be taller due to the chips row), with `mt-0.5` on the rank number to vertically nudge it to align with the first text line.
 
 ---
 
