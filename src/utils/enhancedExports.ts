@@ -3726,7 +3726,7 @@ export const buildLLMEvaluationAudit = (
         });
       scoresList = rows.map((row: any) => ({
         label: row.label || row.optionLabel || 'Unknown',
-        score: row.score || row.finalScore || 0
+        score: row.finalScore ?? row.score ?? 0
       }));
     } else if (comparisonResult.ranking && Array.isArray(comparisonResult.ranking)) {
       rankingList = comparisonResult.ranking.map((item: any, idx: number) => {
