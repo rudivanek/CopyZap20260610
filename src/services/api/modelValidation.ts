@@ -16,6 +16,8 @@ export interface AvailableModelsResult {
 
 const MODEL_LABELS: Record<Model, string> = {
   'claude-sonnet-4-5': 'Claude Sonnet 4.5',
+  'claude-sonnet-4-6': 'Claude Sonnet 4.6',
+  'claude-sonnet-5': 'Claude Sonnet 5',
   'claude-haiku-4-5': 'Claude Haiku 4.5',
   'claude-opus-4-5': 'Claude Opus 4.5',
   'gpt-4o': 'ChatGPT (GPT-4o)',
@@ -53,6 +55,8 @@ export async function validateApiKey(model: Model): Promise<ModelValidationResul
 
   switch (model) {
     case 'claude-sonnet-4-5':
+    case 'claude-sonnet-4-6':
+    case 'claude-sonnet-5':
     case 'claude-haiku-4-5':
     case 'claude-opus-4-5':
       if (!anthropicKey) {
@@ -148,6 +152,8 @@ export async function validateApiKey(model: Model): Promise<ModelValidationResul
 
 export async function getAvailableModels(): Promise<AvailableModelsResult> {
   const models: Model[] = [
+    'claude-sonnet-4-6',
+    'claude-sonnet-5',
     'claude-sonnet-4-5',
     'claude-haiku-4-5',
     'claude-opus-4-5',

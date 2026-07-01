@@ -1,9 +1,37 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-06-30T14:00:00Z
+Last Updated: 2026-07-01T00:00:00Z
 
 ---
+
+## Claude Model Selector — Sonnet 4.6 + Sonnet 5 (2026-07-01)
+
+**Files modified/created:**
+- `src/types/index.ts` — Added `claude-sonnet-4-6` and `claude-sonnet-5` to `Model` union type
+- `src/constants/index.ts` — Added models to MODELS array, MAX_TOKENS_PER_MODEL, and DEFAULT_FORM_STATE; added `CLAUDE_JUDGE_MODEL_OPTIONS`, `getAdminClaudeModel()`
+- `src/services/api/modelValidation.ts` — Added labels, switch cases, and `getAvailableModels` entries for new models
+- `src/services/api/utils.ts` — Added new models to Claude key group, updated deepseek fallback, added token cost cases
+- `src/services/api/comparativeScoring.ts` — Replaced hardcoded `claude-sonnet-4-5` with `getAdminClaudeModel()`
+- `src/components/copy-maker/CopyMakerSidebar.tsx` — Replaced 3 hardcoded model strings in Eval/Compare/Client report calls
+- `src/hooks/useFormState.ts` — Updated both deepseek-chat fallback normalizations to use `getAdminClaudeModel()`
+- `src/components/CopyForm.tsx` — Updated engine toggle legacy model to `getAdminClaudeModel()`
+- `src/components/CopySnap.tsx` — Updated both `makeRequestWithFallback` calls to use `getAdminClaudeModel()`
+- `src/components/Dashboard.tsx` — Added admin Claude model selector card (pill buttons)
+- `src/hooks/useAdminClaudeModel.ts` — **New file:** hook for reading/writing preferred Claude model to localStorage
+- `supabase/functions/ai-completion/index.ts` — Fixed temperature parameter: omit for `claude-sonnet-5` (streaming + non-streaming paths); deployed
+
+### Feature Summary
+
+**Admin Claude Model Selector** — Admins can switch the Claude model used for scoring, report generation, and engine fallbacks between Claude Sonnet 4.6 (default) and Claude Sonnet 5 directly from the Dashboard. The selection persists in localStorage under `copyZap_adminClaudeModel` and takes effect immediately across all Claude-powered operations without a page reload.
+
+**Default model changed** from `claude-sonnet-4-5` to `claude-sonnet-4-6`. All existing sessions that stored `deepseek-chat` now remap to the admin's preferred model at runtime.
+
+**`getAdminClaudeModel()`** — Central utility function in `constants/index.ts`. All hardcoded `'claude-sonnet-4-5'` strings throughout the codebase now call this function instead, so the admin selection propagates everywhere.
+
+**Temperature handling** — Claude Sonnet 5 does not accept a `temperature` parameter and returns a 400 error if one is sent. The `ai-completion` edge function now conditionally omits temperature for `claude-sonnet-5` in both streaming and non-streaming request paths. All other models are unaffected.
+
+**Token pricing** — Sonnet 4.6 priced at same tier as 4.5 ($3/$15 per 1M tokens). Sonnet 5 uses intro pricing ($2/$10 per 1M, valid through Aug 31 2026; cost constant should be updated to `0.000003` on Sept 1 2026).
 
 ## Score Stability — Anchored Incremental Rescoring (2026-06-30)
 

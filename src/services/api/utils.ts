@@ -173,7 +173,7 @@ export function getApiConfig(model: Model): { apiKey: string; baseUrl: string; h
 
   // Check if any API keys are available
   const availableKeys = [
-    { name: 'Claude', key: claudeKey, models: ['claude-sonnet-4-5', 'claude-haiku-4-5', 'claude-opus-4-5'] },
+    { name: 'Claude', key: claudeKey, models: ['claude-sonnet-4-5', 'claude-sonnet-4-6', 'claude-sonnet-5', 'claude-haiku-4-5', 'claude-opus-4-5'] },
     { name: 'OpenAI', key: openaiKey, models: ['gpt-4o', 'chatgpt-4o-latest', 'gpt-4-turbo', 'gpt-3.5-turbo'] },
     { name: 'DeepSeek', key: deepseekKey, models: ['deepseek-chat'] },
     { name: 'Grok', key: grokKey, models: ['grok-4-latest'] },
@@ -362,7 +362,7 @@ export async function makeApiRequestWithFallback(
 }> {
   // Normalize legacy/removed models — deepseek-chat is no longer a primary model.
   // Sessions saved when DeepSeek was available may still have it stored; map it to Claude.
-  const resolvedModel: Model = model === 'deepseek-chat' ? 'claude-sonnet-4-5' : model;
+  const resolvedModel: Model = model === 'deepseek-chat' ? 'claude-sonnet-4-6' : model;
   const attemptedModel = resolvedModel;
 
   // Check if Supabase is available - if so, use edge function
@@ -637,7 +637,11 @@ export function calculateTokenCost(tokenCount: number, model: Model): number {
   // Updated pricing as of 2025
   switch (model) {
     case 'claude-sonnet-4-5':
-      return tokenCount * 0.000003; // $0.003 per 1K tokens (input), $0.015 per 1K (output) - using average
+      return tokenCount * 0.000003; // $3/$15 per 1M tokens
+    case 'claude-sonnet-4-6':
+      return tokenCount * 0.000003; // $3/$15 per 1M tokens (same tier as 4.5)
+    case 'claude-sonnet-5':
+      return tokenCount * 0.000002; // $2/$10 intro through Aug 31 2026 — UPDATE TO 0.000003 on Sept 1
     case 'claude-haiku-4-5':
       return tokenCount * 0.000001; // $0.001 per 1K tokens (input), $0.005 per 1K (output) - using average
     case 'claude-opus-4-5':

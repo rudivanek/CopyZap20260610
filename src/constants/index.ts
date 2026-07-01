@@ -47,6 +47,8 @@ export const WORD_COUNTS: WordCount[] = [
 
 // Legacy MODELS array - deprecated, kept for backward compatibility
 export const MODELS = [
+  { label: 'Claude Sonnet 5 (claude-sonnet-5)', value: 'claude-sonnet-5' },
+  { label: 'Claude Sonnet 4.6 (claude-sonnet-4-6)', value: 'claude-sonnet-4-6' },
   { label: 'Claude Sonnet 4.5 (claude-sonnet-4-5)', value: 'claude-sonnet-4-5' },
   { label: 'Claude Haiku 4.5 (claude-haiku-4-5)', value: 'claude-haiku-4-5' },
   { label: 'Claude Opus 4.5 (claude-opus-4-5)', value: 'claude-opus-4-5' },
@@ -71,6 +73,32 @@ export const MODELS = [
  */
 export const SCORING_MODEL: Model = 'gpt-4o';
 
+/**
+ * CLAUDE_JUDGE_MODEL_OPTIONS — admin-selectable Claude models for scoring,
+ * report generation, and generation fallbacks.
+ * Selection persisted in localStorage: 'copyZap_adminClaudeModel'.
+ */
+export const CLAUDE_JUDGE_MODEL_OPTIONS = [
+  { label: 'Claude Sonnet 4.6', value: 'claude-sonnet-4-6' as Model },
+  { label: 'Claude Sonnet 5', value: 'claude-sonnet-5' as Model },
+] as const;
+
+/**
+ * getAdminClaudeModel() — reads admin's preferred Claude model from localStorage.
+ * Defaults to claude-sonnet-4-6. All Claude fallback strings should call this.
+ * NOTE: claude-sonnet-5 does NOT accept a temperature parameter — the edge
+ * function handles this automatically.
+ */
+export function getAdminClaudeModel(): Model {
+  try {
+    const stored = typeof localStorage !== 'undefined'
+      ? localStorage.getItem('copyZap_adminClaudeModel')
+      : null;
+    if (stored === 'claude-sonnet-4-6' || stored === 'claude-sonnet-5') return stored;
+  } catch { /* SSR safety */ }
+  return 'claude-sonnet-4-6';
+}
+
 // New simplified AI engines (only 2 visible to users)
 export const AI_ENGINES = [
   {
@@ -89,9 +117,11 @@ export const AI_ENGINES = [
 
 // Define max tokens per model to use the appropriate limits
 export const MAX_TOKENS_PER_MODEL = {
-  'claude-sonnet-4-5': 64000, // Claude Sonnet 4.5 allows up to 64K output tokens
-  'claude-haiku-4-5': 64000, // Claude Haiku 4.5 allows up to 64K output tokens
-  'claude-opus-4-5': 64000, // Claude Opus 4.5 allows up to 64K output tokens
+  'claude-sonnet-4-5': 64000, // Claude Sonnet 4.5
+  'claude-sonnet-4-6': 64000, // Claude Sonnet 4.6
+  'claude-sonnet-5': 128000,  // Claude Sonnet 5 supports up to 128K output tokens
+  'claude-haiku-4-5': 64000,  // Claude Haiku 4.5
+  'claude-opus-4-5': 64000,   // Claude Opus 4.5
   'deepseek-chat': 8192, // DeepSeek API hard limit is 8,192 tokens
   'gpt-4o': 16000, // GPT-4o allows up to 16K output tokens
   'chatgpt-4o-latest': 16384, // ChatGPT-4o Latest allows up to 16K output tokens
@@ -405,7 +435,7 @@ export const DEFAULT_FORM_STATE = {
   context: '',
   briefDescription: '',
   projectDescription: '', // Initialize project description as empty string
-  model: 'claude-sonnet-4-5' as Model, // Legacy - kept for backward compatibility
+  model: 'claude-sonnet-4-6' as Model, // Default Claude model
   aiEngine: 'claude' as AiEngine, // New simplified engine selection (default: Claude)
   customerId: '',
   customerName: '',

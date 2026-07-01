@@ -299,8 +299,11 @@ Deno.serve(async (req: Request) => {
           role: msg.role === 'assistant' ? 'assistant' : 'user',
           content: msg.content
         })),
-        temperature: useTemperature
       };
+      // claude-sonnet-5 rejects temperature with a 400 error — omit it for that model
+      if (useModel !== 'claude-sonnet-5') {
+        requestBody.temperature = useTemperature;
+      }
 
       if (systemMessage) {
         requestBody.system = systemMessage.content;
@@ -387,8 +390,11 @@ Deno.serve(async (req: Request) => {
                 role: msg.role === 'assistant' ? 'assistant' : 'user',
                 content: msg.content
               })),
-              temperature: useTemperature
             };
+            // claude-sonnet-5 rejects temperature with a 400 error — omit it for that model
+            if (useModel !== 'claude-sonnet-5') {
+              requestBody.temperature = useTemperature;
+            }
 
             // Add system message if present
             if (systemMessage) {

@@ -13,7 +13,7 @@
 
 import { GeneratedContentItem, Model, ScoringContext } from '../../types';
 import { makeApiRequestWithFallback, cleanJsonResponse } from './utils';
-import { SCORING_MODEL } from '../../constants';
+import { SCORING_MODEL, getAdminClaudeModel } from '../../constants';
 import { calculateMultiScoreDisplay } from '../../utils/multiScoreDisplay';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -88,7 +88,8 @@ export async function compareVersionsRelatively(
 
   // Comparative scoring engine always uses Claude — better instruction-following for the
   // structured JSON schema with three new positioning-aware dimensions.
-  const actualModel: Model = 'claude-sonnet-4-5';
+  // Model controlled by admin in Dashboard (localStorage: copyZap_adminClaudeModel).
+  const actualModel: Model = getAdminClaudeModel();
 
   // Build version blocks for the prompt
   const versionBlocks = versions.map((v, idx) => {

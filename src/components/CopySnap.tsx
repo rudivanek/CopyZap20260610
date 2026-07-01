@@ -26,6 +26,7 @@ import {
   type AnswerContext
 } from '../utils/copySnapAnswerEngine';
 import { playSuccessSound } from '../utils/soundEffects';
+import { getAdminClaudeModel } from '../constants';
 import { useMode } from '../context/ModeContext';
 
 interface CopySnapProps {
@@ -469,8 +470,8 @@ Return exactly ${questionCount} question(s). Do NOT add markdown formatting, cod
 
       // Use selected model with Claude fallback
       const result = await makeRequestWithFallback(
-        selectedModel || 'claude-sonnet-4-5',
-        'claude-sonnet-4-5',
+        selectedModel || getAdminClaudeModel(),
+        getAdminClaudeModel(),
         messages
       );
 
@@ -706,8 +707,8 @@ Do NOT add markdown formatting, code blocks, or explanations. Just raw JSON. Rem
 
       // Use selected model with Claude fallback
       const result = await makeRequestWithFallback(
-        selectedModel || 'claude-sonnet-4-5',
-        'claude-sonnet-4-5',
+        selectedModel || getAdminClaudeModel(),
+        getAdminClaudeModel(),
         messages
       );
 

@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { FormState, Template, CopySession, SavedOutput, ContentQualityScore, GeneratedContentItem, GeneratedContentItemType } from '../types';
-import { DEFAULT_FORM_STATE } from '../constants';
+import { DEFAULT_FORM_STATE, getAdminClaudeModel } from '../constants';
 import { createOutputStructure } from '../constants/prefills';
 import { Prefill } from '../services/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
@@ -130,7 +130,7 @@ export function useFormState() {
       const stateWithPolicy = applyOptimizationRestorePolicy('saved_session', inputData);
 
       // Normalize legacy model values — deepseek-chat was removed; remap to Claude
-      const normalizedModel = stateWithPolicy.model === 'deepseek-chat' ? 'claude-sonnet-4-5' : stateWithPolicy.model;
+      const normalizedModel = stateWithPolicy.model === 'deepseek-chat' ? getAdminClaudeModel() : stateWithPolicy.model;
 
       // Create a new state object with the session data
       const newState: FormState = {
@@ -174,7 +174,7 @@ export function useFormState() {
       const stateWithPolicy = applyOptimizationRestorePolicy('saved_output', inputData);
 
       // Normalize legacy model values — deepseek-chat was removed; remap to Claude
-      const normalizedModel = stateWithPolicy.model === 'deepseek-chat' ? 'claude-sonnet-4-5' : stateWithPolicy.model;
+      const normalizedModel = stateWithPolicy.model === 'deepseek-chat' ? getAdminClaudeModel() : stateWithPolicy.model;
 
       // Create a new state object with the saved output data
       const newState: FormState = {

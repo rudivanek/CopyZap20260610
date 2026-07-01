@@ -11,7 +11,7 @@ export type SectionType = string;
 export type WordCount = 'Short: 50-100' | 'Medium: 100-200' | 'Long: 200-400' | 'Custom';
 
 // Legacy Model type - deprecated, use AiEngine instead
-export type Model = 'claude-sonnet-4-5' | 'claude-haiku-4-5' | 'claude-opus-4-5' | 'deepseek-chat' | 'gpt-4o' | 'chatgpt-4o-latest' | 'gpt-4-turbo' | 'gpt-3.5-turbo' | 'grok-4-latest' | 'gemini-2.0-flash';
+export type Model = 'claude-sonnet-4-5' | 'claude-sonnet-4-6' | 'claude-sonnet-5' | 'claude-haiku-4-5' | 'claude-opus-4-5' | 'deepseek-chat' | 'gpt-4o' | 'chatgpt-4o-latest' | 'gpt-4-turbo' | 'gpt-3.5-turbo' | 'grok-4-latest' | 'gemini-2.0-flash';
 
 // New AI Engine type for simplified model selection
 export type AiEngine = 'claude' | 'openai';

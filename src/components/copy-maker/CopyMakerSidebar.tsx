@@ -15,7 +15,7 @@ import {
   MAX_BOOST_ITERATIONS,
   MAX_BOOST_SCORE_THRESHOLD,
 } from '../../types';
-import { CATEGORIZED_VOICE_STYLES } from '../../constants';
+import { CATEGORIZED_VOICE_STYLES, getAdminClaudeModel } from '../../constants';
 import { ComparisonResult } from '../../services/api/comprehensiveScoring';
 import { useIsAdmin } from '../../hooks/useIsAdmin';
 import { useActiveCard } from '../../hooks/useActiveCard';
@@ -1522,7 +1522,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
       const llmInput = languageDirective + evalPrompt + '\n\n' + evalContent;
 
       const reportMarkdown = await makeStreamingReportRequest(
-        'claude-sonnet-4-5',
+        getAdminClaudeModel(),
         [{ role: 'user', content: llmInput }],
         0.4,
         8000,
@@ -1610,7 +1610,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
       const llmInput = languageDirective + comparePrompt + '\n\n' + auditContent;
 
       const reportMarkdown = await makeStreamingReportRequest(
-        'claude-sonnet-4-5',
+        getAdminClaudeModel(),
         [{ role: 'user', content: llmInput }],
         0.4,
         8000,
@@ -1704,7 +1704,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
       const llmInput = languageDirective + clientPrompt + '\n\n' + auditContent;
 
       const reportMarkdown = await makeStreamingReportRequest(
-        'claude-sonnet-4-5',
+        getAdminClaudeModel(),
         [{ role: 'user', content: llmInput }],
         0.4,
         8000,

@@ -5,6 +5,7 @@ import { BarChart3, FileText, Settings, DollarSign, Users, RefreshCw, Calendar, 
 import { retryFailedTracking, getTrackingQueueStatus } from '../services/api/tokenTracking';
 import { useAuth } from '../hooks/useAuth';
 import { useIsAdmin } from '../hooks/useIsAdmin';
+import { useAdminClaudeModel } from '../hooks/useAdminClaudeModel';
 import LoadingSpinner from './ui/LoadingSpinner';
 import PublicFooter from './PublicFooter';
 import {
@@ -160,6 +161,7 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
 
   // Check if current user is admin using centralized admin service
   const { isAdmin } = useIsAdmin(currentUser);
+  const { claudeModel, setClaudeModel, options: claudeModelOptions } = useAdminClaudeModel();
 
   // Rename template state
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
@@ -1105,6 +1107,38 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
             )}
           </div>
         </div>
+
+        {/* Admin: Claude Model Selector */}
+        {isAdmin && (
+          <div className="bg-white dark:bg-gray-900 border border-indigo-200 dark:border-indigo-800 rounded-lg p-5 mb-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg bg-indigo-100 dark:bg-indigo-900/40 flex items-center justify-center">
+                  <Zap size={16} className="text-indigo-600 dark:text-indigo-400" />
+                </div>
+                <div>
+                  <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Claude Model</h3>
+                  <p className="text-xs text-gray-500 dark:text-gray-400">Used for scoring, reports, and generation fallback</p>
+                </div>
+              </div>
+              <div className="flex gap-2">
+                {claudeModelOptions.map(opt => (
+                  <button
+                    key={opt.value}
+                    onClick={() => setClaudeModel(opt.value)}
+                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                      claudeModel === opt.value
+                        ? 'bg-indigo-600 text-white shadow-sm'
+                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'
+                    }`}
+                  >
+                    {opt.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Subscription Status */}
         {subscriptionData && (

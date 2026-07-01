@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { FormState, User, Model, AiEngine } from '../types';
-import { MODELS } from '../constants';
+import { MODELS, getAdminClaudeModel } from '../constants';
 import { migrateModelToEngine } from '../lib/llm/modelRegistry';
 import { DEFAULT_FORM_STATE } from '../constants';
 import { GROUPED_PREFILLS } from '../constants/prefills';
@@ -186,7 +186,7 @@ const CopyForm: React.FC<CopyFormProps> = ({
     handleChange('aiEngine', newEngine);
 
     // Also update legacy model field for backward compatibility
-    const legacyModel = newEngine === 'claude' ? 'claude-sonnet-4-5' : 'gpt-4o';
+    const legacyModel = newEngine === 'claude' ? getAdminClaudeModel() : 'gpt-4o';
     handleChange('model', legacyModel);
 
     toast.success(`Using ${newEngine === 'claude' ? 'Claude' : 'OpenAI'}`);
