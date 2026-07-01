@@ -13,7 +13,7 @@
 
 import { GeneratedContentItem, Model, ScoringContext } from '../../types';
 import { makeApiRequestWithFallback, cleanJsonResponse } from './utils';
-import { SCORING_MODEL, getAdminClaudeModel } from '../../constants';
+import { SCORING_MODEL } from '../../constants';
 import { calculateMultiScoreDisplay } from '../../utils/multiScoreDisplay';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -86,10 +86,12 @@ export async function compareVersionsRelatively(
   console.log('[comparative-scoring] started');
   console.log(`[comparative-scoring] received ${versions.length} versions`);
 
-  // Comparative scoring engine always uses Claude — better instruction-following for the
-  // structured JSON schema with three new positioning-aware dimensions.
-  // Model controlled by admin in Dashboard (localStorage: copyZap_adminClaudeModel).
-  const actualModel: Model = getAdminClaudeModel();
+  // Comparative scoring engine is pinned to claude-sonnet-4-6.
+  // This path uses makeApiRequestWithFallback (non-streaming), which has a hard
+  // 150-second Supabase edge function idle timeout. claude-sonnet-5 is too slow
+  // for 3-version payloads on this constraint and will 504 every time.
+  // The admin model toggle controls generation and reports (both streaming-safe).
+  const actualModel: Model = 'claude-sonnet-4-6';
 
   // Build version blocks for the prompt
   const versionBlocks = versions.map((v, idx) => {

@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-01T00:00:00Z
+Last Updated: 2026-07-01T01:00:00Z
 
 ---
 
@@ -12,7 +12,7 @@ Last Updated: 2026-07-01T00:00:00Z
 - `src/constants/index.ts` — Added models to MODELS array, MAX_TOKENS_PER_MODEL, and DEFAULT_FORM_STATE; added `CLAUDE_JUDGE_MODEL_OPTIONS`, `getAdminClaudeModel()`
 - `src/services/api/modelValidation.ts` — Added labels, switch cases, and `getAvailableModels` entries for new models
 - `src/services/api/utils.ts` — Added new models to Claude key group, updated deepseek fallback, added token cost cases
-- `src/services/api/comparativeScoring.ts` — Replaced hardcoded `claude-sonnet-4-5` with `getAdminClaudeModel()`
+- `src/services/api/comparativeScoring.ts` — **Pinned back to `claude-sonnet-4-6`** (removed `getAdminClaudeModel` import; see "Comparative Scoring Model Pin" section below)
 - `src/components/copy-maker/CopyMakerSidebar.tsx` — Replaced 3 hardcoded model strings in Eval/Compare/Client report calls
 - `src/hooks/useFormState.ts` — Updated both deepseek-chat fallback normalizations to use `getAdminClaudeModel()`
 - `src/components/CopyForm.tsx` — Updated engine toggle legacy model to `getAdminClaudeModel()`
@@ -32,6 +32,32 @@ Last Updated: 2026-07-01T00:00:00Z
 **Temperature handling** — Claude Sonnet 5 does not accept a `temperature` parameter and returns a 400 error if one is sent. The `ai-completion` edge function now conditionally omits temperature for `claude-sonnet-5` in both streaming and non-streaming request paths. All other models are unaffected.
 
 **Token pricing** — Sonnet 4.6 priced at same tier as 4.5 ($3/$15 per 1M tokens). Sonnet 5 uses intro pricing ($2/$10 per 1M, valid through Aug 31 2026; cost constant should be updated to `0.000003` on Sept 1 2026).
+
+## Comparative Scoring Model Pin — claude-sonnet-4-6 (2026-07-01)
+
+**File modified:** `src/services/api/comparativeScoring.ts`
+
+### Problem
+
+After wiring the admin Claude model selector to `compareVersionsRelatively`, comparative scoring began 504-ing on 3-version payloads whenever the admin had switched to `claude-sonnet-5`.
+
+### Root Cause
+
+`compareVersionsRelatively` calls `makeApiRequestWithFallback` (non-streaming). Non-streaming calls run synchronously inside a Supabase Edge Function and are subject to a hard 150-second idle timeout. `claude-sonnet-5` takes longer than 150 seconds to score 3 versions under this constraint, causing the edge function to terminate with a 504 before the response arrives.
+
+### Fix
+
+Removed `getAdminClaudeModel` from the import in `comparativeScoring.ts` and hardcoded `actualModel` to `'claude-sonnet-4-6'`. The admin toggle remains fully active for all streaming-safe paths: copy generation, report generation (Eval/Compare/Client), and CopySnap — all of which use streaming and are not subject to the idle timeout.
+
+### Scope
+
+The admin model selector controls:
+- Copy generation (`copyGeneration.ts`) — streaming, safe
+- Eval / Compare / Client reports (`CopyMakerSidebar.tsx`) — streaming, safe
+- CopySnap scoring (`CopySnap.tsx`) — streaming, safe
+
+The admin model selector does NOT control:
+- Comparative scoring (`comparativeScoring.ts`) — non-streaming, pinned to `claude-sonnet-4-6`
 
 ## Score Stability — Anchored Incremental Rescoring (2026-06-30)
 
