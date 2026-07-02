@@ -60,18 +60,17 @@ export function useAdminClaudeModel() {
       const { data: { user } } = await supabase.auth.getUser();
       const { error } = await supabase
         .from('app_settings')
-        .upsert(
-          {
-            key: SETTING_KEY,
-            value: model,
-            updated_at: new Date().toISOString(),
-            updated_by: user?.email ?? 'unknown',
-          },
-          { onConflict: 'key' }
-        );
+        .update({
+          value: model,
+          updated_at: new Date().toISOString(),
+          updated_by: user?.email ?? 'unknown',
+        })
+        .eq('key', SETTING_KEY);
 
       if (error) {
-        console.error('[useAdminClaudeModel] Supabase write rejected:', error.message);
+        console.error('[useAdminClaudeModel] Supabase write failed:', error.message);
+        const { toast } = await import('react-hot-toast');
+        toast.error(`Failed to save model setting: ${error.message}`, { duration: 5000 });
       }
     } catch (err) {
       console.error('[useAdminClaudeModel] Failed to persist model to Supabase:', err);

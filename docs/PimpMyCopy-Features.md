@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-01T01:00:00Z
+Last Updated: 2026-07-02T00:00:00Z
 
 ---
 
@@ -18,12 +18,19 @@ Last Updated: 2026-07-01T01:00:00Z
 - `src/components/CopyForm.tsx` — Updated engine toggle legacy model to `getAdminClaudeModel()`
 - `src/components/CopySnap.tsx` — Updated both `makeRequestWithFallback` calls to use `getAdminClaudeModel()`
 - `src/components/Dashboard.tsx` — Added admin Claude model selector card (pill buttons)
-- `src/hooks/useAdminClaudeModel.ts` — **New file:** hook for reading/writing preferred Claude model to localStorage
+- `src/hooks/useAdminClaudeModel.ts` — **New file:** hook for reading/writing preferred Claude model; backed by Supabase `app_settings` with localStorage as synchronous fallback cache
+- `src/App.tsx` — Added sync useEffect keyed on `currentUser?.id` that writes Supabase model setting to localStorage on every login/session restore, keeping synchronous callers (`getAdminClaudeModel()`) current across machines
 - `supabase/functions/ai-completion/index.ts` — Fixed temperature parameter: omit for `claude-sonnet-5` (streaming + non-streaming paths); deployed
 
 ### Feature Summary
 
-**Admin Claude Model Selector** — Admins can switch the Claude model used for scoring, report generation, and engine fallbacks between Claude Sonnet 4.6 (default) and Claude Sonnet 5 directly from the Dashboard. The selection persists in localStorage under `copyZap_adminClaudeModel` and takes effect immediately across all Claude-powered operations without a page reload.
+**Admin Claude Model Selector** — Admins can switch the Claude model used for scoring, report generation, and engine fallbacks between Claude Sonnet 4.6 (default) and Claude Sonnet 5 directly from the Dashboard. The selection persists globally via Supabase `app_settings` table (key: `claude_model`) and is cached in localStorage under `copyZap_adminClaudeModel` for synchronous callers. The setting takes effect immediately on the current machine and is picked up by all other machines on their next login or page load.
+
+**Persistence architecture:**
+- `useAdminClaudeModel` hook — fetches from `app_settings` on mount; writes back via `UPDATE ... WHERE key = 'claude_model'` (row always seeded by migration). Write failures show a `toast.error` with the Supabase error message.
+- `App.tsx` sync effect — keyed on `currentUser?.id`; runs on every login/session restore and writes the DB value into localStorage so synchronous callers (`getAdminClaudeModel()`) always have a fresh value.
+- `getAdminClaudeModel()` — reads synchronously from localStorage (used mid-render in report generation). Remains valid because the sync effect and hook mount effect both keep localStorage current.
+- RLS: only users in `app_admins` can read or write `app_settings`. Non-admins cannot change the setting via the client SDK.
 
 **Default model changed** from `claude-sonnet-4-5` to `claude-sonnet-4-6`. All existing sessions that stored `deepseek-chat` now remap to the admin's preferred model at runtime.
 

@@ -10,6 +10,7 @@ import { useFormState } from './hooks/useFormState';
 import { useMode } from './context/ModeContext';
 import { useSession } from './context/SessionContext';
 import { DEFAULT_FORM_STATE } from './constants';
+import { supabase } from './services/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
 // Immediately loaded components (critical path)
@@ -154,6 +155,21 @@ const AppRouter: React.FC = () => {
     window.addEventListener('forceOpenStartHub', handler);
     return () => window.removeEventListener('forceOpenStartHub', handler);
   }, [handleForceOpenStartHub]);
+
+  // Sync admin Claude model setting to localStorage on login/session restore
+  React.useEffect(() => {
+    if (!currentUser) return;
+    supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'claude_model')
+      .single()
+      .then(({ data, error }) => {
+        if (!error && data && (data.value === 'claude-sonnet-4-6' || data.value === 'claude-sonnet-5')) {
+          try { localStorage.setItem('copyZap_adminClaudeModel', data.value); } catch { /* ignore */ }
+        }
+      });
+  }, [currentUser?.id]);
 
   // Load templates when Start Hub opens
   React.useEffect(() => {
