@@ -7,6 +7,76 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+async function recordUsage(
+  supabase: any,
+  params: {
+    userId: string;
+    model: string;
+    inputTokens: number;
+    outputTokens: number;
+    operationType?: string;
+    sessionId?: string | null;
+  }
+): Promise<void> {
+  try {
+    let cost_usd = 0;
+    let cost_source = 'legacy';
+    let pricing_row_id: string | null = null;
+    const { data: pricingData } = await supabase.rpc('get_active_model_pricing', {
+      p_model_key: params.model,
+      p_pricing_tier: 'standard'
+    });
+    const pricing = pricingData?.[0];
+    if (pricing) {
+      cost_usd =
+        (params.inputTokens / 1000) * Number(pricing.input_usd_per_1k || 0) +
+        (params.outputTokens / 1000) * Number(pricing.output_usd_per_1k || 0);
+      cost_source = 'db_pricing';
+      pricing_row_id = pricing.id;
+    }
+    if (!Number.isFinite(cost_usd) || cost_usd < 0) cost_usd = 0;
+
+    let billable_units = 0;
+    let billing_rule_name = 'default_fallback';
+    let rule: any = { cost_multiplier: 1.30, usd_per_unit: 0.01, min_units_per_call: 1, rule_name: 'default_fallback' };
+    const { data: ruleData } = await supabase
+      .from('llm_billing_rules')
+      .select('rule_name, cost_multiplier, usd_per_unit, min_units_per_call, rounding_mode')
+      .eq('is_active', true)
+      .order('effective_from', { ascending: false })
+      .limit(1)
+      .single();
+    if (ruleData) rule = ruleData;
+    if (cost_usd > 0) {
+      billable_units = Math.max(
+        rule.min_units_per_call,
+        Math.ceil((cost_usd * rule.cost_multiplier) / rule.usd_per_unit)
+      );
+    }
+    billing_rule_name = rule.rule_name;
+
+    const { error } = await supabase.from('pmc_user_tokens_used').insert([{
+      user_id: params.userId,
+      operation_type: params.operationType || 'llm_call',
+      model: params.model,
+      cost_usd,
+      session_id: params.sessionId || null,
+      billable_units,
+      billing_rule_name,
+      pricing_tier: 'standard',
+      created_at: new Date().toISOString(),
+      cost_source,
+      pricing_row_id,
+      input_tokens_used: params.inputTokens,
+      output_tokens_used: params.outputTokens
+    }]);
+    if (error) console.error('❌ Usage recording insert failed:', error);
+    else console.log(`✓ Usage recorded: ${params.operationType || 'llm_call'} / ${params.model} / in:${params.inputTokens} out:${params.outputTokens} / $${cost_usd.toFixed(6)} / ${billable_units} credits`);
+  } catch (err) {
+    console.error('❌ Usage recording failed (non-fatal):', err);
+  }
+}
+
 Deno.serve(async (req: Request) => {
   if (req.method === "OPTIONS") {
     return new Response(null, {
@@ -31,7 +101,7 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { messages, model, temperature, maxTokens, responseFormat, stream: useStream } = requestBody;
+    const { messages, model, temperature, maxTokens, responseFormat, stream: useStream, operationType, sessionId } = requestBody;
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
@@ -332,13 +402,40 @@ Deno.serve(async (req: Request) => {
       (async () => {
         const reader = anthropicResponse.body!.getReader();
         const decoder = new TextDecoder();
+        let streamInputTokens = 0;
+        let streamOutputTokens = 0;
+        let lineBuffer = '';
         try {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
             // Forward each chunk verbatim — client will parse Anthropic SSE format
             await writer.write(value);
+            // Parse alongside for token tracking (decode a copy)
+            const text = decoder.decode(value, { stream: true });
+            lineBuffer += text;
+            const lines = lineBuffer.split('\n');
+            lineBuffer = lines.pop() ?? '';
+            for (const line of lines) {
+              if (!line.startsWith('data:')) continue;
+              try {
+                const evt = JSON.parse(line.slice(5).trim());
+                if (evt.type === 'message_start') {
+                  streamInputTokens = evt.message?.usage?.input_tokens || 0;
+                } else if (evt.type === 'message_delta' && evt.usage?.output_tokens !== undefined) {
+                  streamOutputTokens = evt.usage.output_tokens;
+                }
+              } catch { /* ignore parse failures */ }
+            }
           }
+          await recordUsage(supabase, {
+            userId: user.id,
+            model: useModel,
+            inputTokens: streamInputTokens,
+            outputTokens: streamOutputTokens,
+            operationType,
+            sessionId
+          });
           // Send a terminal marker so the client knows the stream ended cleanly
           await writer.write(encoder.encode('\n'));
         } catch (e) {
@@ -683,6 +780,17 @@ Deno.serve(async (req: Request) => {
 
     // PHASE 4B-2: Credits are tracked via track-tokens edge function
     // No need to update any counters here - enforcement happens at access check time
+
+    if (usage) {
+      await recordUsage(supabase, {
+        userId: user.id,
+        model: usedModel,
+        inputTokens: usage.prompt_tokens || usage.input_tokens || 0,
+        outputTokens: usage.completion_tokens || usage.output_tokens || 0,
+        operationType,
+        sessionId
+      });
+    }
 
     return new Response(
       JSON.stringify({

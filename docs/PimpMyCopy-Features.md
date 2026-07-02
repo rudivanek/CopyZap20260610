@@ -1,11 +1,49 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-02T00:00:00Z
+Last Updated: 2026-07-02T12:00:00Z
 
 ---
 
-## Claude Model Selector — Sonnet 4.6 + Sonnet 5 (2026-07-01)
+## Server-Side Usage Recording in ai-completion Edge Function (2026-07-02)
+
+**File modified:**
+- `supabase/functions/ai-completion/index.ts`
+
+**Summary:**
+The `ai-completion` edge function now records LLM token usage directly to `pmc_user_tokens_used` after every successful call, for both streaming and non-streaming paths. Previously, usage recording was handled separately by the client-side `track-tokens` function; this change adds a server-side fallback to ensure all calls routed through `ai-completion` are recorded regardless of client behavior.
+
+**A. New request body fields accepted:**
+- `operationType` (optional string) — labels the operation (e.g., `copy_generation`, `scoring`). Defaults to `llm_call` if omitted.
+- `sessionId` (optional string | null) — associates the usage record with a session in `pmc_copy_sessions`.
+
+**B. `recordUsage` helper (added inside the function file, above `Deno.serve`):**
+- Looks up active model pricing via `get_active_model_pricing` RPC using `p_model_key` and `p_pricing_tier: 'standard'`.
+- Calculates `cost_usd` from `input_usd_per_1k` / `output_usd_per_1k` pricing rows.
+- Fetches the active billing rule from `llm_billing_rules` (ordered by `effective_from` desc) to compute `billable_units` using the same formula as `track-tokens`: `max(min_units_per_call, ceil((cost_usd * cost_multiplier) / usd_per_unit))`.
+- Inserts a row into `pmc_user_tokens_used` with all standard columns: `user_id`, `operation_type`, `model`, `cost_usd`, `session_id`, `billable_units`, `billing_rule_name`, `pricing_tier`, `cost_source`, `pricing_row_id`, `input_tokens_used`, `output_tokens_used`.
+- Errors are caught and logged; recording failures are non-fatal and never interrupt the user's request.
+
+**C. Streaming path changes:**
+- Token counters `streamInputTokens` and `streamOutputTokens` are maintained alongside the byte-forwarding loop.
+- Each decoded chunk is split on newlines; `data:` SSE lines are JSON-parsed (failures silently skipped).
+- `message_start` events populate `streamInputTokens`; `message_delta` events with `usage.output_tokens` populate `streamOutputTokens`.
+- After the read loop completes (before writing the terminal `\n` marker), `recordUsage` is called with the captured token counts.
+- Byte forwarding to the client is unchanged.
+
+**D. Non-streaming path changes:**
+- Immediately before the final `return new Response(...)`, if `usage` is present, `recordUsage` is called using `usage.prompt_tokens || usage.input_tokens` and `usage.completion_tokens || usage.output_tokens` to handle both Claude and OpenAI usage object shapes.
+
+**Unchanged:**
+- Access/credits enforcement block
+- Retry logic and fallback chain
+- Error response shapes
+- Request/response contract
+- No client files in `src/` were modified
+
+---
+
+
 
 **Files modified/created:**
 - `src/types/index.ts` — Added `claude-sonnet-4-6` and `claude-sonnet-5` to `Model` union type
