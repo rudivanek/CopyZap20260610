@@ -1,7 +1,41 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-01T01:00:00Z
+Last Updated: 2026-07-02T00:00:00Z
+
+---
+
+## Claude Model Selector — Supabase-Persisted (2026-07-02)
+
+**Files modified:**
+- `src/hooks/useAdminClaudeModel.ts` — Rewired to read from and write to Supabase `app_settings` table; localStorage kept in sync as fast local cache for synchronous callers
+- `src/components/Dashboard.tsx` — Destructures `isLoading` as `isModelLoading`; shows spinner while fetching; adds `toast.success` on model switch
+- `supabase/migrations/add_app_settings_table.sql` — New migration creating `app_settings` table with admin-only RLS and seed row
+
+### Feature Summary
+
+**Admin Claude Model Selector is now globally consistent** across all machines and sessions. The selected model is stored in the `app_settings` Supabase table (key: `claude_model`). When one admin switches the model on any machine, the next Dashboard load everywhere reads the new value from the database.
+
+**localStorage is kept as a synchronous fallback cache** so `getAdminClaudeModel()` (called from non-async contexts like CopySnap, report generation, form defaults) always reads the most recently confirmed value without blocking on a DB call.
+
+**RLS enforces admin-only writes** at the database level. Only users in the `app_admins` table can upsert `app_settings` rows. The hook catches and logs any Supabase write rejection but keeps the optimistic UI update so the admin's local session stays consistent.
+
+**Loading state** — while the Supabase fetch is in-flight on mount, the pill buttons are replaced by a small spinner. Once the value is confirmed, pills render with the correct selection highlighted.
+
+**Toast feedback** — switching models fires `toast.success('Claude model switched to ...')` immediately on click (optimistic), regardless of Supabase write timing.
+
+### Database schema
+
+```sql
+CREATE TABLE app_settings (
+  key TEXT PRIMARY KEY,
+  value TEXT NOT NULL,
+  updated_at TIMESTAMPTZ DEFAULT NOW(),
+  updated_by TEXT
+);
+-- RLS: admin SELECT / INSERT / UPDATE / DELETE policies via app_admins join
+-- Seed: ('claude_model', 'claude-sonnet-4-6')
+```
 
 ---
 

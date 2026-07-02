@@ -161,7 +161,7 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
 
   // Check if current user is admin using centralized admin service
   const { isAdmin } = useIsAdmin(currentUser);
-  const { claudeModel, setClaudeModel, options: claudeModelOptions } = useAdminClaudeModel();
+  const { claudeModel, setClaudeModel, isLoading: isModelLoading, options: claudeModelOptions } = useAdminClaudeModel();
 
   // Rename template state
   const [editingTemplateId, setEditingTemplateId] = useState<string | null>(null);
@@ -1122,19 +1122,32 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                 </div>
               </div>
               <div className="flex gap-2">
-                {claudeModelOptions.map(opt => (
-                  <button
-                    key={opt.value}
-                    onClick={() => setClaudeModel(opt.value)}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      claudeModel === opt.value
-                        ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'
-                    }`}
-                  >
-                    {opt.label}
-                  </button>
-                ))}
+                {isModelLoading ? (
+                  <div className="flex items-center gap-2 px-3 py-2">
+                    <div className="w-3 h-3 rounded-full border-2 border-indigo-400 border-t-transparent animate-spin" />
+                    <span className="text-xs text-gray-400">Loading…</span>
+                  </div>
+                ) : (
+                  claudeModelOptions.map(opt => (
+                    <button
+                      key={opt.value}
+                      onClick={() => {
+                        setClaudeModel(opt.value);
+                        toast.success(`Claude model switched to ${opt.label}`, {
+                          icon: '🤖',
+                          duration: 3000,
+                        });
+                      }}
+                      className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+                        claudeModel === opt.value
+                          ? 'bg-indigo-600 text-white shadow-sm'
+                          : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-indigo-50 dark:hover:bg-indigo-900/30'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))
+                )}
               </div>
             </div>
           </div>
