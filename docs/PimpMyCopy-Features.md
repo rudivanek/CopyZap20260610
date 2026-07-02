@@ -1,7 +1,41 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-02T12:00:00Z
+Last Updated: 2026-07-02T13:00:00Z
+
+---
+
+## Admin Claude Model Sync to Copy Generation (2026-07-02)
+
+**File modified:**
+- `src/components/CopyForm.tsx`
+
+**Problem solved:**
+The admin dashboard's "Claude Model" toggle (via `useAdminClaudeModel`) previously only affected scoring, reports, and the fallback chain — not regular copy generation. `formState.model` was only updated when a user explicitly re-selected "Claude" from the AI Engine dropdown via `handleAiEngineChange`. Since Claude is the default engine and users rarely change it, the admin toggle had no practical effect on what model was used for generation.
+
+**Changes:**
+
+1. **Import added** — `useAdminClaudeModel` imported from `../hooks/useAdminClaudeModel`.
+
+2. **Hook called** — `const { claudeModel } = useAdminClaudeModel();` called inside the component alongside `useMode()`.
+
+3. **Sync effect added** — A new `useEffect` (placed after the existing legacy migration effect) keeps `formState.model` in sync with the admin's current `claudeModel` setting whenever the Claude engine is active:
+   ```typescript
+   useEffect(() => {
+     const currentEngine = formState.aiEngine || 'claude';
+     if (currentEngine === 'claude' && formState.model !== claudeModel) {
+       setFormState(prev => ({ ...prev, model: claudeModel }));
+     }
+   }, [claudeModel]);
+   ```
+   The dependency array contains only `[claudeModel]` — not `formState` or `formState.model` — to avoid a render loop, since the effect itself writes to `formState.model`.
+
+**Unchanged:**
+- `handleAiEngineChange` — still updates `model` on dropdown interaction
+- `handleModelChange` — legacy model dropdown handler unchanged
+- The migration effect for legacy model→engine conversion
+- `AiEngineSelector`, `comparativeScoring.ts`, report generation, edge functions
+- No other files touched
 
 ---
 

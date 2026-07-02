@@ -9,6 +9,7 @@ import { isFieldPopulated, countFilledFieldsInSection } from '../utils/formUtils
 import { checkUserAccess } from '../services/supabaseClient';
 import { getSuggestions } from '../services/apiService';
 import { useInputField } from '../hooks/useInputField';
+import { useAdminClaudeModel } from '../hooks/useAdminClaudeModel';
 import PrefillSelector from './PrefillSelector';
 import SharedInputs from './SharedInputs';
 import FeatureToggles from './FeatureToggles';
@@ -119,6 +120,7 @@ const CopyForm: React.FC<CopyFormProps> = ({
 
   // Get mode from context
   const { mode, setMode } = useMode();
+  const { claudeModel } = useAdminClaudeModel();
 
   // Migrate legacy model to new aiEngine on component mount or when model changes
   useEffect(() => {
@@ -128,6 +130,16 @@ const CopyForm: React.FC<CopyFormProps> = ({
       setFormState({ ...formState, aiEngine: migratedEngine });
     }
   }, [formState.model]);
+
+  // Keep formState.model in sync with the admin's Claude model setting
+  // whenever the Claude engine is selected — not just at the moment the
+  // AI Engine dropdown is changed.
+  useEffect(() => {
+    const currentEngine = formState.aiEngine || 'claude';
+    if (currentEngine === 'claude' && formState.model !== claudeModel) {
+      setFormState(prev => ({ ...prev, model: claudeModel }));
+    }
+  }, [claudeModel]);
 
   // Input field hooks
   const projectDescriptionField = useInputField({
