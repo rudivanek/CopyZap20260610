@@ -1527,7 +1527,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         0.4,
         8000,
         'generate_report',
-        null,
+        formState.sessionId,
       );
 
       setEvalReportMarkdown(reportMarkdown);
@@ -1617,7 +1617,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         0.4,
         8000,
         'generate_report',
-        null,
+        formState.sessionId,
       );
 
       setCompareReportMarkdown(reportMarkdown);
@@ -1713,7 +1713,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         0.4,
         8000,
         'generate_report',
-        null,
+        formState.sessionId,
       );
 
       setClientReportMarkdown(reportMarkdown);

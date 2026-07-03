@@ -1,7 +1,34 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-03T01:00:00Z
+Last Updated: 2026-07-03T02:00:00Z
+
+---
+
+## Fix: Report Calls Now Pass Real Session ID (2026-07-03)
+
+**File modified:**
+- `src/components/copy-maker/CopyMakerSidebar.tsx`
+
+**Problem solved:**
+The three `makeStreamingReportRequest` call sites for Evaluation Report, Compare Report, and Client Report were passing hardcoded `null` as the `sessionId` argument (introduced in the previous threading task). This meant all `generate_report` rows in `pmc_user_tokens_used` would always have `session_id = null`, making per-session cost attribution impossible for report generation.
+
+`formState.sessionId` is already in scope at all three call sites and is used extensively elsewhere in the same file (lines ~680, 707, 749, 772, 1798), so replacing `null` with `formState.sessionId` gives the edge function the correct session context.
+
+**Change:**
+At all three `makeStreamingReportRequest` call sites, the `sessionId` argument changed from `null` to `formState.sessionId`:
+```typescript
+// Before
+'generate_report',
+null,
+
+// After
+'generate_report',
+formState.sessionId,
+```
+
+**Result:**
+`generate_report` rows in `pmc_user_tokens_used` now carry the same `session_id` as the generation rows that preceded them, enabling complete per-session cost tracking across the full generation + reporting workflow.
 
 ---
 
