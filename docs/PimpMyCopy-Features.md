@@ -1,7 +1,35 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-02T13:00:00Z
+Last Updated: 2026-07-03T00:00:00Z
+
+---
+
+## Live Claude Model Resolution at Generation Time (2026-07-03)
+
+**File modified:**
+- `src/services/api/copyGeneration.ts`
+
+**Problem solved:**
+`formState.model` can be stale at generation time — restored from a previously saved session, set before the admin changed the model toggle, or not yet synced if the admin toggle changed after the form loaded. The CopyForm.tsx sync effect (previous change) keeps the UI display correct but has a timing window. This change guarantees correctness at the actual moment of generation by reading the authoritative value from the database.
+
+**`resolveEffectiveModel` helper (added above `generateCopy`):**
+- Only runs when the engine is Claude (`formState.aiEngine === 'claude'` or default).
+- Reads `app_settings` table for key `'claude_model'` using the existing `getSupabaseClient()` singleton.
+- Validates the returned value is one of the known Claude model IDs (`claude-sonnet-4-6`, `claude-sonnet-5`); if not, falls back to `formState.model`.
+- On any error (network, RLS, etc.), silently falls back to `formState.model` — generation is never blocked.
+- Logs a message if the live value differs from `formState.model` so drift is visible in the console.
+- Returns a cloned `formState` with the corrected `model` field; does not mutate the original.
+
+**`generateCopy` change:**
+- First line of the function body: `formState = await resolveEffectiveModel(formState);`
+- Because both the legacy pipeline and the enhanced pipeline receive the same `formState` object, every downstream read of `formState.model` throughout both pipelines automatically gets the resolved value. No changes needed elsewhere.
+
+**Unchanged:**
+- Enhanced pipeline (`runEnhancedPipeline`) — receives the already-resolved formState
+- Legacy pipeline logic — same
+- `CopyForm.tsx` sync effect — still in place for UI display accuracy
+- No other files touched
 
 ---
 

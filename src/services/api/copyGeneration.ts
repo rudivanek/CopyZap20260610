@@ -39,6 +39,38 @@ async function fetchBrandVoice(brandVoiceId: string): Promise<BrandVoice | null>
 }
 
 /**
+ * Resolves the Claude model to actually use for this generation call.
+ * Always reads the admin's current setting live from the database rather
+ * than trusting formState.model, which can be stale (restored sessions,
+ * timing races with the admin toggle, etc). Falls back to formState.model
+ * for non-Claude engines (e.g. OpenAI) or if the read fails.
+ */
+async function resolveEffectiveModel(formState: FormState): Promise<FormState> {
+  const isClaudeEngine = (formState.aiEngine || 'claude') === 'claude';
+  if (!isClaudeEngine) return formState;
+
+  try {
+    const supabase = getSupabaseClient();
+    const { data, error } = await supabase
+      .from('app_settings')
+      .select('value')
+      .eq('key', 'claude_model')
+      .single();
+
+    if (!error && data && (data.value === 'claude-sonnet-4-6' || data.value === 'claude-sonnet-5')) {
+      if (data.value !== formState.model) {
+        console.log(`🔄 Resolved live Claude model: ${data.value} (formState had: ${formState.model})`);
+      }
+      return { ...formState, model: data.value };
+    }
+  } catch (err) {
+    console.warn('resolveEffectiveModel: falling back to formState.model', err);
+  }
+
+  return formState;
+}
+
+/**
  * Generate copy based on form state
  * @param formState - The form state with generation settings
  * @param currentUser - The current user (for token tracking)
@@ -52,6 +84,8 @@ export async function generateCopy(
   sessionId?: string,
   progressCallback?: (message: string) => void
 ): Promise<CopyResult> {
+  formState = await resolveEffectiveModel(formState);
+
   // Check AI Engine Mode and route to appropriate pipeline
   const aiEngineMode = formState.aiEngineMode || 'legacy';
 
