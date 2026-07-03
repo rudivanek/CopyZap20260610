@@ -115,7 +115,7 @@ Respond only in JSON using the format and limits provided. Do not include any ex
   try {
     // Make the API request using the edge function
     const data = await makeApiRequestWithFallback(
-      formState.model,
+      'claude-sonnet-4-6', // Pinned: non-streaming path, avoids 150s Supabase idle timeout on claude-sonnet-5
       [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -123,7 +123,9 @@ Respond only in JSON using the format and limits provided. Do not include any ex
       0.7, // Balanced creativity and consistency
       4000, // SEO generation needs moderate tokens
       { type: "json_object" },
-      currentUser?.email
+      currentUser?.email,
+      'generate_seo_metadata',
+      sessionId
     );
 
     // Extract token usage
@@ -278,7 +280,7 @@ MANDATORY REQUIREMENTS:
   try {
     // Make the API request using the edge function
     const data = await makeApiRequestWithFallback(
-      formState.model,
+      'claude-sonnet-4-6', // Pinned: same 150s non-streaming idle-timeout constraint
       [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -286,7 +288,9 @@ MANDATORY REQUIREMENTS:
       0.7,
       4000,
       { type: "json_object" },
-      currentUser?.email
+      currentUser?.email,
+      'generate_faq_schema',
+      sessionId
     );
 
     // Extract token usage
@@ -429,7 +433,7 @@ Respond only in JSON format. Do not include any explanations, markdown, or extra
 
   try {
     const data = await makeApiRequestWithFallback(
-      formState.model,
+      'claude-sonnet-4-6', // Pinned: same 150s non-streaming idle-timeout constraint
       [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -437,7 +441,9 @@ Respond only in JSON format. Do not include any explanations, markdown, or extra
       0.7,
       2000,
       { type: "json_object" },
-      currentUser?.email
+      currentUser?.email,
+      `generate_seo_${elementType}`,
+      sessionId
     );
 
     const tokenUsage = data.usage?.total_tokens || 0;

@@ -62,7 +62,7 @@ const ELEMENT_CONFIG: Record<
   authoritySnippets: {
     type: GeneratedContentItemType.GeoAuthoritySnippets,
     label: 'Authority Snippets',
-    prompt: `Extract or generate 3–5 authority snippets from the content below — short, fact-dense sentences that include specific numbers, results, credentials, or proof points. These should be suitable for AI assistants to cite as evidence. Return them as a numbered list.\n\n${LANGUAGE_RULE}`,
+    prompt: `Extract or generate 3–5 authority snippets from the content below — short, fact-dense sentences that include specific numbers, results, credentials, or proof points. These should be suitable for AI assistants to cite as evidence. Return them as a numbered list. If the source content does not contain concrete facts, statistics, or credentials, do not refuse — instead generate 3-5 general credibility statements based on the tone and claims already present in the content (e.g. its stated benefits or differentiators), clearly framed as illustrative rather than factual.\n\n${LANGUAGE_RULE}`,
   },
   quoteReady: {
     type: GeneratedContentItemType.GeoQuoteReady,
@@ -104,7 +104,7 @@ export async function generateGeoContent(
         { role: 'user', content: userPrompt },
       ],
       0.7,
-      1500,
+      2200,
       undefined,
       currentUser?.email,
       `geo_generate_${element}`,

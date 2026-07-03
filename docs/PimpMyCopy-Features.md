@@ -1,7 +1,27 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-03T11:00:00Z
+Last Updated: 2026-07-03T12:00:00Z
+
+---
+
+## SEO Generation Model Pin + Attribution Fix (2026-07-03)
+
+**File modified:**
+- `src/services/api/seoGeneration.ts`
+
+All three `makeApiRequestWithFallback` call sites (`generateSeoMetadata`, `generateFaqSchemaFromText`, `generateSeoElement`) were updated:
+1. Model pinned to `'claude-sonnet-4-6'` (same pattern already applied to comparative scoring, voice styling, and deep analysis) to avoid the 150-second Supabase idle-timeout on the non-streaming path.
+2. `operationType` and `sessionId` appended as 8th and 9th arguments: `'generate_seo_metadata'`, `'generate_faq_schema'`, and `` `generate_seo_${elementType}` `` respectively — matching the strings already used in the manual `trackTokenUsage` calls directly below each.
+
+## GEO Generation Token Budget + Authority Snippet Robustness (2026-07-03)
+
+**File modified:**
+- `src/services/api/geoGeneration.ts`
+
+Two changes inside `generateGeoContent`:
+1. Token budget in the loop's `makeApiRequestWithFallback` call raised from `1500` to `2200` to reduce truncation on larger GEO outputs.
+2. The `authoritySnippets` element prompt extended with a graceful-degradation instruction: if the source content lacks concrete facts, statistics, or credentials, the model is directed to generate 3–5 general credibility statements based on existing tone and claims rather than refusing.
 
 ---
 
