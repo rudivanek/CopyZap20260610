@@ -1,7 +1,16 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-03T09:00:00Z
+Last Updated: 2026-07-03T10:00:00Z
+
+---
+
+## GEO Scoring Attribution Fix (2026-07-03)
+
+**File modified:**
+- `src/services/api/geoScoring.ts`
+
+The `makeApiRequestWithFallback` call at ~line 171 was missing `operationType` and `sessionId`, causing GEO scoring operations to land in `pmc_user_tokens_used` with `operation_type = 'llm_call'` and `session_id = null`. Added `'geo_scoring'` and `sessionId` as the 8th and 9th arguments. `sessionId` was already present in the function signature and already forwarded into the manual `trackTokenUsage` call (as `'calculate_geo_score'`).
 
 ---
 

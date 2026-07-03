@@ -177,7 +177,9 @@ IMPORTANT:
       0.5, // Lower temperature for consistent scoring
       3000, // GEO scoring needs moderate tokens
       { type: "json_object" },
-      currentUser?.email
+      currentUser?.email,
+      'geo_scoring',
+      sessionId
     );
 
     // Extract token usage
