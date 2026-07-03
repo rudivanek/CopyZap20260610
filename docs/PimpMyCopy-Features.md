@@ -1,7 +1,47 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-03T06:00:00Z
+Last Updated: 2026-07-03T07:00:00Z
+
+---
+
+## Voice Styling Pinned to claude-sonnet-4-6 (Non-Streaming Timeout Constraint) (2026-07-03)
+
+**File modified:**
+- `src/services/api/voiceStyles.ts`
+
+**Problem solved:**
+`voiceStyles.ts` calls `makeApiRequestWithFallback` (non-streaming path), which is subject to a 150-second Supabase edge-function idle timeout. `claude-sonnet-5` can exceed this limit on longer persona rewrites (especially when processing large structured copy objects), causing silent failures. The same timeout constraint had already been applied to comparative scoring via a similar pin.
+
+**Change — model normalization block in `applyVoiceStyle`:**
+
+Three adjustments to the fallback/normalization logic:
+1. No-model fallback now targets `claude-sonnet-4-6` instead of `claude-sonnet-4-5`.
+2. Invalid/legacy model fallback also targets `claude-sonnet-4-6`.
+3. New explicit branch: if the user has `claude-sonnet-5` selected, it is pinned to `claude-sonnet-4-6` with a console warning explaining the constraint.
+
+The `validModels` array is unchanged — `claude-sonnet-5` remains in the list so it passes validation before the pin branch executes, rather than being treated as an invalid legacy model.
+
+```typescript
+// Before — no Sonnet 5 pin, fallbacks to claude-sonnet-4-5
+if (!model) {
+  normalizedModel = 'claude-sonnet-4-5';
+} else if (model === 'deepseek-chat' || !validModels.includes(model)) {
+  normalizedModel = 'claude-sonnet-4-5';
+}
+
+// After — explicit Sonnet 5 pin + fallbacks updated to claude-sonnet-4-6
+if (!model) {
+  normalizedModel = 'claude-sonnet-4-6';
+} else if (model === 'deepseek-chat' || !validModels.includes(model)) {
+  normalizedModel = 'claude-sonnet-4-6';
+} else if (model === 'claude-sonnet-5') {
+  normalizedModel = 'claude-sonnet-4-6'; // non-streaming idle-timeout constraint
+}
+```
+
+**Result:**
+Voice styling calls will never use `claude-sonnet-5` regardless of user model selection, preventing edge-function idle-timeout failures on long persona rewrites without affecting any other operation type.
 
 ---
 

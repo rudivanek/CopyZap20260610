@@ -31,16 +31,23 @@ export async function restyleCopyWithPersona(
   progressCallback?: (message: string) => void,
   additionalInstructions?: string
 ): Promise<{ content: any; personaUsed: string }> {
-  // Normalize model: use user's selection, fallback to claude if invalid
+  // Normalize model: use user's selection, fallback to claude if invalid.
+  // Voice styling uses makeApiRequestWithFallback (non-streaming), which has a
+  // hard 150-second Supabase edge-function idle timeout. claude-sonnet-5 can
+  // exceed this on longer persona rewrites, so it's pinned to claude-sonnet-4-6
+  // here — same constraint and same fix already applied to comparative scoring.
   let normalizedModel = model;
   const validModels = ['gpt-4o', 'claude-sonnet-4-5', 'claude-sonnet-4-6', 'claude-sonnet-5', 'gpt-4-turbo', 'gemini-2.0-flash', 'grok-4-latest', 'chatgpt-4o-latest', 'claude-haiku-4-5', 'claude-opus-4-5'];
 
   if (!model) {
-    console.warn(`⚠️ No model provided. Falling back to claude-sonnet-4-5.`);
-    normalizedModel = 'claude-sonnet-4-5';
+    console.warn(`⚠️ No model provided. Falling back to claude-sonnet-4-6.`);
+    normalizedModel = 'claude-sonnet-4-6';
   } else if (model === 'deepseek-chat' || !validModels.includes(model)) {
-    console.warn(`⚠️ Invalid or legacy model "${model}". Falling back to claude-sonnet-4-5.`);
-    normalizedModel = 'claude-sonnet-4-5';
+    console.warn(`⚠️ Invalid or legacy model "${model}". Falling back to claude-sonnet-4-6.`);
+    normalizedModel = 'claude-sonnet-4-6';
+  } else if (model === 'claude-sonnet-5') {
+    console.warn(`⚠️ claude-sonnet-5 is pinned to claude-sonnet-4-6 for voice styling (non-streaming idle-timeout constraint).`);
+    normalizedModel = 'claude-sonnet-4-6';
   }
 
   // Check if content is an array of headlines
