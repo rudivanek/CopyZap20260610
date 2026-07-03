@@ -12,7 +12,8 @@ export async function refineOutput(
   generatedContent: string,
   formState: FormState,
   userEmail?: string,
-  progressCallback?: (message: string) => void
+  progressCallback?: (message: string) => void,
+  sessionId?: string
 ): Promise<string> {
   if (progressCallback) {
     progressCallback('Applying editorial refinement pass...');
@@ -58,7 +59,9 @@ Return ONLY the refined version. No introductions, explanations, or commentary.`
       0.3,
       undefined, // Use default max tokens
       undefined,
-      userEmail
+      userEmail,
+      'refine_output',
+      sessionId
     );
 
     const refinedContent = data.choices[0]?.message?.content;

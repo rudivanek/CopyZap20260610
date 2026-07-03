@@ -21,7 +21,8 @@ export interface ExpandedInputs {
  */
 export async function expandInputs(
   formState: FormState,
-  userEmail?: string
+  userEmail?: string,
+  sessionId?: string
 ): Promise<ExpandedInputs> {
   const contentToAnalyze = formState.businessDescription || formState.originalCopy || '';
 
@@ -73,7 +74,9 @@ Return ONLY valid JSON. No explanations or additional text.`;
       0.4, // Lower temperature for more focused analysis
       2000, // Max tokens for expansion
       undefined,
-      userEmail
+      userEmail,
+      'expand_inputs',
+      sessionId
     );
 
     const content = data.choices[0]?.message?.content;

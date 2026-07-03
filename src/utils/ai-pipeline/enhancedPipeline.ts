@@ -349,7 +349,7 @@ export async function runEnhancedPipeline(
 
   let expandedInputs: ExpandedInputs = {};
   try {
-    expandedInputs = await expandInputs(formState, currentUser?.email);
+    expandedInputs = await expandInputs(formState, currentUser?.email, sessionId);
     console.log('✅ Input expansion complete');
     if (progressCallback) {
       progressCallback('Inputs enriched with strategic insights');
@@ -398,7 +398,9 @@ export async function runEnhancedPipeline(
       modelSettings.temperature,
       maxTokens,
       modelSettings.top_p,
-      currentUser?.email
+      currentUser?.email,
+      'generate_copy',
+      sessionId
     );
 
     console.log('✅ Enhanced generation complete with model:', data.model_used);
@@ -433,7 +435,7 @@ export async function runEnhancedPipeline(
 
     let improvedCopy = generatedContent;
     try {
-      improvedCopy = await refineOutput(generatedContent, formState, currentUser?.email, progressCallback);
+      improvedCopy = await refineOutput(generatedContent, formState, currentUser?.email, progressCallback, sessionId);
       console.log('✅ Editorial refinement complete');
     } catch (err) {
       console.warn('⚠️ Refinement failed, using unrefined version:', err);

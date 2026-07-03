@@ -1,7 +1,57 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-03T02:00:00Z
+Last Updated: 2026-07-03T03:00:00Z
+
+---
+
+## Enhanced Pipeline Session/Operation Attribution Fix (2026-07-03)
+
+**Files modified:**
+- `src/utils/ai-pipeline/enhancedPipeline.ts`
+- `src/utils/ai-pipeline/expandInputs.ts`
+- `src/utils/ai-pipeline/refineOutput.ts`
+
+**Problem solved:**
+The previous `operationType`/`sessionId` threading work (Prompt 2) only fixed attribution in `copyGeneration.ts`'s legacy pipeline. However, every real generation in the app actually runs through `runEnhancedPipeline` (the CopyZap+ engine), which has its own three `makeApiRequestWithFallback` calls — none of which were passing `operationType` or `sessionId`. As a result, all enhanced pipeline usage rows in `pmc_user_tokens_used` still had `operation_type = 'llm_call'` and `session_id = null`.
+
+`runEnhancedPipeline` already receives and validates `sessionId` as a parameter (throws if missing), so the value was in scope but simply not threaded down to the call sites or the two helper functions.
+
+**Changes in `enhancedPipeline.ts`:**
+
+1. Main generation `makeApiRequestWithFallback` call now passes `'generate_copy'` and `sessionId`:
+   ```typescript
+   const data = await makeApiRequestWithFallback(
+     formState.model, messages, modelSettings.temperature, maxTokens,
+     modelSettings.top_p, currentUser?.email, 'generate_copy', sessionId
+   );
+   ```
+
+2. `expandInputs` call now passes `sessionId`:
+   ```typescript
+   expandedInputs = await expandInputs(formState, currentUser?.email, sessionId);
+   ```
+
+3. `refineOutput` call now passes `sessionId`:
+   ```typescript
+   improvedCopy = await refineOutput(generatedContent, formState, currentUser?.email, progressCallback, sessionId);
+   ```
+
+**Changes in `expandInputs.ts`:**
+- Signature extended: `sessionId?: string` added as third parameter.
+- `makeApiRequestWithFallback` call now passes `'expand_inputs'` and `sessionId` as final two args.
+
+**Changes in `refineOutput.ts`:**
+- Signature extended: `sessionId?: string` added as fifth parameter.
+- `makeApiRequestWithFallback` call now passes `'refine_output'` and `sessionId` as final two args.
+
+**Result:**
+All three LLM calls in the Enhanced Pipeline now record meaningful operation types in `pmc_user_tokens_used`:
+- `generate_copy` — the main enhanced generation call
+- `expand_inputs` — Step 1 (input expansion/enrichment pre-processing)
+- `refine_output` — Step 3 (editorial refinement pass)
+
+All three also carry the correct `session_id`, enabling complete per-session cost accounting for Enhanced Pipeline runs.
 
 ---
 
