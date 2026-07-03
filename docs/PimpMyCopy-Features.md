@@ -1,7 +1,72 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-03T00:00:00Z
+Last Updated: 2026-07-03T01:00:00Z
+
+---
+
+## operationType and sessionId Threading Through Generation and Report Pipeline (2026-07-03)
+
+**Files modified:**
+- `src/services/api/utils.ts`
+- `src/services/api/copyGeneration.ts`
+- `src/components/copy-maker/CopyMakerSidebar.tsx`
+
+**Problem solved:**
+The edge function `ai-completion` was enhanced to accept `operationType` and `sessionId` in the request body for server-side usage recording (see "Server-Side Usage Recording" entry below). However, the client-side functions that call the edge function (`makeApiRequestWithFallback` and `makeStreamingReportRequest`) had no way to pass those values — they were never included in the request body. As a result, all recorded usage rows had `operation_type = 'llm_call'` (the fallback) and `session_id = null`, making usage data uninformative for billing analytics.
+
+**Changes in `src/services/api/utils.ts`:**
+
+1. `makeApiRequestWithFallback` — two new optional parameters added after `userEmail?`:
+   ```typescript
+   operationType?: string,
+   sessionId?: string | null
+   ```
+   Both are included in the edge-function request body:
+   ```typescript
+   const requestBody: any = {
+     messages, model: attemptedModel, temperature, maxTokens,
+     operationType, sessionId
+   };
+   ```
+   The direct-API fallback path (when Supabase is unavailable) does not include them, since that path bypasses the edge function entirely and has no usage recording.
+
+2. `makeStreamingReportRequest` — two new optional parameters added after `maxTokens`:
+   ```typescript
+   operationType?: string,
+   sessionId?: string | null
+   ```
+   Both included in the JSON body sent to the edge function:
+   ```typescript
+   body: JSON.stringify({ messages, model, temperature, maxTokens, stream: true, operationType, sessionId })
+   ```
+
+**Changes in `src/services/api/copyGeneration.ts`:**
+
+All three `makeApiRequestWithFallback` calls in the legacy pipeline now pass explicit operation labels and the session ID:
+
+- Initial copy generation (line ~193): `'generate_copy', actualSessionId`
+- Variant generation loop (line ~363): `'generate_variant', actualSessionId`
+- Validation repair attempt (line ~509): `'repair_copy', actualSessionId`
+
+`actualSessionId` is the validated session ID that was already in scope at each call site.
+
+**Changes in `src/components/copy-maker/CopyMakerSidebar.tsx`:**
+
+All three `makeStreamingReportRequest` calls for report generation pass:
+```typescript
+'generate_report', null
+```
+`null` is used for `sessionId` because no session ID variable is in scope at these call sites (reports are generated from the sidebar context, not tied to a generation session).
+
+**Result:**
+Every LLM call originating from the generation pipeline now records a meaningful `operation_type` in `pmc_user_tokens_used`:
+- `generate_copy` — primary generation
+- `generate_variant` — each extra variant
+- `repair_copy` — validation repair retry
+- `generate_report` — PDF/markdown report generation
+
+Session-linked calls also record the `session_id`, enabling per-session cost analysis.
 
 ---
 

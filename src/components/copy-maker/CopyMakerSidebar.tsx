@@ -1526,6 +1526,8 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         [{ role: 'user', content: llmInput }],
         0.4,
         8000,
+        'generate_report',
+        null,
       );
 
       setEvalReportMarkdown(reportMarkdown);
@@ -1614,6 +1616,8 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         [{ role: 'user', content: llmInput }],
         0.4,
         8000,
+        'generate_report',
+        null,
       );
 
       setCompareReportMarkdown(reportMarkdown);
@@ -1708,6 +1712,8 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         [{ role: 'user', content: llmInput }],
         0.4,
         8000,
+        'generate_report',
+        null,
       );
 
       setClientReportMarkdown(reportMarkdown);

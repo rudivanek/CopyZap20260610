@@ -286,6 +286,8 @@ export async function makeStreamingReportRequest(
   messages: { role: string; content: string }[],
   temperature: number,
   maxTokens: number,
+  operationType?: string,
+  sessionId?: string | null,
 ): Promise<string> {
   const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
   const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
@@ -304,7 +306,7 @@ export async function makeStreamingReportRequest(
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${session.access_token}`,
     },
-    body: JSON.stringify({ messages, model, temperature, maxTokens, stream: true }),
+    body: JSON.stringify({ messages, model, temperature, maxTokens, stream: true, operationType, sessionId }),
   });
 
   if (!response.ok) {
@@ -354,7 +356,9 @@ export async function makeApiRequestWithFallback(
   temperature: number,
   maxTokens: number,
   responseFormat?: { type: string },
-  userEmail?: string
+  userEmail?: string,
+  operationType?: string,
+  sessionId?: string | null
 ): Promise<{
   choices: { message: { content: string } }[];
   usage?: { total_tokens: number };
@@ -386,7 +390,9 @@ export async function makeApiRequestWithFallback(
         messages,
         model: attemptedModel,
         temperature,
-        maxTokens
+        maxTokens,
+        operationType,
+        sessionId
       };
 
       // Only include responseFormat for models that support it

@@ -196,7 +196,9 @@ export async function generateCopy(
       temperature,
       maxTokens,
       undefined,
-      currentUser?.email
+      currentUser?.email,
+      'generate_copy',
+      actualSessionId
     );
 
     console.log('API response received with model:', data.model_used);
@@ -366,7 +368,9 @@ export async function generateCopy(
             temperature,
             maxTokens,
             undefined,
-            currentUser?.email
+            currentUser?.email,
+            'generate_variant',
+            actualSessionId
           );
 
           // Extract the content from the response
@@ -512,7 +516,9 @@ export async function generateCopy(
           temperature,
           maxTokens,
           undefined,
-          currentUser?.email
+          currentUser?.email,
+          'repair_copy',
+          actualSessionId
         );
 
         // Track token usage for repair attempt
