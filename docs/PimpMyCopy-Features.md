@@ -1,7 +1,16 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-03T08:00:00Z
+Last Updated: 2026-07-03T09:00:00Z
+
+---
+
+## Performance Boost Attribution Fix (2026-07-03)
+
+**File modified:**
+- `src/services/api/performanceBoost.ts`
+
+The `makeApiRequestWithFallback` call was missing `operationType` and `sessionId`, causing "Boosted" operations to land in `pmc_user_tokens_used` with `operation_type = 'llm_call'` and `session_id = null`. Added `'performance_boost'` and `sessionId` as the 8th and 9th arguments. `sessionId` was already present in the function signature and already forwarded into the manual `trackTokenUsage` call.
 
 ---
 

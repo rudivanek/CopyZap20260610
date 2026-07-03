@@ -122,7 +122,9 @@ Deliver the boosted version now. Return ONLY the improved copy — no preamble, 
     0.55,
     4000,
     undefined,
-    currentUser?.email
+    currentUser?.email,
+    'performance_boost',
+    sessionId
   );
 
   const tokenUsage = data.usage?.total_tokens || 0;
