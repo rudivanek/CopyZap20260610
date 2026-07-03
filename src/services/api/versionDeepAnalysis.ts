@@ -250,7 +250,11 @@ Return ONLY valid JSON with the exact structure specified. No markdown, no expla
         { role: 'user', content: userPrompt }
       ],
       0.3,  // temperature
-      2000  // maxTokens
+      2000,  // maxTokens
+      undefined,
+      currentUser?.email,
+      'deep_analysis',
+      sessionId
     );
 
     // Track tokens
@@ -420,7 +424,11 @@ Write a concise overall verdict (3-5 sentences) explaining why this version is t
         { role: 'user', content: userPrompt }
       ],
       0.4,  // temperature
-      500   // maxTokens
+      500,   // maxTokens
+      undefined,
+      currentUser?.email,
+      'overall_verdict',
+      sessionId
     );
 
     // Track tokens

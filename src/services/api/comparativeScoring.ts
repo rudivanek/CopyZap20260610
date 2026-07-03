@@ -533,7 +533,10 @@ Evaluate now.`;
       messages,
       0.3, // Lower temperature for more decisive ranking
       tokenBudget,
-      { type: 'json_object' } // Force JSON output
+      { type: 'json_object' }, // Force JSON output
+      undefined,
+      'comparative_scoring',
+      sessionId
     );
 
     console.log(`[comparative-scoring] model_used: "${actualModel}"`);

@@ -1,7 +1,82 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-03T04:00:00Z
+Last Updated: 2026-07-03T05:00:00Z
+
+---
+
+## Scoring and Deep-Analysis Operation Attribution (2026-07-03)
+
+**Files modified:**
+- `src/services/api/comparativeScoring.ts`
+- `src/services/api/versionDeepAnalysis.ts`
+- `src/services/api/contentScoring.ts`
+
+**Problem solved:**
+Three scoring/analysis services already received `sessionId` and `currentUser` as function parameters (all callers already passed real values), but none of them forwarded those values into their `makeApiRequestWithFallback` calls. Every comparative score, deep analysis, content score, and overall verdict row in `pmc_user_tokens_used` therefore had `operation_type = 'llm_call'` and `session_id = null`. No caller changes were needed — only the four internal call sites required fixing.
+
+**A. `comparativeScoring.ts` — one call site (~line 531):**
+
+`makeApiRequestWithFallback` now passes `undefined` for `userEmail` (not available in this function's scope), `'comparative_scoring'` as the operation type, and `sessionId`:
+```typescript
+const completion = await makeApiRequestWithFallback(
+  actualModel, messages,
+  0.3, tokenBudget,
+  { type: 'json_object' },
+  undefined,
+  'comparative_scoring',
+  sessionId
+);
+```
+
+**B. `versionDeepAnalysis.ts` — two call sites:**
+
+`analyzeVersionDeep` main call (~line 246) now passes `currentUser?.email`, `'deep_analysis'`, and `sessionId`:
+```typescript
+const data = await makeApiRequestWithFallback(
+  actualModel, [...messages],
+  0.3, 2000,
+  undefined,
+  currentUser?.email,
+  'deep_analysis',
+  sessionId
+);
+```
+
+`generateOverallVerdict` call (~line 416) now passes `currentUser?.email`, `'overall_verdict'`, and `sessionId`:
+```typescript
+const data = await makeApiRequestWithFallback(
+  actualModel, [...messages],
+  0.4, 500,
+  undefined,
+  currentUser?.email,
+  'overall_verdict',
+  sessionId
+);
+```
+
+**C. `contentScoring.ts` — one call site (~line 129):**
+
+Now passes `currentUser?.email`, `'generate_content_score'`, and `sessionId`:
+```typescript
+const data = await makeApiRequestWithFallback(
+  SCORING_MODEL, [...messages],
+  0.5, Math.round(maxTokens / 3),
+  { type: "json_object" },
+  currentUser?.email,
+  'generate_content_score',
+  sessionId
+);
+```
+
+**Result:**
+All scoring and analysis LLM calls now record meaningful operation types in `pmc_user_tokens_used`:
+- `comparative_scoring` — version ranking/comparison calls
+- `deep_analysis` — per-version structural deep analysis
+- `overall_verdict` — winner explanation synthesis
+- `generate_content_score` — per-dimension content quality scoring
+
+All four calls also carry the correct `session_id`, completing full per-session cost attribution across the entire generation, scoring, and analysis workflow.
 
 ---
 

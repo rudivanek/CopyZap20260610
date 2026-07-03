@@ -134,7 +134,10 @@ The JSON should follow this structure:
       ],
       0.5,
       Math.round(maxTokens / 3),
-      { type: "json_object" }
+      { type: "json_object" },
+      currentUser?.email,
+      'generate_content_score',
+      sessionId
     );
     
     // Extract token usage
