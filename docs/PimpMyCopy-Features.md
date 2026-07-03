@@ -1,7 +1,24 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-03T07:00:00Z
+Last Updated: 2026-07-03T08:00:00Z
+
+---
+
+## Deep Analysis & Content Modification: Attribution Fix + Model Pin (2026-07-03)
+
+**Files modified:**
+- `src/services/api/contentModification.ts`
+- `src/services/api/versionDeepAnalysis.ts`
+
+**contentModification.ts — attribution fix:**
+The `makeApiRequestWithFallback` call was missing `operationType` and `sessionId` arguments, causing `pmc_user_tokens_used` records to land with `operation_type = 'llm_call'` (default) and `session_id = null`. Added `'modify_content'` and `sessionId` as the 8th and 9th arguments to fix attribution. `sessionId` was already present in the function signature and was already forwarded into the manual `trackTokenUsage` call, so no signature change was needed.
+
+**versionDeepAnalysis.ts — model pin (`analyzeVersionDeep`):**
+Replaced `const actualModel = model || SCORING_MODEL` with a hardcoded pin `const actualModel: Model = 'claude-sonnet-4-6'`. This function calls `makeApiRequestWithFallback` (non-streaming path), which is subject to a 150-second Supabase edge-function idle timeout. `claude-sonnet-5` can exceed this on longer analysis tasks. The pin is the same fix already applied to comparative scoring and voice styling.
+
+**versionDeepAnalysis.ts — model pin (`generateOverallVerdict`):**
+Replaced `const actualModel: Model = (model === 'deepseek-chat' || !model) ? 'claude-sonnet-4-5' : model` with the same hardcoded pin `const actualModel: Model = 'claude-sonnet-4-6'`. Same non-streaming idle-timeout constraint applies; also removes the legacy `deepseek-chat` normalization branch which is no longer needed.
 
 ---
 

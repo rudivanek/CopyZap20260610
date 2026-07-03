@@ -95,8 +95,11 @@ export async function analyzeVersionDeep(
   parentScore?: number,
   parentCopyText?: string
 ): Promise<VersionDeepAnalysis> {
-  // Use user's selected model, fallback to SCORING_MODEL only if not provided
-  const actualModel = model || SCORING_MODEL;
+  // Deep analysis uses makeApiRequestWithFallback (non-streaming), which has a
+  // hard 150-second Supabase edge-function idle timeout. claude-sonnet-5 can
+  // exceed this, so it's pinned to claude-sonnet-4-6 — same constraint and
+  // same fix already applied to comparative scoring and voice styling.
+  const actualModel: Model = 'claude-sonnet-4-6';
 
   try {
     const contentHash = generateContentHash(content);
@@ -372,8 +375,8 @@ export async function generateOverallVerdict(
   formState?: FormState,
   sessionId?: string
 ): Promise<ComparisonDeepAnalysisMeta> {
-  // Use the user's selected model; normalize deepseek legacy value
-  const actualModel: Model = (model === 'deepseek-chat' || !model) ? 'claude-sonnet-4-5' : model;
+  // Same 150-second non-streaming idle-timeout constraint as analyzeVersionDeep.
+  const actualModel: Model = 'claude-sonnet-4-6';
 
   try {
     // Get winner's analysis

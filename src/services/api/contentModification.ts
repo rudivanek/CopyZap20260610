@@ -144,7 +144,9 @@ Apply the requested changes while maintaining the quality and effectiveness of t
       0.7,
       maxTokens,
       undefined, // No JSON format - always return plain text
-      currentUser?.email
+      currentUser?.email,
+      'modify_content',
+      sessionId
     );
 
     // Extract token usage
