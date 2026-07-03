@@ -107,6 +107,8 @@ export async function generateGeoContent(
       1500,
       undefined,
       currentUser?.email,
+      `geo_generate_${element}`,
+      sessionId,
     );
 
     const tokenUsage = data.usage?.total_tokens || 0;

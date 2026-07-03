@@ -1,7 +1,16 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-03T10:00:00Z
+Last Updated: 2026-07-03T11:00:00Z
+
+---
+
+## GEO Generation Attribution Fix (2026-07-03)
+
+**File modified:**
+- `src/services/api/geoGeneration.ts`
+
+The `makeApiRequestWithFallback` call inside the `for (const element of selectedElements)` loop was missing `operationType` and `sessionId`. Added `` `geo_generate_${element}` `` and `sessionId` as the 8th and 9th arguments. This gives each GEO sub-type (translation, FAQ, snippets, headlines, location variants, etc.) a distinct, meaningful `operation_type` in `pmc_user_tokens_used`, matching the naming already used by the existing `trackTokenUsage` call directly below it. `sessionId` was already in the function signature.
 
 ---
 
