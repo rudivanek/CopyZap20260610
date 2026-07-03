@@ -133,7 +133,9 @@ Keep suggestions concise and practical.`;
       0.8,
       2000,
       model !== 'grok-4-latest' ? { type: "json_object" } : undefined,
-      currentUser?.email
+      currentUser?.email,
+      'field_suggestion',
+      sessionId
     );
 
     // Debug: Log the actual response structure for GROK API

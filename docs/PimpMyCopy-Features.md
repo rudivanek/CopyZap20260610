@@ -1,7 +1,69 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-03T03:00:00Z
+Last Updated: 2026-07-03T04:00:00Z
+
+---
+
+## Field-Level Suggestion Attribution and Session Auto-Creation (2026-07-03)
+
+**Files modified:**
+- `src/services/api/suggestions.ts`
+- `src/components/CopyForm.tsx`
+
+**Problem solved:**
+The "⚡ AI Suggestions" button on individual form fields calls `getSuggestions`, which called `makeApiRequestWithFallback` without passing `operationType` or `sessionId`. This meant every suggestion LLM call landed in `pmc_user_tokens_used` with `operation_type = 'llm_call'` and `session_id = null`. Additionally, the call site in `CopyForm.tsx` never attempted to create a session when none existed — if the user clicked a suggestion button before generating copy, the `sessionId` would always be `null` and usage rows could never be attributed to any session.
+
+**Changes in `src/services/api/suggestions.ts`:**
+
+The `makeApiRequestWithFallback` call in `getSuggestions` now passes two additional trailing arguments:
+```typescript
+// Before
+      currentUser?.email
+    );
+
+// After
+      currentUser?.email,
+      'field_suggestion',
+      sessionId
+    );
+```
+The `sessionId` parameter was already part of the `getSuggestions` signature and was already forwarded to `trackTokenUsage` — it was simply not forwarded to the edge function call, so `recordUsage` on the server never saw it.
+
+**Changes in `src/components/CopyForm.tsx`:**
+
+Three additions:
+
+1. Import `useSession` from `SessionContext`:
+   ```typescript
+   import { useSession } from '../context/SessionContext';
+   ```
+
+2. Destructure `ensureActiveSession` from the hook in the component body (alongside `useMode` and `useAdminClaudeModel`):
+   ```typescript
+   const { ensureActiveSession } = useSession();
+   ```
+
+3. In `onGetSuggestion`, replace the static fallback-to-null pattern with a call to `ensureActiveSession`:
+   ```typescript
+   // Before
+   const actualSessionId = formState.sessionId || null;
+
+   // After
+   const actualSessionId = formState.sessionId
+     || await ensureActiveSession(
+       currentUser.id,
+       'field_suggestion',
+       formState.projectDescription,
+       formState.customerId
+     );
+   ```
+   If a session already exists (`formState.sessionId` is set), the existing session is reused with no DB call. If no session exists yet (user opened the form and clicked a suggestion button before generating), a new session row is created and its ID is returned. The session gets a real name when the user later fills in `projectDescription` and saves or generates.
+
+**Result:**
+- All `field_suggestion` LLM calls now record `operation_type = 'field_suggestion'` in `pmc_user_tokens_used`.
+- A valid `session_id` is present on every suggestion usage row — either the pre-existing session or an auto-created one.
+- Pre-generation suggestion usage is no longer orphaned from session context.
 
 ---
 

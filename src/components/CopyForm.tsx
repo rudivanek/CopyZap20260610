@@ -34,6 +34,7 @@ import { validateApiKey, getAvailableModels, getModelLabel } from '../services/a
 import { useMode, FormMode } from '../context/ModeContext';
 import { isFieldVisible } from '../utils/fieldVisibility';
 import { sessionManager } from '../services/sessionService';
+import { useSession } from '../context/SessionContext';
 import { getInputClassName, getTextareaClassName } from '../utils/inputHighlight';
 import WordCounter from './ui/WordCounter';
 import DynamicGuidance from './copy-maker/guidance/DynamicGuidance';
@@ -121,6 +122,7 @@ const CopyForm: React.FC<CopyFormProps> = ({
   // Get mode from context
   const { mode, setMode } = useMode();
   const { claudeModel } = useAdminClaudeModel();
+  const { ensureActiveSession } = useSession();
 
   // Migrate legacy model to new aiEngine on component mount or when model changes
   useEffect(() => {
@@ -277,8 +279,14 @@ const CopyForm: React.FC<CopyFormProps> = ({
     setActiveSuggestionField(fieldType);
 
     try {
-      // Use existing session if available (suggestions work without session tracking)
-      const actualSessionId = formState.sessionId || null;
+      // Auto-create a session if none exists so field_suggestion usage is attributed
+      const actualSessionId = formState.sessionId
+        || await ensureActiveSession(
+          currentUser.id,
+          'field_suggestion',
+          formState.projectDescription,
+          formState.customerId
+        );
 
       const suggestions = await getSuggestions(
         textToAnalyze,
