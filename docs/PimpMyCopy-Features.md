@@ -1,7 +1,63 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-03T05:00:00Z
+Last Updated: 2026-07-03T06:00:00Z
+
+---
+
+## Absolute Scoring and Voice Style Attribution + Voice Model Allowlist Fix (2026-07-03)
+
+**Files modified:**
+- `src/services/api/absoluteScoring.ts`
+- `src/services/api/voiceStyles.ts`
+
+**Problem solved — attribution (two call sites):**
+`absoluteScoring.ts` and `voiceStyles.ts` each had a `makeApiRequestWithFallback` call that omitted `operationType` and `sessionId`. Even though both functions received `currentUser` and `sessionId` as parameters (and already used them for `trackTokenUsage`), the values were not forwarded to the edge function — so those usage rows landed in `pmc_user_tokens_used` as `llm_call` / `session_id: null`.
+
+**Problem solved — stale model allowlist:**
+`voiceStyles.ts` contained a hard-coded `validModels` array that was missing two currently-valid Claude model IDs (`claude-sonnet-4-6` and `claude-sonnet-5`). Any user with either of those models selected would hit the fallback branch, silently downgrading to `claude-sonnet-4-5`. The array was out of sync with the `Model` type in `src/types/index.ts`.
+
+**A. `absoluteScoring.ts` — one call site (~line 68):**
+
+```typescript
+const response = await makeApiRequestWithFallback(
+  SCORING_MODEL, [...messages],
+  0.3, 512,
+  { type: 'json_object' },
+  currentUser?.email,
+  'absolute_score',
+  sessionId
+);
+```
+
+**B. `voiceStyles.ts` — validModels array fix (~line 36):**
+
+Added `'claude-sonnet-4-6'` and `'claude-sonnet-5'` to the allowlist so these models pass validation rather than falling back:
+```typescript
+// Before
+const validModels = ['gpt-4o', 'claude-sonnet-4-5', 'gpt-4-turbo', 'gemini-2.0-flash', 'grok-4-latest', 'chatgpt-4o-latest', 'claude-haiku-4-5', 'claude-opus-4-5'];
+
+// After
+const validModels = ['gpt-4o', 'claude-sonnet-4-5', 'claude-sonnet-4-6', 'claude-sonnet-5', 'gpt-4-turbo', 'gemini-2.0-flash', 'grok-4-latest', 'chatgpt-4o-latest', 'claude-haiku-4-5', 'claude-opus-4-5'];
+```
+
+**C. `voiceStyles.ts` — attribution call site (~line 653):**
+
+```typescript
+const data = await makeApiRequestWithFallback(
+  normalizedModel, messages,
+  temperature, maxTokens,
+  responseFormat,
+  currentUser?.email,
+  'apply_voice_style',
+  sessionId
+);
+```
+
+**Result:**
+- `absolute_score` rows in `pmc_user_tokens_used` now carry `operation_type = 'absolute_score'` and the correct `session_id`.
+- `apply_voice_style` rows now carry `operation_type = 'apply_voice_style'` and the correct `session_id`.
+- Users with `claude-sonnet-4-6` or `claude-sonnet-5` selected as their model will no longer be silently downgraded when applying voice styles.
 
 ---
 

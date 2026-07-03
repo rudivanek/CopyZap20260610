@@ -73,7 +73,10 @@ export async function generateAbsoluteScore(
       ],
       0.3,
       512,
-      { type: 'json_object' }
+      { type: 'json_object' },
+      currentUser?.email,
+      'absolute_score',
+      sessionId
     );
 
     const tokenUsage = response.usage?.total_tokens ?? 0;

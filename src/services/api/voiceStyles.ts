@@ -33,7 +33,7 @@ export async function restyleCopyWithPersona(
 ): Promise<{ content: any; personaUsed: string }> {
   // Normalize model: use user's selection, fallback to claude if invalid
   let normalizedModel = model;
-  const validModels = ['gpt-4o', 'claude-sonnet-4-5', 'gpt-4-turbo', 'gemini-2.0-flash', 'grok-4-latest', 'chatgpt-4o-latest', 'claude-haiku-4-5', 'claude-opus-4-5'];
+  const validModels = ['gpt-4o', 'claude-sonnet-4-5', 'claude-sonnet-4-6', 'claude-sonnet-5', 'gpt-4-turbo', 'gemini-2.0-flash', 'grok-4-latest', 'chatgpt-4o-latest', 'claude-haiku-4-5', 'claude-opus-4-5'];
 
   if (!model) {
     console.warn(`⚠️ No model provided. Falling back to claude-sonnet-4-5.`);
@@ -655,7 +655,10 @@ Remember: This is JSON MODE. Plain text responses will FAIL. Only JSON is accept
       messages,
       temperature,
       maxTokens,
-      responseFormat
+      responseFormat,
+      currentUser?.email,
+      'apply_voice_style',
+      sessionId
     );
 
     // Extract token usage
