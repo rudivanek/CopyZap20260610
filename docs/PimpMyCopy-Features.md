@@ -1,7 +1,16 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-03T12:00:00Z
+Last Updated: 2026-07-04T00:00:00Z
+
+---
+
+## Enhanced Pipeline Model Pin — Timeout Guard (2026-07-04)
+
+**File modified:**
+- `src/utils/ai-pipeline/enhancedPipeline.ts`
+
+Inside `runEnhancedPipeline` (Step 2), a `generationModel` constant is now derived before the `getEnhancedModelSettings` and `makeApiRequestWithFallback` calls. If `formState.model` is `'claude-sonnet-5'`, it is silently downgraded to `'claude-sonnet-4-6'`; all other models pass through unchanged. Both `getEnhancedModelSettings` and the `makeApiRequestWithFallback` call now use `generationModel` instead of `formState.model`. A console log is emitted when the pin activates. Rationale: the non-streaming path through the Supabase Edge Function has a 150-second idle timeout; `claude-sonnet-5` at 4000-token outputs can exceed this, causing silent failures. The pin will be removed once streaming with usage-capture is implemented.
 
 ---
 

@@ -387,13 +387,23 @@ export async function runEnhancedPipeline(
     { role: 'user', content: userPrompt }
   ];
 
+  // Pin heavy generation to claude-sonnet-4-6: claude-sonnet-5 non-streaming
+  // exceeds the Supabase edge function 150s idle timeout on 4000-token outputs.
+  // Remove this pin once streaming (with usage capture) is implemented.
+  const generationModel = formState.model === 'claude-sonnet-5'
+    ? 'claude-sonnet-4-6'
+    : formState.model;
+  if (generationModel !== formState.model) {
+    console.log(`⏱️ Pinned enhanced generation to ${generationModel} (150s timeout guard)`);
+  }
+
   // Get enhanced model settings
-  const modelSettings = getEnhancedModelSettings(formState.model);
+  const modelSettings = getEnhancedModelSettings(generationModel);
 
   try {
     // Make API request with enhanced settings
     const data = await makeApiRequestWithFallback(
-      formState.model,
+      generationModel,
       messages,
       modelSettings.temperature,
       maxTokens,
