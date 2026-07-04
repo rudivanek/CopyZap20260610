@@ -185,7 +185,7 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
   forceStartHubTrigger,
 }) => {
   // Get contexts early (before callbacks that use them)
-  const { setCurrentSession } = useSession();
+  const { setCurrentSession, clearCurrentSession } = useSession();
   const { mode, preferredMode, setMode, forceAdvanced, restoreSavedOutputMode, lastForcedReason, dismissForcedExplanation } = useMode();
   const navigate = useNavigate();
 
@@ -503,6 +503,15 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
       return restoredState;
     });
 
+    // Saved outputs are opened as fresh, unlinked drafts — the form's sessionId is
+    // cleared above, but SessionContext's own tracked session/intent must also be
+    // cleared here. Otherwise SessionContext keeps pointing at whatever session/
+    // description was active before this saved output was opened, and the next
+    // generation can silently inherit that stale project description as its
+    // session name (even though the form displays the correct, newly-edited one).
+    clearCurrentSession();
+    console.log('[CopyMaker] SavedOutput loaded — session cleared. Current projectDescription in form:', savedOutput.input_data?.projectDescription);
+
     // Restore the saved output's frozen mode (Quick/Standard/Advanced)
     // This is a frozen artifact - it reopens in the same mode it was saved with
     const savedMode = (savedOutput.saved_mode || 'advanced') as FormMode;
@@ -521,7 +530,7 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
     // Show success message with mode note
     const modeLabel = savedMode === 'quick' ? 'Quick' : savedMode === 'standard' ? 'Standard' : 'Advanced';
     toast.success(`Saved output loaded in ${modeLabel} mode (as saved)`);
-  }, [setFormState, restoreSavedOutputMode, handleExpandSectionsForLoad]);
+  }, [setFormState, restoreSavedOutputMode, handleExpandSectionsForLoad, clearCurrentSession]);
 
   // Modal state
   const [showJsonLdModal, setShowJsonLdModal] = useState(false);

@@ -1,7 +1,18 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-04T00:00:00Z
+Last Updated: 2026-07-04T01:00:00Z
+
+---
+
+## Saved Output Load — SessionContext Stale-State Fix (2026-07-04)
+
+**File modified:**
+- `src/components/copy-maker/CopyMakerTab/CopyMakerTab.tsx`
+
+**Problem:** When a user opened a saved output, the form's `sessionId` field was correctly cleared (it is nulled out inside `loadFormStateFromSavedOutput`'s `setFormState` call), but `SessionContext`'s own tracked `currentSessionId`, `currentSessionName`, and `intentContext` were not cleared. This meant the next generation after opening a saved output could silently inherit the stale session name and project description that were active before the saved output was opened — even though the form fields showed the correct values from the saved output.
+
+**Fix:** `clearCurrentSession` is now destructured from `useSession()` alongside the existing `setCurrentSession`. It is called immediately after the `setFormState` block completes inside `loadFormStateFromSavedOutput`, and before the frozen-mode restoration. `clearCurrentSession` is also added to the `useCallback` dependency array. A temporary diagnostic `console.log` was added to confirm the fix fires and to surface any remaining edge cases during verification.
 
 ---
 
