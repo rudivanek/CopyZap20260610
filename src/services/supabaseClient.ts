@@ -845,15 +845,19 @@ export const saveCopySession = async (data: FormData, improvedCopy: string | Str
     if (sessionId) {
       console.log('Updating existing session:', sessionId);
 
-      // Generate a proper session name based on the content
+      // Generate a proper session name based on the content.
+      // Priority matches sessionService.ts's generateSessionName(): the user-facing
+      // Project Description always wins when present, since it's the field people
+      // actually rename to organize their work. outputType and briefDescription are
+      // only fallbacks for sessions that never had a project description set.
       let sessionName = 'Copy Generation Session';
 
-      if (outputType) {
+      if (data.projectDescription && data.projectDescription.trim().length > 0) {
+        sessionName = data.projectDescription.trim().substring(0, 100);
+      } else if (outputType) {
         sessionName = outputType;
       } else if (briefDescription) {
         sessionName = briefDescription.substring(0, 100);
-      } else if (data.projectDescription) {
-        sessionName = data.projectDescription.substring(0, 100);
       }
 
       // Create update object with all the fields that should be updated

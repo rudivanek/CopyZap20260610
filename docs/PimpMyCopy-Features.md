@@ -1,7 +1,18 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-04T01:00:00Z
+Last Updated: 2026-07-04T02:00:00Z
+
+---
+
+## Session Name Priority Fix in saveCopySession (2026-07-04)
+
+**File modified:**
+- `src/services/supabaseClient.ts`
+
+**Problem:** Inside `saveCopySession`, the session name for an existing session was resolved in this order: `outputType` → `briefDescription` → `projectDescription`. This meant `projectDescription` (the "Project Description" field users fill in to name and organize their work) was only ever used as a last resort, so sessions were frequently named after the output type (e.g. "Homepage Copy") rather than the user's own project description (e.g. "Acme SaaS Rebrand — Q3").
+
+**Fix:** Priority order is now: `projectDescription` → `outputType` → `briefDescription`, consistent with `sessionService.ts`'s `generateSessionName()`. A `trim()` check guards against blank-string project descriptions still winning the priority contest. No logic beyond the priority reorder was changed.
 
 ---
 
