@@ -1,7 +1,25 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-06T05:30:00Z
+Last Updated: 2026-07-06T07:00:00Z
+
+---
+
+## Version Deep Analysis — Language Rule Injection in LLM System Prompts (2026-07-06)
+
+**File modified:**
+- `src/services/api/versionDeepAnalysis.ts`
+
+**Summary:** Added a `CRITICAL LANGUAGE RULE` sentence to both LLM system prompts in `versionDeepAnalysis.ts`, instructing the model to write all text fields (`summary`, `keyStrengths`, `suggestedImprovements` text, `strategicRecommendation`) in the same language as the copy being analyzed (`${formState?.language || 'English'}`). This ensures that Spanish (or any non-English) copy receives a deep analysis response entirely in the correct language, rather than defaulting to English.
+
+**Prompts modified:**
+1. **Diff-aware mode** (when `parentCopyText` is present): rule inserted between the `STRICT JSON ONLY` line and the `First, identify exactly what changed…` line.
+2. **Standard mode** (holistic full-piece analysis): rule inserted between the `STRICT JSON ONLY` line and the existing `CRITICAL: Your analysis provides narrative guidance only…` line.
+
+**Rule text injected:**
+```
+CRITICAL LANGUAGE RULE: Write every text field (summary, keyStrengths, suggestedImprovements text, strategicRecommendation) in ${formState?.language || 'English'} — the same language as the copy being analyzed. Do not default to English if the copy's language is different.
+```
 
 ---
 

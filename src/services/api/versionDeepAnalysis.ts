@@ -143,6 +143,8 @@ export async function analyzeVersionDeep(
 
 Your task is to return STRICT JSON ONLY (no markdown, no extra text).
 
+CRITICAL LANGUAGE RULE: Write every text field (summary, keyStrengths, suggestedImprovements text, strategicRecommendation) in ${formState?.language || 'English'} — the same language as the copy being analyzed. Do not default to English if the copy's language is different.
+
 First, identify exactly what changed between the two versions (added, removed, or rewritten sections).
 Then evaluate whether each change improves or weakens the copy against these dimensions: CTA Strength, Specificity, Clarity, Trust, Persuasiveness, Audience Fit.
 
@@ -187,6 +189,8 @@ Return ONLY valid JSON with the exact structure specified. No markdown, no expla
       systemPrompt = `You are an expert copywriting analyst providing strategic guidance and recommendations.
 
 Your task is to analyze the provided copy and return STRICT JSON ONLY (no markdown, no extra text).
+
+CRITICAL LANGUAGE RULE: Write every text field (summary, keyStrengths, suggestedImprovements text, strategicRecommendation) in ${formState?.language || 'English'} — the same language as the copy being analyzed. Do not default to English if the copy's language is different.
 
 CRITICAL: Your analysis provides narrative guidance only. Do NOT generate numeric scores (0-100).
 The official scoring engine handles all numeric scoring separately.
