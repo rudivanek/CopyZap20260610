@@ -1447,6 +1447,25 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
     }
   };
 
+  const handleExportToHtmlPreview = () => {
+    try {
+      exportAsFormattedHtml(
+        formState,
+        generatedOutputCards,
+        originalInputScore,
+        formState.promptEvaluation,
+        comparisonResult,
+        versionDeepAnalysis,
+        comparisonDeepAnalysisMeta,
+        loadingVersionIds,
+        200,
+      );
+      toast.success('Content exported as HTML preview!');
+    } catch {
+      toast.error('Failed to export content as HTML preview');
+    }
+  };
+
   const handleExportLLMEval = () => {
     try {
       exportLLMEvaluationMarkdown(
@@ -1997,6 +2016,12 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                 <SidebarBtn onClick={handleExportToHtml} title="Export as formatted HTML file">
                   <FileCode size={10} />
                   Export HTML
+                </SidebarBtn>
+              )}
+              {hasContent && isAdmin && (
+                <SidebarBtn onClick={handleExportToHtmlPreview} title="Export as ~200-word HTML preview (admin only)">
+                  <FileCode size={10} />
+                  Export HTML (Preview)
                 </SidebarBtn>
               )}
               {hasContent && isAdmin && (
