@@ -1,7 +1,24 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-06T00:00:00Z
+Last Updated: 2026-07-06T01:00:00Z
+
+---
+
+## HTML Preview Export — Structured Truncation Refinement (2026-07-06)
+
+**File modified:**
+- `src/utils/enhancedExports.ts`
+
+**Problem with prior implementation:** The original preview branch converted structured copy to a flat plain-text string via `structuredToPlainText` before truncating. This collapsed all formatting (headlines, section titles, list items) into a single blob and then re-wrapped it in a `white-space:pre-wrap` div. The result looked visually different from the full export — no bold section headers, no list bullets, no headline styling.
+
+**Fix:** Two new private helpers replace the flat-text approach:
+
+- `truncateWordsAtSentence(text, maxWords)` — rewritten to use `matchAll(/\S+/g)` instead of `split(/\s+/)`, so it preserves the original whitespace/newline structure up to the cut point. Finds the last sentence-ending punctuation (`.`, `!`, `?`) after the 50% mark for a clean break; otherwise trims the last partial word and appends `…`. `maxWords <= 0` is treated as "no limit" (returns trimmed input unchanged).
+
+- `truncateStructuredForPreview(structured, maxWords)` — walks sections in order, tracking a running word count. Sections that fit entirely within the budget are included unchanged. The first section that would exceed the budget has its `content` truncated via `truncateWordsAtSentence` and its `listItems` dropped. All subsequent sections are omitted.
+
+**Rendering:** The copy body block now computes `renderContent` as either the truncated structured object (preview + structured) or the original content (all other cases). The identical `isStructured` rendering branch (headline, section titles, content paragraphs, lists) is then used for both the preview and full export — no separate code path. Plain-text preview content still goes through `truncateWordsAtSentence` directly. The watermark note is appended unconditionally when `previewMaxWords` is set.
 
 ---
 

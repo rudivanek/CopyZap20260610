@@ -598,14 +598,38 @@ const getScoreColor = (score: number): string => {
  * Generate premium document-style HTML for a single variant card.
  */
 const truncateWordsAtSentence = (text: string, maxWords: number): string => {
-  const words = text.trim().split(/\s+/);
-  if (words.length <= maxWords) return text.trim();
-  const slice = words.slice(0, maxWords).join(' ');
+  const trimmed = text.trim();
+  const wordMatches = [...trimmed.matchAll(/\S+/g)];
+  if (wordMatches.length <= maxWords || maxWords <= 0) return trimmed;
+  const lastMatch = wordMatches[maxWords - 1];
+  const cutIndex = lastMatch.index! + lastMatch[0].length;
+  const slice = trimmed.slice(0, cutIndex);
   const lastSentenceEnd = Math.max(slice.lastIndexOf('.'), slice.lastIndexOf('!'), slice.lastIndexOf('?'));
   if (lastSentenceEnd > slice.length * 0.5) {
     return slice.slice(0, lastSentenceEnd + 1);
   }
-  return slice.replace(/[,;:]?\s*\S*$/, '') + '…';
+  return slice.trim() + '…';
+};
+
+const truncateStructuredForPreview = (structured: StructuredCopyOutput, maxWords: number): StructuredCopyOutput => {
+  const countWords = (s?: string) => (s ? (s.match(/\S+/g) || []).length : 0);
+  let used = countWords(structured.headline);
+  const newSections: StructuredCopyOutput['sections'] = [];
+  for (const section of structured.sections) {
+    if (used >= maxWords) break;
+    const sectionWordCount = countWords(section.title) + countWords(section.content) + (section.listItems || []).reduce((sum, li) => sum + countWords(li), 0);
+    if (used + sectionWordCount <= maxWords) {
+      newSections.push(section);
+      used += sectionWordCount;
+    } else {
+      const remaining = Math.max(maxWords - used - countWords(section.title), 0);
+      const truncatedContent = section.content ? truncateWordsAtSentence(section.content, remaining) : section.content;
+      newSections.push({ ...section, content: truncatedContent, listItems: undefined });
+      used = maxWords;
+      break;
+    }
+  }
+  return { ...structured, sections: newSections };
 };
 
 export const generateFullHtmlExportForCard = (
@@ -676,15 +700,11 @@ export const generateFullHtmlExportForCard = (
 
   // Copy body
   html += '<div data-copy-body="true" style="background:#ffffff;border-left:1px solid #e5e7eb;padding:24px 28px;border-radius:0 6px 6px 0;font-size:15px;line-height:1.8;color:#374151;margin-bottom:36px;">\n';
-  if (previewMaxWords) {
-    const fullPlainText = isStructured
-      ? structuredToPlainText(actualContent as StructuredCopyOutput)
-      : (typeof actualContent === 'string' ? actualContent : Array.isArray(actualContent) ? (actualContent as string[]).join('\n') : JSON.stringify(actualContent));
-    const previewText = truncateWordsAtSentence(fullPlainText, previewMaxWords);
-    html += `<div style="white-space:pre-wrap;">${stripColoredSpans(markdownToHtml(previewText))}</div>\n`;
-    html += '<p style="margin-top:16px;font-size:12px;font-style:italic;color:#9ca3af;">Preview only — full version available on request.</p>\n';
-  } else if (isStructured && actualContent) {
-    const structured = actualContent as StructuredCopyOutput;
+  const renderContent = previewMaxWords && isStructured && actualContent
+    ? truncateStructuredForPreview(actualContent as StructuredCopyOutput, previewMaxWords)
+    : actualContent;
+  if (isStructured && renderContent) {
+    const structured = renderContent as StructuredCopyOutput;
     html += `<p style="font-size:18px;font-weight:700;color:#111827;margin:0 0 16px 0;">${stripMarkdown(structured.headline)}</p>\n`;
     structured.sections.forEach(section => {
       if (section && section.title) {
@@ -698,8 +718,13 @@ export const generateFullHtmlExportForCard = (
       }
     });
   } else {
-    const plainText = typeof actualContent === 'string' ? actualContent : JSON.stringify(actualContent);
+    const plainText = previewMaxWords && typeof renderContent === 'string'
+      ? truncateWordsAtSentence(renderContent, previewMaxWords)
+      : (typeof renderContent === 'string' ? renderContent : JSON.stringify(renderContent));
     html += `<div>${stripColoredSpans(markdownToHtml(plainText))}</div>\n`;
+  }
+  if (previewMaxWords) {
+    html += '<p style="margin-top:16px;font-size:12px;font-style:italic;color:#9ca3af;">Preview only — full version available on request.</p>\n';
   }
   html += '</div>\n';
 
