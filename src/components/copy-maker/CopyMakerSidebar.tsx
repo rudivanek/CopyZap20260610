@@ -37,6 +37,7 @@ import { getScoreLabel } from '../../utils/scoreColors';
 import ReactDOM from 'react-dom';
 import ProcessingModal from '../ProcessingModal';
 import SeoGenerationOptionsModal, { SeoGenerationOptions } from '../SeoGenerationOptionsModal';
+import HtmlPreviewExportModal from '../HtmlPreviewExportModal';
 import { generateSeoMetadata } from '../../services/api/seoGeneration';
 import { calculateGeoScore } from '../../services/api/geoScoring';
 import { generateContentScores } from '../../services/api/contentScoring';
@@ -790,6 +791,7 @@ const CardActions: React.FC<CardActionsProps> = ({
   // Modals
   const [showImproveModal, setShowImproveModal] = useState(false);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
+  const [showHtmlPreviewModal, setShowHtmlPreviewModal] = useState(false);
 
   const [copied, setCopied] = useState(false);
   const [copiedHtml, setCopiedHtml] = useState(false);
@@ -999,6 +1001,14 @@ const CardActions: React.FC<CardActionsProps> = ({
           isOpen={showSeoOptionsModal}
           onClose={() => setShowSeoOptionsModal(false)}
           onConfirm={handleSeoOptionsConfirm}
+        />,
+        document.body
+      )}
+      {showHtmlPreviewModal && ReactDOM.createPortal(
+        <HtmlPreviewExportModal
+          isOpen={showHtmlPreviewModal}
+          onClose={() => setShowHtmlPreviewModal(false)}
+          onConfirm={handleConfirmHtmlPreviewExport}
         />,
         document.body
       )}
@@ -1447,7 +1457,12 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
     }
   };
 
-  const handleExportToHtmlPreview = () => {
+  const handleOpenHtmlPreviewModal = () => {
+    setShowHtmlPreviewModal(true);
+  };
+
+  const handleConfirmHtmlPreviewExport = (percent: number) => {
+    setShowHtmlPreviewModal(false);
     try {
       exportAsFormattedHtml(
         formState,
@@ -1458,9 +1473,9 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         versionDeepAnalysis,
         comparisonDeepAnalysisMeta,
         loadingVersionIds,
-        200,
+        percent,
       );
-      toast.success('Content exported as HTML preview!');
+      toast.success(`Content exported as HTML preview (${percent}%)!`);
     } catch {
       toast.error('Failed to export content as HTML preview');
     }
@@ -2019,7 +2034,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                 </SidebarBtn>
               )}
               {hasContent && isAdmin && (
-                <SidebarBtn onClick={handleExportToHtmlPreview} title="Export as ~200-word HTML preview (admin only)">
+                <SidebarBtn onClick={handleOpenHtmlPreviewModal} title="Export as HTML preview with configurable word percentage (admin only)">
                   <FileCode size={10} />
                   Export HTML (Preview)
                 </SidebarBtn>
