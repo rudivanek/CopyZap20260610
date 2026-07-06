@@ -791,7 +791,6 @@ const CardActions: React.FC<CardActionsProps> = ({
   // Modals
   const [showImproveModal, setShowImproveModal] = useState(false);
   const [showVoiceModal, setShowVoiceModal] = useState(false);
-  const [showHtmlPreviewModal, setShowHtmlPreviewModal] = useState(false);
 
   const [copied, setCopied] = useState(false);
   const [copiedHtml, setCopiedHtml] = useState(false);
@@ -1001,14 +1000,6 @@ const CardActions: React.FC<CardActionsProps> = ({
           isOpen={showSeoOptionsModal}
           onClose={() => setShowSeoOptionsModal(false)}
           onConfirm={handleSeoOptionsConfirm}
-        />,
-        document.body
-      )}
-      {showHtmlPreviewModal && ReactDOM.createPortal(
-        <HtmlPreviewExportModal
-          isOpen={showHtmlPreviewModal}
-          onClose={() => setShowHtmlPreviewModal(false)}
-          onConfirm={handleConfirmHtmlPreviewExport}
         />,
         document.body
       )}
@@ -1524,6 +1515,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
   const [evalReportMarkdown, setEvalReportMarkdown] = useState<string | null>(null);
   const [evalReportFilename, setEvalReportFilename] = useState<string>('');
   const [showEvalPreview, setShowEvalPreview] = useState(false);
+  const [showHtmlPreviewModal, setShowHtmlPreviewModal] = useState(false);
 
   const [isGeneratingCompareReport, setIsGeneratingCompareReport] = useState(false);
   const [compareReportMarkdown, setCompareReportMarkdown] = useState<string | null>(null);
@@ -2290,6 +2282,14 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
           isOpen={isGeneratingEvalReport}
           message="Generating Evaluation Report…"
           onCancel={() => {}}
+        />,
+        document.body
+      )}
+      {showHtmlPreviewModal && ReactDOM.createPortal(
+        <HtmlPreviewExportModal
+          isOpen={showHtmlPreviewModal}
+          onClose={() => setShowHtmlPreviewModal(false)}
+          onConfirm={handleConfirmHtmlPreviewExport}
         />,
         document.body
       )}
