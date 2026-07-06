@@ -759,6 +759,19 @@ type ExportLangCode = keyof typeof EXPORT_I18N;
 const resolveExportLangCode = (language?: string): ExportLangCode =>
   (language || '').trim().toLowerCase().startsWith('span') ? 'es' : 'en';
 
+// Verification flags come from a scoring LLM call that is deliberately pinned to
+// English category labels (see comparativeScoring.ts) so the taxonomy stays
+// consistent regardless of copy language. This translates only the category
+// prefix for display in Spanish exports — the quoted phrase itself is already
+// in the copy's own language and is left untouched.
+const translateVerificationFlag = (flag: string, langCode: ExportLangCode): string => {
+  if (langCode !== 'es') return flag;
+  return flag
+    .replace(/^figurative language — review against brand voice:/i, 'lenguaje figurativo — revisar contra la voz de marca:')
+    .replace(/^unverified claim — verify before publishing:/i, 'afirmación no verificada — verificar antes de publicar:')
+    .replace(/^tone intensity — review against brand personality:/i, 'intensidad de tono — revisar contra la personalidad de marca:');
+};
+
 const getStructuredWordCount = (structured: StructuredCopyOutput): number => {
   let total = countWords(structured.headline);
   for (const section of structured.sections) {
@@ -3224,7 +3237,8 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
             htmlContent += `<p style="margin:0 0 4px 0;font-size:10px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.05em;">⚠️ ${t.verifyBeforePublishing}</p>\n`;
             htmlContent += '<ul style="margin:0;padding:0;list-style:none;">\n';
             row.verificationFlags.forEach((flag: string) => {
-              const ef = String(flag).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+              const translatedFlag = translateVerificationFlag(flag, exportLangCode);
+              const ef = String(translatedFlag).replace(/</g, '&lt;').replace(/>/g, '&gt;');
               htmlContent += `<li style="font-size:11px;color:#78350f;line-height:1.5;margin-bottom:2px;">• "${ef}" — ${t.sourceUnknown}</li>\n`;
             });
             htmlContent += '</ul>\n</div>\n';

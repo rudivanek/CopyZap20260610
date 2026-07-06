@@ -1,9 +1,24 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-06T05:00:00Z
+Last Updated: 2026-07-06T05:30:00Z
 
 ---
+
+## HTML Export — Spanish i18n: Verification Flag Category Translation (2026-07-06)
+
+**File modified:**
+- `src/utils/enhancedExports.ts`
+
+**Summary:** Added `translateVerificationFlag(flag, langCode)` — a display-only translator for the three verification flag category prefixes produced by the English-pinned scoring LLM. The quoted phrase inside each flag (which is already in the copy's own language) is left untouched; only the category label prefix is swapped for Spanish exports.
+
+**Category prefix mappings (en → es):**
+- `"figurative language — review against brand voice:"` → `"lenguaje figurativo — revisar contra la voz de marca:"`
+- `"unverified claim — verify before publishing:"` → `"afirmación no verificada — verificar antes de publicar:"`
+- `"tone intensity — review against brand personality:"` → `"intensidad de tono — revisar contra la personalidad de marca:"`
+
+The function is a no-op for `langCode !== 'es'`. Applied in the verification flags render loop in `exportAsFormattedHtml`, alongside the previously-translated `t.sourceUnknown` suffix.
+
 
 ## HTML Export — Spanish i18n Extended: Comparison & Rankings Section (2026-07-06)
 
