@@ -663,6 +663,25 @@ const EXPORT_I18N = {
     keywordsLabel: 'Keywords',
     settingLabel: 'Setting',
     valueLabel: 'Value',
+    contentsLabel: 'Contents',
+    comparisonRankingsLabel: 'Comparison &amp; Rankings',
+    winnerBanner: (label: string, score: number) => `Best performing version: ${label} &mdash; Score: ${score}/100`,
+    analysisLabel: 'Analysis',
+    verifyBeforePublishing: 'Verify before publishing',
+    sourceUnknown: 'source unknown',
+    editorialQuality: 'Editorial Quality',
+    conversionPotential: 'Conversion Potential',
+    wordsSlashLevel: 'Words / Level',
+    riskFactorsLabel: 'Risk Factors',
+    scoresRelativeNote: 'Scores are relative across versions compared in this session. Adding new versions may slightly adjust scores. Focus on the ranking order and percentage improvement vs. the original.',
+    bestPerformingVersion: (label: string) => `Best Performing Version &mdash; ${label}`,
+    applyAllSuggestions: (score: number) => `Apply all suggestions &rarr; estimated score: ${score}/100`,
+    whyThisVersionWon: 'Why This Version Won',
+    wantMoreVariations: 'Want more high-performing variations?',
+    generatedVersionsNote: (n: number) => `You've generated ${n} version${n !== 1 ? 's' : ''} &mdash; save 3&ndash;4 before choosing a winner.`,
+    jumpTo: 'Jump to:',
+    inputsNavLabel: 'Inputs',
+    rankingsNavLabel: 'Rankings',
   },
   es: {
     original: 'ORIGINAL',
@@ -713,6 +732,25 @@ const EXPORT_I18N = {
     keywordsLabel: 'Palabras Clave',
     settingLabel: 'Ajuste',
     valueLabel: 'Valor',
+    contentsLabel: 'Contenido',
+    comparisonRankingsLabel: 'Comparación y Clasificación',
+    winnerBanner: (label: string, score: number) => `Versión con mejor rendimiento: ${label} &mdash; Puntuación: ${score}/100`,
+    analysisLabel: 'Análisis',
+    verifyBeforePublishing: 'Verificar antes de publicar',
+    sourceUnknown: 'fuente desconocida',
+    editorialQuality: 'Calidad Editorial',
+    conversionPotential: 'Potencial de Conversión',
+    wordsSlashLevel: 'Palabras / Nivel',
+    riskFactorsLabel: 'Factores de Riesgo',
+    scoresRelativeNote: 'Las puntuaciones son relativas entre las versiones comparadas en esta sesión. Agregar nuevas versiones puede ajustar ligeramente las puntuaciones. Enfócate en el orden de clasificación y la mejora porcentual respecto al original.',
+    bestPerformingVersion: (label: string) => `Versión con Mejor Rendimiento &mdash; ${label}`,
+    applyAllSuggestions: (score: number) => `Aplica todas las sugerencias &rarr; puntuación estimada: ${score}/100`,
+    whyThisVersionWon: 'Por Qué Ganó Esta Versión',
+    wantMoreVariations: '¿Quieres más variaciones de alto rendimiento?',
+    generatedVersionsNote: (n: number) => `Generaste ${n} versión${n !== 1 ? 'es' : ''} &mdash; guarda 3&ndash;4 antes de elegir una ganadora.`,
+    jumpTo: 'Ir a:',
+    inputsNavLabel: 'Entradas',
+    rankingsNavLabel: 'Clasificación',
   },
 } as const;
 
@@ -2904,23 +2942,23 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
     // Winner announcement banner
     if (winnerRow) {
       const winnerCard = contentCards.find(c => c.id === winnerVersionId);
-      const winnerLabel = winnerCard?.sourceDisplayName || winnerRow.optionLabel || 'Winner';
+      const winnerLabel = winnerCard?.sourceDisplayName || winnerRow.optionLabel || t.winner;
       // Use the raw LLM score (winnerRow.score) — it's the primary ranking signal and matches
       // what the user sees in the rankings table. finalScore can be dragged lower by heuristics
       // that are unreliable for blended/structured content.
       const bannerScore = winnerRow.finalScore ?? (winnerRow as any).score;
-      htmlContent += `<div style="background:#fff7ed;border-left:4px solid #f97316;padding:14px 20px;border-radius:0 6px 6px 0;font-size:14px;font-weight:600;color:#9a3412;margin:0 0 40px 0;">&#9733;&nbsp; Best performing version: ${winnerLabel} &mdash; Score: ${bannerScore}/100</div>\n`;
+      htmlContent += `<div style="background:#fff7ed;border-left:4px solid #f97316;padding:14px 20px;border-radius:0 6px 6px 0;font-size:14px;font-weight:600;color:#9a3412;margin:0 0 40px 0;">&#9733;&nbsp; ${t.winnerBanner(winnerLabel, bannerScore)}</div>\n`;
     }
 
     // ── TABLE OF CONTENTS ────────────────────────────────────────────────────────
     htmlContent += '<nav id="toc" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:24px;margin-bottom:48px;">\n';
-    htmlContent += '<p class="label" style="margin-bottom:16px;">Contents</p>\n';
+    htmlContent += `<p class="label" style="margin-bottom:16px;">${t.contentsLabel}</p>\n`;
 
     // TOC row helper
     let tocIdx = 0;
     const renderTocRow = (id: string, name: string, score: number | null, isWin: boolean) => {
       const scoreStr = score !== null ? `${score}/100` : '';
-      const winTag = isWin ? ' &nbsp;<span style="color:#f97316;font-weight:700;">&#9733; Winner</span>' : '';
+      const winTag = isWin ? ` &nbsp;<span style="color:#f97316;font-weight:700;">&#9733; ${t.winner}</span>` : '';
       const rowColor = isWin ? '#f97316' : '#111827';
       const rowWeight = isWin ? '700' : '400';
       tocIdx++;
@@ -2939,7 +2977,7 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
       });
     }
 
-    htmlContent += renderTocRow('input-summary', 'Input Summary', null, false);
+    htmlContent += renderTocRow('input-summary', t.inputSummaryLabel, null, false);
     contentCards.forEach(card => {
       // Prefer comparison score (authoritative), fall back to card.score.overall
       const score = comparisonScoreMap.get(card.id) ?? card.score?.overall ?? null;
@@ -2947,7 +2985,7 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
       htmlContent += renderTocRow(`output-${card.id}`, stripEmoji(card.sourceDisplayName || card.type), score, isWin);
     });
     if (comparisonResult) {
-      htmlContent += renderTocRow('comparison-rankings', 'Comparison &amp; Rankings', null, false);
+      htmlContent += renderTocRow('comparison-rankings', t.comparisonRankingsLabel, null, false);
     }
     htmlContent += '</nav>\n';
 
@@ -3090,8 +3128,8 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
 
     if (comparisonResult || comparisonCards.length > 0) {
       htmlContent += '<section id="comparison-rankings" style="margin-top: 80px;">\n';
-      htmlContent += '<p class="label" style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin: 0 0 8px 0;">Analysis</p>\n';
-      htmlContent += '<h2 style="font-size: 26px; font-weight: 800; color: #111827; margin: 0 0 24px 0; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb;">Comparison &amp; Rankings</h2>\n';
+      htmlContent += `<p class="label" style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin: 0 0 8px 0;">${t.analysisLabel}</p>\n`;
+      htmlContent += `<h2 style="font-size: 26px; font-weight: 800; color: #111827; margin: 0 0 24px 0; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb;">${t.comparisonRankingsLabel}</h2>\n`;
 
       if (comparisonResult && comparisonResult.rows && comparisonResult.rows.length > 0) {
         // Find the original copy score as baseline for delta calculations
@@ -3171,7 +3209,7 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
           htmlContent += '<div style="display:flex;align-items:flex-start;gap:12px;">\n';
           htmlContent += `<span style="font-size:12px;font-weight:700;color:#9ca3af;min-width:20px;padding-top:2px;">${idx + 1}</span>\n`;
           htmlContent += '<div>\n';
-          htmlContent += `<div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:2px;">${versionLabel}${isWinner ? ' <span style="font-size:11px;font-weight:600;color:#f97316;">&#9733; Winner</span>' : ''}</div>\n`;
+          htmlContent += `<div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:2px;">${versionLabel}${isWinner ? ` <span style="font-size:11px;font-weight:600;color:#f97316;">&#9733; ${t.winner}</span>` : ''}</div>\n`;
           if (dateStr) htmlContent += `<div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">${dateStr}</div>\n`;
           htmlContent += '</div>\n</div>\n';
           // Score + delta
@@ -3183,11 +3221,11 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
           // ── ITEM 7: Verification flags at top ──
           if (row.verificationFlags && row.verificationFlags.length > 0) {
             htmlContent += '<div style="margin-top:10px;padding:8px 12px;background:#fef3c7;border-left:3px solid #fbbf24;border-radius:4px;">\n';
-            htmlContent += '<p style="margin:0 0 4px 0;font-size:10px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.05em;">⚠️ Verify before publishing</p>\n';
+            htmlContent += `<p style="margin:0 0 4px 0;font-size:10px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.05em;">⚠️ ${t.verifyBeforePublishing}</p>\n`;
             htmlContent += '<ul style="margin:0;padding:0;list-style:none;">\n';
             row.verificationFlags.forEach((flag: string) => {
               const ef = String(flag).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-              htmlContent += `<li style="font-size:11px;color:#78350f;line-height:1.5;margin-bottom:2px;">• "${ef}" — source unknown</li>\n`;
+              htmlContent += `<li style="font-size:11px;color:#78350f;line-height:1.5;margin-bottom:2px;">• "${ef}" — ${t.sourceUnknown}</li>\n`;
             });
             htmlContent += '</ul>\n</div>\n';
           }
@@ -3197,19 +3235,19 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
           const eqColor = htmlEq >= 80 ? '#15803d' : htmlEq >= 60 ? '#92400e' : '#dc2626';
           const cpColor = htmlCp >= 80 ? '#1e40af' : htmlCp >= 60 ? '#92400e' : '#dc2626';
           htmlContent += `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:6px 12px;min-width:140px;">\n`;
-          htmlContent += `<div style="font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">Editorial Quality</div>\n`;
+          htmlContent += `<div style="font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">${t.editorialQuality}</div>\n`;
           htmlContent += `<div style="font-size:18px;font-weight:800;color:${eqColor};">${htmlEq}<span style="font-size:10px;font-weight:400;color:#9ca3af;">/100</span></div>\n`;
           htmlContent += '</div>\n';
           htmlContent += `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 12px;min-width:160px;">\n`;
-          htmlContent += `<div style="font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">Conversion Potential</div>\n`;
+          htmlContent += `<div style="font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">${t.conversionPotential}</div>\n`;
           htmlContent += `<div style="font-size:18px;font-weight:800;color:${cpColor};">${htmlCp}<span style="font-size:10px;font-weight:400;color:#9ca3af;">/100</span></div>\n`;
           htmlContent += '</div>\n';
           // ── ITEM 8: Word count + reading level ──
           if (htmlWcrl) {
             const rlColor = htmlWcrl.readingLevel === 'Easy' ? '#15803d' : htmlWcrl.readingLevel === 'Medium' ? '#92400e' : '#374151';
             htmlContent += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:6px 12px;">\n`;
-            htmlContent += `<div style="font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">Words / Level</div>\n`;
-            htmlContent += `<div style="font-size:13px;font-weight:700;color:${rlColor};">${htmlWcrl.wordCount} <span style="font-weight:400;">words</span> · <span style="color:${rlColor};">${htmlWcrl.readingLevel}</span></div>\n`;
+            htmlContent += `<div style="font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">${t.wordsSlashLevel}</div>\n`;
+            htmlContent += `<div style="font-size:13px;font-weight:700;color:${rlColor};">${htmlWcrl.wordCount} <span style="font-weight:400;">${t.words}</span> · <span style="color:${rlColor};">${htmlWcrl.readingLevel}</span></div>\n`;
             htmlContent += '</div>\n';
           }
           htmlContent += '</div>\n';
@@ -3217,7 +3255,7 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
           // ── ITEM 4: Risk Factors ──
           if (htmlRisks.length > 0) {
             htmlContent += '<div style="margin-top:10px;padding:8px 12px;background:#fef2f2;border-left:3px solid #fca5a5;border-radius:4px;">\n';
-            htmlContent += '<p style="margin:0 0 4px 0;font-size:10px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:0.05em;">Risk Factors</p>\n';
+            htmlContent += `<p style="margin:0 0 4px 0;font-size:10px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:0.05em;">${t.riskFactorsLabel}</p>\n`;
             htmlContent += '<ul style="margin:0;padding:0;list-style:none;">\n';
             htmlRisks.forEach(r => {
               const er = String(r).replace(/</g, '&lt;').replace(/>/g, '&gt;');
@@ -3231,7 +3269,7 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
 
         htmlContent += '</div>\n';
         htmlContent += '<p style="font-size:12px;color:#9ca3af;margin-top:12px;font-style:italic;">\n';
-        htmlContent += '  &#9432; Scores are relative across versions compared in this session. Adding new versions may slightly adjust scores. Focus on the ranking order and percentage improvement vs. the original.\n';
+        htmlContent += `  &#9432; ${t.scoresRelativeNote}\n`;
         htmlContent += '</p>\n';
 
         // Deep analysis for the winner only
@@ -3241,11 +3279,11 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
         if (versionDeepAnalysis && winnerCard) {
           const winnerAnalysis = versionDeepAnalysis[winnerCard.id];
           if (winnerAnalysis) {
-            const winnerLabel = stripEmoji(winnerRow?.optionLabel || winnerCard.sourceDisplayName || 'Winner');
-            htmlContent += `<h3 style="font-size: 18px; font-weight: 700; color: #111827; margin: 40px 0 16px 0;">Best Performing Version — ${winnerLabel}</h3>\n`;
+            const winnerLabel = stripEmoji(winnerRow?.optionLabel || winnerCard.sourceDisplayName || t.winner);
+            htmlContent += `<h3 style="font-size: 18px; font-weight: 700; color: #111827; margin: 40px 0 16px 0;">${t.bestPerformingVersion(winnerLabel)}</h3>\n`;
 
             if (winnerAnalysis.keyStrengths && winnerAnalysis.keyStrengths.length > 0) {
-              htmlContent += '<p style="font-size: 13px; font-weight: 600; color: #374151; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.06em;">Key Strengths</p>\n';
+              htmlContent += `<p style="font-size: 13px; font-weight: 600; color: #374151; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.06em;">${t.keyStrengthsLabel}</p>\n`;
               htmlContent += '<ul style="margin: 0 0 24px 0; padding-left: 20px; color: #374151; font-size: 15px; line-height: 1.7;">\n';
               winnerAnalysis.keyStrengths.forEach((s: string) => {
                 htmlContent += `<li style="margin-bottom: 6px;">${s}</li>\n`;
@@ -3258,7 +3296,7 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
                 .filter((item: any) => typeof item === 'object' && item.points_delta > 0)
                 .reduce((sum: number, item: any) => sum + item.points_delta, 0);
 
-              htmlContent += '<p style="font-size: 13px; font-weight: 600; color: #374151; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.06em;">Suggested Improvements</p>\n';
+              htmlContent += `<p style="font-size: 13px; font-weight: 600; color: #374151; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.06em;">${t.suggestedImprovementsLabel}</p>\n`;
               htmlContent += '<ul style="margin: 0 0 8px 0; padding-left: 0; list-style: none;">\n';
               winnerAnalysis.suggestedImprovements.forEach((item: any) => {
                 const isObj = typeof item === 'object';
@@ -3274,7 +3312,7 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
               htmlContent += '</ul>\n';
               if (winnerDeltaTotal > 0 && winnerRow) {
                 const winnerProjScore = Math.min(92, winnerRow.finalScore + winnerDeltaTotal);
-                htmlContent += `<p style="font-size:13px;color:#6b7280;margin-top:8px;margin-bottom:24px;">Apply all suggestions &rarr; estimated score: ${winnerProjScore}/100</p>\n`;
+                htmlContent += `<p style="font-size:13px;color:#6b7280;margin-top:8px;margin-bottom:24px;">${t.applyAllSuggestions(winnerProjScore)}</p>\n`;
               } else {
                 htmlContent += '<div style="margin-bottom:24px;"></div>\n';
               }
@@ -3288,7 +3326,7 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
 
         // Fallback: if we have a comparisonDeepAnalysisMeta winner explanation
         if (comparisonDeepAnalysisMeta?.winnerExplanation && !versionDeepAnalysis) {
-          htmlContent += '<h3 style="font-size: 18px; font-weight: 700; color: #111827; margin: 32px 0 16px 0;">Why This Version Won</h3>\n';
+          htmlContent += `<h3 style="font-size: 18px; font-weight: 700; color: #111827; margin: 32px 0 16px 0;">${t.whyThisVersionWon}</h3>\n`;
           htmlContent += `<p style="font-size: 15px; color: #374151; line-height: 1.7; margin: 0 0 24px 0;">${comparisonDeepAnalysisMeta.winnerExplanation}</p>\n`;
         }
 
@@ -3313,8 +3351,8 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
     const generatedCount = contentCards.length;
     if (generatedCount > 0) {
       htmlContent += '<div style="text-align: center; padding: 32px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; margin-top: 56px;">\n';
-      htmlContent += '<p style="margin: 0 0 6px 0; font-size: 16px; font-weight: 700; color: #111827;">Want more high-performing variations?</p>\n';
-      htmlContent += `<p style="margin: 0 0 20px 0; font-size: 14px; color: #6b7280;">You've generated ${generatedCount} version${generatedCount !== 1 ? 's' : ''} — save 3–4 before choosing a winner.</p>\n`;
+      htmlContent += `<p style="margin: 0 0 6px 0; font-size: 16px; font-weight: 700; color: #111827;">${t.wantMoreVariations}</p>\n`;
+      htmlContent += `<p style="margin: 0 0 20px 0; font-size: 14px; color: #6b7280;">${t.generatedVersionsNote(generatedCount)}</p>\n`;
       htmlContent += `<a href="#top" style="display: inline-block; padding: 10px 20px; background: #111827; color: #ffffff; border-radius: 6px; font-size: 14px; font-weight: 600; text-decoration: none;">&#8593; ${t.backToTop}</a>\n`;
       htmlContent += '</div>\n\n';
     }
@@ -3326,8 +3364,8 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
 
     // FIXED BREADCRUMB NAV (no-print)
     htmlContent += '<nav class="breadcrumb-nav no-print">\n';
-    htmlContent += '<span class="bc-label">Jump to:</span>\n';
-    htmlContent += '<a href="#input-summary" style="max-width:90px;">Inputs</a>\n';
+    htmlContent += `<span class="bc-label">${t.jumpTo}</span>\n`;
+    htmlContent += `<a href="#input-summary" style="max-width:90px;">${t.inputsNavLabel}</a>\n`;
     contentCards.forEach((card, idx) => {
       const label = stripEmoji(card.sourceDisplayName || card.type || `v${idx + 1}`);
       htmlContent += '<span class="bc-sep">/</span>\n';
@@ -3335,7 +3373,7 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
     });
     if (comparisonResult) {
       htmlContent += '<span class="bc-sep">/</span>\n';
-      htmlContent += '<a href="#comparison-rankings" style="max-width:100px;">Rankings</a>\n';
+      htmlContent += `<a href="#comparison-rankings" style="max-width:100px;">${t.rankingsNavLabel}</a>\n`;
     }
     htmlContent += '</nav>\n';
 

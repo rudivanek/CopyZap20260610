@@ -1,9 +1,37 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-06T04:00:00Z
+Last Updated: 2026-07-06T05:00:00Z
 
 ---
+
+## HTML Export — Spanish i18n Extended: Comparison & Rankings Section (2026-07-06)
+
+**File modified:**
+- `src/utils/enhancedExports.ts`
+
+**Summary:** Extended the `EXPORT_I18N` dictionary and translated all remaining hardcoded English strings in `exportAsFormattedHtml` — covering the winner announcement banner, table of contents, comparison section headings, row-level badges, dual-score labels, risk/verification labels, winner deep-analysis headings, bottom CTA block, and breadcrumb navigation.
+
+**New `en` keys added** (after `valueLabel`):
+`contentsLabel`, `comparisonRankingsLabel`, `winnerBanner(label, score)`, `analysisLabel`, `verifyBeforePublishing`, `sourceUnknown`, `editorialQuality`, `conversionPotential`, `wordsSlashLevel`, `riskFactorsLabel`, `scoresRelativeNote`, `bestPerformingVersion(label)`, `applyAllSuggestions(score)`, `whyThisVersionWon`, `wantMoreVariations`, `generatedVersionsNote(n)`, `jumpTo`, `inputsNavLabel`, `rankingsNavLabel`.
+
+**New `es` keys added** (matching set in Spanish): "Contenido", "Comparación y Clasificación", `winnerBanner` → "Versión con mejor rendimiento: …", "Análisis", "Verificar antes de publicar", "fuente desconocida", "Calidad Editorial", "Potencial de Conversión", "Palabras / Nivel", "Factores de Riesgo", `scoresRelativeNote` (full Spanish sentence), `bestPerformingVersion` → "Versión con Mejor Rendimiento — …", `applyAllSuggestions` → "Aplica todas las sugerencias…", "Por Qué Ganó Esta Versión", "¿Quieres más variaciones de alto rendimiento?", `generatedVersionsNote` (Spanish pluralisation), "Ir a:", "Entradas", "Clasificación".
+
+**Replacements applied (13 operations):**
+1. `contentsLabel` → TOC "Contents" heading
+2. `t.winnerBanner(winnerLabel, bannerScore)` → winner announcement banner; `t.winner` fallback for unknown winner name
+3. `t.contentsLabel` → TOC `<p class="label">` heading; `t.winner` → TOC winner span; `t.inputSummaryLabel` + `t.comparisonRankingsLabel` → TOC row labels
+4. `t.analysisLabel` + `t.comparisonRankingsLabel` → section eyebrow + `<h2>` heading
+5. `t.winner` → row-level winner badge span
+6. `t.verifyBeforePublishing` + `t.sourceUnknown` → verification flags block
+7. `t.editorialQuality`, `t.conversionPotential`, `t.wordsSlashLevel`, `t.words` → dual-score + reading-level cards
+8. `t.riskFactorsLabel` → risk factors block header
+9. `t.scoresRelativeNote` → italic footnote below rankings table
+10. `t.bestPerformingVersion(winnerLabel)`, `t.keyStrengthsLabel`, `t.suggestedImprovementsLabel`, `t.applyAllSuggestions(winnerProjScore)` → winner deep-analysis block
+11. `t.whyThisVersionWon` → fallback "Why This Version Won" heading
+12. `t.wantMoreVariations` + `t.generatedVersionsNote(generatedCount)` → bottom CTA block
+13. `t.jumpTo`, `t.inputsNavLabel`, `t.rankingsNavLabel` → breadcrumb nav
+
 
 ## HTML Export — Spanish i18n Extended: Analysis Labels + Input Summary (2026-07-06)
 
