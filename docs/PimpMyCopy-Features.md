@@ -1,11 +1,38 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-06T03:00:00Z
+Last Updated: 2026-07-06T04:00:00Z
 
 ---
 
-## HTML Export — Spanish i18n (2026-07-06)
+## HTML Export — Spanish i18n Extended: Analysis Labels + Input Summary (2026-07-06)
+
+**Files modified:**
+- `src/utils/contentAnalysisForExport.ts`
+- `src/utils/enhancedExports.ts`
+
+**Summary:** Extended the Spanish i18n system introduced in the prior session to cover on-the-fly content analysis labels (Key Strengths / Suggested Improvements) and the Input Summary configuration table. The content analysis module was refactored into a bilingual dispatcher, and new translation keys were added to `EXPORT_I18N` for all remaining hardcoded English strings.
+
+**`contentAnalysisForExport.ts` refactor:**
+- Added `AnalysisLangCode = 'en' | 'es'` type (exported).
+- `generateExportAnalysis(content, langCode = 'en')` is now a dispatcher that calls either `generateExportAnalysisEn` or `generateExportAnalysisEs` based on `langCode`.
+- `generateExportAnalysisEn` — extracted from the original implementation; logic and English output strings are unchanged.
+- `generateExportAnalysisEs` — new function with Spanish keyword detection (`ayuda`, `beneficio`, `solución`, `servicio`, `experiencia`, `experto`, `años`, `confianza`, `comunidad`, `cliente`, `resultado`, etc.) and fully Spanish output strings for both `keyStrengths` and `suggestedImprovements`. Reuses the same `calculateMultiScoreDisplay` scoring engine (English-keyword-based) for numeric thresholds.
+
+**`enhancedExports.ts` changes:**
+- New keys added to `en` entry: `keyStrengthsLabel`, `suggestedImprovementsLabel`, `potentialPts(n)`, `inputSummaryLabel`, `businessDescription`, `originalCopyLabel`, `toneLabel`, `targetAudienceLabel`, `keyMessageLabel`, `callToActionLabel`, `desiredEmotionLabel`, `brandValuesLabel`, `keywordsLabel`, `settingLabel`, `valueLabel`.
+- Same keys added to `es` entry with Spanish translations: "PUNTOS FUERTES", "MEJORAS SUGERIDAS", `potentialPts` as " — Potencial +N pts", "RESUMEN DE ENTRADA", "Descripción del Negocio", "Copy Original", "Tono", "Público Objetivo", "Mensaje Clave", "Llamada a la Acción", "Emoción Deseada", "Valores de Marca", "Palabras Clave", "Ajuste", "Valor".
+- `generateExportAnalysis` call in `generateFullHtmlExportForCard` (per-card section) now passes `exportLangCode || 'en'` so Spanish content produces Spanish analysis labels.
+- KEY STRENGTHS header (per-card section): replaced with `t.keyStrengthsLabel`.
+- SUGGESTED IMPROVEMENTS header + "— Potential +N pts" span: replaced with `t.suggestedImprovementsLabel` + `t.potentialPts(totalDeltaPoints)`.
+- "Key Strengths" / "Suggested Improvements" labels in the 2-column grid: replaced with `t.keyStrengthsLabel` / `t.suggestedImprovementsLabel`.
+- INPUT SUMMARY header in `exportAsFormattedHtml`: replaced with `t.inputSummaryLabel`.
+- Source label ("Business Description" / "Original Copy") in `exportAsFormattedHtml`: replaced with `t.businessDescription` / `t.originalCopyLabel`.
+- `configRows` label strings ("Language", "Tone", "Word Count", "Target Audience", "Key Message", "Call to Action", "Desired Emotion", "Brand Values", "Keywords"): all replaced with `t.*` equivalents.
+- `Setting` / `Value` table column headers: replaced with `t.settingLabel` / `t.valueLabel`.
+
+
+
 
 **File modified:**
 - `src/utils/enhancedExports.ts`
