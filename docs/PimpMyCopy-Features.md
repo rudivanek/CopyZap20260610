@@ -1,9 +1,25 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-06T02:00:00Z
+Last Updated: 2026-07-06T03:00:00Z
 
 ---
+
+## HTML Export — Spanish i18n (2026-07-06)
+
+**File modified:**
+- `src/utils/enhancedExports.ts`
+
+**Summary:** The HTML export now detects the session language and renders all user-facing copy in Spanish when the language is set to "Spanish", falling back to English for all other languages.
+
+**Implementation:**
+- `EXPORT_I18N` dictionary added at module level with `en` and `es` keys. Each entry covers: variant type labels (GENERATED/GENERADO, ORIGINAL, VOICE ADAPTATION/ADAPTACIÓN DE VOZ, GEO PACKAGE/PAQUETE GEO, BLENDED/MEZCLADO, MODIFIED/MODIFICADO, BOOSTED/MEJORADO), Winner badge, preview banner function, preview note function, score section headings (QUALITY SCORE, WHY IT'S IMPROVED, SCORE BREAKDOWN, OPTIMIZATION SUGGESTIONS), score dimension labels (Clarity, Persuasiveness, Tone Match, Engagement, Word Count, Reading Level, Word Count vs Target), match quality labels (Excellent/Good/Acceptable/Poor), document header copy (report label, Generated/Language metadata), footer, and "Back to top".
+- `ExportLangCode` type derived from `keyof typeof EXPORT_I18N`.
+- `resolveExportLangCode(language?)` helper — returns `'es'` if the language string starts with "span" (case-insensitive), otherwise `'en'`.
+- `generateFullHtmlExportForCard` gains an optional `exportLangCode?: 'en' | 'es'` parameter. On entry, `const t = EXPORT_I18N[exportLangCode || 'en']` is assigned and all previously hardcoded strings are replaced with `t.*` references.
+- `exportAsFormattedHtml` computes `exportLangCode` and `t` immediately after deriving `lang`, then passes `exportLangCode` to every `generateFullHtmlExportForCard` call and uses `t.*` for the banner, document header, footer, and "Back to top" link.
+
+
 
 ## HTML Preview Export — Percent-Based Word Limit with Modal (2026-07-06)
 
