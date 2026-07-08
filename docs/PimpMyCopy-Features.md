@@ -1,7 +1,36 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-08T00:00:00Z
+Last Updated: 2026-07-08T12:00:00Z
+
+---
+
+## Target Market / Region Field — Visible Input in Copy Form (2026-07-08)
+
+**Feature:** Added a visible "Target market / region" text input to the main copy form (Section 2 — Audience & Targeting). This field binds to the existing `formState.geoRegions` key, which was already wired into the copy generation prompt builder but had no visible UI in the form.
+
+**Placement:** Inserted immediately after the Target Audience textarea, before the Reader's Stage in Funnel selector. Appears in all modes where `geoRegions` is visible.
+
+**Field visibility by mode:**
+- Quick Mode: visible (added to `quickModeFields` in `fieldVisibility.ts`)
+- Standard Mode: visible (already present in `standardModeFields`)
+- Advanced Mode: visible (inherits from standard)
+
+**UI details:**
+- `<input type="text">` with `id="geoRegions"`, `name="geoRegions"`
+- Placeholder: `e.g. México, LATAM, Barcelona`
+- Label: `Target market / region` (same gray tone as other optional field labels)
+- Tooltip: explains that the field controls locally relevant phrasing and, when GEO optimization is enabled, targets AI-assistant visibility for those regions
+- Template indicator displayed when field was pre-filled by a template
+- Styled with `getInputClassName` (consistent with other text inputs in the form)
+
+**Section badge counter:** `geoRegions` added to `section2Fields` array so filled values increment the Audience & Targeting section badge count.
+
+**Files changed:**
+- `src/utils/fieldVisibility.ts` — added `'geoRegions'` to `quickModeFields`; removed duplicate from `standardModeFields`
+- `src/components/SharedInputs.tsx` — inserted new field JSX block; added `'geoRegions'` to `section2Fields`
+
+**No prompt-builder changes:** `copyGeneration.ts` already consumes `geoRegions`; no logic changes were made there.
 
 ---
 

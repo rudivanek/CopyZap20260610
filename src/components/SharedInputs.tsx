@@ -233,7 +233,7 @@ const SharedInputs: React.FC<SharedInputsProps> = ({
   };
 
   // Define section fields for visibility checks
-  const section2Fields = ['industryNiche', 'targetAudience', 'readerFunnelStage', 'competitorUrls', 'targetAudiencePainPoints', 'competitorCopyText'];
+  const section2Fields = ['industryNiche', 'targetAudience', 'geoRegions', 'readerFunnelStage', 'competitorUrls', 'targetAudiencePainPoints', 'competitorCopyText'];
   const section3Fields = ['language', 'tone', 'wordCount', 'customWordCount', 'toneLevel', 'preferredWritingStyle', 'languageStyleConstraints', 'outputStructure', 'includeSectionTitles'];
   const section4Fields = ['keyMessage', 'desiredEmotion', 'callToAction', 'brandValues', 'keywords', 'context', 'specialInstructions'];
 
@@ -327,6 +327,33 @@ const SharedInputs: React.FC<SharedInputsProps> = ({
             onChange={targetAudienceField.handleChange}
             onBlur={targetAudienceField.handleBlur}
           ></textarea>
+        </div>
+        )}
+
+        {/* Target Market / Region */}
+        {isFieldVisible('geoRegions', mode) && (
+        <div className="mb-6">
+          <div className="flex items-center mb-1">
+            <label htmlFor="geoRegions" className="block text-sm font-normal text-gray-500 dark:text-gray-400">
+              Target market / region
+            </label>
+            <Tooltip content="Optional. Name the countries, regions, or markets this copy should speak to (e.g. México, LATAM, Querétaro). The copy will use locally relevant phrasing and examples. When GEO optimization is enabled, this also targets AI-assistant visibility for those regions.">
+              <button type="button" className="ml-2 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300" tabIndex={-1}>
+                <InfoIcon className="w-4 h-4" />
+              </button>
+            </Tooltip>
+            <TemplateIndicator show={formData.templatePrefilledFields?.includes('geoRegions') || false} />
+          </div>
+          <input
+            type="text"
+            id="geoRegions"
+            name="geoRegions"
+            className={getInputClassName('geoRegions', formData.fieldsWithPlaceholders, undefined, geoRegionsField.inputValue)}
+            placeholder="e.g. México, LATAM, Barcelona"
+            value={geoRegionsField.inputValue}
+            onChange={geoRegionsField.handleChange}
+            onBlur={geoRegionsField.handleBlur}
+          />
         </div>
         )}
 

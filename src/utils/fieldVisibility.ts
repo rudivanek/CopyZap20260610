@@ -16,6 +16,7 @@ export const isFieldVisible = (fieldName: string, mode: FormMode): boolean => {
     'customWordCount',
     'keyMessage',
     'callToAction',
+    'geoRegions',
     'specialInstructions'
   ];
 
@@ -43,7 +44,6 @@ export const isFieldVisible = (fieldName: string, mode: FormMode): boolean => {
     'forceElaborationsExamples',
     'enhanceForGEO',
     'addTldrSummary',
-    'geoRegions',
     'numUrlSlugs',
     'numMetaDescriptions',
     'numH1Variants',
