@@ -1,7 +1,24 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-08T12:00:00Z
+Last Updated: 2026-07-08T13:00:00Z
+
+---
+
+## Target Market / Region — Export Input Summary (2026-07-08)
+
+**Feature:** When `formState.geoRegions` is set, it now appears in the input-summary tables of both the HTML and Markdown exports, positioned after "Target Audience" and before "Key Message."
+
+**HTML export (`exportAsFormattedHtml`):**
+- English label dictionary: `targetRegionLabel: 'Target market / region'`
+- Spanish label dictionary: `targetRegionLabel: 'Mercado / Región'`
+- `configRows` array: `if (formState.geoRegions) configRows.push([t.targetRegionLabel, formState.geoRegions]);`
+
+**Markdown export (`exportAsMarkdown`):**
+- Row inserted: `` `| Target market / region | ${formState.geoRegions} |\n` ``
+- Only rendered when `formState.geoRegions` is non-empty (consistent with all other optional rows)
+
+**Files changed:** `src/utils/enhancedExports.ts` (4 additive edits — no existing rows modified)
 
 ---
 

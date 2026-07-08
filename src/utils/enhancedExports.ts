@@ -656,6 +656,7 @@ const EXPORT_I18N = {
     originalCopyLabel: 'Original Copy',
     toneLabel: 'Tone',
     targetAudienceLabel: 'Target Audience',
+    targetRegionLabel: 'Target market / region',
     keyMessageLabel: 'Key Message',
     callToActionLabel: 'Call to Action',
     desiredEmotionLabel: 'Desired Emotion',
@@ -725,6 +726,7 @@ const EXPORT_I18N = {
     originalCopyLabel: 'Copy Original',
     toneLabel: 'Tono',
     targetAudienceLabel: 'Público Objetivo',
+    targetRegionLabel: 'Mercado / Región',
     keyMessageLabel: 'Mensaje Clave',
     callToActionLabel: 'Llamada a la Acción',
     desiredEmotionLabel: 'Emoción Deseada',
@@ -2176,6 +2178,9 @@ export const formatAsEnhancedMarkdown = (
   if (formState.targetAudience) {
     markdown += `| Target Audience | ${formState.targetAudience} |\n`;
   }
+  if (formState.geoRegions) {
+    markdown += `| Target market / region | ${formState.geoRegions} |\n`;
+  }
   if (formState.keyMessage) {
     markdown += `| Key Message | ${formState.keyMessage} |\n`;
   }
@@ -3023,6 +3028,7 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
       [t.wordCount, `${formState.wordCount || '—'}${formState.wordCount === 'Custom' ? ` (${formState.customWordCount})` : ''}`],
     ];
     if (formState.targetAudience) configRows.push([t.targetAudienceLabel, formState.targetAudience]);
+    if (formState.geoRegions) configRows.push([t.targetRegionLabel, formState.geoRegions]);
     if (formState.keyMessage) configRows.push([t.keyMessageLabel, formState.keyMessage]);
     if (formState.callToAction) configRows.push([t.callToActionLabel, formState.callToAction]);
     if (formState.desiredEmotion) configRows.push([t.desiredEmotionLabel, formState.desiredEmotion]);
