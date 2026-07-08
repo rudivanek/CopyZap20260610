@@ -196,7 +196,6 @@ const CreditsAndBilling: React.FC = () => {
       <ul>
         <li><Link to="/help/dashboard-and-history" className="text-blue-600 dark:text-blue-400 hover:underline">View Dashboard & History</Link> to track your usage patterns</li>
         <li><Link to="/help/getting-started" className="text-blue-600 dark:text-blue-400 hover:underline">Getting Started</Link> to learn efficient generation workflows</li>
-        <li><Link to="/help/workflow-builder" className="text-blue-600 dark:text-blue-400 hover:underline">Workflow Builder</Link> to understand workflow credit costs</li>
         <li><Link to="/help/troubleshooting" className="text-blue-600 dark:text-blue-400 hover:underline">Troubleshooting</Link> if you encounter credit or billing issues</li>
       </ul>
 

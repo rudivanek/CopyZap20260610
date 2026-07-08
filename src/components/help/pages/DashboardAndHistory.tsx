@@ -18,7 +18,7 @@ const DashboardAndHistory: React.FC = () => {
       <ol>
         <li>Look for the navigation bar at the bottom of the screen</li>
         <li>Click the <strong>Dashboard</strong> link (icon: folder or chart)</li>
-        <li>The Dashboard opens with three main tabs: <strong>Usage History</strong>, <strong>Saved Outputs</strong>, and <strong>Manage Workflows</strong></li>
+        <li>The Dashboard opens with two main tabs: <strong>Usage History</strong> and <strong>Saved Outputs</strong></li>
       </ol>
 
       <h2>Dashboard Tabs Overview</h2>
@@ -34,10 +34,6 @@ const DashboardAndHistory: React.FC = () => {
           <p className="text-gray-700 dark:text-gray-300">Access all outputs you've explicitly saved from Copy Maker. Search, filter, and load past work back into the form.</p>
         </div>
 
-        <div className="border-l-4 border-purple-600 pl-4">
-          <h3 className="text-xl font-bold mb-2">Tab 3: Manage Workflows</h3>
-          <p className="text-gray-700 dark:text-gray-300">View, edit, duplicate, and delete your saved workflows. (See <Link to="/help/workflow-builder" className="text-blue-600 dark:text-blue-400 hover:underline">Workflow Builder</Link> for details)</p>
-        </div>
       </div>
 
       <h2>Usage History Tab: Understanding Your History</h2>
@@ -262,7 +258,6 @@ const DashboardAndHistory: React.FC = () => {
         <li><Link to="/help/credits-and-billing" className="text-blue-600 dark:text-blue-400 hover:underline">Credits & Billing</Link> to understand your credit balance and consumption history</li>
         <li><Link to="/help/setup-and-inputs" className="text-blue-600 dark:text-blue-400 hover:underline">Setup & Inputs</Link> to learn about saving templates (different from saving outputs)</li>
         <li><Link to="/help/export-management" className="text-blue-600 dark:text-blue-400 hover:underline">Export & Save</Link> for export format options</li>
-        <li><Link to="/help/workflow-builder" className="text-blue-600 dark:text-blue-400 hover:underline">Workflow Builder</Link> for managing workflows via Dashboard</li>
       </ul>
 
       <hr className="my-8" />

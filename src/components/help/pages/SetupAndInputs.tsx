@@ -363,7 +363,6 @@ const SetupAndInputs: React.FC = () => {
         <li><Link to="/help/core-workflows" className="text-blue-600 dark:text-blue-400 hover:underline">Core Workflows</Link> — see how these inputs combine in real generation workflows</li>
         <li><Link to="/help/how-scoring-works" className="text-blue-600 dark:text-blue-400 hover:underline">Output, Scoring &amp; Comparison</Link> — understand what happens after you generate</li>
         <li><Link to="/help/voice-styles-and-blending" className="text-blue-600 dark:text-blue-400 hover:underline">Voice Styles &amp; Blending</Link> — apply persona-based transformations to output</li>
-        <li><Link to="/help/workflow-builder" className="text-blue-600 dark:text-blue-400 hover:underline">Workflow Builder</Link> — automate multi-step processes</li>
       </ul>
 
       <hr className="my-8" />

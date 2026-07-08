@@ -1,7 +1,33 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-06T07:00:00Z
+Last Updated: 2026-07-08T00:00:00Z
+
+---
+
+## Workflow Builder Feature Removal (2026-07-08)
+
+**Files deleted:**
+- `src/components/workflow/WorkflowBuilder.tsx`
+- `src/components/workflow/ManageWorkflows.tsx`
+- `src/components/workflow/WorkflowPermissionsModal.tsx`
+- `src/components/ui/WorkflowSelector.tsx`
+- `src/services/workflowService.ts`
+- `src/services/workflowExecutionEngine.ts`
+- `src/components/help/pages/WorkflowBuilder.tsx`
+
+**Files modified:**
+- `src/App.tsx` — removed `ManageWorkflows` lazy import, `WorkflowBuilderHelp` lazy import, `/manage-workflows` route, `/help/workflow-builder` replaced with redirect to `/help/getting-started`
+- `src/components/copy-maker/CopyMakerTab/hooks/useGeneration.ts` — removed workflow service imports, workflowId execution block, auto-compare trigger
+- `src/components/FeatureToggles.tsx` — removed WorkflowSelector, toast, useState/useEffect, workflow state derivations, Workflow Selector JSX, workflow guards from createVariants checkbox
+- `src/components/Dashboard.tsx` — removed Workflow icon import, removed /manage-workflows Link button
+- `src/types/index.ts` — removed useWorkflow/workflowId from FormData, workflowGenerated from GeneratedContentItem, entire Workflow System Types section (10 types)
+- `src/components/help/HelpCenter.tsx` — removed workflow-builder article link
+- `src/components/help/pages/CreditsAndBilling.tsx` — removed workflow-builder link
+- `src/components/help/pages/DashboardAndHistory.tsx` — updated to 2 tabs, removed Tab 3 Manage Workflows block, removed workflow-builder link
+- `src/components/help/pages/SetupAndInputs.tsx` — removed workflow-builder link
+
+**Not touched:** `src/utils/operationLabels.ts`, all Supabase tables/migrations.
 
 ---
 

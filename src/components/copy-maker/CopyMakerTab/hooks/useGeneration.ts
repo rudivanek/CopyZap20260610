@@ -18,8 +18,6 @@ import { calculateTargetWordCount, extractWordCount } from '../../../../services
 import { isContentEmpty } from '../utils/isContentEmpty';
 import { sessionManager } from '../../../../services/sessionService';
 import { useSession } from '../../../../context/SessionContext';
-import { WorkflowService } from '../../../../services/workflowService';
-import { WorkflowExecutionEngine } from '../../../../services/workflowExecutionEngine';
 import { playSuccessSound } from '../../../../utils/soundEffects';
 import { isSessionCreationError, SessionCreationError } from '../../../../utils/sessionErrors';
 import { debugCompare } from '../../../../utils/debugLogger';
@@ -408,47 +406,6 @@ export function useGeneration(
 
       generatedVersions = originalCopyItem ? [originalCopyItem, ...variantItems] : variantItems;
 
-      let shouldTriggerComparison = false;
-      let workflowScoringContext: import('../../../../types').ScoringContext | undefined;
-
-      if (enhancedFormState.workflowId) {
-        try {
-          addProgressMessage('Loading workflow...');
-          const workflow = await WorkflowService.getWorkflowById(enhancedFormState.workflowId);
-          if (workflow && workflow.steps && workflow.steps.length > 0) {
-            addProgressMessage(`Executing workflow: ${workflow.name}`);
-            const baseContent = result?.improvedCopy || '';
-            if (baseContent) {
-              const engine = new WorkflowExecutionEngine(
-                workflow,
-                baseContent,
-                enhancedFormState,
-                currentUser,
-                (message, currentStep, totalSteps) => {
-                  addProgressMessage(`[Workflow ${currentStep}/${totalSteps}] ${message}`);
-                }
-              );
-              const workflowResult = await engine.execute();
-              if (workflowResult.success && workflowResult.generatedOutputs) {
-                generatedVersions = [...generatedVersions, ...workflowResult.generatedOutputs];
-                addProgressMessage(`Workflow complete! Generated ${workflowResult.generatedOutputs.length} additional outputs.`);
-                shouldTriggerComparison = workflowResult.shouldTriggerComparison || false;
-                workflowScoringContext = workflowResult.scoringContext;
-              } else if (workflowResult.error) {
-                addProgressMessage(`Workflow error: ${workflowResult.error}`);
-                toast.error(`Workflow partially failed: ${workflowResult.error}`);
-              }
-            }
-          } else {
-            addProgressMessage('Workflow not found or has no steps.');
-          }
-        } catch (workflowError: any) {
-          console.error('Error executing workflow:', workflowError);
-          addProgressMessage(`Workflow execution error: ${workflowError.message}`);
-          toast.error(`Workflow failed: ${workflowError.message}`);
-        }
-      }
-
       const improvedCopyForBackCompat = result?.improvedCopy ||
         (generatedVersions.length > 0 ? generatedVersions[0].content : '');
 
@@ -466,18 +423,6 @@ export function useGeneration(
       toast.success('Copy generated successfully!');
       playSuccessSound();
       triggerGuidanceHint('after_generate');
-
-      if (shouldTriggerComparison) {
-        addProgressMessage('Triggering automatic comparison and analysis...');
-        setTimeout(async () => {
-          try {
-            await compareOutputsWithGrok(false, workflowScoringContext);
-          } catch (compError: any) {
-            console.error('Error triggering automatic comparison:', compError);
-            toast.error('Workflow completed, but comparison failed. You can trigger it manually.');
-          }
-        }, 1000);
-      }
     } catch (error: any) {
       console.error('Error generating copy:', error);
       const errorMessage = error.message || '';

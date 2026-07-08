@@ -42,7 +42,6 @@ const ManagePrefills = lazy(() => import('./components/ManagePrefills'));
 const ManageSpecialInstructions = lazy(() => import('./components/ManageSpecialInstructions'));
 const ManageCustomers = lazy(() => import('./components/ManageCustomers'));
 const CustomerDetail = lazy(() => import('./components/CustomerDetail'));
-const ManageWorkflows = lazy(() => import('./components/workflow/ManageWorkflows').then(m => ({ default: m.ManageWorkflows })));
 const AdminDiagnostics = lazy(() => import('./components/AdminDiagnostics').then(m => ({ default: m.AdminDiagnostics })));
 
 // Lazy loaded - Modals
@@ -79,7 +78,6 @@ const HowScoringWorks = lazy(() => import('./components/help/pages/HowScoringWor
 const SetupAndInputs = lazy(() => import('./components/help/pages/SetupAndInputs'));
 const CreditsAndBilling = lazy(() => import('./components/help/pages/CreditsAndBilling'));
 const DashboardAndHistory = lazy(() => import('./components/help/pages/DashboardAndHistory'));
-const WorkflowBuilderHelp = lazy(() => import('./components/help/pages/WorkflowBuilder'));
 
 // Dynamically import heavy services only when needed
 const getApiServices = () => import('./services/apiService');
@@ -861,7 +859,7 @@ const AppRouter: React.FC = () => {
         <Route path="/help/real-case-workflows/quick-wizard-new-copy" element={<Suspense fallback={<AppSpinner />}><QuickWizardNewCopy /></Suspense>} />
         <Route path="/help/credits-and-billing" element={<Suspense fallback={<AppSpinner />}><CreditsAndBilling /></Suspense>} />
         <Route path="/help/dashboard-and-history" element={<Suspense fallback={<AppSpinner />}><DashboardAndHistory /></Suspense>} />
-        <Route path="/help/workflow-builder" element={<Suspense fallback={<AppSpinner />}><WorkflowBuilderHelp /></Suspense>} />
+        <Route path="/help/workflow-builder" element={<Navigate to="/help/getting-started" replace />} />
 
         {/* Help redirects — old routes → merged pages */}
         <Route path="/help/start-hub" element={<Navigate to="/help/getting-started" replace />} />
@@ -946,20 +944,6 @@ const AppRouter: React.FC = () => {
               <AuthenticatedRoute>
                 <Suspense fallback={<AppSpinner />}>
                   <CustomerDetail />
-                </Suspense>
-              </AuthenticatedRoute>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/manage-workflows"
-          element={
-            currentUser ? (
-              <AuthenticatedRoute>
-                <Suspense fallback={<AppSpinner />}>
-                  <ManageWorkflows />
                 </Suspense>
               </AuthenticatedRoute>
             ) : (

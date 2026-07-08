@@ -1,17 +1,14 @@
-import React, { useState, useEffect } from 'react';
+import React from 'react';
 import { FormData } from '../types';
 import { Tooltip } from './ui/Tooltip';
 import { Info as InfoIcon, ChevronDown, ChevronUp, AlertTriangle } from 'lucide-react';
 import { Checkbox } from './ui/checkbox';
 import { Label } from './ui/label';
-import { useMemo } from 'react';
 import { useInputField } from '../hooks/useInputField';
-import { toast } from 'react-hot-toast';
 import { countFilledFieldsInSection } from '../utils/formUtils';
 import { motion, AnimatePresence } from 'framer-motion';
 import { FormMode } from '../context/ModeContext';
 import CollapsibleSection from './ui/CollapsibleSection';
-import { WorkflowSelector } from './ui/WorkflowSelector';
 
 interface FeatureTogglesProps {
   formData: FormData;
@@ -46,38 +43,6 @@ const FeatureToggles: React.FC<FeatureTogglesProps> = ({
   };
 
   // This component is always displayed regardless of form mode
-  
-  // Calculate if the current word count target is "little" (below 100 words)
-  const isLittleWordCount = useMemo(() => {
-    if (formData.wordCount === 'Custom') {
-      return (formData.customWordCount || 0) < 100;
-    }
-
-    // Check preset ranges
-    if (formData.wordCount.includes('Short')) {
-      return true; // Short: 50-100 is considered little
-    }
-
-    return false; // Medium and Long are not considered little
-  }, [formData.wordCount, formData.customWordCount]);
-
-  // Track whether a workflow is being used
-  // Show dropdown when workflowId is defined (even if empty string)
-  const useWorkflow = formData.workflowId !== undefined;
-
-  // Track if a specific workflow is selected (not just enabled)
-  const workflowSelected = useWorkflow && formData.workflowId && formData.workflowId !== '';
-
-  // Effect to disable Create Variants when a workflow is selected
-  useEffect(() => {
-    if (workflowSelected && formData.createVariants) {
-      // Disable createVariants when using a workflow
-      handleToggle({
-        target: { name: 'createVariants', checked: false }
-      } as React.ChangeEvent<HTMLInputElement>);
-    }
-  }, [workflowSelected]);
-
 
   // Define section 5 fields for counting
   const section5Fields = ['createVariants', 'aiDecideWordCount', 'prioritizeWordCount',
@@ -97,38 +62,6 @@ const FeatureToggles: React.FC<FeatureTogglesProps> = ({
         filledCount={section5Count}
       >
 
-      {/* Workflow Selector */}
-      <div className="mb-6 p-4 bg-purple-50 dark:bg-purple-900/10 border border-purple-200 dark:border-purple-800 rounded-lg">
-        <WorkflowSelector
-          useWorkflow={useWorkflow}
-          workflowId={formData.workflowId}
-          onUseWorkflowChange={(enabled) => {
-            if (enabled) {
-              // When enabling workflow, just clear the workflowId to allow selection
-              handleChange('workflowId', '');
-            } else {
-              // When disabling workflow, clear the workflowId
-              handleChange('workflowId', undefined);
-            }
-          }}
-          onWorkflowChange={(workflowId) => {
-            handleChange('workflowId', workflowId);
-          }}
-          userId={currentUserId}
-        />
-        {useWorkflow && formData.workflowId && formData.workflowId !== '' && (
-          <div className="mt-3 p-3 bg-purple-100 dark:bg-purple-900/20 border border-purple-300 dark:border-purple-700 rounded text-xs text-purple-800 dark:text-purple-200">
-            <p className="font-medium mb-1">Workflow is active:</p>
-            <ul className="list-disc list-inside space-y-1">
-              <li>The workflow will execute multiple generation steps sequentially</li>
-              <li>Each step produces a separate output card</li>
-              <li>Create Variants is disabled (workflow creates variations automatically)</li>
-              <li>You can still adjust all other optimization settings</li>
-            </ul>
-          </div>
-        )}
-      </div>
-
       {/* Basic Features - Always Visible in Both Modes */}
       <div className="space-y-3">
 
@@ -137,17 +70,7 @@ const FeatureToggles: React.FC<FeatureTogglesProps> = ({
           <Checkbox
             id="createVariants"
             checked={formData.createVariants || false}
-            disabled={workflowSelected}
             onCheckedChange={(checked) => {
-              // Don't allow enabling if workflow is selected
-              if (checked === true && workflowSelected) {
-                toast('Create Variants is disabled when using a workflow. Workflows create multiple outputs automatically through their steps.', {
-                  duration: 4000,
-                  position: 'top-right',
-                });
-                return;
-              }
-
               // When enabling createVariants, also set numberOfVariants to 3 if not already set
               if (checked === true && !formData.numberOfVariants) {
                 handleChange('numberOfVariants', 3);
@@ -161,8 +84,8 @@ const FeatureToggles: React.FC<FeatureTogglesProps> = ({
             }}
           />
           <div className="ml-2 flex-1">
-            <Label htmlFor="createVariants" className={`cursor-pointer flex items-center ${workflowSelected ? 'opacity-50' : ''}`}>
-              <span className="text-sm">Create Variants {workflowSelected && '(disabled when using workflow)'}</span>
+            <Label htmlFor="createVariants" className="cursor-pointer flex items-center">
+              <span className="text-sm">Create Variants</span>
               <Tooltip content="Generate multiple variations of the copy in a single generation. Each variant will be unique while following the same parameters.">
                 <span className="ml-1 inline-block text-gray-500">
                   <InfoIcon size={14} />

@@ -86,7 +86,6 @@ const secondaryCategories: Category[] = [
     color: 'text-gray-600 dark:text-gray-400 bg-gray-100 dark:bg-gray-800',
     seeAllPath: '/help/export-and-file-management',
     articles: [
-      { title: 'Build a multi-step workflow', path: '/help/workflow-builder' },
       { title: 'Export copy as HTML or Markdown', path: '/help/export-and-file-management' },
       { title: 'Find and manage past outputs', path: '/help/dashboard-and-history' },
       { title: 'Understand your credits', path: '/help/credits-and-billing' },

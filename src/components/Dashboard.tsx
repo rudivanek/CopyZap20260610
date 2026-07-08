@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import NavSidebar from './NavSidebar';
-import { BarChart3, FileText, Settings, DollarSign, Users, RefreshCw, Calendar, Zap, Eye, Trash2, CreditCard as Edit, ArrowRight, User, AlertCircle, Filter, Download, Lightbulb, BookOpen, Activity, ChevronDown, ChevronRight, Workflow, Star, Search, X } from 'lucide-react';
+import { BarChart3, FileText, Settings, DollarSign, Users, RefreshCw, Calendar, Zap, Eye, Trash2, CreditCard as Edit, ArrowRight, User, AlertCircle, Filter, Download, Lightbulb, BookOpen, Activity, ChevronDown, ChevronRight, Star, Search, X } from 'lucide-react';
 import { retryFailedTracking, getTrackingQueueStatus } from '../services/api/tokenTracking';
 import { useAuth } from '../hooks/useAuth';
 import { useIsAdmin } from '../hooks/useIsAdmin';
@@ -1048,15 +1048,6 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
             </button>
 
             {/* User Controls */}
-            <Link
-              to="/manage-workflows"
-              className="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg text-sm flex items-center transition-colors shadow-md hover:shadow-lg"
-              title="Manage Workflows"
-            >
-              <Workflow size={16} className="mr-2" />
-              <span className="hidden sm:inline">Workflows</span>
-            </Link>
-
             {/* Admin Controls */}
             {isAdmin && (
               <div className="flex items-center space-x-3">
