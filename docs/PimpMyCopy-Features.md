@@ -1,7 +1,35 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-10T00:00:00Z
+Last Updated: 2026-07-10T01:00:00Z
+
+---
+
+## Chrome Extension ext_prefill URL Param — Copy Maker Pre-fill (2026-07-10)
+
+**Feature:** Copy Maker now reads an `ext_prefill` query param when the Chrome extension opens the page (e.g. `https://copyzap.com/copy-maker?ext_prefill=<base64JSON>`). The payload is base64-decoded, parsed, and mapped to the appropriate form fields on mount. The param is then removed from the URL via `window.history.replaceState` (no reload).
+
+**Implementation:** New `useEffect` in `CopyMakerTab.tsx`, guarded by `hasAppliedExtPrefillRef` (one-shot, StrictMode-safe). Runs once on mount, independent of the existing `CZ_PREFILL_TO_COPY_MAKER_V1` sessionStorage effect.
+
+**Three payload shapes and their field mappings:**
+
+| Field | `extension_polish` (Shape 1) | `extension_analyze` (Shape 2) | `extension_extract` (Shape 3) |
+|---|---|---|---|
+| `tab` | `'improve'` | — | `'improve'` |
+| `originalCopy` | `selected_output` | — | `structured_copy` |
+| `targetAudience` | `audience` | `target_audience` | — |
+| `tone` | `tone` | `tone` | — |
+| `language` | `language` (code→name) | `language` (code→name) | `language` (code→name) |
+| `section` | `intent_label` | — | — |
+| `context` | — | `what_creating + pain_points + features + benefits` joined with `\n` | — |
+
+**Language handling:** Uses existing `convertLanguageCodeToFormDataLanguage()` to convert ISO codes (`'en'`, `'es'`) to full language names (`'English'`, `'Spanish'`).
+
+**Error handling:** Malformed base64 or invalid JSON is caught silently (console.error, no UI change). Unknown `source` values leave form state unchanged.
+
+**Toast:** Shows "Content loaded from Quick Polish result / page analysis / extracted page copy" depending on `source`.
+
+**Files changed:** `src/components/copy-maker/CopyMakerTab/CopyMakerTab.tsx` — new `useEffect` + `hasAppliedExtPrefillRef` inserted after the existing `CZ_PREFILL_TO_COPY_MAKER_V1` effect.
 
 ---
 

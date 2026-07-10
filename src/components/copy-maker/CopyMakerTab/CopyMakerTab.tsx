@@ -1571,6 +1571,100 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
     navigate(location.pathname, { replace: true, state: {} });
   }, [location, navigate, setFormState]);
 
+  // Handle ext_prefill from Chrome extension via URL query param
+  const hasAppliedExtPrefillRef = useRef(false);
+
+  useEffect(() => {
+    if (hasAppliedExtPrefillRef.current) return;
+
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get('ext_prefill');
+    if (!raw) return;
+
+    // Decode and parse — bail silently on malformed data
+    let payload: Record<string, any>;
+    try {
+      payload = JSON.parse(atob(raw));
+    } catch {
+      console.error('ext_prefill: failed to decode/parse payload');
+      return;
+    }
+
+    // Remove param from URL without reload
+    params.delete('ext_prefill');
+    const newSearch = params.toString();
+    window.history.replaceState(
+      {},
+      document.title,
+      window.location.pathname + (newSearch ? '?' + newSearch : '')
+    );
+
+    hasAppliedExtPrefillRef.current = true;
+
+    const convertedLanguage = payload.language
+      ? convertLanguageCodeToFormDataLanguage(payload.language)
+      : undefined;
+
+    const source = payload.source as string | undefined;
+
+    setFormState(prev => {
+      if (source === 'extension_polish') {
+        // Shape 1 — Quick Polish result: load selected_output as copy to improve
+        return {
+          ...prev,
+          tab: 'improve',
+          originalCopy: payload.selected_output || prev.originalCopy,
+          targetAudience: payload.audience || prev.targetAudience,
+          tone: (payload.tone as any) || prev.tone,
+          language: convertedLanguage || prev.language,
+          section: payload.intent_label || prev.section,
+        };
+      }
+
+      if (source === 'extension_analyze') {
+        // Shape 2 — Analyze This Page: populate context fields
+        const contextParts: string[] = [];
+        if (payload.what_creating) contextParts.push(payload.what_creating);
+        if (payload.pain_points) contextParts.push(payload.pain_points);
+        if (payload.features?.length) contextParts.push('Features: ' + (payload.features as string[]).join(', '));
+        if (payload.benefits?.length) contextParts.push('Benefits: ' + (payload.benefits as string[]).join(', '));
+        return {
+          ...prev,
+          targetAudience: payload.target_audience || prev.targetAudience,
+          tone: (payload.tone as any) || prev.tone,
+          language: convertedLanguage || prev.language,
+          context: contextParts.join('\n') || prev.context,
+        };
+      }
+
+      if (source === 'extension_extract') {
+        // Shape 3 — Extract Full Copy: load structured copy as primary input
+        return {
+          ...prev,
+          tab: 'improve',
+          originalCopy: payload.structured_copy || prev.originalCopy,
+          language: convertedLanguage || prev.language,
+        };
+      }
+
+      return prev;
+    });
+
+    const sourceLabels: Record<string, string> = {
+      extension_polish: 'Quick Polish result',
+      extension_analyze: 'page analysis',
+      extension_extract: 'extracted page copy',
+    };
+    toast.success('Content loaded from ' + (sourceLabels[source || ''] || 'extension'));
+
+    setTimeout(() => {
+      if (projectDescriptionRef.current) {
+        projectDescriptionRef.current.focus();
+        projectDescriptionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 100);
+  }, [setFormState]);
+
   // Show Start Hub when navigating back to Copy Maker from other sections
   useEffect(() => {
     const checkNavigationTrigger = () => {
