@@ -1421,7 +1421,7 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
 
     let data: Record<string, any>;
     try {
-      data = JSON.parse(atob(raw));
+      data = JSON.parse(decodeURIComponent(escape(atob(raw))));
     } catch {
       console.error('ext_prefill: failed to decode/parse payload');
       return;
