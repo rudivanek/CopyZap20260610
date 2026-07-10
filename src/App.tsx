@@ -25,6 +25,7 @@ import Privacy from './components/Privacy';
 import CookieConsent from './components/CookieConsent';
 import DesktopRequired from './components/DesktopRequired';
 import { AdminRoute } from './components/AdminRoute';
+import ExtensionAuthPage from './pages/ExtensionAuthPage';
 import { useIsSmallScreen } from './hooks/useIsSmallScreen';
 import { GuidanceHintHost } from './components/shared/GuidanceHintHost';
 
@@ -951,6 +952,7 @@ const AppRouter: React.FC = () => {
             )
           }
         />
+        <Route path="/extension-auth" element={<ExtensionAuthPage />} />
         <Route path="*" element={<NotFound />} />
       </Routes>
       

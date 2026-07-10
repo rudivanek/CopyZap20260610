@@ -1,7 +1,43 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-08T13:00:00Z
+Last Updated: 2026-07-10T00:00:00Z
+
+---
+
+## Chrome Extension Auth Handshake Page — /extension-auth (2026-07-10)
+
+**Feature:** Added a standalone `/extension-auth` route for the CopyZap Chrome extension to perform an OAuth handshake without going through the normal app shell. The page has no nav, no sidebar — just a centered card on a gray-50 background.
+
+**Route:** `<Route path="/extension-auth" element={<ExtensionAuthPage />} />`
+
+**File:** `src/pages/ExtensionAuthPage.tsx`
+
+**Flow:**
+1. On mount, reads `ext_id` from the URL query string.
+2. If `ext_id` is missing → shows `no_ext_id` state ("Missing extension ID. Please re-open this page from the extension.").
+3. Persists `ext_id` to `sessionStorage` under `cz_ext_connect_id` (survives the login redirect).
+4. Calls `supabase.auth.getSession()`:
+   - **Session exists** → immediately sends `chrome.runtime.sendMessage(extId, { type: 'COPYZAP_AUTH', access_token, refresh_token, expires_at })` → shows `success` or `error` state.
+   - **No session** → shows `login` state with a "Log in to CopyZap" button that redirects to `/login?redirect=<current URL>`.
+5. Subscribes to `supabase.auth.onAuthStateChange` — when a session appears after login redirect, reads `ext_id` from `sessionStorage` and sends the token via `sendMessage`.
+6. `sendMessage` is wrapped in try/catch; if `chrome.runtime` is not present (page opened outside extension context), shows `error` state.
+
+**UI states:**
+| State | Display |
+|---|---|
+| `checking` | Spinner + "Connecting..." |
+| `sending` | Spinner + "Connecting..." |
+| `login` | Info icon + "Log in to connect the Chrome extension" + login button |
+| `success` | Green checkmark + "Extension connected!" + "You can close this tab" |
+| `error` | Red X + "Connection failed. Make sure the extension is installed and try again." |
+| `no_ext_id` | Warning icon + "Missing extension ID. Please re-open this page from the extension." |
+
+**Styling:** Matches existing app — white card, `rounded-2xl shadow-sm`, `border-gray-200`, CopyZap wordmark at top. No Tailwind purple. Dark mode supported throughout.
+
+**Files changed:**
+- `src/pages/ExtensionAuthPage.tsx` — new file
+- `src/App.tsx` — added import + `<Route path="/extension-auth" element={<ExtensionAuthPage />} />`
 
 ---
 
