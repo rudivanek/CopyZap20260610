@@ -815,6 +815,43 @@ Do NOT add markdown formatting, code blocks, or explanations. Just raw JSON. Rem
     setHumanTone(false);
   };
 
+  // Handle ext_prefill from Chrome extension via URL query param
+  const hasAppliedExtPrefillRef = useRef(false);
+
+  useEffect(() => {
+    if (hasAppliedExtPrefillRef.current) return;
+
+    const raw = new URLSearchParams(window.location.search).get('ext_prefill');
+    if (!raw) return;
+
+    let data: Record<string, any>;
+    try {
+      data = JSON.parse(decodeURIComponent(escape(atob(raw))));
+    } catch {
+      console.error('ext_prefill: failed to decode/parse payload');
+      return;
+    }
+
+    window.history.replaceState({}, '', window.location.pathname);
+    hasAppliedExtPrefillRef.current = true;
+
+    if (data.text) setInput(data.text);
+    if (data.mode && ['improve', 'answer', 'question'].includes(data.mode)) {
+      setMode(data.mode as CopySnapMode);
+    }
+    if (data.goal && ['clearer', 'persuasive', 'shorter', 'punchier'].includes(data.goal)) {
+      setImproveGoal(data.goal as ImproveGoal);
+    }
+    if (data.platform && ['general', 'x', 'linkedin', 'email'].includes(data.platform)) {
+      setImprovePlatform(data.platform as ImprovePlatform);
+    }
+    if (data.length && ['short', 'same', 'longer'].includes(data.length)) {
+      setImproveLength(data.length as ImproveLength);
+    }
+
+    toast.success('Content loaded from extension');
+  }, []);
+
   // Keep input when switching modes but clear output and session
   useEffect(() => {
     setOutput(null);

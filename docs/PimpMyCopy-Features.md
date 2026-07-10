@@ -1,7 +1,29 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-10T02:00:00Z
+Last Updated: 2026-07-10T03:00:00Z
+
+---
+
+## Chrome Extension ext_prefill URL Param — Copy Snap Pre-fill (2026-07-10)
+
+**Feature:** Copy Snap reads an `ext_prefill` query param when the Chrome extension opens the page (e.g. `https://copyzap.com/copy-snap?ext_prefill=<base64JSON>`). The payload is decoded with `JSON.parse(decodeURIComponent(escape(atob(raw))))` (matching the extension's `btoa(unescape(encodeURIComponent(JSON.stringify(payload))))` encoding) and mapped to form controls on mount. The param is then removed from the URL via `window.history.replaceState`.
+
+**Field mapping:**
+
+| Form control | Payload field | Valid values | Default |
+|---|---|---|---|
+| "Your Text" textarea | `data.text` | any string | — |
+| Mode | `data.mode` | `improve`, `answer`, `question` | `improve` |
+| Goal | `data.goal` | `clearer`, `persuasive`, `shorter`, `punchier` | `clearer` |
+| Platform | `data.platform` | `general`, `x`, `linkedin`, `email` | `general` |
+| Length | `data.length` | `short`, `same`, `longer` | `same` |
+
+**Implementation:** `useEffect` guarded by `hasAppliedExtPrefillRef` (one-shot, StrictMode-safe) added before the existing mode-change effect in `CopySnap.tsx`. Unknown enum values are ignored (invalid values do not overwrite defaults).
+
+**Toast:** Shows "Content loaded from extension".
+
+**Files changed:** `src/components/CopySnap.tsx`
 
 ---
 
