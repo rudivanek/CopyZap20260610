@@ -16,7 +16,7 @@ const ExportAndFileManagement: React.FC = () => {
         <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Export Formats</h2>
           <p className="text-gray-700 dark:text-gray-300">
-            CopyZap offers two powerful export options to fit your workflow:
+            CopyZap offers several export options to fit your workflow. Each output card also has quick clipboard actions (Copy plain text, Copy HTML, Copy Markdown) for individual outputs:
           </p>
 
           <div className="grid gap-4 mt-4">
@@ -70,7 +70,7 @@ const ExportAndFileManagement: React.FC = () => {
           </p>
           <ul className="list-disc list-inside space-y-2 text-gray-700 dark:text-gray-300 ml-4">
             <li>All generated output cards (improved, alternatives, humanized versions)</li>
-            <li>Original input data and form settings</li>
+            <li>Original input data and form settings (including Target market / region when set)</li>
             <li>SEO metadata (URL slugs, meta descriptions, H1/H2/H3 variants, OG tags) if generated</li>
             <li>Content quality scores and GEO scores if available</li>
             <li>Comparison results if you've run Compare All Outputs</li>
