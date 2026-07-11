@@ -60,7 +60,7 @@ const DashboardAndHistory: React.FC = () => {
         <li><strong>Date & Time:</strong> When the generation was created</li>
         <li><strong>Credits Used:</strong> Total credits consumed for this generation and all related operations</li>
         <li><strong>API Calls:</strong> Number of separate AI operations</li>
-        <li><strong>Models Used:</strong> Which AI models were used (e.g., Claude Sonnet 4.5, GPT-4o)</li>
+        <li><strong>Models Used:</strong> Which AI models processed the request (managed automatically by CopyZap)</li>
         <li><strong>Operations:</strong> Types of operations performed (generate_copy, seo_metadata, voice_style_analysis, etc.)</li>
       </ul>
 
