@@ -4,6 +4,22 @@ import HelpLayout from '../HelpLayout';
 const Glossary: React.FC = () => {
   const terms = [
     {
+      term: "Target Market / Region",
+      definition: "A form field that tells CopyZap where your audience is located (e.g., \"México\", \"LATAM\", \"Barcelona\"). Generated copy adapts its vocabulary, examples, and cultural references to that market. Also used by GEO Generate and shown in export summaries."
+    },
+    {
+      term: "GEO (Generative Engine Optimization)",
+      definition: "Optimizing content so it is well understood and cited by AI search engines and assistants. Use the GEO Generate action on any output card."
+    },
+    {
+      term: "Session",
+      definition: "A saved snapshot of your entire Copy Maker workspace — inputs, outputs, and results — that you can reload later to continue where you left off."
+    },
+    {
+      term: "Credits",
+      definition: "The usage currency of CopyZap. Every AI operation consumes credits based on the amount of content processed. Your balance is shown in the top navigation bar."
+    },
+    {
       term: "Brand Voice",
       definition: "A custom communication style that reflects your brand's personality, tone, and messaging guidelines. Brand voices can be extracted from URLs or created manually."
     },
@@ -85,3 +101,4 @@ const Glossary: React.FC = () => {
 };
 
 export default Glossary;
+
