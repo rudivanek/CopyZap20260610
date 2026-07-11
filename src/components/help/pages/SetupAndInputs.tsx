@@ -43,6 +43,7 @@ const SetupAndInputs: React.FC = () => {
         <li><strong>Project Description:</strong> A brief overview of what you're creating</li>
         <li><strong>Product/Service Name:</strong> The name of what you're promoting</li>
         <li><strong>Target Audience:</strong> Who you're writing for</li>
+        <li><strong>Target Market / Region:</strong> Where your audience is located (e.g., "México", "LATAM", "Barcelona") — the copy adapts its language, references, and cultural framing to that market</li>
         <li><strong>Key Message:</strong> The main point you want to communicate</li>
         <li><strong>Call to Action:</strong> What you want readers to do</li>
       </ul>
@@ -61,6 +62,10 @@ const SetupAndInputs: React.FC = () => {
         <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
           <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Language</h4>
           <p className="text-gray-700 dark:text-gray-300">Select the language for your output. CopyZap supports multiple languages.</p>
+        </div>
+        <div className="border border-gray-200 dark:border-gray-700 rounded-lg p-4">
+          <h4 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">Target Market / Region</h4>
+          <p className="text-gray-700 dark:text-gray-300">Tell CopyZap where your audience lives. A landing page for "México" reads differently from one for "US East Coast" — vocabulary, examples, and cultural cues all adjust. This field also powers GEO Generate and appears in your export summaries.</p>
         </div>
       </div>
 
