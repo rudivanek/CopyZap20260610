@@ -219,11 +219,15 @@ const TroubleshootingFAQs: React.FC = () => {
         </ul>
       </div>
 
+      <h2>Why Do Scores Change Between Runs?</h2>
+      <p>If you score the same copy twice, the absolute numbers may differ slightly. This is normal — AI evaluation has natural variation. What stays reliable is the <strong>relative ranking</strong>: when comparing multiple versions, the order of which version is stronger is consistent. Use comparisons to choose between versions, not single absolute scores in isolation.</p>
+      <p>When you add new versions to an existing comparison, previously scored versions keep their scores — only the new versions are evaluated. This keeps your rankings stable while you iterate.</p>
+
       <h2>When to Contact Support</h2>
 
       <p>Contact us if you experience:</p>
       <ul>
-        <li>Persistent generation failures (after trying different models)</li>
+        <li>Persistent generation failures (after retrying and simplifying inputs)</li>
         <li>Missing features or broken functionality</li>
         <li>Credits tracking discrepancies</li>
         <li>Account or billing issues</li>
@@ -232,7 +236,7 @@ const TroubleshootingFAQs: React.FC = () => {
 
       <p><strong>Before contacting:</strong></p>
       <ol>
-        <li>Try switching AI model (model availability varies)</li>
+        <li>Retry the generation (temporary AI service issues resolve quickly)</li>
         <li>Simplify your inputs (disable optional features)</li>
         <li>Generate alternatives (first output may just be off)</li>
         <li>Check this troubleshooting guide</li>
@@ -241,7 +245,7 @@ const TroubleshootingFAQs: React.FC = () => {
       <p><Link to="/help/contact" className="text-blue-600 dark:text-blue-400 hover:underline font-medium">→ Contact Support</Link></p>
 
       <hr className="my-8" />
-      <p className="text-sm text-gray-600 dark:text-gray-400">Last updated: 2025-12-20</p>
+      <p className="text-sm text-gray-600 dark:text-gray-400">Last updated: 2026-07-11</p>
     </HelpLayout>
   );
 };
