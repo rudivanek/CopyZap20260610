@@ -69,6 +69,7 @@ const GettingStarted: React.FC = () => {
           <p className="text-gray-700 dark:text-gray-300 mb-2">These aren't required but significantly improve results:</p>
           <ul className="list-disc ml-6 text-gray-700 dark:text-gray-300 space-y-1">
             <li><strong>Target Audience:</strong> Who is this for? (e.g., "B2B SaaS founders")</li>
+            <li><strong>Target Market / Region:</strong> Where your audience is (e.g., "Mexico", "LATAM", "US East Coast") — adapts language and cultural references</li>
             <li><strong>Key Message:</strong> Main point (e.g., "Save 10 hours per week")</li>
             <li><strong>Call to Action:</strong> What action to take (e.g., "Start free trial")</li>
             <li><strong>Tone:</strong> Professional, Friendly, Bold, etc.</li>
@@ -115,7 +116,6 @@ const GettingStarted: React.FC = () => {
 
       <h2>Next Steps</h2>
       <ul>
-        <li><Link to="/help/start-hub" className="text-blue-600 dark:text-blue-400 hover:underline">Learn about Start Hub</Link> — your launchpad for three fast paths</li>
         <li><Link to="/help/core-workflows" className="text-blue-600 dark:text-blue-400 hover:underline">Learn core workflows</Link> — create, improve, compare</li>
         <li><Link to="/help/setup-and-inputs" className="text-blue-600 dark:text-blue-400 hover:underline">Set up your inputs</Link> — brand voice, templates, project config</li>
         <li><Link to="/help/how-scoring-works" className="text-blue-600 dark:text-blue-400 hover:underline">Understand scoring and comparison</Link></li>
@@ -123,7 +123,7 @@ const GettingStarted: React.FC = () => {
       </ul>
 
       <hr className="my-8" />
-      <p className="text-sm text-gray-600 dark:text-gray-400">Last updated: 2026-04-17</p>
+      <p className="text-sm text-gray-600 dark:text-gray-400">Last updated: 2026-07-11</p>
     </HelpLayout>
   );
 };
