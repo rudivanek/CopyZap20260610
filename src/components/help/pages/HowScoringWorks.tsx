@@ -162,6 +162,9 @@ const HowScoringWorks: React.FC = () => {
             <li>Both comparisons are saved for reference</li>
           </ol>
         </div>
+        <p className="text-sm text-gray-700 dark:text-gray-300 mt-4">
+          <strong>Score stability:</strong> When you re-run a comparison after adding new versions, the scores of previously compared versions stay stable — only the new versions are evaluated and merged into the ranking. This keeps your comparisons consistent as you iterate.
+        </p>
       </div>
 
       {/* ─── SECTION 4: Feature Interactions ─────────────────────────── */}
@@ -208,7 +211,7 @@ const HowScoringWorks: React.FC = () => {
       </ul>
 
       <hr className="my-8" />
-      <p className="text-sm text-gray-600 dark:text-gray-400">Last updated: 2026-04-17</p>
+      <p className="text-sm text-gray-600 dark:text-gray-400">Last updated: 2026-07-11</p>
     </HelpLayout>
   );
 };
