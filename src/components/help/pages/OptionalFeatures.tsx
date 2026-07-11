@@ -51,9 +51,9 @@ const OptionalFeatures: React.FC = () => {
             </div>
 
             <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-6 border border-gray-200 dark:border-gray-700">
-              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">GEO Scoring</h3>
+              <h3 className="text-xl font-semibold text-gray-900 dark:text-white mb-2">GEO Generate</h3>
               <p className="text-gray-700 dark:text-gray-300">
-                Evaluate content for Generative Engine Optimization (GEO) - how well it performs with AI search engines and LLMs.
+                Optimize content for Generative Engine Optimization (GEO) — how well your copy is understood and cited by AI search engines and assistants. Available as an action on any output card. Works best when you fill in the <strong>Target market / region</strong> field (e.g. "México", "LATAM", "US East Coast"), which also adapts language and cultural references in your copy.
               </p>
             </div>
           </div>
