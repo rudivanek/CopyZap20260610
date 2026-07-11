@@ -1,6 +1,5 @@
 [
   {
-    "_lastUpdated": "2026-07-11",
     "slug": "getting-started",
     "title": "Getting Started",
     "description": "Learn how to create AI-powered marketing copy with CopyZap. Covers first generation steps, Start Hub launchpad, and Quick Prompt Wizard.",
@@ -10,7 +9,16 @@
     "url": "/help/getting-started",
     "group": "getting-started",
     "order": 1,
-    "keywords": ["start", "onboarding", "first generation", "Start Hub", "wizard", "Quick Wizard", "beginner", "how to start"]
+    "keywords": [
+      "start",
+      "onboarding",
+      "first generation",
+      "Start Hub",
+      "wizard",
+      "Quick Wizard",
+      "beginner",
+      "how to start"
+    ]
   },
   {
     "slug": "core-workflows",
@@ -22,7 +30,15 @@
     "url": "/help/core-workflows",
     "group": "getting-started",
     "order": 2,
-    "keywords": ["create copy", "improve copy", "alternatives", "compare", "brand voice", "workflow", "tutorial"]
+    "keywords": [
+      "create copy",
+      "improve copy",
+      "alternatives",
+      "compare",
+      "brand voice",
+      "workflow",
+      "tutorial"
+    ]
   },
   {
     "slug": "how-scoring-works",
@@ -34,7 +50,19 @@
     "url": "/help/how-scoring-works",
     "group": "getting-started",
     "order": 3,
-    "keywords": ["score", "scoring", "compare", "blend", "output", "evaluation", "quality", "rating"]
+    "keywords": [
+      "ranking",
+      "rating",
+      "scoring",
+      "rescoring",
+      "output",
+      "blend",
+      "evaluation",
+      "winner",
+      "quality",
+      "compare",
+      "score"
+    ]
   },
   {
     "slug": "setup-and-inputs",
@@ -46,7 +74,19 @@
     "url": "/help/setup-and-inputs",
     "group": "getting-started",
     "order": 4,
-    "keywords": ["project setup", "brand voice", "templates", "customer", "tone", "language", "configuration", "presets"]
+    "keywords": [
+      "brand voice",
+      "presets",
+      "target market",
+      "region",
+      "templates",
+      "configuration",
+      "language",
+      "customer",
+      "tone",
+      "GEO",
+      "project setup"
+    ]
   },
   {
     "slug": "about-copy-maker",
@@ -62,13 +102,18 @@
   {
     "slug": "optional-features",
     "title": "Optional Output Features",
-    "description": "Learn what each optional output feature does — from SEO Metadata to GEO Optimization, TL;DR, and Keyword Integration.",
+    "description": "Learn what each optional output feature does — from SEO Metadata to GEO Generate, TL;DR, and Keyword Integration.",
     "icon": "sliders",
     "color": "blue",
     "section": "advanced",
     "url": "/help/optional-features",
     "group": "advanced",
-    "order": 1
+    "order": 1,
+    "keywords": [
+      "GEO",
+      "target market",
+      "region"
+    ]
   },
   {
     "slug": "voice-styles-and-blending",
@@ -82,17 +127,6 @@
     "order": 2
   },
   {
-    "slug": "workflow-builder",
-    "title": "Workflow Builder",
-    "description": "Create automated multi-step workflows to streamline repetitive tasks and apply consistent transformations in one generation click.",
-    "icon": "workflow",
-    "color": "blue",
-    "section": "advanced",
-    "url": "/help/workflow-builder",
-    "group": "advanced",
-    "order": 3
-  },
-  {
     "slug": "recommended-settings",
     "title": "Recommended Settings",
     "description": "The best configuration settings for different content types: blog posts, landing pages, ads, emails, and more.",
@@ -101,7 +135,7 @@
     "section": "advanced",
     "url": "/help/recommended-settings",
     "group": "advanced",
-    "order": 4
+    "order": 3
   },
   {
     "slug": "export-management",
