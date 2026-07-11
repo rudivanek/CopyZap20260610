@@ -16,7 +16,7 @@ const CreditsAndBilling: React.FC = () => {
       <h2>What Are Credits?</h2>
       <p>Credits are the internal currency that powers CopyZap. When you use AI to generate, improve, or analyze copy, you consume credits based on:</p>
       <ul>
-        <li><strong>AI model selected:</strong> Different models have different costs (e.g., Claude Sonnet 4.5 vs GPT-3.5 Turbo)</li>
+        <li><strong>AI processing:</strong> CopyZap selects and manages the AI models for you — you never need to choose a model</li>
         <li><strong>Amount of content:</strong> Longer inputs and outputs consume more credits</li>
         <li><strong>Optional features enabled:</strong> SEO metadata, scoring, GEO optimization, and other features add to credit usage</li>
         <li><strong>Number of variants:</strong> Generating 5 variants consumes more credits than generating 1</li>
@@ -75,7 +75,7 @@ const CreditsAndBilling: React.FC = () => {
           <ul className="list-disc ml-6 text-gray-700 dark:text-gray-300 mt-2">
             <li><strong>SEO Metadata Generation:</strong> 40-150 credits</li>
             <li><strong>Content Scoring:</strong> 20-80 credits</li>
-            <li><strong>GEO Scoring:</strong> 30-100 credits</li>
+            <li><strong>GEO Generate:</strong> 30-100 credits</li>
             <li><strong>Headlines Generation:</strong> 25-90 credits</li>
             <li><strong>FAQ Schema:</strong> 30-100 credits</li>
           </ul>
@@ -83,14 +83,8 @@ const CreditsAndBilling: React.FC = () => {
 
         <div className="border-l-4 border-red-600 pl-4">
           <h3 className="text-lg font-bold mb-2">Comparison & Analysis</h3>
-          <p className="text-gray-700 dark:text-gray-300">Using Grok AI to compare and analyze multiple outputs.</p>
+          <p className="text-gray-700 dark:text-gray-300">Comparing and scoring multiple outputs against each other.</p>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1"><strong>Typical cost:</strong> 100-400 credits depending on number of outputs</p>
-        </div>
-
-        <div className="border-l-4 border-indigo-600 pl-4">
-          <h3 className="text-lg font-bold mb-2">Workflows</h3>
-          <p className="text-gray-700 dark:text-gray-300">Automated multi-step workflows consume credits for each step.</p>
-          <p className="text-sm text-gray-600 dark:text-gray-400 mt-1"><strong>Typical cost:</strong> Sum of all individual step costs (150-600 credits for 3-5 step workflow)</p>
         </div>
 
         <div className="border-l-4 border-teal-600 pl-4">
@@ -118,7 +112,7 @@ const CreditsAndBilling: React.FC = () => {
       <div className="not-prose bg-green-50 dark:bg-green-950 border border-green-200 dark:border-green-800 rounded-lg p-6 mb-8">
         <ol className="list-decimal ml-4 space-y-3 text-gray-700 dark:text-gray-300">
           <li>
-            <strong>Choose the right AI model:</strong> Use GPT-3.5 Turbo or Claude Haiku for simple tasks instead of more expensive models. Claude Sonnet 4.5 is the default for balanced quality and cost.
+            <strong>Keep inputs focused:</strong> Very long business descriptions or pasted copy increase processing cost. Include what matters, trim what doesn't.
           </li>
           <li>
             <strong>Disable unused optional features:</strong> Don't enable SEO metadata, scoring, or GEO optimization unless you need them for that specific generation.
@@ -136,7 +130,7 @@ const CreditsAndBilling: React.FC = () => {
             <strong>Use templates:</strong> Templates save time and reduce trial-and-error generations by reusing proven configurations.
           </li>
           <li>
-            <strong>Avoid unnecessary comparisons:</strong> Grok comparison is powerful but credit-intensive. Use it only when you truly need objective analysis of 3+ outputs.
+            <strong>Avoid unnecessary comparisons:</strong> Comparison scoring is powerful but credit-intensive. Use it only when you truly need objective analysis of 3+ outputs.
           </li>
           <li>
             <strong>Test workflows before scaling:</strong> Test workflows on single generations before using them on every project to ensure they're worth the credit cost.
