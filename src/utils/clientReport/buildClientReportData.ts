@@ -424,6 +424,54 @@ function suppressZeroValuesInText(text: string): string {
 
 // ── Section slicing — text is REMOVED, not hidden (spec 3) ────────────────────
 
+// Crawls inject noise that becomes very visible once the baseline renders at
+// 100%: portfolio entries surface as eleven separate one-line sections, button
+// labels ("Cotizar proyecto") become standalone sections, and some sections
+// ("Nosotros") carry an empty <p></p>. This pass:
+//   1. drops sections whose text is empty/whitespace,
+//   2. drops standalone button/nav labels (short, no sentence punctuation),
+//   3. merges consecutive short list-like entries into one "Portafolio" section.
+function cleanBaselineSections(sections: { label: string; text: string }[]): { label: string; text: string }[] {
+  const cleaned = sections.filter(s => s.text.trim().length > 0);
+
+  const isButtonLabel = (t: string) => {
+    const txt = t.trim();
+    const words = txt.split(/\s+/).filter(Boolean);
+    if (words.length > 6) return false;
+    return !/[.!?;:](\s|$)/.test(txt);
+  };
+
+  const isPortfolioEntry = (t: string) => {
+    const txt = t.trim();
+    if (!txt) return false;
+    const words = txt.split(/\s+/).filter(Boolean);
+    if (words.length > 10) return false;
+    return /[/—–-]/.test(txt) || (words.length <= 4 && !/[.!?](\s|$)/.test(txt));
+  };
+
+  const out: { label: string; text: string }[] = [];
+  let portfolioBuffer: string[] = [];
+
+  const flushPortfolio = () => {
+    if (portfolioBuffer.length) {
+      out.push({ label: 'Portafolio', text: portfolioBuffer.join('\n') });
+      portfolioBuffer = [];
+    }
+  };
+
+  for (const sec of cleaned) {
+    if (isButtonLabel(sec.text) && !isPortfolioEntry(sec.text)) continue;
+    if (isPortfolioEntry(sec.text)) {
+      portfolioBuffer.push(sec.text);
+      continue;
+    }
+    flushPortfolio();
+    out.push(sec);
+  }
+  flushPortfolio();
+  return out;
+}
+
 function sliceSections(
   content: GeneratedContentItem['content'],
   previewPercent: number,
@@ -439,8 +487,11 @@ function sliceSections(
 
   // The baseline is the client's own published text — show 100% of it, no fade,
   // no paywall. The whole report rests on "this is what we read from your site",
-  // so truncating it would make the diagnosis unverifiable.
+  // so truncating it would make the diagnosis unverifiable. But crawls inject
+  // noise (portfolio entries as separate sections, button labels, empty
+  // blocks) that becomes very visible at 100% — clean it first (issue #3).
   if (isBaseline) {
+    sections = cleanBaselineSections(sections);
     const slices: ClientReportSectionSlice[] = sections.map((s, i) => ({
       label: s.label || '',
       text: s.text,
@@ -499,10 +550,11 @@ function sliceSections(
     }
 
     // If we did not keep every paragraph, the rest of this section + all
-    // subsequent sections are "remaining" (paywalled).
+    // subsequent sections are "remaining" (paywalled). But only list sections
+    // that were cut ENTIRELY (issue #4): the section where the cut lands is
+    // partly visible, so it must not appear in "Te falta por ver".
     const unkeptCount = paragraphs.length - kept.length;
     if (unkeptCount > 0 || acc >= target) {
-      if (unkeptCount > 0) remainingLabels.push(sec.label || 'Sección');
       stopped = true;
     }
   }
@@ -601,10 +653,11 @@ function roadmapFromAnalysis(
     if (obj.projected_score != null) projected = obj.projected_score;
     const title = text.split(/[.:]/)[0].trim() || text.trim();
     const body = text.slice(title.length).replace(/^[:.]\s*/, '').trim() || text.trim();
-    // Store RAW markup — renderer sanitizes once.
+    // Store RAW markup — renderer sanitizes once. Add a period after the bold
+    // title so it doesn't run on into the body (issue #6).
     items.push({
       points: pts,
-      titleHtml: `<strong>${title}</strong>`,
+      titleHtml: `<strong>${title}.</strong>`,
       bodyHtml: body,
     });
   }
@@ -715,11 +768,20 @@ export function buildClientReportData(
   }
 
   const proposalLetters = ['A', 'B', 'C', 'D', 'E'];
-  const proposals = contentCards.filter(c => c.id !== ORIGINAL_VERSION_ID && c.type !== GeneratedContentItemType.Original);
+  // Sort proposals by score desc so the letter assignment (A, B, C…) agrees
+  // with the AI's "Propuesta A/B/C" naming (which follows score order in the
+  // input markdown). Without this, the anchor #propA can point at the card
+  // the AI labelled "Propuesta C", scrambling the TOC.
+  const proposals = contentCards
+    .filter(c => c.id !== ORIGINAL_VERSION_ID && c.type !== GeneratedContentItemType.Original)
+    .sort((a, b) => (scoreMap.get(b.id) ?? b.score?.overall ?? 0) - (scoreMap.get(a.id) ?? a.score?.overall ?? 0));
   const proposalIndex = new Map<string, number>();
   proposals.forEach((c, i) => proposalIndex.set(c.id, i));
 
-  const versions: ClientReportVersion[] = contentCards.map((card, idx) => {
+  const baselineCard = contentCards.find(c => c.id === ORIGINAL_VERSION_ID || c.type === GeneratedContentItemType.Original);
+  const orderedCards = baselineCard ? [baselineCard, ...proposals] : proposals;
+
+  const versions: ClientReportVersion[] = orderedCards.map((card, idx) => {
     const isBaseline = card.id === ORIGINAL_VERSION_ID || card.type === GeneratedContentItemType.Original;
     const isWinner = card.id === winnerVersionId;
     const score = scoreMap.get(card.id) ?? card.score?.overall ?? 0;
@@ -739,7 +801,13 @@ export function buildClientReportData(
       const nl = narrativeLabels.get(card.id);
       if (nl) {
         displayName = nl.displayName;
-        roleLine = nl.roleLine;
+        // The AI's roleLine may contain an invented word count (issue #2).
+        // Strip any trailing " · NNN palabras" and append the computed count.
+        const angleOnly = nl.roleLine
+          .replace(/\s*·\s*\d+\s*palabras\s*$/i, '')
+          .replace(/\s*·\s*$/, '')
+          .trim();
+        roleLine = `${angleOnly} · ${wcrl.wordCount} palabras`;
       } else {
         const pIdx = proposalIndex.get(card.id) ?? 0;
         const letter = proposalLetters[pIdx] ?? String(pIdx + 1);

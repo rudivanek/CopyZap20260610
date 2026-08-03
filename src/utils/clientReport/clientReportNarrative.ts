@@ -67,7 +67,7 @@ REGLAS DETALLADAS:
 
 6. versionLabels: una entrada por cada versión generada (NO la original). El versionId debe coincidir exactamente con el id de la versión tal como aparece en el material.
    - displayName: "Propuesta A · <ángulo>", "Propuesta B · <ángulo>", "Propuesta C · <ángulo>". El ángulo se deriva del texto real.
-   - roleLine: una línea corta que describe el enfoque + " · NNN palabras".
+   - roleLine: una línea corta que describe el enfoque. NO incluyas el conteo de palabras; la app lo calcula y lo agrega. Escribe solo el enfoque (ej: "Afirmación primero, prueba inmediata después").
    - Si dos versiones son casi idénticas (>85% de solapamiento), la posterior se etiqueta como variante: "Propuesta C · Directo refinado", roleLine "Variante de la propuesta A con cierre reforzado".
 
 Material del análisis:

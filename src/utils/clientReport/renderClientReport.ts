@@ -392,8 +392,8 @@ ${excludedLine}
 }
 
 function renderSplitBlock(v: ClientReportVersion): string {
-  // Omit the entire split block when both lists are empty (item 6).
-  if (!v.strengths.length && !v.improvements.length) return '';
+  // Always render the split block so all versions read consistently (issue #5).
+  // When a list is empty, state it in one line rather than dropping the block.
   const posItems = v.strengths.length
     ? v.strengths.map(s => `<li>${escapeOnce(s)}</li>`).join('')
     : '<li class="empty">Sin observaciones destacadas.</li>';

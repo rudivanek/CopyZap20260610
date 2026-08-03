@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.3
-Last Updated: 2026-08-03T19:15:00Z
+Version: 1.4
+Last Updated: 2026-08-03T20:00:00Z
 
 ---
 
@@ -67,6 +67,22 @@ Last Updated: 2026-08-03T19:15:00Z
 3. **Every proposal names the missing sections.** Previously only the winner listed the cut section labels ("Te falta por ver: Portafolio, Nosotros, Cierre"); A and C got a generic sentence. All non-baseline versions now list the section labels that were cut, falling back to a complete sentence only when nothing was cut (e.g. when the proposal was short enough to fit entirely in the preview).
 
 4. **Scanned URL is a clickable link and the first brief row.** The cover URL is now an `<a target="_blank" rel="noopener noreferrer">` with a hover state, instead of plain text. The same URL also appears as the first row of the "Resumen de entrada" table (label "URL analizada"), since that section is titled "Qué leímos de tu sitio" but never stated which page everything came from. Both placements are omitted when no URL is available, and the disclaimer rewrites itself to read correctly without one.
+
+**Refinements (v1.4):**
+
+1. **Proposal order matches letter assignment.** Proposals are now sorted by score descending before letter assignment, so the AI's "Propuesta A" (highest score) maps to anchor `#propA`, "Propuesta B" to `#propB`, etc. Previously the array order was arbitrary, so the TOC could list "Propuesta C" as item 3 with anchor `#propA`, scrambling letters, anchors and order.
+
+2. **Word count comes from the app, not the AI.** The AI's `roleLine` previously could contain an invented word count that disagreed with the ranking table. The app now strips any trailing " · NNN palabras" from the AI's roleLine and appends the computed word count itself. The prompt was also updated to instruct the model to return only the angle description, not a word count.
+
+3. **Baseline crawl noise cleaned.** Because the baseline now renders at 100%, crawl noise became very visible: eleven portfolio entries as separate sections, button labels ("Cotizar proyecto") as standalone sections, and empty "Nosotros" blocks. A `cleanBaselineSections` pass now drops empty sections, drops standalone button/nav labels (short text with no sentence punctuation), and merges consecutive short list-like entries into a single "Portafolio" section.
+
+4. **"Te falta por ver" lists only fully-cut sections.** The paywall line previously listed the section where the cut landed, even though part of it was visible. Now only sections cut *entirely* appear in "Te falta por ver"; the partial section is omitted from the list.
+
+5. **Split block always renders.** When a proposal had no strengths or improvements, the entire split block was dropped, so Propuesta B rendered without one while A and C did. The block now always renders, with a "Sin observaciones destacadas." line in the empty list, so all three versions read consistently.
+
+6. **Roadmap titles punctuated.** The bold lead-in now ends with a period so it doesn't run on into the body ("<strong>…transformaciones concretas.</strong> Agregar una línea como…").
+
+7. **Scanned URL on fresh analysis.** The URL cover/brief-row fix from v1.3 only appears when a URL is present in the session. A session analysed before the wizard fix has no URL, so the link is correctly absent. Run a fresh URL analysis end-to-end to confirm the link appears.
 
 ---
 
