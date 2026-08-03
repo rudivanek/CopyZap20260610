@@ -76,21 +76,37 @@ const EXCLUDED_SECTION_HINTS = [
   'politica de privacidad', 'cotizar proyecto', 'cotizar', 'contact', 'contacto',
 ];
 
+function trimTrailingPunct(s: string): string {
+  let t = s.trim();
+  while (t.length > 0) {
+    const last = t.charAt(t.length - 1);
+    if (last === '.' || last === ':' || last === '*' || last === '-' || last === '#') {
+      t = t.slice(0, -1).trim();
+    } else {
+      break;
+    }
+  }
+  return t;
+}
+
 function normalizeSectionLabel(title: string): string {
-  const t = (title || '').trim().toLowerCase().replace(/[.:*\-#]+$/, '').trim();
+  const t = trimTrailingPunct((title || '').trim().toLowerCase());
   if (!t) return 'Sección';
   if (SECTION_LABEL_MAP[t]) return SECTION_LABEL_MAP[t];
   for (const key of Object.keys(SECTION_LABEL_MAP)) {
-    if (t === key || t.includes(key)) return SECTION_LABEL_MAP[key];
+    if (t === key || t.indexOf(key) !== -1) return SECTION_LABEL_MAP[key];
   }
-  return title.trim().replace(/[.:*\-#]+$/, '').trim() || 'Sección';
+  return trimTrailingPunct((title || '').trim()) || 'Sección';
 }
 
 function isExcludedSection(title: string): boolean {
-  const t = (title || '').toLowerCase().replace(/[.:*\-#]+$/, '').trim();
+  const t = trimTrailingPunct((title || '').trim().toLowerCase());
   if (!t) return false;
   if (SECTION_LABEL_MAP[t] === 'Pie') return true;
-  return EXCLUDED_SECTION_HINTS.some(h => t === h || t.includes(h));
+  for (const h of EXCLUDED_SECTION_HINTS) {
+    if (t === h || t.indexOf(h) !== -1) return true;
+  }
+  return false;
 }
 
 export interface ClientReportSectionSlice {
@@ -377,7 +393,8 @@ function firstHeadline(content: GeneratedContentItem['content']): string {
   const list = buildSectionList(content);
   const hero = list[0];
   if (!hero) return '';
-  return hero.text.split('\n')[0].trim();
+  const lines = hero.text.split('\n');
+  return lines[0].trim();
 }
 
 function firstSubline(content: GeneratedContentItem['content']): string {
@@ -393,24 +410,27 @@ function firstSubline(content: GeneratedContentItem['content']): string {
 function isShortBareLabel(line: string): boolean {
   const trimmed = line.trim();
   if (!trimmed) return false;
-  if (/[.!?:;]$/.test(trimmed)) return false;
-  const words = trimmed.split(/\s+/).filter(Boolean);
+  const last = trimmed.charAt(trimmed.length - 1);
+  if (last === '.' || last === '!' || last === '?' || last === ':' || last === ';') return false;
+  const words = trimmed.split(' ').filter(w => w.length > 0);
   if (words.length === 0 || words.length > 4) return false;
   return true;
 }
 
 function looksLikeMarker(line: string): boolean {
   if (!isShortBareLabel(line)) return false;
-  const lower = line.toLowerCase().replace(/[.:*\-#]+$/, '').trim();
+  const lower = trimTrailingPunct(line.toLowerCase());
   return Object.prototype.hasOwnProperty.call(SECTION_LABEL_MAP, lower);
 }
 
 function splitOnFences(text: string): string[] {
-  return text.split(/^\s*-{3,}\s*$/m).map(b => b.trim()).filter(Boolean);
+  let blocks = text.split('\n---\n');
+  if (blocks.length < 2) blocks = text.split('---');
+  return blocks.map(b => b.trim()).filter(b => b.length > 0);
 }
 
 function splitIntoParagraphs(text: string): string[] {
-  return text.split(/\n\s*\n+/).map(p => p.trim()).filter(Boolean);
+  return text.split('\n\n').map(p => p.trim()).filter(p => p.length > 0);
 }
 
 function labelBlocks(blocks: string[]): { label: string; text: string }[] {
