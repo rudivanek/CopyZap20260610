@@ -59,7 +59,6 @@ const SECTION_LABEL_MAP: Record<string, string> = {
   cierre: 'Cierre',
   conclusion: 'Cierre',
   conclusión: 'Cierre',
-  conclusion: 'Cierre',
   about: 'Nosotros',
   nosotros: 'Nosotros',
   'sobre nosotros': 'Nosotros',
