@@ -554,8 +554,6 @@ export function buildClientReportData(
     const score = scoreMap.get(card.id) ?? card.score?.overall ?? 0;
     const deltaPoints = isBaseline ? null : Math.max(0, Math.round(score - baselineScore));
     const deltaPercent = isBaseline || baselineScore <= 0 ? null : Math.round((deltaPoints! / baselineScore) * 100);
-    )
-    )
     const plain = contentToPlainText(card.content);
     const wcrl = computeWordCountAndReadingLevel(plain);
     const editorial = editorialMap.get(card.id) ?? Math.round(score * 0.5);
