@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-08-03T12:00:00Z
+Last Updated: 2026-08-03T18:00:00Z
 
 ---
 
@@ -51,6 +51,22 @@ Last Updated: 2026-08-03T12:00:00Z
 **Escaping:** Every value is HTML-escaped except fields explicitly named `*Html`, which carry sanitised inline markup (`<strong>`, `<b>`, `<q>`, `<em>` only — everything else is stripped).
 
 **Acceptance checklist met:** item appears directly below the original; original is unchanged; export produces one self-contained `.html` with no external requests; zero English strings in the output; no `Generated Copy` / `Alternative:` / `Modified:` anywhere; TOC shows per-version score, `+N pts`, and `+N % vs. actual`; cover shows the three-stop journey with correct baseline/winner/potential; `potential` equals winner score plus sum of roadmap points (or deep-analysis projection); every non-baseline version shows the preview band with a working `#contacto` anchor; `SUPPRESS_ZERO_VALUE_NUMERIC_FINDINGS` is on and no `+0` / `0 %` claim reaches the output; renders at 390px; prints to PDF with dark cover intact; credits are charged once for the narrative call and recorded in the usage table; with the AI call forced to fail, the export still completes using fallbacks.
+
+## Client Report — Data Builder Bug Fixes (2026-08-03)
+
+**File modified:** `src/utils/clientReport/buildClientReportData.ts`
+
+**Summary:** Four correctness fixes to the client report data builder. None of these change the report's visible structure; they fix values that were wrong or could crash the export.
+
+**1. Stray closing parentheses (syntax error):** The `contentCards.map` callback had two stray `)` lines on their own lines, immediately after the `deltaPercent` declaration and before `const plain = contentToPlainText(card.content)`. These caused esbuild (used by Vite's dev server for on-the-fly transforms) to reject the module, which surfaced in the browser as `TypeError: Failed to fetch dynamically imported module: …/CopyMakerTab.tsx` because `CopyMakerTab` pulls this module through its dependency graph. The production `vite build` failed on the same error. Both stray lines were deleted; the callback now flows directly from `deltaPercent` to `const plain`.
+
+**2. `editorialMap` / `conversionMap` divide-by-0.5 (value doubling):** The editorial-quality and conversion-potential per-version scores were computed as `Math.round((abs.clarity + abs.structure) / 0.5)` and `Math.round((abs.persuasion + abs.audience_fit) / 0.5)`. Dividing by 0.5 is equivalent to multiplying by 2, so the result was double the intended sum and routinely exceeded 100. Changed both denominators from `/ 0.5` to `/ 2`, so each score is now the average of its two component dimensions (clarity+structure for editorial, persuasion+audience_fit for conversion), capped to a 0–100 range by the average.
+
+**3. `buildFallbackFindings` padding (cloned findings):** The fallback findings builder padded its output to exactly four items by cloning the last real finding (`while (out.length < 4 && out.length > 0) out.push({ ...out[out.length - 1] })`). This produced duplicate findings in the report when fewer than four real findings existed. The padding loop was removed; the function now returns `out.slice(0, 4)` — however many real findings exist (up to four), with no cloning.
+
+**4. `companyUrl` source (cover + footer URL):** `companyUrl` was read from `formState.competitorUrls[0]`, which is the competitor-URL field, not the page the user actually analysed through the analyze-url flow. The cover and the footer disclaimer were therefore populated with a competitor's URL instead of the analysed page. `companyUrl` now prefers the URL embedded in `formState.originalCopy` (the extracted page content from the analyze-url flow, matched with `https?:\/\/[^\s)"']+`), falling back to `competitorUrls[0]`, then to URLs found in `businessDescription` / `projectDescription`, then empty string. This matches the existing fallback order used elsewhere in the file for URL extraction.
+
+**Verification:** `npx tsc --noEmit` passes with no errors. `npm run build` passes (`✓ built in 35.48s`) with only the pre-existing chunk-size warning, no errors.
 
 ---
 

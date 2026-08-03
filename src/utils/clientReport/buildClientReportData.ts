@@ -584,7 +584,6 @@ function buildFallbackFindings(
     const t = imp.length > 70 ? imp.slice(0, 67).trim() + '…' : imp;
     push('Conversión', t.replace(/[.:]$/, ''), imp);
   }
-  while (out.length < 4 && out.length > 0) out.push({ ...out[out.length - 1] });
   return out.slice(0, 4);
 }
 
@@ -650,8 +649,8 @@ export function buildClientReportData(
       if (row.versionId && row.finalScore != null) scoreMap.set(row.versionId, row.finalScore);
       const abs = contentCards.find(c => c.id === row.versionId)?.absoluteScore;
       if (abs) {
-        editorialMap.set(row.versionId, Math.round((abs.clarity + abs.structure) / 0.5));
-        conversionMap.set(row.versionId, Math.round((abs.persuasion + abs.audience_fit) / 0.5));
+        editorialMap.set(row.versionId, Math.round((abs.clarity + abs.structure) / 2));
+        conversionMap.set(row.versionId, Math.round((abs.persuasion + abs.audience_fit) / 2));
       }
     }
   }
@@ -671,7 +670,9 @@ export function buildClientReportData(
   const winnerDeltaPercent = baselineScore > 0 ? Math.round((winnerDeltaPoints / baselineScore) * 100) : 0;
 
   const analyzedAt = comparisonDeepAnalysisMeta?.evaluatedAt || formState.originalCopyEnteredAt || new Date().toISOString();
+  const originalCopyUrl = formState.originalCopy?.match(/https?:\/\/[^\s)"']+/i)?.[0] || '';
   const companyUrl =
+    originalCopyUrl ||
     formState.competitorUrls?.[0] ||
     formState.businessDescription?.match(/https?:\/\/[^\s)]+/i)?.[0] ||
     formState.projectDescription?.match(/https?:\/\/[^\s)]+/i)?.[0] ||
