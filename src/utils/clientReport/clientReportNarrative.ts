@@ -8,13 +8,16 @@ import {
   ClientReportFinding,
 } from './buildClientReportData';
 
-const SYSTEM_PROMPT = `Eres un estratega de copy senior de un estudio de branding. Escribes en español de España neutro, profesional y directo, sin jerga de marketing ni superlativos vacíos. Tu lector es el dueño o responsable de marketing de la empresa analizada: no te conoce, es escéptico, y va a decidir en treinta segundos si este documento merece su atención.
+const SYSTEM_PROMPT = `Eres un estratega de copy senior de un estudio de branding. Escribes en español neutro,
+profesional y directo, sin jerga de marketing ni superlativos vacíos. Tu lector es el dueño o
+responsable de marketing de la empresa analizada: no te conoce, es escéptico, y decidirá en
+treinta segundos si este documento merece su atención.
 
 Reglas:
 - Nunca inventes datos, cifras ni hechos que no estén en el material proporcionado.
 - Nunca afirmes que algo es falso; di que no está respaldado o que no se puede verificar.
 - Sé específico. Cita el texto real del sitio cuando refuerce el argumento.
-- Frases cortas. Cero relleno. Cero "en el mundo actual".
+- Frases cortas. Cero relleno.
 - Devuelve únicamente JSON válido con la estructura solicitada.`;
 
 const USER_PROMPT_HEADER = `A continuación recibirás el material de un análisis de copy realizado sobre el sitio de una empresa. Tu tarea es producir los textos en español que irán en un reporte ejecutivo dirigido al cliente.
@@ -23,6 +26,13 @@ Devuelve EXCLUSIVAMENTE un objeto JSON con esta forma exacta (sin texto fuera de
 
 {
   "companyName": "Nombre real de la empresa (no la URL)",
+  "briefEs": {
+    "audience": "Público objetivo traducido al español",
+    "keyMessage": "Mensaje clave traducido al español",
+    "cta": "Llamada a la acción traducida al español",
+    "emotion": "Emoción buscada traducida al español",
+    "brandValues": "Valores de marca traducidos al español"
+  },
   "executiveSummary": ["<párrafo 1>", "<párrafo 2>", "<párrafo 3>"],
   "findings": [
     { "category": "Credibilidad|Prueba social|Lenguaje|Conversión|Claridad|Estructura|SEO", "title": "Título sin punto final", "bodyHtml": "1–2 frases; cita el sitio con <q>...</q>" }
@@ -33,27 +43,29 @@ Devuelve EXCLUSIVAMENTE un objeto JSON con esta forma exacta (sin texto fuera de
   ]
 }
 
-REGLLAS DETALLADAS:
+REGLAS DETALLADAS:
 
-1. companyName: el nombre real de la empresa, preferido de og:site_name o <title>. Nunca la URL desnuda.
+1. companyName: el nombre real de la empresa, preferido de og:site_name o <title> (sin el subtítulo tras |, – o —). Nunca la URL desnuda, nunca el titular de la página, nunca un campo de descripción del formulario.
 
-2. executiveSummary: exactamente TRES párrafos, en este orden:
+2. briefEs: traduce al español los campos del brief que suelen llegar en inglés. No construyas una tabla de frases hechas: traduce el contenido real de cada campo. Si un campo ya está en español, devuélvelo tal cual.
+
+3. executiveSummary: exactamente TRES párrafos, en este orden:
    - Párrafo 1: qué ya funciona (sé genuinamente justo; esto compra el derecho a criticar).
    - Párrafo 2: el mayor problema único.
    - Párrafo 3: la segunda oportunidad.
    Cada párrafo 2–4 frases. Envuelve la frase clave de cada párrafo en <strong>...</strong>.
 
-3. findings: exactamente CUATRO hallazgos, ordenados por impacto. Categorías permitidas: Credibilidad, Prueba social, Lenguaje, Conversión, Claridad, Estructura, SEO.
-   - title: una línea, sin punto final.
+4. findings: hasta CUATRO hallazgos, ordenados por impacto. Categorías permitidas: Credibilidad, Prueba social, Lenguaje, Conversión, Claridad, Estructura, SEO. Varía la categoría entre hallazgos.
+   - title: una línea, sin punto final. Distinto para cada hallazgo (no el cuerpo truncado con puntos suspensivos).
    - bodyHtml: 1–2 frases. Si citas el sitio, usa <q>...</q>.
-   - NUNCA acuses al sitio de mentir. Marcos correctos: "cifras sin fuente citada", "afirmación no verificable", "superlativo antes de la prueba".
-   - Descarta cualquier hallazgo cuyo contenido numérico sea cero (patrones +0, 0 %, +0%, 0.0). No lo reemplaces; simplemente no lo incluyas.
+   - NUNCA acuses al sitio de mentir. Marcos correctos: "cifras sin fuente citada", "afirmación no verificable", "superlativo antes de la prueba". Frásalo como un problema observado, no como una instrucción.
+   - Descarta cualquier hallazgo cuyo contenido numérico sea cero (patrones +0, 0 %, +0%, 0.0). No lo reemplaces; simplemente no lo incluyas. Si quedan menos de cuatro, entrega menos.
 
-4. headToHead:
+5. headToHead:
    - originalNote: 1–2 frases sobre por qué el titular actual rinde menos.
    - winnerNote: 1–2 frases sobre por qué el titular propuesto funciona.
 
-5. versionLabels: una entrada por cada versión generada (NO la original). El versionId debe coincidir exactamente con el id de la versión tal como aparece en el material.
+6. versionLabels: una entrada por cada versión generada (NO la original). El versionId debe coincidir exactamente con el id de la versión tal como aparece en el material.
    - displayName: "Propuesta A · <ángulo>", "Propuesta B · <ángulo>", "Propuesta C · <ángulo>". El ángulo se deriva del texto real.
    - roleLine: una línea corta que describe el enfoque + " · NNN palabras".
    - Si dos versiones son casi idénticas (>85% de solapamiento), la posterior se etiqueta como variante: "Propuesta C · Directo refinado", roleLine "Variante de la propuesta A con cierre reforzado".
@@ -91,13 +103,20 @@ export async function generateClientReportNarrative(
       formState.sessionId,
     );
   } catch (err) {
-    console.warn('[clientReport] Narrative AI call failed; using fallback.', err);
+    // LOUD failure logging (spec 6 / pitfall 14) — never silently degrade.
+    console.error(
+      '[clientReport] ✗ La llamada de narrativa del reporte de cliente FALLÓ. Se generará el reporte sin narrativa (sin resumen ejecutivo, hallazgos desde los flags, propuestas sin ángulo, sin notas cara a cara).',
+      err,
+    );
     return null;
   }
 
   const parsed = safeParseNarrative(raw);
   if (!parsed) {
-    console.warn('[clientReport] Narrative AI returned invalid JSON; using fallback.');
+    console.error(
+      '[clientReport] ✗ La llamada de narrativa devolvió JSON inválido. Se generará el reporte sin narrativa. Respuesta cruda (primeros 500 caracteres):',
+      raw?.slice(0, 500),
+    );
     return null;
   }
   return parsed;
@@ -115,7 +134,7 @@ function safeParseNarrative(raw: string): ClientReportNarrative | null {
   let obj: any;
   try {
     obj = JSON.parse(jsonSlice);
-  } catch {
+  } catch (e) {
     return null;
   }
   if (!obj || typeof obj !== 'object') return null;
@@ -131,8 +150,19 @@ function safeParseNarrative(raw: string): ClientReportNarrative | null {
         }))
     : [];
 
+  const briefEs = obj.briefEs && typeof obj.briefEs === 'object'
+    ? {
+        audience: String(obj.briefEs.audience || ''),
+        keyMessage: String(obj.briefEs.keyMessage || ''),
+        cta: String(obj.briefEs.cta || ''),
+        emotion: String(obj.briefEs.emotion || ''),
+        brandValues: String(obj.briefEs.brandValues || ''),
+      }
+    : { audience: '', keyMessage: '', cta: '', emotion: '', brandValues: '' };
+
   return {
     companyName: typeof obj.companyName === 'string' ? obj.companyName : '',
+    briefEs,
     executiveSummary: Array.isArray(obj.executiveSummary)
       ? obj.executiveSummary.filter((p: any) => typeof p === 'string').slice(0, 3)
       : [],

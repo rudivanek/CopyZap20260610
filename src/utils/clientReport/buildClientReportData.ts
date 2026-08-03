@@ -21,52 +21,58 @@ export const CLIENT_REPORT_PREVIEW_PERCENT = 25;
 const STUDIO = {
   name: 'Sharpen.Studio',
   site: 'sharpen.studio',
-  email: 'hola@sharpen.studio',
+  email: 'sharpen.studio',
   ctaPrimaryUrl: 'https://sharpen.studio/agendar',
   ctaSecondaryUrl: 'https://sharpen.studio/contacto',
 };
 
+// Bilingual section-label map (English + Spanish → Spanish display label).
+// Per spec 3.1 rule 4. No regex used to resolve labels — plain object lookup.
 const SECTION_LABEL_MAP: Record<string, string> = {
   hero: 'Encabezado',
+  encabezado: 'Encabezado',
   headline: 'Encabezado',
   introduction: 'Introducción',
+  introduccion: 'Introducción',
   intro: 'Introducción',
   features: 'Características',
+  caracteristicas: 'Características',
   benefits: 'Beneficios',
+  beneficios: 'Beneficios',
   'how it works': 'Cómo funciona',
-  'how does it work': 'Cómo funciona',
+  'como funciona': 'Cómo funciona',
   services: 'Servicios',
+  servicios: 'Servicios',
   courses: 'Cursos',
+  cursos: 'Cursos',
+  portfolio: 'Portafolio',
+  portafolio: 'Portafolio',
+  about: 'Nosotros',
+  nosotros: 'Nosotros',
   'case studies': 'Casos de éxito',
   'case study': 'Casos de éxito',
-  testimonials: 'Testimonios',
+  'casos de éxito': 'Casos de éxito',
+  'casos de exito': 'Casos de éxito',
+  pricing: 'Precios',
+  precios: 'Precios',
+  faq: 'Preguntas frecuentes',
   cta: 'Cierre',
   'call to action': 'Cierre',
-  conclusion: 'Cierre',
-  about: 'Sobre nosotros',
-  pricing: 'Precios',
-  faq: 'Preguntas frecuentes',
+  cierre: 'Cierre',
+  testimonials: 'Testimonios',
+  testimonios: 'Testimonios',
+  footer: 'Pie',
+  pie: 'Pie',
 };
 
+// Hints for sections excluded from the analysis (cookie/nav/footer/etc.).
 const EXCLUDED_SECTION_HINTS = [
   'testimoni', 'review', 'cookie', 'consent', 'navigation', 'nav', 'menu',
-  'breadcrumb', 'footer', 'aviso de cookies', 'política de privacidad',
+  'breadcrumb', 'footer', 'pie', 'aviso de cookies', 'política de privacidad',
+  'politica de privacidad',
 ];
 
-function normalizeSectionLabel(title: string): string {
-  const t = (title || '').trim().toLowerCase();
-  if (!t) return 'Sección';
-  if (SECTION_LABEL_MAP[t]) return SECTION_LABEL_MAP[t];
-  for (const key of Object.keys(SECTION_LABEL_MAP)) {
-    if (t.includes(key)) return SECTION_LABEL_MAP[key];
-  }
-  return title.trim();
-}
-
-function isExcludedSection(title: string): boolean {
-  const t = (title || '').toLowerCase();
-  return EXCLUDED_SECTION_HINTS.some(h => t.includes(h));
-}
+// ── Types ────────────────────────────────────────────────────────────────────
 
 export interface ClientReportSectionSlice {
   label: string;
@@ -97,7 +103,6 @@ export interface ClientReportVersion {
   paywallLine: string;
   strengthsHeading: string;
   improvementsHeading: string;
-  hasStrengths: boolean;
   rankSubline: string;
 }
 
@@ -137,6 +142,7 @@ export interface ClientReportBrief {
 export interface ClientReportCompany {
   name: string;
   url: string;
+  hasUrl: boolean;
   analyzedAt: string;
   analyzedAtLabel: string;
   analyzedAtTimeLabel: string;
@@ -182,6 +188,13 @@ export interface ClientReportData {
 
 export interface ClientReportNarrative {
   companyName: string;
+  briefEs: {
+    audience: string;
+    keyMessage: string;
+    cta: string;
+    emotion: string;
+    brandValues: string;
+  };
   executiveSummary: string[];
   findings: ClientReportFinding[];
   headToHead: { originalNote: string; winnerNote: string };
@@ -191,6 +204,8 @@ export interface ClientReportNarrative {
     roleLine: string;
   }>;
 }
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
 const NUMBER_WORDS = [
   'cero', 'uno', 'dos', 'tres', 'cuatro', 'cinco',
@@ -204,24 +219,6 @@ const NUMBER_WORDS_CAP = [
 function numberWord(n: number, cap = false): string {
   const arr = cap ? NUMBER_WORDS_CAP : NUMBER_WORDS;
   return arr[n] ?? String(n);
-}
-
-function escapeHtml(text: string): string {
-  return String(text ?? '')
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#039;');
-}
-
-function sanitizeInlineHtml(html: string): string {
-  const escaped = escapeHtml(html);
-  const ALLOWED = new Set(['strong', 'b', 'q', 'em']);
-  return escaped.replace(
-    /&lt;(\/?)(strong|b|q|em)&gt;/gi,
-    (_m, slash, tag) => `<${slash}${tag.toLowerCase()}>`,
-  );
 }
 
 function stripProtocol(url: string): string {
@@ -260,7 +257,7 @@ function readingLevelEs(level: string): string {
   const l = (level || '').toLowerCase();
   if (l === 'advanced' || l === 'avanzado') return 'avanzado';
   if (l === 'medium' || l === 'intermediate' || l === 'intermedio') return 'intermedio';
-  if (l === 'easy' || l === 'basic' || l === 'básico') return 'básico';
+  if (l === 'easy' || l === 'basic' || l === 'básico' || l === 'basico') return 'básico';
   return 'intermedio';
 }
 
@@ -285,6 +282,8 @@ function toneLineFor(formState: FormState): string {
   return [toneLabel, wcLabel, lang].filter(Boolean).join(' · ');
 }
 
+// ── Content → plain text ─────────────────────────────────────────────────────
+
 function contentToStructured(content: GeneratedContentItem['content']): {
   headline: string;
   sections: StructuredCopySection[];
@@ -306,6 +305,7 @@ function contentToStructured(content: GeneratedContentItem['content']): {
   return { headline: '', sections: [] };
 }
 
+// Plain text WITHOUT markers (used for word-count, risk-factor, AI input scrubbing).
 function contentToPlainText(content: GeneratedContentItem['content']): string {
   const { headline, sections } = contentToStructured(content);
   const parts: string[] = [];
@@ -315,6 +315,26 @@ function contentToPlainText(content: GeneratedContentItem['content']): string {
     if (s.listItems?.length) parts.push(s.listItems.map(stripMarkdown).join('\n'));
   }
   return parts.filter(Boolean).join('\n\n');
+}
+
+// Plain text WITH \n---\n markers and section titles as the first line of each block,
+// so splitSections can recover labels for both string and structured content.
+function contentToPlainTextWithMarkers(content: GeneratedContentItem['content']): string {
+  if (typeof content === 'string') return stripMarkdown(content);
+  if (Array.isArray(content)) return content.map(stripMarkdown).join('\n---\n');
+  const { headline, sections } = contentToStructured(content);
+  const parts: string[] = [];
+  if (headline) parts.push(stripMarkdown(headline).trim());
+  for (const s of sections) {
+    let block = '';
+    if (s.title) block += stripMarkdown(s.title).trim() + '\n\n';
+    if (s.content) block += stripMarkdown(s.content).trim();
+    if (s.listItems?.length) {
+      block += (block ? '\n' : '') + s.listItems.map(i => '• ' + stripMarkdown(i).trim()).join('\n');
+    }
+    if (block.trim()) parts.push(block.trim());
+  }
+  return parts.join('\n---\n');
 }
 
 function firstHeadline(content: GeneratedContentItem['content']): string {
@@ -335,64 +355,52 @@ function firstSubline(content: GeneratedContentItem['content']): string {
   return '';
 }
 
-function sliceSections(
-  content: GeneratedContentItem['content'],
-  previewPercent: number,
-): ClientReportSectionSlice[] {
-  const { headline, sections } = contentToStructured(content);
-  const all: { label: string; text: string; isHero: boolean }[] = [];
-  if (headline) {
-    all.push({ label: 'Encabezado', text: stripMarkdown(headline).trim(), isHero: true });
-  }
-  for (const s of sections) {
-    if (isExcludedSection(s.title)) continue;
-    const label = normalizeSectionLabel(s.title);
-    let text = '';
-    if (s.content) text = stripMarkdown(s.content).trim();
-    if (s.listItems?.length) text = (text ? text + '\n' : '') + s.listItems.map(i => '• ' + stripMarkdown(i).trim()).join('\n');
-    if (text) all.push({ label, text, isHero: all.length === 0 });
-  }
-  if (all.length === 0) return [];
+// ── splitSections — NO regex in the splitting logic (spec 3.1) ────────────────
 
-  const totalChars = all.reduce((a, s) => a + s.text.length, 0) || 1;
-  const target = Math.max(1, Math.round((totalChars * previewPercent) / 100));
-  let acc = 0;
-  let cutoff = 0;
-  for (let i = 0; i < all.length; i++) {
-    acc += all[i].text.length;
-    cutoff = i + 1;
-    if (i >= 1 && acc >= target) break;
+function splitSections(text: string): { label: string; text: string }[] {
+  const parseBlocks = (src: string): { label: string; text: string }[] => {
+    if (!src || !src.trim()) return [];
+    let blocks = src.split('\n---\n');
+    if (blocks.length < 2) blocks = src.split('---');
+    if (blocks.length < 2) blocks = src.split('\n\n');
+    const result: { label: string; text: string }[] = [];
+    for (const block of blocks) {
+      const trimmed = block.trim();
+      if (!trimmed) continue;
+      const lines = trimmed.split('\n');
+      const firstLine = lines[0].trim();
+      const words = firstLine.split(' ').filter(w => w.length > 0);
+      const endsWithPunct =
+        firstLine.endsWith('.') || firstLine.endsWith('!') ||
+        firstLine.endsWith('?') || firstLine.endsWith(':') ||
+        firstLine.endsWith(';');
+      let label = '';
+      let body = trimmed;
+      if (words.length > 0 && words.length <= 4 && firstLine.length > 0 && !endsWithPunct) {
+        const mapped = SECTION_LABEL_MAP[firstLine.toLowerCase()];
+        if (mapped) {
+          label = mapped;
+          body = lines.slice(1).join('\n').trim();
+        }
+      }
+      result.push({ label, text: body });
+    }
+    return result;
+  };
+
+  let sections = parseBlocks(text);
+
+  // Rule 6: never a single section containing the entire copy.
+  if (sections.length === 1 && sections[0].text.length > 400) {
+    const paragraphs = text.split('\n\n').map(b => b.trim()).filter(b => b);
+    if (paragraphs.length > 1) {
+      sections = paragraphs.map(p => ({ label: '', text: p }));
+    }
   }
-  cutoff = Math.max(2, Math.min(cutoff, all.length));
-  const visible = all.slice(0, cutoff);
-  return visible.map((s, i) => ({
-    label: s.label,
-    text: s.text,
-    isHero: s.isHero,
-    isFaded: i === visible.length - 1,
-  }));
+  return sections;
 }
 
-function remainingSectionNames(content: GeneratedContentItem['content']): string {
-  const { sections } = contentToStructured(content);
-  const all: string[] = [];
-  for (const s of sections) {
-    if (isExcludedSection(s.title)) continue;
-    all.push(normalizeSectionLabel(s.title));
-  }
-  const visibleCount = Math.max(2, Math.min(all.length, Math.ceil(all.length * CLIENT_REPORT_PREVIEW_PERCENT / 100) || 2));
-  const remaining = all.slice(visibleCount);
-  return remaining.length ? remaining.join(', ') : 'el resto del copy';
-}
-
-function tokenOverlap(a: string, b: string): number {
-  const ta = new Set(a.toLowerCase().split(/\W+/).filter(w => w.length > 3));
-  const tb = b.toLowerCase().split(/\W+/).filter(w => w.length > 3);
-  if (ta.size === 0 || tb.size === 0) return 0;
-  let shared = 0;
-  for (const w of tb) if (ta.has(w)) shared++;
-  return shared / Math.max(ta.size, tb.size);
-}
+// ── Zero-value suppression (spec 5) ───────────────────────────────────────────
 
 function looksLikeZeroValueNumeric(text: string): boolean {
   return /(^|[^\d.])(\+\s*0(\.0+)?\s*(%|pts|puntos)?|0(\.0+)?\s*%|0\s*\/\s*\d+)/i.test(text);
@@ -403,68 +411,162 @@ function suppressZeroFlags(flags: string[]): string[] {
   return (flags || []).filter(f => !looksLikeZeroValueNumeric(f));
 }
 
-function deriveCompanyName(formState: FormState, fallbackFromCopy?: string): string {
-  const fromProject = formState.projectDescription?.trim();
-  if (fromProject && !/https?:\/\//i.test(fromProject) && fromProject.length < 80) return fromProject;
-  const url = formState.competitorUrls?.[0] || '';
-  if (url) {
-    const host = stripProtocol(url).split('/')[0].replace(/^www\./, '');
-    const root = host.split('.').slice(-2, -1)[0];
-    if (root) return root.charAt(0).toUpperCase() + root.slice(1);
-  }
-  if (fallbackFromCopy && fallbackFromCopy.trim()) return fallbackFromCopy.trim().slice(0, 60);
-  return formState.businessDescription?.trim().slice(0, 60) || 'Tu empresa';
+// Strip zero-value numeric tokens from reproduced copy text (spec 5, place 4).
+function suppressZeroValuesInText(text: string): string {
+  if (!SUPPRESS_ZERO_VALUE_NUMERIC_FINDINGS) return text;
+  return text
+    .replace(/\+\s*0(?:\.0+)?\s*(?:%|pts|puntos|personas|usuarios|clientes|empresas)?/gi, ' ')
+    .replace(/\b0(?:\.0+)?\s*%/g, ' ')
+    .replace(/\b0(?:\.0+)?\s*\/\s*\d+/g, ' ')
+    .replace(/[ \t]{2,}/g, ' ')
+    .trim();
 }
+
+// ── Section slicing — text is REMOVED, not hidden (spec 3) ────────────────────
+
+function sliceSections(
+  content: GeneratedContentItem['content'],
+  previewPercent: number,
+  versionNameForWarning: string,
+): { sections: ClientReportSectionSlice[]; remainingLabels: string[] } {
+  const plain = contentToPlainTextWithMarkers(content);
+  let sections = splitSections(plain);
+
+  // Drop Pie and Testimonios before measuring (spec 3.2).
+  sections = sections.filter(s => s.label !== 'Pie' && s.label !== 'Testimonios');
+  if (!sections.length) return { sections: [], remainingLabels: [] };
+
+  const totalChars = sections.reduce((a, s) => a + s.text.length, 0) || 1;
+  const target = Math.max(1, Math.round((totalChars * previewPercent) / 100));
+  const maxCount = Math.floor(sections.length / 2);
+
+  let acc = 0;
+  let cutoff = 0;
+  for (let i = 0; i < sections.length; i++) {
+    acc += sections[i].text.length;
+    cutoff = i + 1;
+    if (i >= 1 && acc >= target) break; // minimum of 2 kept
+  }
+  if (cutoff < 2) cutoff = 2;
+  if (maxCount >= 2 && cutoff > maxCount) cutoff = maxCount;
+  if (cutoff > sections.length) cutoff = sections.length;
+
+  const visible = sections.slice(0, cutoff);
+  const remaining = sections.slice(cutoff).map(s => s.label || 'Sección');
+
+  // Self-check (spec 3.3).
+  const keptChars = visible.reduce((a, s) => a + s.text.length, 0);
+  if (totalChars > 0 && keptChars / totalChars > 0.40) {
+    console.warn(
+      `[clientReport] La versión "${versionNameForWarning}" muestra ${Math.round(
+        (keptChars / totalChars) * 100,
+      )}% del copy (límite 40%). Revisa el corte de secciones.`,
+    );
+  }
+
+  const slices: ClientReportSectionSlice[] = visible.map((s, i) => ({
+    label: s.label || 'Sección',
+    text: suppressZeroValuesInText(s.text),
+    isHero: i === 0,
+    isFaded: i === visible.length - 1,
+  }));
+
+  return { sections: slices, remainingLabels: remaining };
+}
+
+// ── Sub-scores — average, not doubled (spec 4.3) ─────────────────────────────
+
+function clamp(n: number, lo: number, hi: number): number {
+  return Math.max(lo, Math.min(hi, n));
+}
+
+function averageSubscore(a: number | undefined, b: number | undefined): number {
+  const av = (a ?? 0) + (b ?? 0);
+  return clamp(Math.round(av / 2), 0, 100);
+}
+
+// ── Findings fallback — no cloning, distinct titles (spec 4.4) ────────────────
 
 function buildFallbackFindings(
   risks: string[],
   improvements: string[],
 ): ClientReportFinding[] {
   const out: ClientReportFinding[] = [];
-  const seen = new Set<string>();
+  const seenTitles = new Set<string>();
   const push = (category: string, title: string, bodyHtml: string) => {
-    const key = title.toLowerCase();
-    if (seen.has(key) || looksLikeZeroValueNumeric(title + ' ' + bodyHtml)) return;
-    seen.add(key);
-    out.push({ category, title, bodyHtml: sanitizeInlineHtml(bodyHtml) });
+    const t = title.replace(/[.:]$/, '').trim();
+    if (!t) return;
+    const key = t.toLowerCase();
+    if (seenTitles.has(key)) return;
+    if (looksLikeZeroValueNumeric(t + ' ' + bodyHtml)) return;
+    seenTitles.add(key);
+    // Store RAW — renderer escapes once.
+    out.push({ category, title: t, bodyHtml });
   };
-  for (const r of risks.slice(0, 4)) {
-    const t = r.length > 70 ? r.slice(0, 67).trim() + '…' : r;
-    push('Credibilidad', t.replace(/[.:]$/, ''), r);
-  }
-  for (const imp of improvements.slice(0, 4)) {
-    const t = imp.length > 70 ? imp.slice(0, 67).trim() + '…' : imp;
-    push('Conversión', t.replace(/[.:]$/, ''), imp);
-  }
-  while (out.length < 4 && out.length > 0) out.push({ ...out[out.length - 1] });
+
+  const riskCategories = ['Credibilidad', 'Prueba social', 'Lenguaje', 'SEO', 'Claridad', 'Estructura'];
+  risks.forEach((r, i) => {
+    // Title is a short problem statement, body is the fuller text — not a truncation.
+    const title = shortProblemTitle(r);
+    push(riskCategories[i % riskCategories.length], title, r);
+  });
+  improvements.forEach(imp => {
+    const title = shortProblemTitle(imp);
+    push('Conversión', title, imp);
+  });
   return out.slice(0, 4);
 }
 
+// Derive a short, distinct problem-statement title from a risk/improvement line,
+// without resorting to truncating the body with an ellipsis (spec 4.4 / pitfall 8).
+function shortProblemTitle(line: string): string {
+  const clean = line.replace(/[.:]\s*$/, '').trim();
+  // Take the first clause (up to a comma or colon) if it reads as a noun phrase.
+  const firstClause = clean.split(/[,:;]/)[0].trim();
+  return firstClause || clean;
+}
+
+// ── Roadmap from deep analysis ───────────────────────────────────────────────
+
 function roadmapFromAnalysis(
   analysis: VersionDeepAnalysis | undefined,
-  winnerScore: number,
 ): { items: ClientReportRoadmapItem[]; projected: number | null } {
   if (!analysis?.suggestedImprovements?.length) return { items: [], projected: null };
   const items: ClientReportRoadmapItem[] = [];
-  let sum = 0;
   let projected: number | null = null;
   for (const imp of analysis.suggestedImprovements) {
     const obj = typeof imp === 'object' && imp !== null ? (imp as SuggestedImprovement) : { text: String(imp) };
     const text = obj.text || '';
     if (!text) continue;
+    if (looksLikeZeroValueNumeric(text)) continue;
     const pts = Math.max(1, Math.min(5, obj.points_delta ?? 2));
     if (obj.projected_score != null) projected = obj.projected_score;
-    sum += pts;
     const title = text.split(/[.:]/)[0].trim() || text.trim();
     const body = text.slice(title.length).replace(/^[:.]\s*/, '').trim() || text.trim();
+    // Store RAW markup — renderer sanitizes once.
     items.push({
       points: pts,
-      titleHtml: sanitizeInlineHtml(`<strong>${escapeHtml(title)}</strong>`),
-      bodyHtml: sanitizeInlineHtml(escapeHtml(body)),
+      titleHtml: `<strong>${title}</strong>`,
+      bodyHtml: body,
     });
   }
   return { items, projected: projected != null ? Math.min(100, projected) : null };
 }
+
+// ── Company name & URL (spec 4.1, 4.2) ───────────────────────────────────────
+
+function deriveCompanyName(formState: FormState, analyzedUrl: string): string {
+  // Prefer the AI's reading (handled by caller). This fallback NEVER uses the page
+  // headline or a form description field (spec 4.1).
+  if (analyzedUrl) {
+    const host = stripProtocol(analyzedUrl).split('/')[0].replace(/^www\./, '');
+    const root = host.split('.').slice(-2, -1)[0];
+    if (root) return root.charAt(0).toUpperCase() + root.slice(1);
+  }
+  return 'Tu empresa';
+}
+
+// ── Main builder ─────────────────────────────────────────────────────────────
 
 export function buildClientReportData(
   formState: FormState,
@@ -494,6 +596,7 @@ export function buildClientReportData(
     });
   }
 
+  // Score maps.
   const scoreMap = new Map<string, number>();
   const editorialMap = new Map<string, number>();
   const conversionMap = new Map<string, number>();
@@ -502,36 +605,46 @@ export function buildClientReportData(
       if (row.versionId && row.finalScore != null) scoreMap.set(row.versionId, row.finalScore);
       const abs = contentCards.find(c => c.id === row.versionId)?.absoluteScore;
       if (abs) {
-        editorialMap.set(row.versionId, Math.round((abs.clarity + abs.structure) / 0.5));
-        conversionMap.set(row.versionId, Math.round((abs.persuasion + abs.audience_fit) / 0.5));
+        // Average of the two sub-scores, clamped 0–100 (spec 4.3).
+        editorialMap.set(row.versionId, averageSubscore(abs.clarity, abs.structure));
+        conversionMap.set(row.versionId, averageSubscore(abs.persuasion, abs.audience_fit));
       }
     }
   }
 
   const winnerRow = comparisonResult?.rows?.find(r => r.isWinner);
   const winnerVersionId = winnerRow?.versionId || comparisonResult?.winnerVersionId || '';
-  const baselineRow = comparisonResult?.rows?.find(r => r.versionId === ORIGINAL_VERSION_ID) || comparisonResult?.rows?.find(r => (r as any).isBaseline);
+  const baselineRow = comparisonResult?.rows?.find(r => r.versionId === ORIGINAL_VERSION_ID) ||
+    comparisonResult?.rows?.find(r => (r as any).isBaseline);
   const baselineScore = baselineRow?.finalScore ?? scoreMap.get(ORIGINAL_VERSION_ID) ?? 0;
   const winnerScore = winnerRow?.finalScore ?? (winnerVersionId ? scoreMap.get(winnerVersionId) ?? 0 : 0);
 
   const winnerAnalysis = winnerVersionId ? versionDeepAnalysis?.[winnerVersionId] : undefined;
-  const { items: roadmapItems, projected } = roadmapFromAnalysis(winnerAnalysis, winnerScore);
+  const { items: roadmapItems, projected } = roadmapFromAnalysis(winnerAnalysis);
   const roadmapSum = roadmapItems.reduce((a, i) => a + i.points, 0);
   const potential = projected != null ? projected : Math.min(100, winnerScore + roadmapSum);
 
   const winnerDeltaPoints = Math.max(0, Math.round(winnerScore - baselineScore));
   const winnerDeltaPercent = baselineScore > 0 ? Math.round((winnerDeltaPoints / baselineScore) * 100) : 0;
 
+  // One source of truth for the analysis timestamp (spec 4.5).
   const analyzedAt = comparisonDeepAnalysisMeta?.evaluatedAt || formState.originalCopyEnteredAt || new Date().toISOString();
-  const companyUrl = formState.competitorUrls?.[0] || '';
-  const companyName = narrative?.companyName || deriveCompanyName(formState, firstHeadline(contentCards[0]?.content));
 
+  // Company URL: best-effort from competitorUrls (the only URL-shaped field available
+  // in the form state). If genuinely unavailable, the renderer omits the site div and
+  // rewrites the disclaimer (spec 4.2). We do NOT fabricate a URL.
+  const companyUrlRaw = formState.competitorUrls?.[0] || '';
+  const companyUrl = stripProtocol(companyUrlRaw);
+  const hasUrl = companyUrl.length > 0;
+  const companyName = narrative?.companyName || deriveCompanyName(formState, companyUrlRaw);
+
+  // Excluded sections (spec 4.7) — detected from structured titles.
   const excludedSections: string[] = [];
   const allSections = contentCards.flatMap(c => contentToStructured(c.content).sections);
   for (const s of allSections) {
-    if (isExcludedSection(s.title)) {
-      const label = normalizeSectionLabel(s.title);
-      if (!excludedSections.includes(label)) excludedSections.push(label);
+    if (isExcludedSectionTitle(s.title)) {
+      const label = mapSectionLabel(s.title);
+      if (label && !excludedSections.includes(label)) excludedSections.push(label);
     }
   }
 
@@ -556,8 +669,8 @@ export function buildClientReportData(
     const deltaPercent = isBaseline || baselineScore <= 0 ? null : Math.round((deltaPoints! / baselineScore) * 100);
     const plain = contentToPlainText(card.content);
     const wcrl = computeWordCountAndReadingLevel(plain);
-    const editorial = editorialMap.get(card.id) ?? Math.round(score * 0.5);
-    const conversion = conversionMap.get(card.id) ?? Math.round(score * 0.5);
+    const editorial = editorialMap.get(card.id) ?? clamp(Math.round(score * 0.5), 0, 100);
+    const conversion = conversionMap.get(card.id) ?? clamp(Math.round(score * 0.5), 0, 100);
 
     let displayName: string;
     let roleLine: string;
@@ -579,18 +692,35 @@ export function buildClientReportData(
 
     const shortName = displayName.replace(/^Propuesta [A-Z]\s*·\s*/i, '').trim() || displayName;
     const sectionKicker = isBaseline ? 'Línea base' : (isWinner ? 'Propuesta ganadora' : 'Alternativa');
-    const paywallLine = isWinner
-      ? `Te falta por ver: ${remainingSectionNames(card.content)}. La versión completa incluye las ${roadmapItems.length || 6} mejoras ya aplicadas.`
-      : `Esta propuesta encaja cuando buscas un ángulo más ${sectionKicker.toLowerCase()}. La versión completa está disponible bajo solicitud.`;
+
+    const sliced = sliceSections(card.content, CLIENT_REPORT_PREVIEW_PERCENT, displayName);
+    const remainingLabels = sliced.remainingLabels;
+
+    const paywallLine = isBaseline
+      ? ''
+      : isWinner
+        ? (remainingLabels.length
+            ? `Te falta por ver: ${remainingLabels.join(', ')}. La versión completa incluye las ${numberWord(roadmapItems.length, false) || String(roadmapItems.length)} mejoras ya aplicadas.`
+            : `La versión completa de esta propuesta, con las ${numberWord(roadmapItems.length, false) || String(roadmapItems.length)} mejoras ya aplicadas, forma parte de la entrega.`)
+        : `Esta es una de las ${numberWord(proposalCount, false) || String(proposalCount)} propuestas completas que preparamos; el texto restante forma parte de la entrega.`;
+
     const strengthsHeading = isBaseline ? 'Lo que ya funciona' : (isWinner ? 'Por qué gana' : 'Fortalezas');
-    const improvementsHeading = isBaseline ? 'Lo que le resta' : (isWinner ? `Qué le falta para llegar a ${potential}` : 'Límites');
+    const improvementsHeading = isBaseline
+      ? 'Lo que le resta'
+      : (isWinner ? `Qué le falta para llegar a ${potential}` : 'Límites');
 
     const analysis = versionDeepAnalysis?.[card.id];
-    const strengths = (analysis?.keyStrengths || analysis?.pros || []).slice(0, 6).map(s => stripMarkdown(s).trim()).filter(Boolean);
-    const improvements = (analysis?.suggestedImprovements || analysis?.cons || []).slice(0, 6).map(i => {
-      const t = typeof i === 'object' && i !== null ? (i as SuggestedImprovement).text : String(i);
-      return stripMarkdown(t).trim();
-    }).filter(Boolean);
+    const strengths = (analysis?.keyStrengths || analysis?.pros || [])
+      .slice(0, 6)
+      .map(s => stripMarkdown(s).trim())
+      .filter(s => s && !looksLikeZeroValueNumeric(s));
+    const improvements = (analysis?.suggestedImprovements || analysis?.cons || [])
+      .slice(0, 6)
+      .map(i => {
+        const t = typeof i === 'object' && i !== null ? (i as SuggestedImprovement).text : String(i);
+        return stripMarkdown(t).trim();
+      })
+      .filter(s => s && !looksLikeZeroValueNumeric(s));
 
     const rankSubline = isWinner
       ? `★ Ganadora · ${wcrl.wordCount} palabras`
@@ -609,7 +739,7 @@ export function buildClientReportData(
       conversionPotential: conversion,
       wordCount: wcrl.wordCount,
       readingLevelEs: readingLevelEs(wcrl.readingLevel),
-      sections: sliceSections(card.content, CLIENT_REPORT_PREVIEW_PERCENT),
+      sections: sliced.sections,
       strengths,
       improvements,
       shortName,
@@ -617,57 +747,67 @@ export function buildClientReportData(
       paywallLine,
       strengthsHeading,
       improvementsHeading,
-      hasStrengths: strengths.length > 0 || improvements.length > 0,
       rankSubline,
       sectionNumber: idx + 2,
     };
   });
 
-  const versionsByScore = [...versions].sort((a, b) => b.score - a.score);
-  versionsByScore.forEach((v, i) => {
-    (v as any).__rank = i + 1;
-  });
+  // Ranking: sorted by score desc, baseline always last (spec 8.1).
+  const versionsByScore: ClientReportVersion[] = [
+    ...versions.filter(v => !v.isBaseline).sort((a, b) => b.score - a.score),
+    ...versions.filter(v => v.isBaseline),
+  ];
 
   const originalCard = contentCards.find(c => c.id === ORIGINAL_VERSION_ID || c.type === GeneratedContentItemType.Original);
   const winnerCard = contentCards.find(c => c.id === winnerVersionId);
   const headToHead: ClientReportHeadToHead = {
     originalHeadline: firstHeadline(originalCard?.content) || 'Tu titular actual',
     originalSub: firstSubline(originalCard?.content),
-    originalNote: narrative?.headToHead?.originalNote || 'El titular actual es correcto pero no genera un gancho emocional en los primeros segundos.',
+    originalNote: narrative?.headToHead?.originalNote || '',
     winnerHeadline: firstHeadline(winnerCard?.content) || 'Titular propuesto',
     winnerSub: firstSubline(winnerCard?.content),
-    winnerNote: narrative?.headToHead?.winnerNote || 'El titular propuesto abre con la promesa concreta y la prueba que la sostiene, en el orden que retiene la atención.',
+    winnerNote: narrative?.headToHead?.winnerNote || '',
   };
 
+  // Findings — AI narrative if present, else fallback from risk flags (spec 4.4, 6).
   let findings: ClientReportFinding[];
   if (narrative?.findings?.length) {
+    // Store RAW — renderer sanitizes once.
     findings = narrative.findings.slice(0, 4).map(f => ({
       category: f.category,
       title: f.title.replace(/[.:]$/, ''),
-      bodyHtml: sanitizeInlineHtml(f.bodyHtml),
+      bodyHtml: f.bodyHtml,
     }));
   } else {
-    const winnerRisks = suppressZeroFlags(computeRiskFactors(contentToPlainText(winnerCard?.content), winnerRow?.verificationFlags));
+    const winnerRisks = suppressZeroFlags(
+      computeRiskFactors(
+        contentToPlainText(winnerCard?.content),
+        winnerRow?.verificationFlags,
+      ),
+    );
     const baselineImprovements = (versionDeepAnalysis?.[ORIGINAL_VERSION_ID]?.suggestedImprovements || []).map(i =>
       typeof i === 'object' && i !== null ? (i as SuggestedImprovement).text : String(i),
     );
     findings = buildFallbackFindings(winnerRisks, baselineImprovements);
   }
 
+  // Executive summary — RAW; renderer sanitizes once. Empty if AI failed (spec 6).
   const executiveSummary = narrative?.executiveSummary?.length
-    ? narrative.executiveSummary.slice(0, 3).map(s => sanitizeInlineHtml(s))
+    ? narrative.executiveSummary.slice(0, 3)
     : [];
 
+  // Brief — prefer AI-translated briefEs, fall back to raw form fields (spec 6).
   const brief: ClientReportBrief = {
-    audience: formState.targetAudience || 'No especificado',
-    keyMessage: formState.keyMessage || 'No especificado',
-    cta: formState.callToAction || 'No especificado',
-    emotion: formState.desiredEmotion || 'No especificado',
-    brandValues: formState.brandValues || 'No especificado',
+    audience: narrative?.briefEs?.audience || formState.targetAudience || 'No especificado',
+    keyMessage: narrative?.briefEs?.keyMessage || formState.keyMessage || 'No especificado',
+    cta: narrative?.briefEs?.cta || formState.callToAction || 'No especificado',
+    emotion: narrative?.briefEs?.emotion || formState.desiredEmotion || 'No especificado',
+    brandValues: narrative?.briefEs?.brandValues || formState.brandValues || 'No especificado',
     toneLine: toneLineFor(formState),
     keywords: (formState.keywords || '').split(',').map(k => k.trim()).filter(Boolean),
     excludedSections,
-    excludedSectionsList: excludedSections.length ? excludedSections.join(', ') : 'ninguna',
+    // Empty string when nothing was dropped — renderer omits the sentence (spec 4.7).
+    excludedSectionsList: excludedSections.length ? excludedSections.join(', ') : '',
   };
 
   const studio: ClientReportStudio = {
@@ -677,7 +817,8 @@ export function buildClientReportData(
 
   const company: ClientReportCompany = {
     name: companyName,
-    url: stripProtocol(companyUrl),
+    url: companyUrl,
+    hasUrl,
     analyzedAt,
     analyzedAtLabel: formatSpanishDate(analyzedAt),
     analyzedAtTimeLabel: formatSpanishDateTime(analyzedAt),
@@ -691,7 +832,7 @@ export function buildClientReportData(
     winnerDeltaPoints,
     winnerDeltaPercent,
     versionCount,
-    proposalCount: proposalCount || versions.length - 1,
+    proposalCount: proposalCount || Math.max(0, versions.length - 1),
   };
 
   const winnerDisplayName = versions.find(v => v.isWinner)?.displayName || 'La propuesta ganadora';
@@ -715,12 +856,16 @@ export function buildClientReportData(
   };
 }
 
+// ── Filename — date agrees with the cover (spec 4.5, pitfall 11) ─────────────
+
 export function buildClientReportFilename(data: ClientReportData): string {
   const slug = slugifyCompany(data.company.name);
-  const d = new Date();
+  const d = data.company.analyzedAt ? new Date(data.company.analyzedAt) : new Date();
   const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
   return `Reporte-Copy-${slug}-${ymd}.html`;
 }
+
+// ── AI input markdown (spec 6) — zero-flags stripped so the model can't reintroduce them ──
 
 export function buildClientReportInputMarkdown(
   formState: FormState,
@@ -752,8 +897,8 @@ export function buildClientReportInputMarkdown(
   md += `Valores de marca: ${formState.brandValues || '(no especificados)'}\n`;
   md += `Tono: ${formState.tone || '(no especificado)'}\n\n`;
 
-  md += '## COPY ORIGINAL PUBLICADO\n\n';
-  md += contentToPlainText(contentCards[0]?.content) + '\n\n';
+  md += '## COPY ORIGINAL PUBLICADO (valores numéricos en cero ya suprimidos)\n\n';
+  md += suppressZeroValuesInText(contentToPlainText(contentCards[0]?.content)) + '\n\n';
 
   md += '## PROPUESTAS GENERADAS Y SUS PUNTUACIONES\n\n';
   if (comparisonResult?.rows) {
@@ -761,9 +906,9 @@ export function buildClientReportInputMarkdown(
       const card = contentCards.find(c => c.id === row.versionId);
       md += `### ${row.optionLabel || card?.sourceDisplayName || row.versionId} — ${row.finalScore}/100${row.isWinner ? ' (GANADORA)' : ''}\n\n`;
       if (row.verificationFlags?.length) {
-        md += 'Flags de verificación: ' + suppressZeroFlags(row.verificationFlags).join(' | ') + '\n\n';
+        md += 'Flags de verificación (tras supresión): ' + suppressZeroFlags(row.verificationFlags).join(' | ') + '\n\n';
       }
-      if (card) md += contentToPlainText(card.content) + '\n\n---\n\n';
+      if (card) md += suppressZeroValuesInText(contentToPlainText(card.content)) + '\n\n---\n\n';
     }
   }
 
@@ -781,9 +926,31 @@ export function buildClientReportInputMarkdown(
 
   md += '## RIESGOS DETECTADOS (tras supresión de valores cero)\n\n';
   const winnerCard = contentCards.find(c => c.id === winnerId);
-  const risks = suppressZeroFlags(computeRiskFactors(contentToPlainText(winnerCard?.content), comparisonResult?.rows?.find(r => r.isWinner)?.verificationFlags));
+  const risks = suppressZeroFlags(
+    computeRiskFactors(
+      contentToPlainText(winnerCard?.content),
+      comparisonResult?.rows?.find(r => r.isWinner)?.verificationFlags,
+    ),
+  );
   risks.forEach(r => { md += `- ${r}\n`; });
   md += '\n';
 
   return md;
+}
+
+// ── Internal helpers used above ───────────────────────────────────────────────
+
+function isExcludedSectionTitle(title: string): boolean {
+  const t = (title || '').toLowerCase();
+  return EXCLUDED_SECTION_HINTS.some(h => t.includes(h));
+}
+
+function mapSectionLabel(title: string): string {
+  const t = (title || '').trim().toLowerCase();
+  if (!t) return '';
+  if (SECTION_LABEL_MAP[t]) return SECTION_LABEL_MAP[t];
+  for (const key of Object.keys(SECTION_LABEL_MAP)) {
+    if (t.includes(key)) return SECTION_LABEL_MAP[key];
+  }
+  return title.trim();
 }

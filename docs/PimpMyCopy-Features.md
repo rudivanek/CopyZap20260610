@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.0
-Last Updated: 2026-08-03T11:09:00Z
+Version: 1.1
+Last Updated: 2026-08-03T17:45:00Z
 
 ---
 
@@ -17,7 +17,7 @@ Last Updated: 2026-08-03T11:09:00Z
 
 **Files created:**
 - `src/utils/clientReport/buildClientReportData.ts` — assembles the `ClientReportData` object from existing session data; exports `buildClientReportData`, `buildClientReportFilename`, `buildClientReportInputMarkdown`, `ClientReportData` and related interfaces, plus the config constant `SUPPRESS_ZERO_VALUE_NUMERIC_FINDINGS = true` and `CLIENT_REPORT_PREVIEW_PERCENT = 25`.
-- `src/utils/clientReport/clientReportNarrative.ts` — the single AI call that produces the four narrative fields (company name, executive summary, findings, head-to-head notes, version labels). Uses `makeStreamingReportRequest` with `getAdminClaudeModel()` and operation type `client_report_narrative`; returns `null` on any failure so the renderer falls back to deterministic values.
+- `src/utils/clientReport/clientReportNarrative.ts` — the single AI call that produces the five narrative fields (company name, Spanish-translated brief, executive summary, findings, head-to-head notes, version labels). Uses `makeStreamingReportRequest` with `getAdminClaudeModel()` and operation type `client_report_narrative`; returns `null` on any failure and **logs the error loudly** to the console so a missing or broken call is never silently degraded. The AI prompt explicitly requests a `briefEs` object so the (often English) stored brief fields are translated through the model rather than via a hardcoded phrase table.
 - `src/utils/clientReport/renderClientReport.ts` — renders the full self-contained HTML document (inline `<style>` block, no external fonts/CDN/JS) from a `ClientReportData` object.
 
 **Files modified:**
@@ -28,13 +28,19 @@ Last Updated: 2026-08-03T11:09:00Z
 
 **Data model (`ClientReportData`):** Every field comes from existing session data except the four AI-generated fields (company name, executive summary, findings, head-to-head notes, version labels) produced by the single narrative call. The object covers: studio config (hardcoded `Sharpen.Studio` for now), company (name, URL, analysed-at timestamp + Spanish-formatted date/time labels, language), journey (baseline / winner / potential scores, deltas, version & proposal counts), executive summary (exactly 3 paragraphs), findings (exactly 4, ordered by impact), brief (audience, key message, CTA, emotion, brand values, tone line, keywords, excluded sections), head-to-head (original vs. winner headline + sub + AI note), versions (one entry per evaluated version with section-aware 25% preview slice, strengths, improvements, derived display names), roadmap (from the winner's deep-analysis suggested improvements with `points_delta`), and derived template values (`findingsCountWord`, `roadmapCountWord`, `winnerDisplayName`, `lastIndex`).
 
-**Section-aware truncation:** `sliceSections` cuts at a section boundary (never mid-sentence), targeting `CLIENT_REPORT_PREVIEW_PERCENT` (25) but always showing at least the hero plus one section. The last visible section is marked `isFaded: true` and gets a CSS fade mask in the renderer.
+**Section-aware truncation (text REMOVED, not hidden):** `sliceSections` cuts at a section boundary (never mid-sentence), targeting `CLIENT_REPORT_PREVIEW_PERCENT` (25) but always showing at least 2 and at most half the sections. The last visible section is marked `isFaded: true` and gets a soft CSS fade gradient in the renderer. Critically, the remaining text is **physically removed from the HTML** — never hidden via `max-height`, `overflow:hidden`, `display:none`, or opacity. The `.fade` class is a gradient edge only (no `max-height`, no `overflow`). This prevents the full copy from being recovered by select-all, view-source, screen readers, or text extraction. A self-check logs a console warning if a version keeps more than 40% of its characters.
+
+**Section splitting (no regex):** `splitSections` uses only `String.split`, `trim`, `startsWith`, and plain comparisons — no regular expressions anywhere in the splitting logic. It tries `\n---\n` first, then `---`, then `\n\n` paragraphs. For each block, the first non-empty line is treated as a label only if it has ≤4 words and does not end in `.`, `!`, `?`, `:`, or `;`. Labels are resolved through a bilingual `SECTION_LABEL_MAP` (English + Spanish → Spanish display label). The label never appears inside the `<p>` body. If a single section exceeds 400 chars, the paragraph split is forced.
 
 **Potential score:** `potential = winnerScore + sum(roadmap[].points)`, capped at 100. If the deep analysis already returns a `projected_score` on a suggested improvement, that projection is used instead of the sum.
 
 **Excluded sections:** When the source is a crawl, sections classified as testimonials, cookie/consent notices, and navigation are excluded from both the analysed copy and the brief, and listed in `brief.excludedSections` so the report can state it.
 
-**The four AI calls (run in a single round-trip):** The system prompt instructs the model to write in neutral Spain-Spanish, never invent data, never call a claim false (only "not supported" / "not verifiable"), cite the site with `<q>…</q>`, and return only JSON. The user prompt passes the crawled original copy, the derived brief, all version scores and sub-scores, the existing strengths/improvements lists, the existing risk flags (after suppression), and the deep-analysis winner narrative. Expected JSON: `companyName`, `executiveSummary[3]`, `findings[4]` (categories: Credibilidad | Prueba social | Lenguaje | Conversión | Claridad | Estructura | SEO), `headToHead { originalNote, winnerNote }`, `versionLabels[]` (Propuesta A · <angle>, etc.).
+**The four AI calls (run in a single round-trip):** The system prompt instructs the model to write in neutral Spain-Spanish, never invent data, never call a claim false (only "not supported" / "not verifiable"), cite the site with `<q>…</q>`, and return only JSON. The user prompt passes the crawled original copy, the derived brief, all version scores and sub-scores, the existing strengths/improvements lists, the existing risk flags (after suppression), and the deep-analysis winner narrative. Expected JSON: `companyName`, `briefEs { audience, keyMessage, cta, emotion, brandValues }`, `executiveSummary[3]`, `findings[4]` (categories: Credibilidad | Prueba social | Lenguaje | Conversión | Claridad | Estructura | SEO), `headToHead { originalNote, winnerNote }`, `versionLabels[]` (Propuesta A · <angle>, etc.).
+
+**Escaping — exactly once, at render time:** The data model stores all values raw. The renderer has two helpers — `escapeOnce` (wholesale HTML escaping) and `sanitizeInlineHtml` (escape once, then re-enable only `<strong>`, `<b>`, `<q>`, `<em>`) — and each is called exactly once per value. `*Html` fields are the only ones allowed to carry inline markup; everything else is escaped wholesale. This prevents the `&#039;` and `&amp;amp;#039;` double/triple-escaping regressions seen in earlier attempts.
+
+**Sub-scores — averaged, not doubled:** `editorialQuality` is the average of `absoluteScore.clarity` and `absoluteScore.structure`; `conversionPotential` is the average of `absoluteScore.persuasion` and `absoluteScore.audience_fit`. Both are computed as `(a + b) / 2` and clamped to 0–100. The earlier `(a + b) / 0.5` formula doubled the value and could exceed 100.
 
 **Suppression rule:** `SUPPRESS_ZERO_VALUE_NUMERIC_FINDINGS = true` (default on). Any finding, risk flag, or quoted evidence whose numeric content is entirely zero (patterns like `+0`, `0 %`, `+0%`, `0.0`) is silently discarded — both from the rendered output and from the input passed to the AI call, so the model can't reintroduce it. This prevents the crawler's pre-animation `+0` markup from being reported as a real claim. Findings never accuse the site of lying; correct framings are "cifras sin fuente citada", "afirmación no verificable", "superlativo antes de la prueba".
 

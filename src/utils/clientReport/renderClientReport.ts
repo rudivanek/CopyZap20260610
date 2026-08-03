@@ -1,6 +1,7 @@
 import { ClientReportData, ClientReportVersion } from './buildClientReportData';
 
-function esc(text: string | number | null | undefined): string {
+// Escape ONCE, at render time only (spec 7). Values stored in the data model are raw.
+function escapeOnce(text: string | number | null | undefined): string {
   if (text === null || text === undefined) return '';
   return String(text)
     .replace(/&/g, '&amp;')
@@ -10,10 +11,14 @@ function esc(text: string | number | null | undefined): string {
     .replace(/'/g, '&#039;');
 }
 
-function escHtmlField(html: string): string {
-  const escaped = esc(html);
-  return escaped
-    .replace(/&lt;(\/?)(strong|b|q|em)&gt;/gi, (_m, slash, tag) => `<${slash}${tag.toLowerCase()}>`);
+// For *Html fields: escape once, then re-enable ONLY <strong>, <b>, <q>, <em>.
+// Everything else is stripped. Called exactly once per value.
+function sanitizeInlineHtml(html: string | null | undefined): string {
+  const escaped = escapeOnce(html);
+  return escaped.replace(
+    /&lt;(\/?)(strong|b|q|em)&gt;/gi,
+    (_m, slash, tag) => `<${slash}${tag.toLowerCase()}>`,
+  );
 }
 
 const CSS = `:root{
@@ -38,7 +43,6 @@ p{margin:0 0 16px}
 .eyebrow{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
 .eyebrow.accent{color:var(--accent)}
 .lede{font-size:19px;line-height:1.6;color:var(--ink-soft);max-width:64ch}
-.small{font-size:13px;color:var(--muted);line-height:1.55}
 .tnum{font-variant-numeric:tabular-nums}
 .cover{background:var(--ink);color:#F2F0EC;padding:56px 0 64px;border:0}
 .brandbar{display:flex;justify-content:space-between;align-items:center;gap:20px;padding-bottom:34px;margin-bottom:44px;border-bottom:1px solid rgba(255,255,255,.14);flex-wrap:wrap}
@@ -117,8 +121,8 @@ p{margin:0 0 16px}
 .v-body .sec-lbl{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
 .v-body .sec p{margin:0;font-size:15.5px;line-height:1.7;color:var(--ink-soft);white-space:pre-wrap}
 .v-body .sec.hero p{font-family:var(--serif);font-size:22px;line-height:1.35;color:var(--ink)}
-.fade{position:relative;max-height:120px;overflow:hidden}
-.fade:after{content:"";position:absolute;inset:auto 0 0 0;height:80px;background:linear-gradient(180deg,rgba(255,255,255,0),var(--white))}
+.fade{position:relative}
+.fade:after{content:"";position:absolute;left:0;right:0;bottom:0;height:48px;background:linear-gradient(180deg,rgba(255,255,255,0),var(--white));pointer-events:none}
 .paywall{margin:0;padding:22px 28px 26px;background:var(--paper);border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap}
 .paywall .pw-t{font-size:14.5px;color:var(--ink-soft);line-height:1.5;flex:1;min-width:240px}
 .paywall .pw-t b{color:var(--ink);font-weight:650}
@@ -137,6 +141,7 @@ p{margin:0 0 16px}
 .split li:before{position:absolute;left:0;top:0;font-weight:700}
 .split .pos li:before{content:"\\2713";color:var(--gain)}
 .split .neg li:before{content:"\\2192";color:var(--accent)}
+.split .empty{font-size:13px;color:var(--muted);font-style:italic}
 .rank{margin-top:28px;background:var(--white);border:1px solid var(--line);border-radius:4px;overflow:hidden}
 .rank-row{display:grid;grid-template-columns:34px 1fr 96px 96px 88px 86px;gap:14px;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line-soft)}
 .rank-row:last-child{border-bottom:0}
@@ -181,7 +186,6 @@ footer{background:var(--ink);color:rgba(255,255,255,.55);padding:44px 0;font-siz
 footer .wrap{display:flex;justify-content:space-between;gap:28px;flex-wrap:wrap}
 footer .fl{max-width:52ch}
 footer strong{color:#fff;font-weight:600}
-footer a{color:rgba(255,255,255,.8)}
 .disclaimer{margin-top:14px;font-size:12px;color:rgba(255,255,255,.38);line-height:1.6}
 @media(max-width:760px){
   section{padding:44px 0}
@@ -215,6 +219,9 @@ footer a{color:rgba(255,255,255,.8)}
 }`;
 
 function renderCover(data: ClientReportData): string {
+  const siteLine = data.company.hasUrl
+    ? `    <div class="site">${escapeOnce(data.company.url)}</div>`
+    : '';
   return `<div class="cover">
   <div class="wrap">
     <div class="brandbar">
@@ -222,27 +229,27 @@ function renderCover(data: ClientReportData): string {
       <div class="powered">Análisis realizado con CopyZap</div>
     </div>
     <div class="kicker">Diagnóstico de copy · Sitio web</div>
-    <h1>El copy de ${esc(data.company.name)} puede rendir un ${esc(data.journey.winnerDeltaPercent)}&nbsp;% más.</h1>
-    <div class="site">${esc(data.company.url)}</div>
-    <div class="stamp">Análisis del ${esc(data.company.analyzedAtLabel)} · ${esc(data.journey.versionCount)} versiones evaluadas · Idioma: ${esc(data.company.language)}</div>
+    <h1>El copy de ${escapeOnce(data.company.name)} puede rendir un ${escapeOnce(data.journey.winnerDeltaPercent)}&nbsp;% más.</h1>
+${siteLine}
+    <div class="stamp">Análisis del ${escapeOnce(data.company.analyzedAtLabel)} · ${escapeOnce(data.journey.versionCount)} versiones evaluadas · Idioma: ${escapeOnce(data.company.language)}</div>
 
     <div class="journey">
       <div class="journey-head">Recorrido de puntuación</div>
       <div class="stops">
-        <div class="stop"><div class="num tnum">${esc(data.journey.baseline)}<small>/100</small></div>
+        <div class="stop"><div class="num tnum">${escapeOnce(data.journey.baseline)}<small>/100</small></div>
           <div class="lbl"><b>Tu copy actual</b>línea base</div></div>
-        <div class="stop now"><div class="num tnum">${esc(data.journey.winner)}<small>/100</small></div>
+        <div class="stop now"><div class="num tnum">${escapeOnce(data.journey.winner)}<small>/100</small></div>
           <div class="lbl"><b>Mejor propuesta</b>reescritura completa</div></div>
-        <div class="stop goal"><div class="num tnum">${esc(data.journey.potential)}<small>/100</small></div>
+        <div class="stop goal"><div class="num tnum">${escapeOnce(data.journey.potential)}<small>/100</small></div>
           <div class="lbl"><b>Potencial</b>con todas las mejoras</div></div>
       </div>
       <div class="rail"><i class="a"></i><i class="b"></i><i class="c"></i></div>
       <div class="journey-foot">
-        Reescribimos tu copy actual en <b>${esc(data.journey.proposalCount)} propuestas completas</b> y las evaluamos
-        con el mismo criterio. La mejor sube <b>${esc(data.journey.winnerDeltaPoints)} puntos
-        (+${esc(data.journey.winnerDeltaPercent)}&nbsp;%)</b> sobre tu texto actual. Aplicando además las
-        ${esc(data.roadmap.length)} mejoras detalladas al final de este reporte, la proyección llega a
-        <b>${esc(data.journey.potential)}/100</b>.
+        Reescribimos tu copy actual en <b>${escapeOnce(data.journey.proposalCount)} propuestas completas</b> y las evaluamos
+        con el mismo criterio. La mejor sube <b>${escapeOnce(data.journey.winnerDeltaPoints)} puntos
+        (+${escapeOnce(data.journey.winnerDeltaPercent)}&nbsp;%)</b> sobre tu texto actual. Aplicando además las
+        ${escapeOnce(data.roadmapCountWord)} mejoras detalladas al final de este reporte, la proyección llega a
+        <b>${escapeOnce(data.journey.potential)}/100</b>.
       </div>
     </div>
   </div>
@@ -251,7 +258,7 @@ function renderCover(data: ClientReportData): string {
 
 function renderSummary(data: ClientReportData): string {
   if (!data.executiveSummary.length) return '';
-  const paras = data.executiveSummary.map(p => `    <p>${escHtmlField(p)}</p>`).join('\n');
+  const paras = data.executiveSummary.map(p => `    <p>${sanitizeInlineHtml(p)}</p>`).join('\n');
   return `<section class="summary">
   <div class="wrap">
     <div class="eyebrow">Resumen ejecutivo</div>
@@ -264,14 +271,14 @@ ${paras}
 function renderFindings(data: ClientReportData): string {
   if (!data.findings.length) return '';
   const items = data.findings.map(f => `      <div class="finding">
-        <span class="tag">${esc(f.category)}</span>
-        <h4>${esc(f.title)}</h4>
-        <p>${escHtmlField(f.bodyHtml)}</p>
+        <span class="tag">${escapeOnce(f.category)}</span>
+        <h4>${escapeOnce(f.title)}</h4>
+        <p>${sanitizeInlineHtml(f.bodyHtml)}</p>
       </div>`).join('\n');
   return `<section>
   <div class="wrap">
     <div class="eyebrow accent">Hallazgos prioritarios</div>
-    <h2>${esc(data.findingsCountWord)} puntos que cuestan conversión hoy</h2>
+    <h2>${escapeOnce(data.findingsCountWord)} puntos que cuestan conversión hoy</h2>
     <p class="lede">Detectados automáticamente sobre el texto publicado en tu sitio, ordenados por impacto estimado.</p>
     <div class="findings">
 ${items}
@@ -290,14 +297,14 @@ function renderToc(data: ClientReportData): string {
     const winTag = v.isWinner ? `<span class="win">★ Ganadora</span>` : '';
     const delta = v.isBaseline
       ? `<span class="delta tnum">línea base</span>`
-      : `<span class="delta tnum">+${esc(v.deltaPoints)} pts
-          <small>+${esc(v.deltaPercent)} % vs. actual</small></span>`;
-    rows.push(`      <a href="#${esc(v.key)}" class="${cls}">
-        <span class="idx">${esc(i + 2)}</span>
-        <span class="name">${esc(v.displayName)}${winTag}</span>
-        ${delta}<span class="sc tnum">${esc(v.score)}<small>/100</small></span></a>`);
+      : `<span class="delta tnum">+${escapeOnce(v.deltaPoints)} pts
+          <small>+${escapeOnce(v.deltaPercent)} % vs. actual</small></span>`;
+    rows.push(`      <a href="#${escapeOnce(v.key)}" class="${cls}">
+        <span class="idx">${escapeOnce(i + 2)}</span>
+        <span class="name">${escapeOnce(v.displayName)}${winTag}</span>
+        ${delta}<span class="sc tnum">${escapeOnce(v.score)}<small>/100</small></span></a>`);
   });
-  rows.push(`      <a href="#ranking"><span class="idx">${esc(data.lastIndex)}</span>
+  rows.push(`      <a href="#ranking"><span class="idx">${escapeOnce(data.lastIndex)}</span>
         <span class="name">Comparación y clasificación <em>— tabla completa</em></span>
         <span class="delta"></span><span class="sc"></span></a>`);
   return `<section>
@@ -314,6 +321,12 @@ ${rows.join('\n')}
 }
 
 function renderHeadToHead(data: ClientReportData): string {
+  const originalNote = data.headToHead.originalNote
+    ? `        <p class="vs-note">${sanitizeInlineHtml(data.headToHead.originalNote)}</p>`
+    : '';
+  const winnerNote = data.headToHead.winnerNote
+    ? `        <p class="vs-note">${sanitizeInlineHtml(data.headToHead.winnerNote)}</p>`
+    : '';
   return `<section>
   <div class="wrap">
     <div class="eyebrow">Cara a cara</div>
@@ -322,17 +335,17 @@ function renderHeadToHead(data: ClientReportData): string {
     <div class="versus">
       <div class="vs-col">
         <div class="vs-head"><span class="who">Actual</span>
-          <span class="sc tnum">${esc(data.journey.baseline)}<small>/100</small></span></div>
-        <blockquote>${esc(data.headToHead.originalHeadline)}</blockquote>
-        <p class="sub">${esc(data.headToHead.originalSub)}</p>
-        <p class="vs-note">${esc(data.headToHead.originalNote)}</p>
+          <span class="sc tnum">${escapeOnce(data.journey.baseline)}<small>/100</small></span></div>
+        <blockquote>${escapeOnce(data.headToHead.originalHeadline)}</blockquote>
+        <p class="sub">${escapeOnce(data.headToHead.originalSub)}</p>
+${originalNote}
       </div>
       <div class="vs-col win">
-        <div class="vs-head"><span class="who">${esc(data.winnerDisplayName)} · ganadora</span>
-          <span class="sc tnum">${esc(data.journey.winner)}<small>/100</small></span></div>
-        <blockquote>${esc(data.headToHead.winnerHeadline)}</blockquote>
-        <p class="sub">${esc(data.headToHead.winnerSub)}</p>
-        <p class="vs-note">${esc(data.headToHead.winnerNote)}</p>
+        <div class="vs-head"><span class="who">${escapeOnce(data.winnerDisplayName)} · ganadora</span>
+          <span class="sc tnum">${escapeOnce(data.journey.winner)}<small>/100</small></span></div>
+        <blockquote>${escapeOnce(data.headToHead.winnerHeadline)}</blockquote>
+        <p class="sub">${escapeOnce(data.headToHead.winnerSub)}</p>
+${winnerNote}
       </div>
     </div>
   </div>
@@ -349,7 +362,14 @@ function renderBrief(data: ClientReportData): string {
     ['Tono · extensión · idioma', data.brief.toneLine],
   ];
   if (data.brief.keywords.length) rows.push(['Palabras clave', data.brief.keywords.join(', ')]);
-  const rowsHtml = rows.map(([k, v]) => `      <div class="brief-row"><div class="k">${esc(k)}</div><div class="v">${esc(v)}</div></div>`).join('\n');
+  const rowsHtml = rows
+    .filter(([, v]) => v && v.trim())
+    .map(([k, v]) => `      <div class="brief-row"><div class="k">${escapeOnce(k)}</div><div class="v">${escapeOnce(v)}</div></div>`)
+    .join('\n');
+  // Omit the excluded-sections sentence entirely when nothing was dropped (spec 4.7).
+  const excludedLine = data.brief.excludedSectionsList
+    ? `    <p class="methodo">Secciones excluidas del análisis: ${escapeOnce(data.brief.excludedSectionsList)}.</p>`
+    : '';
   return `<section id="entrada">
   <div class="wrap">
     <div class="eyebrow">1 · Resumen de entrada</div>
@@ -359,56 +379,61 @@ function renderBrief(data: ClientReportData): string {
     <div class="brief-tbl">
 ${rowsHtml}
     </div>
-    <p class="methodo">Secciones excluidas del análisis: ${esc(data.brief.excludedSectionsList)}.</p>
+${excludedLine}
   </div>
 </section>`;
+}
+
+function renderSplitBlock(v: ClientReportVersion): string {
+  // Every version renders the split block identically (spec 4.6 / pitfall 12).
+  const posItems = v.strengths.length
+    ? v.strengths.map(s => `<li>${escapeOnce(s)}</li>`).join('')
+    : '<li class="empty">Sin observaciones destacadas.</li>';
+  const negItems = v.improvements.length
+    ? v.improvements.map(s => `<li>${escapeOnce(s)}</li>`).join('')
+    : '<li class="empty">Sin observaciones destacadas.</li>';
+  return `      <div class="split">
+        <div class="pos"><h5>${escapeOnce(v.strengthsHeading)}</h5>
+          <ul>${posItems}</ul></div>
+        <div class="neg"><h5>${escapeOnce(v.improvementsHeading)}</h5>
+          <ul>${negItems}</ul></div>
+      </div>`;
 }
 
 function renderVersion(v: ClientReportVersion, data: ClientReportData): string {
   const sectionsHtml = v.sections.map(s => {
     const cls = [s.isHero ? 'hero' : '', s.isFaded ? 'fade' : ''].filter(Boolean).join(' ');
     return `        <div class="sec${cls ? ' ' + cls : ''}">
-          <div class="sec-lbl">${esc(s.label)}</div><p>${esc(s.text)}</p>
+          <div class="sec-lbl">${escapeOnce(s.label)}</div><p>${escapeOnce(s.text)}</p>
         </div>`;
   }).join('\n');
 
   const winTag = v.isWinner ? ` <span class="win">★ Ganadora</span>` : '';
   const gainBlock = v.isBaseline
     ? `<div class="gain tnum">línea base<small>punto de partida</small></div>`
-    : `<div class="gain tnum">+${esc(v.deltaPoints)} pts<small>+${esc(v.deltaPercent)} % vs. actual</small></div>`;
+    : `<div class="gain tnum">+${escapeOnce(v.deltaPoints)} pts<small>+${escapeOnce(v.deltaPercent)} % vs. actual</small></div>`;
   const paywall = v.isBaseline ? '' : `      <div class="paywall">
-        <div class="pw-t"><b>Estás viendo el ${esc(data.previewPercent)}&nbsp;% de esta propuesta.</b>
-          ${esc(v.paywallLine)}</div>
+        <div class="pw-t"><b>Estás viendo el ${escapeOnce(data.previewPercent)}&nbsp;% de esta propuesta.</b>
+          ${escapeOnce(v.paywallLine)}</div>
         <a class="btn${v.isWinner ? ' accent' : ''}" href="#contacto">Solicitar versión completa</a>
       </div>`;
 
-  let split = '';
-  if (v.hasStrengths) {
-    const pos = v.strengths.length ? `        <div class="pos"><h5>${esc(v.strengthsHeading)}</h5>
-          <ul>${v.strengths.map(s => `<li>${esc(s)}</li>`).join('')}</ul></div>` : '<div class="pos"></div>';
-    const neg = v.improvements.length ? `        <div class="neg"><h5>${esc(v.improvementsHeading)}</h5>
-          <ul>${v.improvements.map(s => `<li>${esc(s)}</li>`).join('')}</ul></div>` : '<div class="neg"></div>';
-    split = `      <div class="split">
-${pos}
-${neg}
-      </div>`;
-  }
-
+  const split = renderSplitBlock(v);
   const eyebrowCls = v.isWinner ? ' accent' : '';
 
-  return `<section id="${esc(v.key)}">
+  return `<section id="${escapeOnce(v.key)}">
   <div class="wrap">
-    <div class="eyebrow${eyebrowCls}">${esc(v.sectionNumber)} · ${esc(v.sectionKicker)}</div>
-    <h2>${esc(v.displayName)}</h2>
+    <div class="eyebrow${eyebrowCls}">${escapeOnce(v.sectionNumber)} · ${escapeOnce(v.sectionKicker)}</div>
+    <h2>${escapeOnce(v.displayName)}</h2>
     <div class="version">
       <div class="v-head">
         <div class="t">
-          <h3>${esc(v.shortName)}${winTag}</h3>
-          <div class="role">${esc(v.roleLine)}</div>
+          <h3>${escapeOnce(v.shortName)}${winTag}</h3>
+          <div class="role">${escapeOnce(v.roleLine)}</div>
         </div>
         <div class="v-scores">
           ${gainBlock}
-          <div class="big tnum">${esc(v.score)}<small>/100</small></div>
+          <div class="big tnum">${escapeOnce(v.score)}<small>/100</small></div>
         </div>
       </div>
       <div class="v-body">
@@ -426,23 +451,23 @@ function renderRanking(data: ClientReportData): string {
     const cls = [v.isWinner ? 'is-win' : '', v.isBaseline ? 'base' : ''].filter(Boolean).join(' ');
     const dl = v.isBaseline
       ? `<div class="dl tnum">línea base</div>`
-      : `<div class="dl tnum">+${esc(v.deltaPoints)} pts
-          <small>+${esc(v.deltaPercent)} %</small></div>`;
+      : `<div class="dl tnum">+${escapeOnce(v.deltaPoints)} pts
+          <small>+${escapeOnce(v.deltaPercent)} %</small></div>`;
     return `      <div class="rank-row${cls ? ' ' + cls : ''}">
-        <div class="pos tnum">${esc(i + 1)}</div>
-        <div class="nm">${esc(v.displayName)}<small>${esc(v.rankSubline)}</small></div>
-        <div class="cell tnum">${esc(v.editorialQuality)}<small>de 100</small></div>
-        <div class="cell tnum">${esc(v.conversionPotential)}<small>de 100</small></div>
+        <div class="pos tnum">${escapeOnce(i + 1)}</div>
+        <div class="nm">${escapeOnce(v.displayName)}<small>${escapeOnce(v.rankSubline)}</small></div>
+        <div class="cell tnum">${escapeOnce(v.editorialQuality)}<small>de 100</small></div>
+        <div class="cell tnum">${escapeOnce(v.conversionPotential)}<small>de 100</small></div>
         ${dl}
-        <div class="tot tnum">${esc(v.score)}<small>/100</small></div>
+        <div class="tot tnum">${escapeOnce(v.score)}<small>/100</small></div>
       </div>`;
   }).join('\n');
 
   return `<section id="ranking">
   <div class="wrap">
-    <div class="eyebrow">${esc(data.versions.length + 2)} · Comparación</div>
+    <div class="eyebrow">${escapeOnce(data.versions.length + 2)} · Comparación</div>
     <h2>Clasificación completa</h2>
-    <p class="lede">Las ${esc(data.journey.versionCount)} versiones evaluadas con el mismo criterio, ordenadas por
+    <p class="lede">Las ${escapeOnce(data.journey.versionCount)} versiones evaluadas con el mismo criterio, ordenadas por
        puntuación total.</p>
     <div class="rank">
       <div class="rank-row head"><div>#</div><div>Versión</div>
@@ -460,23 +485,23 @@ ${rows}
 
 function renderRoadmap(data: ClientReportData): string {
   if (!data.roadmap.length) return '';
-  const items = data.roadmap.map(r => `      <div class="road-item"><div class="pts">+${esc(r.points)}</div>
-        <div class="txt">${escHtmlField(r.titleHtml)} ${escHtmlField(r.bodyHtml)}</div></div>`).join('\n');
+  const items = data.roadmap.map(r => `      <div class="road-item"><div class="pts">+${escapeOnce(r.points)}</div>
+        <div class="txt">${sanitizeInlineHtml(r.titleHtml)} ${sanitizeInlineHtml(r.bodyHtml)}</div></div>`).join('\n');
   return `<section>
   <div class="wrap">
     <div class="eyebrow accent">Hoja de ruta</div>
-    <h2>Las ${esc(data.roadmapCountWord)} mejoras que llevan la propuesta ganadora a ${esc(data.journey.potential)}</h2>
-    <p class="lede">Cada una con su impacto estimado sobre la puntuación de ${esc(data.winnerDisplayName)}.</p>
+    <h2>Las ${escapeOnce(data.roadmapCountWord)} mejoras que llevan la propuesta ganadora a ${escapeOnce(data.journey.potential)}</h2>
+    <p class="lede">Cada una con su impacto estimado sobre la puntuación de ${escapeOnce(data.winnerDisplayName)}.</p>
     <div class="road">
 ${items}
       <div class="road-total">
-        <div class="lb">Aplicando las ${esc(data.roadmapCountWord)} mejoras sobre la propuesta ganadora,
+        <div class="lb">Aplicando las ${escapeOnce(data.roadmapCountWord)} mejoras sobre la propuesta ganadora,
           <b>proyección estimada</b></div>
-        <div class="vv tnum">${esc(data.journey.potential)}<small>/100</small></div>
+        <div class="vv tnum">${escapeOnce(data.journey.potential)}<small>/100</small></div>
       </div>
     </div>
     <div class="cta-mini">
-      <div class="t"><b>Estas ${esc(data.roadmapCountWord)} mejoras ya están redactadas.</b> Forman parte de la
+      <div class="t"><b>Estas ${escapeOnce(data.roadmapCountWord)} mejoras ya están redactadas.</b> Forman parte de la
         versión completa del copy, lista para pasar a tu sitio sin trabajo adicional de escritura.</div>
       <a class="btn accent" href="#contacto">Ver la versión completa</a>
     </div>
@@ -491,12 +516,12 @@ function renderCta(data: ClientReportData): string {
       <div class="eyebrow accent" style="margin-bottom:16px">Siguiente paso</div>
       <h2>¿Lo dejamos listo para publicar?</h2>
       <p>Este reporte es gratuito y tuyo, lo uses con nosotros o no. Si quieres las
-         ${esc(data.journey.proposalCount)} propuestas completas —con las ${esc(data.roadmapCountWord)} mejoras ya aplicadas,
+         ${escapeOnce(data.journey.proposalCount)} propuestas completas —con las ${escapeOnce(data.roadmapCountWord)} mejoras ya aplicadas,
          adaptadas a tu voz de marca y entregadas sección por sección para pasar directo a tu sitio— lo
          resolvemos en una semana.</p>
       <div class="acts">
-        <a class="btn accent" href="${esc(data.studio.ctaPrimaryUrl)}">Agendar 20 minutos</a>
-        <a class="btn ghost" href="${esc(data.studio.ctaSecondaryUrl)}">Solicitar el copy completo</a>
+        <a class="btn accent" href="${escapeOnce(data.studio.ctaPrimaryUrl)}">Agendar 20 minutos</a>
+        <a class="btn ghost" href="${escapeOnce(data.studio.ctaSecondaryUrl)}">Solicitar el copy completo</a>
       </div>
     </div>
   </div>
@@ -504,20 +529,22 @@ function renderCta(data: ClientReportData): string {
 }
 
 function renderFooter(data: ClientReportData): string {
+  // When the URL is unavailable, rewrite the disclaimer so it reads correctly
+  // without an empty hole (spec 4.2 / pitfall 5).
+  const disclaimer = data.company.hasUrl
+    ? `Este análisis refleja el contenido publicado en ${escapeOnce(data.company.url)} el ${escapeOnce(data.company.analyzedAtLabel)}; cambios posteriores en el sitio no están recogidos. Las propuestas de copy son generadas con asistencia de inteligencia artificial y deben revisarse antes de publicar: toda cifra, certificación o afirmación de resultados debe verificarse contra tus fuentes internas.`
+    : `Este análisis refleja el contenido publicado en tu sitio el ${escapeOnce(data.company.analyzedAtLabel)}; cambios posteriores no están recogidos. Las propuestas de copy son generadas con asistencia de inteligencia artificial y deben revisarse antes de publicar: toda cifra, certificación o afirmación de resultados debe verificarse contra tus fuentes internas.`;
   return `<footer>
   <div class="wrap">
     <div class="fl">
-      <strong>${esc(data.studio.name)}</strong> — branding, identidad gráfica y desarrollo web.<br>
-      Análisis realizado con <strong>CopyZap</strong> · ${esc(data.company.analyzedAtTimeLabel)}
+      <strong>${escapeOnce(data.studio.name)}</strong> — branding, identidad gráfica y desarrollo web.<br>
+      Análisis realizado con <strong>CopyZap</strong> · ${escapeOnce(data.company.analyzedAtTimeLabel)}
       <div class="disclaimer">
-        Este análisis refleja el contenido publicado en ${esc(data.company.url)} el ${esc(data.company.analyzedAtLabel)};
-        cambios posteriores en el sitio no están recogidos. Las propuestas de copy son generadas con
-        asistencia de inteligencia artificial y deben revisarse antes de publicar: toda cifra, certificación
-        o afirmación de resultados debe verificarse contra tus fuentes internas.
+        ${disclaimer}
       </div>
     </div>
     <div class="fl" style="max-width:22ch">
-      <strong>${esc(data.studio.site)}</strong><br>${esc(data.studio.email)}
+      <strong>${escapeOnce(data.studio.site)}</strong><br>${escapeOnce(data.studio.email)}
     </div>
   </div>
 </footer>`;
@@ -530,7 +557,7 @@ export function renderClientReport(data: ClientReportData): string {
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Reporte de Copy — ${esc(data.company.name)} | ${esc(data.studio.name)}</title>
+<title>Reporte de Copy — ${escapeOnce(data.company.name)} | ${escapeOnce(data.studio.name)}</title>
 <style>
 ${CSS}
 </style>
