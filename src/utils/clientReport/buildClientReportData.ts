@@ -377,7 +377,13 @@ function splitSections(text: string): { label: string; text: string }[] {
       let label = '';
       let body = trimmed;
       if (words.length > 0 && words.length <= 4 && firstLine.length > 0 && !endsWithPunct) {
-        const mapped = SECTION_LABEL_MAP[firstLine.toLowerCase()];
+        // Normalize accents so "Introducción" matches the unaccented key
+        // "introduccion". Without this, accented section names never resolve,
+        // the label stays empty, and the marker line bleeds into the body text
+        // (issue: labels only extracted from some sections).
+        const norm = firstLine.toLowerCase()
+          .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+        const mapped = SECTION_LABEL_MAP[norm];
         if (mapped) {
           label = mapped;
           body = lines.slice(1).join('\n').trim();
@@ -412,14 +418,23 @@ function suppressZeroFlags(flags: string[]): string[] {
 }
 
 // Strip zero-value numeric tokens from reproduced copy text (spec 5, place 4).
+// Also drop orphan bullets: if a bullet line's only numeric value was suppressed,
+// the remaining "• label" carries no information, so drop the whole line.
 function suppressZeroValuesInText(text: string): string {
   if (!SUPPRESS_ZERO_VALUE_NUMERIC_FINDINGS) return text;
-  return text
+  const suppressed = text
     .replace(/\+\s*0(?:\.0+)?\s*(?:%|pts|puntos|personas|usuarios|clientes|empresas)?/gi, ' ')
     .replace(/\b0(?:\.0+)?\s*%/g, ' ')
     .replace(/\b0(?:\.0+)?\s*\/\s*\d+/g, ' ')
-    .replace(/[ \t]{2,}/g, ' ')
-    .trim();
+    .replace(/[ \t]{2,}/g, ' ');
+  // Drop lines that are just a bullet + label with no remaining digits.
+  const lines = suppressed.split('\n');
+  const kept = lines.filter(line => {
+    const trimmed = line.trim();
+    if (/^[•\-*·]\s+/.test(trimmed) && !/\d/.test(trimmed)) return false;
+    return true;
+  });
+  return kept.join('\n').trim();
 }
 
 // ── Section slicing — text is REMOVED, not hidden (spec 3) ────────────────────
@@ -517,7 +532,9 @@ function sliceSections(
     const sec = sections[i];
 
     if (stopped) {
-      remainingLabels.push(sec.label || 'Sección');
+      // Only list sections with a recognisable label in "Te falta por ver".
+      // Blocks with no label are excluded rather than named "Sección".
+      if (sec.label) remainingLabels.push(sec.label);
       continue;
     }
 

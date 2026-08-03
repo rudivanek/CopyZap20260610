@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.4
-Last Updated: 2026-08-03T20:00:00Z
+Version: 1.5
+Last Updated: 2026-08-03T20:30:00Z
 
 ---
 
@@ -83,6 +83,14 @@ Last Updated: 2026-08-03T20:00:00Z
 6. **Roadmap titles punctuated.** The bold lead-in now ends with a period so it doesn't run on into the body ("<strong>…transformaciones concretas.</strong> Agregar una línea como…").
 
 7. **Scanned URL on fresh analysis.** The URL cover/brief-row fix from v1.3 only appears when a URL is present in the session. A session analysed before the wizard fix has no URL, so the link is correctly absent. Run a fresh URL analysis end-to-end to confirm the link appears.
+
+**Refinements (v1.5):**
+
+1. **Section labels extracted from every block, not just the first.** The `SECTION_LABEL_MAP` lookup compared `firstLine.toLowerCase()` against unaccented keys (`introduccion`), but the actual text carries accents (`Introducción`), so accented labels never matched. The marker line then stayed in the body, printing "Introducción" then a blank line then the text. Only sections with no accents (Beneficios, Servicios, Cursos, Casos de éxito) resolved — which is why "Te falta por ver" named those correctly while the rendered sections did not. The lookup now normalizes accents (NFD + strip diacritics) before matching, so labels are extracted from every block and the marker line is stripped from every section's text. Knock-on fix: the head-to-head winner column now shows the first sentence of the introduction instead of the literal word "Introducción".
+
+2. **"Sección" no longer appears as a section name.** When a block has no recognisable label, it is now excluded from "Te falta por ver" rather than named "Sección".
+
+3. **Orphan bullets dropped after zero-suppression.** Zero-suppression previously left bullets with no numbers ("• Capacitadas", "• Aumento de Ventas"). When a bullet line's only numeric value was suppressed, the whole bullet is now dropped instead of leaving the label.
 
 ---
 
