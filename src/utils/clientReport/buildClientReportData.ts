@@ -226,6 +226,33 @@ function stripProtocol(url: string): string {
   return (url || '').replace(/^https?:\/\//i, '').replace(/\/+$/, '');
 }
 
+// Extract the first http(s) URL found inside an arbitrary text string. Returns ''
+// when none is present. Used to pull a URL out of free-text fields like
+// projectDescription ("Sitio: https://example.com — consultoría B2B") without
+// assuming the whole field is a URL.
+function extractFirstUrl(text: string | undefined): string {
+  if (!text) return '';
+  const match = text.match(/https?:\/\/(?:www\.)?[-a-zA-Z0-9@:%._\+~#=]{1,256}\.[a-zA-Z0-9()]{1,6}\b(?:[-a-zA-Z0-9()@:%_\+.~#?&\/=]*)/i);
+  return match ? match[0] : '';
+}
+
+// Resolve the analysed URL via a priority chain (spec 4.2):
+//   1. first URL inside formState.projectDescription (extracted, not assumed whole),
+//   2. the wizard's analyze-url flow (stored in competitorUrls[0]),
+//   3. the first URL appearing in the original copy,
+//   4. none — renderer omits the link and rewrites the disclaimer.
+// Whichever source wins, the URL is NEVER used as the company name; that is
+// resolved separately from og:site_name / <title> / the AI.
+function resolveAnalyzedUrl(formState: FormState): string {
+  const fromProject = extractFirstUrl(formState.projectDescription);
+  if (fromProject) return fromProject;
+  const fromWizard = formState.competitorUrls?.[0]?.trim();
+  if (fromWizard) return fromWizard;
+  const fromOriginal = extractFirstUrl(formState.originalCopy);
+  if (fromOriginal) return fromOriginal;
+  return '';
+}
+
 function slugifyCompany(name: string): string {
   return (name || 'empresa')
     .toLowerCase()
@@ -758,10 +785,12 @@ export function buildClientReportData(
   // One source of truth for the analysis timestamp (spec 4.5).
   const analyzedAt = comparisonDeepAnalysisMeta?.evaluatedAt || formState.originalCopyEnteredAt || new Date().toISOString();
 
-  // Company URL: best-effort from competitorUrls (the only URL-shaped field available
-  // in the form state). If genuinely unavailable, the renderer omits the site div and
-  // rewrites the disclaimer (spec 4.2). We do NOT fabricate a URL.
-  const companyUrlRaw = formState.competitorUrls?.[0] || '';
+  // Company URL: resolved via a priority chain (spec 4.2) — first URL inside
+  // projectDescription, then the wizard's analyze-url capture (competitorUrls[0]),
+  // then the first URL in the original copy. If none is found, the renderer
+  // omits the site div and rewrites the disclaimer. We do NOT fabricate a URL,
+  // and the URL is never used as the company name.
+  const companyUrlRaw = resolveAnalyzedUrl(formState);
   const companyUrl = stripProtocol(companyUrlRaw);
   const hasUrl = companyUrl.length > 0;
   const companyName = narrative?.companyName || deriveCompanyName(formState, companyUrlRaw);
@@ -1038,7 +1067,7 @@ export function buildClientReportInputMarkdown(
   }
 
   let md = '## CONTEXTO DE LA EMPRESA\n\n';
-  md += `URL analizada: ${formState.competitorUrls?.[0] || '(no proporcionada)'}\n`;
+  md += `URL analizada: ${resolveAnalyzedUrl(formState) || '(no proporcionada)'}\n`;
   md += `Público objetivo: ${formState.targetAudience || '(no especificado)'}\n`;
   md += `Mensaje clave: ${formState.keyMessage || '(no especificado)'}\n`;
   md += `Llamada a la acción: ${formState.callToAction || '(no especificada)'}\n`;

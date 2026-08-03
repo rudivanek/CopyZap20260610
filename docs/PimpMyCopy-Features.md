@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.5
-Last Updated: 2026-08-03T20:30:00Z
+Version: 1.6
+Last Updated: 2026-08-03T21:00:00Z
 
 ---
 
@@ -91,6 +91,10 @@ Last Updated: 2026-08-03T20:30:00Z
 2. **"Sección" no longer appears as a section name.** When a block has no recognisable label, it is now excluded from "Te falta por ver" rather than named "Sección".
 
 3. **Orphan bullets dropped after zero-suppression.** Zero-suppression previously left bullets with no numbers ("• Capacitadas", "• Aumento de Ventas"). When a bullet line's only numeric value was suppressed, the whole bullet is now dropped instead of leaving the label.
+
+**Refinements (v1.6):**
+
+1. **Analysed URL resolved via a priority chain.** Previously the report read the URL from a single field (`competitorUrls[0]`), which was empty for sessions created before the wizard fix. The URL is now resolved from the first available source in this order: (a) the first URL extracted from `projectDescription` free text — the user may write "Sitio: https://example.com — consultoría B2B", so the URL is parsed out rather than assumed to be the whole field; (b) the wizard's analyze-url capture (stored in `competitorUrls[0]`); (c) the first URL appearing in the original copy; (d) none — the cover link and "URL analizada" brief row are omitted and the disclaimer rewrites itself. Whichever source wins, the URL is never used as the company name; that is resolved separately from `og:site_name` / `<title>` / the AI narrative.
 
 ---
 
