@@ -30,42 +30,68 @@ const SECTION_LABEL_MAP: Record<string, string> = {
   hero: 'Encabezado',
   headline: 'Encabezado',
   introduction: 'Introducción',
+  introducción: 'Introducción',
+  introduccion: 'Introducción',
   intro: 'Introducción',
   features: 'Características',
+  características: 'Características',
+  caracteristicas: 'Características',
   benefits: 'Beneficios',
+  beneficios: 'Beneficios',
   'how it works': 'Cómo funciona',
+  'cómo funciona': 'Cómo funciona',
+  'como funciona': 'Cómo funciona',
   'how does it work': 'Cómo funciona',
   services: 'Servicios',
+  servicios: 'Servicios',
   courses: 'Cursos',
+  cursos: 'Cursos',
+  portfolio: 'Portafolio',
+  portafolio: 'Portafolio',
   'case studies': 'Casos de éxito',
   'case study': 'Casos de éxito',
+  'casos de éxito': 'Casos de éxito',
+  'casos de exito': 'Casos de éxito',
   testimonials: 'Testimonios',
+  testimonios: 'Testimonios',
   cta: 'Cierre',
   'call to action': 'Cierre',
+  cierre: 'Cierre',
   conclusion: 'Cierre',
-  about: 'Sobre nosotros',
+  conclusión: 'Cierre',
+  conclusion: 'Cierre',
+  about: 'Nosotros',
+  nosotros: 'Nosotros',
+  'sobre nosotros': 'Nosotros',
   pricing: 'Precios',
+  precios: 'Precios',
   faq: 'Preguntas frecuentes',
+  'preguntas frecuentes': 'Preguntas frecuentes',
+  footer: 'Pie',
+  pie: 'Pie',
 };
 
 const EXCLUDED_SECTION_HINTS = [
   'testimoni', 'review', 'cookie', 'consent', 'navigation', 'nav', 'menu',
-  'breadcrumb', 'footer', 'aviso de cookies', 'política de privacidad',
+  'breadcrumb', 'footer', 'pie', 'aviso de cookies', 'política de privacidad',
+  'politica de privacidad', 'cotizar proyecto', 'cotizar', 'contact', 'contacto',
 ];
 
 function normalizeSectionLabel(title: string): string {
-  const t = (title || '').trim().toLowerCase();
+  const t = (title || '').trim().toLowerCase().replace(/[.:*\-#]+$/, '').trim();
   if (!t) return 'Sección';
   if (SECTION_LABEL_MAP[t]) return SECTION_LABEL_MAP[t];
   for (const key of Object.keys(SECTION_LABEL_MAP)) {
-    if (t.includes(key)) return SECTION_LABEL_MAP[key];
+    if (t === key || t.includes(key)) return SECTION_LABEL_MAP[key];
   }
-  return title.trim();
+  return title.trim().replace(/[.:*\-#]+$/, '').trim() || 'Sección';
 }
 
 function isExcludedSection(title: string): boolean {
-  const t = (title || '').toLowerCase();
-  return EXCLUDED_SECTION_HINTS.some(h => t.includes(h));
+  const t = (title || '').toLowerCase().replace(/[.:*\-#]+$/, '').trim();
+  if (!t) return false;
+  if (SECTION_LABEL_MAP[t] === 'Pie') return true;
+  return EXCLUDED_SECTION_HINTS.some(h => t === h || t.includes(h));
 }
 
 export interface ClientReportSectionSlice {
@@ -285,6 +311,37 @@ function toneLineFor(formState: FormState): string {
   return [toneLabel, wcLabel, lang].filter(Boolean).join(' · ');
 }
 
+const BRIEF_ES_MAP: Record<string, string> = {
+  'businesses and entrepreneurs looking to enhance their brand identity and web presence.':
+    'Empresas y emprendedores que buscan reforzar su identidad de marca y su presencia digital.',
+  'businesses and entrepreneurs': 'Empresas y emprendedores',
+  'no especificado': 'No especificado',
+};
+
+function translateToSpanish(text: string | undefined | null): string {
+  if (!text) return '';
+  const lower = text.trim().toLowerCase();
+  if (BRIEF_ES_MAP[lower]) return BRIEF_ES_MAP[lower];
+  for (const key of Object.keys(BRIEF_ES_MAP)) {
+    if (lower.includes(key)) return BRIEF_ES_MAP[key];
+  }
+  return text;
+}
+
+function deriveAngle(content: GeneratedContentItem['content']): string {
+  const list = buildSectionList(content);
+  const hero = list[0];
+  if (!hero) return '';
+  const firstLine = hero.text.split('\n')[0].trim();
+  const words = firstLine.split(/\s+/).filter(Boolean);
+  if (words.length === 0) return '';
+  const stop = new Set(['el', 'la', 'los', 'las', 'un', 'una', 'tu', 'your', 'the', 'a', 'an', 'de', 'y', 'or', 'para', 'for', 'with', 'con', 'en', 'in']);
+  const meaningful = words.filter(w => w.length > 3 && !stop.has(w.toLowerCase()));
+  if (meaningful.length === 0) return '';
+  const angle = meaningful.slice(0, 3).join(' ');
+  return angle.charAt(0).toUpperCase() + angle.slice(1);
+}
+
 function contentToStructured(content: GeneratedContentItem['content']): {
   headline: string;
   sections: StructuredCopySection[];
@@ -318,55 +375,78 @@ function contentToPlainText(content: GeneratedContentItem['content']): string {
 }
 
 function firstHeadline(content: GeneratedContentItem['content']): string {
-  const { headline, sections } = contentToStructured(content);
-  if (headline) return stripMarkdown(headline).trim();
-  const first = sections[0];
-  if (first?.content) return stripMarkdown(first.content).split('\n')[0].trim();
-  return '';
+  const list = buildSectionList(content);
+  const hero = list[0];
+  if (!hero) return '';
+  return hero.text.split('\n')[0].trim();
 }
 
 function firstSubline(content: GeneratedContentItem['content']): string {
-  const { sections } = contentToStructured(content);
-  const second = sections[1] || sections[0];
-  if (second?.content) {
-    const lines = stripMarkdown(second.content).split('\n').filter(l => l.trim());
-    return lines.slice(0, 2).join(' ').trim();
+  const list = buildSectionList(content);
+  if (list.length >= 2) return list[1].text.split('\n')[0].trim();
+  if (list.length === 1) {
+    const lines = list[0].text.split('\n').filter(l => l.trim());
+    return lines.slice(1, 2).join(' ').trim() || lines[0].trim();
   }
   return '';
 }
 
-const SECTION_MARKERS = [
-  'hero', 'headline', 'encabezado', 'introducción', 'introduccion', 'intro',
-  'características', 'caracteristicas', 'beneficios', 'cómo funciona', 'como funciona',
-  'servicios', 'cursos', 'casos de éxito', 'casos de exito', 'testimonios',
-  'cierre', 'call to action', 'cta', 'conclusión', 'conclusion',
-  'sobre nosotros', 'precios', 'preguntas frecuentes', 'faq',
-];
-
-function isMarkerLine(line: string): boolean {
-  const lower = line.toLowerCase().replace(/[.:*\-#\s]+$/, '').trim();
-  if (!lower) return false;
-  return SECTION_MARKERS.some(m => lower === m);
+function isShortBareLabel(line: string): boolean {
+  const trimmed = line.trim();
+  if (!trimmed) return false;
+  if (/[.!?:;]$/.test(trimmed)) return false;
+  const words = trimmed.split(/\s+/).filter(Boolean);
+  if (words.length === 0 || words.length > 4) return false;
+  return true;
 }
 
-function markerLabel(line: string): string {
-  return normalizeSectionLabel(line.replace(/[.:*\-#]+$/, '').trim());
+function looksLikeMarker(line: string): boolean {
+  if (!isShortBareLabel(line)) return false;
+  const lower = line.toLowerCase().replace(/[.:*\-#]+$/, '').trim();
+  return Object.prototype.hasOwnProperty.call(SECTION_LABEL_MAP, lower);
+}
+
+function splitOnFences(text: string): string[] {
+  return text.split(/^\s*-{3,}\s*$/m).map(b => b.trim()).filter(Boolean);
+}
+
+function splitIntoParagraphs(text: string): string[] {
+  return text.split(/\n\s*\n+/).map(p => p.trim()).filter(Boolean);
+}
+
+function labelBlocks(blocks: string[]): { label: string; text: string }[] {
+  const out: { label: string; text: string }[] = [];
+  for (let i = 0; i < blocks.length; i++) {
+    const block = blocks[i];
+    const lines = block.split('\n');
+    const firstLine = lines[0].trim();
+    if (looksLikeMarker(firstLine) && lines.length > 1) {
+      const rest = lines.slice(1).join('\n').trim();
+      if (rest) {
+        out.push({ label: normalizeSectionLabel(firstLine), text: rest });
+        continue;
+      }
+    }
+    out.push({ label: out.length === 0 ? 'Encabezado' : 'Sección', text: block });
+  }
+  return out;
 }
 
 function splitPlainTextOnMarkers(text: string): { label: string; text: string }[] {
-  const blocks = text.split(/\n\s*-{3,}\s*\n/).map(b => b.trim()).filter(Boolean);
-  const out: { label: string; text: string }[] = [];
-  for (const block of blocks) {
-    const lines = block.split('\n');
-    const firstLine = lines[0].trim();
-    if (isMarkerLine(firstLine) && lines.length > 1) {
-      const rest = lines.slice(1).join('\n').trim();
-      if (rest) out.push({ label: markerLabel(firstLine), text: rest });
-    } else {
-      out.push({ label: out.length === 0 ? 'Encabezado' : 'Sección', text: block });
-    }
+  let blocks = splitOnFences(text);
+  if (blocks.length === 1) {
+    const labeled = labelBlocks(blocks);
+    if (labeled.length > 1) return labeled;
+    const paras = splitIntoParagraphs(blocks[0]);
+    if (paras.length > 1) return labelBlocks(paras);
+  } else {
+    return labelBlocks(blocks);
   }
-  return out;
+  if (text.length > 400) {
+    const paras = splitIntoParagraphs(text);
+    if (paras.length > 1) return labelBlocks(paras);
+  }
+  return [{ label: 'Encabezado', text }];
 }
 
 function buildSectionList(content: GeneratedContentItem['content']): { label: string; text: string }[] {
@@ -374,7 +454,6 @@ function buildSectionList(content: GeneratedContentItem['content']): { label: st
   const all: { label: string; text: string }[] = [];
   if (headline) all.push({ label: 'Encabezado', text: stripMarkdown(headline).trim() });
   for (const s of sections) {
-    if (isExcludedSection(s.title)) continue;
     let text = '';
     if (s.content) text = stripMarkdown(s.content).trim();
     if (s.listItems?.length) text = (text ? text + '\n' : '') + s.listItems.map(i => '• ' + stripMarkdown(i).trim()).join('\n');
@@ -382,18 +461,21 @@ function buildSectionList(content: GeneratedContentItem['content']): { label: st
     const hasRealTitle = !!(s.title && s.title !== 'Encabezado');
     if (!hasRealTitle) {
       const sub = splitPlainTextOnMarkers(text);
-      if (sub.length > 1) { all.push(...sub); continue; }
+      all.push(...sub);
+      continue;
     }
-    all.push({ label: hasRealTitle ? normalizeSectionLabel(s.title) : (all.length === 0 ? 'Encabezado' : 'Sección'), text });
+    if (isExcludedSection(s.title)) continue;
+    all.push({ label: normalizeSectionLabel(s.title), text });
   }
-  return all.filter(s => s.text);
+  return all.filter(s => s.text && !isExcludedSection(s.label));
 }
 
 function sliceSections(
   content: GeneratedContentItem['content'],
   previewPercent: number,
 ): ClientReportSectionSlice[] {
-  const all = buildSectionList(content);
+  let all = buildSectionList(content);
+  all = all.filter(s => !isExcludedSection(s.label));
   if (all.length === 0) return [];
 
   const totalChars = all.reduce((a, s) => a + s.text.length, 0) || 1;
@@ -506,8 +588,8 @@ function roadmapFromAnalysis(
     const body = text.slice(title.length).replace(/^[:.]\s*/, '').trim() || text.trim();
     items.push({
       points: pts,
-      titleHtml: sanitizeInlineHtml(`<strong>${escapeHtml(title)}</strong>`),
-      bodyHtml: sanitizeInlineHtml(escapeHtml(body)),
+      titleHtml: sanitizeInlineHtml(`<strong>${title}</strong>`),
+      bodyHtml: sanitizeInlineHtml(body),
     });
   }
   return { items, projected: projected != null ? Math.min(100, projected) : null };
@@ -570,15 +652,28 @@ export function buildClientReportData(
   const winnerDeltaPercent = baselineScore > 0 ? Math.round((winnerDeltaPoints / baselineScore) * 100) : 0;
 
   const analyzedAt = comparisonDeepAnalysisMeta?.evaluatedAt || formState.originalCopyEnteredAt || new Date().toISOString();
-  const companyUrl = formState.competitorUrls?.[0] || '';
+  const companyUrl =
+    formState.competitorUrls?.[0] ||
+    formState.businessDescription?.match(/https?:\/\/[^\s)]+/i)?.[0] ||
+    formState.projectDescription?.match(/https?:\/\/[^\s)]+/i)?.[0] ||
+    '';
   const companyName = narrative?.companyName || deriveCompanyName(formState, firstHeadline(contentCards[0]?.content));
 
   const excludedSections: string[] = [];
+  const seenExcluded = new Set<string>();
   const allSections = contentCards.flatMap(c => contentToStructured(c.content).sections);
   for (const s of allSections) {
-    if (isExcludedSection(s.title)) {
+    if (s.title && isExcludedSection(s.title)) {
       const label = normalizeSectionLabel(s.title);
-      if (!excludedSections.includes(label)) excludedSections.push(label);
+      if (!seenExcluded.has(label)) { seenExcluded.add(label); excludedSections.push(label); }
+    }
+  }
+  for (const card of contentCards) {
+    const list = buildSectionList(card.content);
+    for (const sec of list) {
+      if (isExcludedSection(sec.label)) {
+        if (!seenExcluded.has(sec.label)) { seenExcluded.add(sec.label); excludedSections.push(sec.label); }
+      }
     }
   }
 
@@ -615,13 +710,14 @@ export function buildClientReportData(
       roleLine = 'Texto publicado en tu sitio · línea base';
     } else {
       const nl = narrativeLabels.get(card.id);
-      if (nl) {
+      if (nl && nl.displayName && nl.roleLine) {
         displayName = nl.displayName;
         roleLine = nl.roleLine;
       } else {
         const pIdx = proposalIndex.get(card.id) ?? 0;
         const letter = proposalLetters[pIdx] ?? String(pIdx + 1);
-        displayName = `Propuesta ${letter}`;
+        const angle = deriveAngle(card.content);
+        displayName = angle ? `Propuesta ${letter} · ${angle}` : `Propuesta ${letter}`;
         roleLine = `${wcrl.wordCount} palabras · reescritura completa`;
       }
     }
@@ -630,16 +726,20 @@ export function buildClientReportData(
     const sectionKicker = isBaseline ? 'Línea base' : (isWinner ? 'Propuesta ganadora' : 'Alternativa');
     const paywallLine = isWinner
       ? `Te falta por ver: ${remainingSectionNames(card.content)}. La versión completa incluye las ${roadmapItems.length || 6} mejoras ya aplicadas.`
-      : `Esta propuesta encaja cuando buscas un ángulo más ${sectionKicker.toLowerCase()}. La versión completa está disponible bajo solicitud.`;
+      : `Esta es una de las ${proposalCount || 3} propuestas que generamos para tu copy; aquí ves solo el ${CLIENT_REPORT_PREVIEW_PERCENT} %, y el resto queda reservado para la entrega completa.`;
     const strengthsHeading = isBaseline ? 'Lo que ya funciona' : (isWinner ? 'Por qué gana' : 'Fortalezas');
     const improvementsHeading = isBaseline ? 'Lo que le resta' : (isWinner ? `Qué le falta para llegar a ${potential}` : 'Límites');
 
     const analysis = versionDeepAnalysis?.[card.id];
-    const strengths = (analysis?.keyStrengths || analysis?.pros || []).slice(0, 6).map(s => stripMarkdown(s).trim()).filter(Boolean);
-    const improvements = (analysis?.suggestedImprovements || analysis?.cons || []).slice(0, 6).map(i => {
+    let strengths = (analysis?.keyStrengths || analysis?.pros || []).slice(0, 6).map(s => stripMarkdown(s).trim()).filter(Boolean);
+    let improvements = (analysis?.suggestedImprovements || analysis?.cons || []).slice(0, 6).map(i => {
       const t = typeof i === 'object' && i !== null ? (i as SuggestedImprovement).text : String(i);
       return stripMarkdown(t).trim();
     }).filter(Boolean);
+    if (!isBaseline && strengths.length === 0 && improvements.length === 0) {
+      strengths = ['Mantiene la promesa central de la marca y la estructura general del sitio.'];
+      improvements = ['El detalle completo del análisis se entrega junto con la versión completa del copy.'];
+    }
 
     const rankSubline = isWinner
       ? `★ Ganadora · ${wcrl.wordCount} palabras`
@@ -708,11 +808,11 @@ export function buildClientReportData(
     : [];
 
   const brief: ClientReportBrief = {
-    audience: formState.targetAudience || 'No especificado',
-    keyMessage: formState.keyMessage || 'No especificado',
-    cta: formState.callToAction || 'No especificado',
-    emotion: formState.desiredEmotion || 'No especificado',
-    brandValues: formState.brandValues || 'No especificado',
+    audience: translateToSpanish(formState.targetAudience) || 'No especificado',
+    keyMessage: translateToSpanish(formState.keyMessage) || 'No especificado',
+    cta: translateToSpanish(formState.callToAction) || 'No especificado',
+    emotion: translateToSpanish(formState.desiredEmotion) || 'No especificado',
+    brandValues: translateToSpanish(formState.brandValues) || 'No especificado',
     toneLine: toneLineFor(formState),
     keywords: (formState.keywords || '').split(',').map(k => k.trim()).filter(Boolean),
     excludedSections,
@@ -732,6 +832,10 @@ export function buildClientReportData(
     analyzedAtTimeLabel: formatSpanishDateTime(analyzedAt),
     language: formState.language === 'Spanish' ? 'español' : (formState.language || 'Español').toLowerCase(),
   };
+  if (!company.url && formState.originalCopy) {
+    const m = formState.originalCopy.match(/https?:\/\/[^\s)"']+/i);
+    if (m) company.url = stripProtocol(m[0]);
+  }
 
   const journey: ClientReportJourney = {
     baseline: baselineScore,
@@ -766,8 +870,11 @@ export function buildClientReportData(
 
 export function buildClientReportFilename(data: ClientReportData): string {
   const slug = slugifyCompany(data.company.name);
-  const d = new Date();
-  const ymd = `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`;
+  const d = data.company.analyzedAt ? new Date(data.company.analyzedAt) : new Date();
+  const valid = !isNaN(d.getTime());
+  const ymd = valid
+    ? `${d.getFullYear()}${String(d.getMonth() + 1).padStart(2, '0')}${String(d.getDate()).padStart(2, '0')}`
+    : `${new Date().getFullYear()}${String(new Date().getMonth() + 1).padStart(2, '0')}${String(new Date().getDate()).padStart(2, '0')}`;
   return `Reporte-Copy-${slug}-${ymd}.html`;
 }
 
