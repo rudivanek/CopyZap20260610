@@ -117,8 +117,8 @@ p{margin:0 0 16px}
 .v-body .sec-lbl{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
 .v-body .sec p{margin:0;font-size:15.5px;line-height:1.7;color:var(--ink-soft);white-space:pre-wrap}
 .v-body .sec.hero p{font-family:var(--serif);font-size:22px;line-height:1.35;color:var(--ink)}
-.fade{position:relative;max-height:120px;overflow:hidden}
-.fade:after{content:"";position:absolute;inset:auto 0 0 0;height:80px;background:linear-gradient(180deg,rgba(255,255,255,0),var(--white))}
+.fade{position:relative}
+.fade:after{content:"";position:absolute;left:0;right:0;bottom:0;height:48px;background:linear-gradient(180deg,rgba(255,255,255,0),var(--white));pointer-events:none}
 .paywall{margin:0;padding:22px 28px 26px;background:var(--paper);border-top:1px solid var(--line);display:flex;justify-content:space-between;align-items:center;gap:18px;flex-wrap:wrap}
 .paywall .pw-t{font-size:14.5px;color:var(--ink-soft);line-height:1.5;flex:1;min-width:240px}
 .paywall .pw-t b{color:var(--ink);font-weight:650}

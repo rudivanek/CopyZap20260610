@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-08-03T11:09:00Z
+Last Updated: 2026-08-03T11:30:00Z
 
 ---
 
@@ -28,7 +28,7 @@ Last Updated: 2026-08-03T11:09:00Z
 
 **Data model (`ClientReportData`):** Every field comes from existing session data except the four AI-generated fields (company name, executive summary, findings, head-to-head notes, version labels) produced by the single narrative call. The object covers: studio config (hardcoded `Sharpen.Studio` for now), company (name, URL, analysed-at timestamp + Spanish-formatted date/time labels, language), journey (baseline / winner / potential scores, deltas, version & proposal counts), executive summary (exactly 3 paragraphs), findings (exactly 4, ordered by impact), brief (audience, key message, CTA, emotion, brand values, tone line, keywords, excluded sections), head-to-head (original vs. winner headline + sub + AI note), versions (one entry per evaluated version with section-aware 25% preview slice, strengths, improvements, derived display names), roadmap (from the winner's deep-analysis suggested improvements with `points_delta`), and derived template values (`findingsCountWord`, `roadmapCountWord`, `winnerDisplayName`, `lastIndex`).
 
-**Section-aware truncation:** `sliceSections` cuts at a section boundary (never mid-sentence), targeting `CLIENT_REPORT_PREVIEW_PERCENT` (25) but always showing at least the hero plus one section. The last visible section is marked `isFaded: true` and gets a CSS fade mask in the renderer.
+**Section-aware truncation (hard discard, not CSS clip):** `sliceSections` first splits each version's copy into an ordered array of `{label, text, isHero, isFaded}` sections. Splitting is done by `buildSectionList`, which (a) reuses `contentToStructured` for structured outputs, and (b) for plain-string or single-section content runs `splitPlainTextOnMarkers`, which breaks the text on `---` fences and on lines that match a known section-marker word (`Hero`, `Encabezado`, `Introducción`, `Beneficios`, `Cierre`, `CTA`, …). The marker word becomes the section's `label` — it is never emitted as body text. Only the first line under a marker is treated as the marker; the remaining lines become that section's `text`. Once the full ordered section list is built, the splitter accumulates whole sections until ~25% (`CLIENT_REPORT_PREVIEW_PERCENT`) of the version's total character count is reached, with a hard floor of the hero plus one full section. Sections beyond that cutoff are **discarded entirely** — they are not present in the output HTML, so select-all, view-source, screen readers, and plain-text extraction all recover only the kept ~25%. `isFaded: true` is applied only to the last kept section. In the renderer, `.fade` is a soft visual edge only (a 48px white gradient overlay via `::after`); it is **not** a clip — there is no `max-height` / `overflow:hidden` on it, so the kept sections render in full and the fade is purely cosmetic. Only the hero section (the first kept section, `isHero: true`) gets the serif display style (`.sec.hero p`); all other kept sections render as normal body text. Verification: running a plain-text extraction over the exported file yields roughly a quarter of each version's word count, not all of it.
 
 **Potential score:** `potential = winnerScore + sum(roadmap[].points)`, capped at 100. If the deep analysis already returns a `projected_score` on a suggested improvement, that projection is used instead of the sum.
 

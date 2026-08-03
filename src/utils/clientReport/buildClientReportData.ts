@@ -335,23 +335,65 @@ function firstSubline(content: GeneratedContentItem['content']): string {
   return '';
 }
 
+const SECTION_MARKERS = [
+  'hero', 'headline', 'encabezado', 'introducción', 'introduccion', 'intro',
+  'características', 'caracteristicas', 'beneficios', 'cómo funciona', 'como funciona',
+  'servicios', 'cursos', 'casos de éxito', 'casos de exito', 'testimonios',
+  'cierre', 'call to action', 'cta', 'conclusión', 'conclusion',
+  'sobre nosotros', 'precios', 'preguntas frecuentes', 'faq',
+];
+
+function isMarkerLine(line: string): boolean {
+  const lower = line.toLowerCase().replace(/[.:*\-#\s]+$/, '').trim();
+  if (!lower) return false;
+  return SECTION_MARKERS.some(m => lower === m);
+}
+
+function markerLabel(line: string): string {
+  return normalizeSectionLabel(line.replace(/[.:*\-#]+$/, '').trim());
+}
+
+function splitPlainTextOnMarkers(text: string): { label: string; text: string }[] {
+  const blocks = text.split(/\n\s*-{3,}\s*\n/).map(b => b.trim()).filter(Boolean);
+  const out: { label: string; text: string }[] = [];
+  for (const block of blocks) {
+    const lines = block.split('\n');
+    const firstLine = lines[0].trim();
+    if (isMarkerLine(firstLine) && lines.length > 1) {
+      const rest = lines.slice(1).join('\n').trim();
+      if (rest) out.push({ label: markerLabel(firstLine), text: rest });
+    } else {
+      out.push({ label: out.length === 0 ? 'Encabezado' : 'Sección', text: block });
+    }
+  }
+  return out;
+}
+
+function buildSectionList(content: GeneratedContentItem['content']): { label: string; text: string }[] {
+  const { headline, sections } = contentToStructured(content);
+  const all: { label: string; text: string }[] = [];
+  if (headline) all.push({ label: 'Encabezado', text: stripMarkdown(headline).trim() });
+  for (const s of sections) {
+    if (isExcludedSection(s.title)) continue;
+    let text = '';
+    if (s.content) text = stripMarkdown(s.content).trim();
+    if (s.listItems?.length) text = (text ? text + '\n' : '') + s.listItems.map(i => '• ' + stripMarkdown(i).trim()).join('\n');
+    if (!text) continue;
+    const hasRealTitle = !!(s.title && s.title !== 'Encabezado');
+    if (!hasRealTitle) {
+      const sub = splitPlainTextOnMarkers(text);
+      if (sub.length > 1) { all.push(...sub); continue; }
+    }
+    all.push({ label: hasRealTitle ? normalizeSectionLabel(s.title) : (all.length === 0 ? 'Encabezado' : 'Sección'), text });
+  }
+  return all.filter(s => s.text);
+}
+
 function sliceSections(
   content: GeneratedContentItem['content'],
   previewPercent: number,
 ): ClientReportSectionSlice[] {
-  const { headline, sections } = contentToStructured(content);
-  const all: { label: string; text: string; isHero: boolean }[] = [];
-  if (headline) {
-    all.push({ label: 'Encabezado', text: stripMarkdown(headline).trim(), isHero: true });
-  }
-  for (const s of sections) {
-    if (isExcludedSection(s.title)) continue;
-    const label = normalizeSectionLabel(s.title);
-    let text = '';
-    if (s.content) text = stripMarkdown(s.content).trim();
-    if (s.listItems?.length) text = (text ? text + '\n' : '') + s.listItems.map(i => '• ' + stripMarkdown(i).trim()).join('\n');
-    if (text) all.push({ label, text, isHero: all.length === 0 });
-  }
+  const all = buildSectionList(content);
   if (all.length === 0) return [];
 
   const totalChars = all.reduce((a, s) => a + s.text.length, 0) || 1;
@@ -368,20 +410,25 @@ function sliceSections(
   return visible.map((s, i) => ({
     label: s.label,
     text: s.text,
-    isHero: s.isHero,
+    isHero: i === 0,
     isFaded: i === visible.length - 1,
   }));
 }
 
 function remainingSectionNames(content: GeneratedContentItem['content']): string {
-  const { sections } = contentToStructured(content);
-  const all: string[] = [];
-  for (const s of sections) {
-    if (isExcludedSection(s.title)) continue;
-    all.push(normalizeSectionLabel(s.title));
+  const all = buildSectionList(content);
+  if (all.length === 0) return 'el resto del copy';
+  const totalChars = all.reduce((a, s) => a + s.text.length, 0) || 1;
+  const target = Math.max(1, Math.round((totalChars * CLIENT_REPORT_PREVIEW_PERCENT) / 100));
+  let acc = 0;
+  let cutoff = 0;
+  for (let i = 0; i < all.length; i++) {
+    acc += all[i].text.length;
+    cutoff = i + 1;
+    if (i >= 1 && acc >= target) break;
   }
-  const visibleCount = Math.max(2, Math.min(all.length, Math.ceil(all.length * CLIENT_REPORT_PREVIEW_PERCENT / 100) || 2));
-  const remaining = all.slice(visibleCount);
+  cutoff = Math.max(2, Math.min(cutoff, all.length));
+  const remaining = all.slice(cutoff).map(s => s.label);
   return remaining.length ? remaining.join(', ') : 'el resto del copy';
 }
 
@@ -554,6 +601,8 @@ export function buildClientReportData(
     const score = scoreMap.get(card.id) ?? card.score?.overall ?? 0;
     const deltaPoints = isBaseline ? null : Math.max(0, Math.round(score - baselineScore));
     const deltaPercent = isBaseline || baselineScore <= 0 ? null : Math.round((deltaPoints! / baselineScore) * 100);
+    )
+    )
     const plain = contentToPlainText(card.content);
     const wcrl = computeWordCountAndReadingLevel(plain);
     const editorial = editorialMap.get(card.id) ?? Math.round(score * 0.5);
