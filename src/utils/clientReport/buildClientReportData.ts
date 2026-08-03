@@ -101,6 +101,7 @@ export interface ClientReportVersion {
   sectionKicker: string;
   sectionNumber: number;
   paywallLine: string;
+  keptPercent: number;
   strengthsHeading: string;
   improvementsHeading: string;
   rankSubline: string;
@@ -427,13 +428,31 @@ function sliceSections(
   content: GeneratedContentItem['content'],
   previewPercent: number,
   versionNameForWarning: string,
-): { sections: ClientReportSectionSlice[]; remainingLabels: string[] } {
+  isBaseline: boolean,
+): { sections: ClientReportSectionSlice[]; remainingLabels: string[]; keptPercent: number } {
   const plain = contentToPlainTextWithMarkers(content);
   let sections = splitSections(plain);
 
   // Drop Pie and Testimonios before measuring (spec 3.2).
   sections = sections.filter(s => s.label !== 'Pie' && s.label !== 'Testimonios');
-  if (!sections.length) return { sections: [], remainingLabels: [] };
+  if (!sections.length) return { sections: [], remainingLabels: [], keptPercent: 100 };
+
+  // The baseline is the client's own published text — show 100% of it, no fade,
+  // no paywall. The whole report rests on "this is what we read from your site",
+  // so truncating it would make the diagnosis unverifiable.
+  if (isBaseline) {
+    const slices: ClientReportSectionSlice[] = sections.map((s, i) => ({
+      label: s.label || '',
+      text: s.text,
+      isHero: i === 0,
+      isFaded: false,
+    }));
+    const finalSlices = slices.map(s => ({
+      ...s,
+      text: suppressZeroValuesInText(s.text),
+    }));
+    return { sections: finalSlices, remainingLabels: [], keptPercent: 100 };
+  }
 
   const totalChars = sections.reduce((a, s) => a + s.text.length, 0) || 1;
   const target = Math.max(1, Math.round((totalChars * previewPercent) / 100));
@@ -491,13 +510,15 @@ function sliceSections(
   // Mark the last visible slice as faded.
   if (slices.length) slices[slices.length - 1].isFaded = true;
 
-  // Self-check (spec 3.3) — fires when a version keeps > 40% of its chars.
+  // Real kept-character percentage (spec change: print the real number, not the constant).
   const keptChars = slices.reduce((a, s) => a + s.text.length, 0);
-  if (totalChars > 0 && keptChars / totalChars > 0.40) {
+  const keptPercent = totalChars > 0 ? Math.round((keptChars / totalChars) * 100) : 100;
+
+  // Self-check (spec 3.3) — fires when a non-baseline version keeps > 40% of its chars.
+  // The baseline is excluded: it deliberately shows 100%.
+  if (keptPercent > 40) {
     console.warn(
-      `[clientReport] La versión "${versionNameForWarning}" muestra ${Math.round(
-        (keptChars / totalChars) * 100,
-      )}% del copy (límite 40%). Revisa el corte de secciones.`,
+      `[clientReport] La versión "${versionNameForWarning}" muestra ${keptPercent}% del copy (límite 40%). Revisa el corte de secciones.`,
     );
   }
 
@@ -506,7 +527,7 @@ function sliceSections(
     text: suppressZeroValuesInText(s.text),
   }));
 
-  return { sections: finalSlices, remainingLabels };
+  return { sections: finalSlices, remainingLabels, keptPercent };
 }
 
 // ── Sub-scores — average, not doubled (spec 4.3) ─────────────────────────────
@@ -730,16 +751,19 @@ export function buildClientReportData(
     const shortName = displayName.replace(/^Propuesta [A-Z]\s*·\s*/i, '').trim() || displayName;
     const sectionKicker = isBaseline ? 'Línea base' : (isWinner ? 'Propuesta ganadora' : 'Alternativa');
 
-    const sliced = sliceSections(card.content, CLIENT_REPORT_PREVIEW_PERCENT, displayName);
+    const sliced = sliceSections(card.content, CLIENT_REPORT_PREVIEW_PERCENT, displayName, isBaseline);
     const remainingLabels = sliced.remainingLabels;
+    const keptPercent = sliced.keptPercent;
 
+    // Every non-baseline version names the missing sections (spec change #3):
+    // the winner previously got this treatment, A/C got a generic sentence.
+    // Now all proposals list the cut section labels; if nothing was cut, fall
+    // back to a complete sentence that still ties to the delivery.
     const paywallLine = isBaseline
       ? ''
-      : isWinner
-        ? (remainingLabels.length
-            ? `Te falta por ver: ${remainingLabels.join(', ')}. La versión completa incluye las ${numberWord(roadmapItems.length, false) || String(roadmapItems.length)} mejoras ya aplicadas.`
-            : `La versión completa de esta propuesta, con las ${numberWord(roadmapItems.length, false) || String(roadmapItems.length)} mejoras ya aplicadas, forma parte de la entrega.`)
-        : `Esta es una de las ${numberWord(proposalCount, false) || String(proposalCount)} propuestas completas que preparamos; el texto restante forma parte de la entrega.`;
+      : (remainingLabels.length
+          ? `Te falta por ver: ${remainingLabels.join(', ')}. La versión completa incluye las ${numberWord(roadmapItems.length, false) || String(roadmapItems.length)} mejoras ya aplicadas.`
+          : `La versión completa de esta propuesta, con las ${numberWord(roadmapItems.length, false) || String(roadmapItems.length)} mejoras ya aplicadas, forma parte de la entrega.`);
 
     const strengthsHeading = isBaseline ? 'Lo que ya funciona' : (isWinner ? 'Por qué gana' : 'Fortalezas');
     const improvementsHeading = isBaseline
@@ -782,6 +806,7 @@ export function buildClientReportData(
       shortName,
       sectionKicker,
       paywallLine,
+      keptPercent,
       strengthsHeading,
       improvementsHeading,
       rankSubline,

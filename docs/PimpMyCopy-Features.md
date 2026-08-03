@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.2
-Last Updated: 2026-08-03T18:30:00Z
+Version: 1.3
+Last Updated: 2026-08-03T19:15:00Z
 
 ---
 
@@ -57,6 +57,16 @@ Last Updated: 2026-08-03T18:30:00Z
 **Escaping:** Every value is HTML-escaped except fields explicitly named `*Html`, which carry sanitised inline markup (`<strong>`, `<b>`, `<q>`, `<em>` only — everything else is stripped).
 
 **Acceptance checklist met:** item appears directly below the original; original is unchanged; export produces one self-contained `.html` with no external requests; zero English strings in the output; no `Generated Copy` / `Alternative:` / `Modified:` anywhere; TOC shows per-version score, `+N pts`, and `+N % vs. actual`; cover shows the three-stop journey with correct baseline/winner/potential; `potential` equals winner score plus sum of roadmap points (or deep-analysis projection); every non-baseline version shows the preview band with a working `#contacto` anchor; `SUPPRESS_ZERO_VALUE_NUMERIC_FINDINGS` is on and no `+0` / `0 %` claim reaches the output; renders at 390px; prints to PDF with dark cover intact; credits are charged once for the narrative call and recorded in the usage table; with the AI call forced to fail, the export still completes using fallbacks.
+
+**Refinements (v1.3):**
+
+1. **Baseline is never truncated.** The baseline version is the client's own published text, so it is shown in full — no paragraph trimming, no `.fade` gradient, no paywall band. The whole report rests on "this is what we read from your site"; showing a quarter of it would make the diagnosis unverifiable. The baseline is also excluded from the >40 % kept-character self-check (it deliberately shows 100 %). `sliceSections` now takes an `isBaseline` flag and short-circuits before any truncation logic.
+
+2. **Real kept-character percentage in the paywall band.** The paywall band previously printed the constant `25 %` regardless of what was actually kept. Each non-baseline version now carries a `keptPercent` field computed as `round(keptChars / totalChars * 100)`, and the band prints that real number. If a proposal ends up showing 31 %, it says 31.
+
+3. **Every proposal names the missing sections.** Previously only the winner listed the cut section labels ("Te falta por ver: Portafolio, Nosotros, Cierre"); A and C got a generic sentence. All non-baseline versions now list the section labels that were cut, falling back to a complete sentence only when nothing was cut (e.g. when the proposal was short enough to fit entirely in the preview).
+
+4. **Scanned URL is a clickable link and the first brief row.** The cover URL is now an `<a target="_blank" rel="noopener noreferrer">` with a hover state, instead of plain text. The same URL also appears as the first row of the "Resumen de entrada" table (label "URL analizada"), since that section is titled "Qué leímos de tu sitio" but never stated which page everything came from. Both placements are omitted when no URL is available, and the disclaimer rewrites itself to read correctly without one.
 
 ---
 

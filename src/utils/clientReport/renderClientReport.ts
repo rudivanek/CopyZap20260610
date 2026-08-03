@@ -51,7 +51,8 @@ p{margin:0 0 16px}
 .powered{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.5)}
 .cover h1{color:#fff;max-width:20ch}
 .cover .kicker{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:20px}
-.cover .site{font-family:var(--mono);font-size:14px;color:rgba(255,255,255,.62);margin-top:22px;word-break:break-all}
+.cover .site{display:inline-block;font-family:var(--mono);font-size:14px;color:rgba(255,255,255,.82);margin-top:22px;word-break:break-all;text-decoration:none;border-bottom:1px solid rgba(255,255,255,.25);padding-bottom:1px}
+.cover .site:hover{color:#fff;border-bottom-color:#fff}
 .cover .stamp{font-size:13px;color:rgba(255,255,255,.45);margin-top:6px}
 .journey{margin-top:48px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.13);border-radius:4px;padding:34px 30px 30px}
 .journey-head{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:26px}
@@ -220,7 +221,7 @@ footer strong{color:#fff;font-weight:600}
 
 function renderCover(data: ClientReportData): string {
   const siteLine = data.company.hasUrl
-    ? `    <div class="site">${escapeOnce(data.company.url)}</div>`
+    ? `    <a class="site" href="${escapeOnce(data.company.url)}" target="_blank" rel="noopener noreferrer">${escapeOnce(data.company.url)}</a>`
     : '';
   return `<div class="cover">
   <div class="wrap">
@@ -353,14 +354,20 @@ ${winnerNote}
 }
 
 function renderBrief(data: ClientReportData): string {
-  const rows: [string, string][] = [
+  const rows: [string, string][] = [];
+  // The scanned URL is the first row of "Qué leímos de tu sitio" (spec change #4):
+  // the section is titled "what we read from your site" but never stated which page.
+  if (data.company.hasUrl) {
+    rows.push(['URL analizada', data.company.url]);
+  }
+  rows.push(
     ['Público objetivo', data.brief.audience],
     ['Mensaje clave', data.brief.keyMessage],
     ['Llamada a la acción', data.brief.cta],
     ['Emoción buscada', data.brief.emotion],
     ['Valores de marca', data.brief.brandValues],
     ['Tono · extensión · idioma', data.brief.toneLine],
-  ];
+  );
   if (data.brief.keywords.length) rows.push(['Palabras clave', data.brief.keywords.join(', ')]);
   const rowsHtml = rows
     .filter(([, v]) => v && v.trim())
@@ -418,7 +425,7 @@ ${lbl}          <p>${escapeOnce(s.text)}</p>
     ? `<div class="gain tnum">línea base<small>punto de partida</small></div>`
     : `<div class="gain tnum">+${escapeOnce(v.deltaPoints)} pts<small>+${escapeOnce(v.deltaPercent)} % vs. actual</small></div>`;
   const paywall = v.isBaseline ? '' : `      <div class="paywall">
-        <div class="pw-t"><b>Estás viendo el ${escapeOnce(data.previewPercent)}&nbsp;% de esta propuesta.</b>
+        <div class="pw-t"><b>Estás viendo el ${escapeOnce(v.keptPercent)}&nbsp;% de esta propuesta.</b>
           ${escapeOnce(v.paywallLine)}</div>
         <a class="btn${v.isWinner ? ' accent' : ''}" href="#contacto">Solicitar versión completa</a>
       </div>`;
