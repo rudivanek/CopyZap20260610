@@ -385,7 +385,8 @@ ${excludedLine}
 }
 
 function renderSplitBlock(v: ClientReportVersion): string {
-  // Every version renders the split block identically (spec 4.6 / pitfall 12).
+  // Omit the entire split block when both lists are empty (item 6).
+  if (!v.strengths.length && !v.improvements.length) return '';
   const posItems = v.strengths.length
     ? v.strengths.map(s => `<li>${escapeOnce(s)}</li>`).join('')
     : '<li class="empty">Sin observaciones destacadas.</li>';
@@ -403,8 +404,12 @@ function renderSplitBlock(v: ClientReportVersion): string {
 function renderVersion(v: ClientReportVersion, data: ClientReportData): string {
   const sectionsHtml = v.sections.map(s => {
     const cls = [s.isHero ? 'hero' : '', s.isFaded ? 'fade' : ''].filter(Boolean).join(' ');
+    // Omit sec-lbl entirely when no real label exists (item 7).
+    const lbl = s.label
+      ? `          <div class="sec-lbl">${escapeOnce(s.label)}</div>\n`
+      : '';
     return `        <div class="sec${cls ? ' ' + cls : ''}">
-          <div class="sec-lbl">${escapeOnce(s.label)}</div><p>${escapeOnce(s.text)}</p>
+${lbl}          <p>${escapeOnce(s.text)}</p>
         </div>`;
   }).join('\n');
 

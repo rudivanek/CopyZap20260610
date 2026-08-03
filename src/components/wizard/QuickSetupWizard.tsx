@@ -49,6 +49,7 @@ interface WizardState {
     readerFunnelStage?: string;
     competitorCopyText?: string;
     readerSophistication?: string;
+    analyzedUrl?: string;
   };
 }
 
@@ -360,7 +361,10 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
           readerFunnelStage: wizardState.answers.readerFunnelStage || jsonSuggestion.readerFunnelStage || undefined,
           readerSophistication: wizardState.answers.readerSophistication || jsonSuggestion.readerSophistication || undefined
         } : {}),
-        competitorCopyText: wizardState.answers.competitorCopyText || jsonSuggestion.competitorCopyText || undefined
+        competitorCopyText: wizardState.answers.competitorCopyText || jsonSuggestion.competitorCopyText || undefined,
+        // Persist the URL that was analyzed in the wizard so downstream features
+        // (e.g. the client report) can read it from formState.competitorUrls[0].
+        ...(wizardState.answers.analyzedUrl ? { competitorUrls: [wizardState.answers.analyzedUrl] } : {})
       };
 
       // Ensure both required fields are populated
@@ -494,7 +498,10 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
           readerFunnelStage: wizardState.answers.readerFunnelStage || jsonSuggestion.readerFunnelStage || undefined,
           readerSophistication: wizardState.answers.readerSophistication || jsonSuggestion.readerSophistication || undefined
         } : {}),
-        competitorCopyText: wizardState.answers.competitorCopyText || jsonSuggestion.competitorCopyText || undefined
+        competitorCopyText: wizardState.answers.competitorCopyText || jsonSuggestion.competitorCopyText || undefined,
+        // Persist the URL that was analyzed in the wizard so downstream features
+        // (e.g. the client report) can read it from formState.competitorUrls[0].
+        ...(wizardState.answers.analyzedUrl ? { competitorUrls: [wizardState.answers.analyzedUrl] } : {})
       };
 
       // Ensure both required fields are populated

@@ -406,6 +406,8 @@ const WizardStep: React.FC<WizardStepProps> = ({
           const matchedTone = toneMap[result.data.tone] || 'Friendly';
           updateAnswer('tone', matchedTone);
         }
+        // Persist the analyzed URL so downstream features (client report) can read it.
+        updateAnswer('analyzedUrl', finalUrl);
         toast.success('Context analyzed! Fields pre-filled');
       } else {
         // Extract copy mode - put the copy in the whatAreYouCreating field
@@ -420,6 +422,8 @@ const WizardStep: React.FC<WizardStepProps> = ({
         if (result.data.painPoints) {
           updateAnswer('painPoints', result.data.painPoints);
         }
+        // Persist the analyzed URL so downstream features (client report) can read it.
+        updateAnswer('analyzedUrl', finalUrl);
 
         // If outputStructure was extracted, show the modal for user to choose
         if (result.data.outputStructure && Array.isArray(result.data.outputStructure) && result.data.outputStructure.length > 0) {

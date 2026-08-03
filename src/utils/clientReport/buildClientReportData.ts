@@ -21,7 +21,7 @@ export const CLIENT_REPORT_PREVIEW_PERCENT = 25;
 const STUDIO = {
   name: 'Sharpen.Studio',
   site: 'sharpen.studio',
-  email: 'sharpen.studio',
+  email: 'hola@sharpen.studio',
   ctaPrimaryUrl: 'https://sharpen.studio/agendar',
   ctaSecondaryUrl: 'https://sharpen.studio/contacto',
 };
@@ -337,22 +337,21 @@ function contentToPlainTextWithMarkers(content: GeneratedContentItem['content'])
   return parts.join('\n---\n');
 }
 
-function firstHeadline(content: GeneratedContentItem['content']): string {
-  const { headline, sections } = contentToStructured(content);
-  if (headline) return stripMarkdown(headline).trim();
-  const first = sections[0];
-  if (first?.content) return stripMarkdown(first.content).split('\n')[0].trim();
-  return '';
-}
-
-function firstSubline(content: GeneratedContentItem['content']): string {
-  const { sections } = contentToStructured(content);
-  const second = sections[1] || sections[0];
-  if (second?.content) {
-    const lines = stripMarkdown(second.content).split('\n').filter(l => l.trim());
-    return lines.slice(0, 2).join(' ').trim();
+// Headline and sub from the first kept section's TEXT (label already stripped
+// by splitSections), never from the label/headline field (spec, item 3).
+function headlineAndSub(content: GeneratedContentItem['content']): { headline: string; sub: string } {
+  const plain = contentToPlainTextWithMarkers(content);
+  const sections = splitSections(plain).filter(
+    s => s.label !== 'Pie' && s.label !== 'Testimonios',
+  );
+  if (!sections.length) return { headline: '', sub: '' };
+  const paras = sections[0].text.split('\n\n').map(p => p.trim()).filter(p => p);
+  const headline = paras[0] || '';
+  let sub = paras.slice(1, 3).join(' ').trim();
+  if (!sub && sections[1]) {
+    sub = sections[1].text.split('\n\n')[0].trim();
   }
-  return '';
+  return { headline, sub };
 }
 
 // ── splitSections — NO regex in the splitting logic (spec 3.1) ────────────────
@@ -438,24 +437,62 @@ function sliceSections(
 
   const totalChars = sections.reduce((a, s) => a + s.text.length, 0) || 1;
   const target = Math.max(1, Math.round((totalChars * previewPercent) / 100));
-  const maxCount = Math.floor(sections.length / 2);
 
+  const slices: ClientReportSectionSlice[] = [];
+  const remainingLabels: string[] = [];
   let acc = 0;
-  let cutoff = 0;
+  let stopped = false;
+
   for (let i = 0; i < sections.length; i++) {
-    acc += sections[i].text.length;
-    cutoff = i + 1;
-    if (i >= 1 && acc >= target) break; // minimum of 2 kept
+    const sec = sections[i];
+
+    if (stopped) {
+      remainingLabels.push(sec.label || 'Sección');
+      continue;
+    }
+
+    if (i === 0) {
+      // Hero section: always kept in full (it is the minimum visible unit).
+      slices.push({ label: sec.label || '', text: sec.text, isHero: true, isFaded: false });
+      acc += sec.text.length;
+      continue;
+    }
+
+    // Subsequent sections: add paragraphs one at a time, stop at target,
+    // but always keep at least one paragraph so the section is not empty.
+    const paragraphs = sec.text.split('\n\n').map(p => p.trim()).filter(p => p);
+    if (!paragraphs.length) continue;
+
+    const kept: string[] = [];
+    for (const para of paragraphs) {
+      kept.push(para);
+      acc += para.length;
+      if (acc >= target) break;
+    }
+
+    if (kept.length) {
+      slices.push({
+        label: sec.label || '',
+        text: kept.join('\n\n'),
+        isHero: false,
+        isFaded: false,
+      });
+    }
+
+    // If we did not keep every paragraph, the rest of this section + all
+    // subsequent sections are "remaining" (paywalled).
+    const unkeptCount = paragraphs.length - kept.length;
+    if (unkeptCount > 0 || acc >= target) {
+      if (unkeptCount > 0) remainingLabels.push(sec.label || 'Sección');
+      stopped = true;
+    }
   }
-  if (cutoff < 2) cutoff = 2;
-  if (maxCount >= 2 && cutoff > maxCount) cutoff = maxCount;
-  if (cutoff > sections.length) cutoff = sections.length;
 
-  const visible = sections.slice(0, cutoff);
-  const remaining = sections.slice(cutoff).map(s => s.label || 'Sección');
+  // Mark the last visible slice as faded.
+  if (slices.length) slices[slices.length - 1].isFaded = true;
 
-  // Self-check (spec 3.3).
-  const keptChars = visible.reduce((a, s) => a + s.text.length, 0);
+  // Self-check (spec 3.3) — fires when a version keeps > 40% of its chars.
+  const keptChars = slices.reduce((a, s) => a + s.text.length, 0);
   if (totalChars > 0 && keptChars / totalChars > 0.40) {
     console.warn(
       `[clientReport] La versión "${versionNameForWarning}" muestra ${Math.round(
@@ -464,14 +501,12 @@ function sliceSections(
     );
   }
 
-  const slices: ClientReportSectionSlice[] = visible.map((s, i) => ({
-    label: s.label || 'Sección',
+  const finalSlices = slices.map(s => ({
+    ...s,
     text: suppressZeroValuesInText(s.text),
-    isHero: i === 0,
-    isFaded: i === visible.length - 1,
   }));
 
-  return { sections: slices, remainingLabels: remaining };
+  return { sections: finalSlices, remainingLabels };
 }
 
 // ── Sub-scores — average, not doubled (spec 4.3) ─────────────────────────────
@@ -480,9 +515,11 @@ function clamp(n: number, lo: number, hi: number): number {
   return Math.max(lo, Math.min(hi, n));
 }
 
+// Source fields (absoluteScore.clarity etc.) are each 0–25. Sum of two is 0–50.
+// Multiply by 2 to normalise to 0–100.
 function averageSubscore(a: number | undefined, b: number | undefined): number {
   const av = (a ?? 0) + (b ?? 0);
-  return clamp(Math.round(av / 2), 0, 100);
+  return clamp(Math.round(av * 2), 0, 100);
 }
 
 // ── Findings fallback — no cloning, distinct titles (spec 4.4) ────────────────
@@ -760,12 +797,14 @@ export function buildClientReportData(
 
   const originalCard = contentCards.find(c => c.id === ORIGINAL_VERSION_ID || c.type === GeneratedContentItemType.Original);
   const winnerCard = contentCards.find(c => c.id === winnerVersionId);
+  const originalHs = headlineAndSub(originalCard?.content);
+  const winnerHs = headlineAndSub(winnerCard?.content);
   const headToHead: ClientReportHeadToHead = {
-    originalHeadline: firstHeadline(originalCard?.content) || 'Tu titular actual',
-    originalSub: firstSubline(originalCard?.content),
+    originalHeadline: originalHs.headline || 'Tu titular actual',
+    originalSub: originalHs.sub,
     originalNote: narrative?.headToHead?.originalNote || '',
-    winnerHeadline: firstHeadline(winnerCard?.content) || 'Titular propuesto',
-    winnerSub: firstSubline(winnerCard?.content),
+    winnerHeadline: winnerHs.headline || 'Titular propuesto',
+    winnerSub: winnerHs.sub,
     winnerNote: narrative?.headToHead?.winnerNote || '',
   };
 
@@ -901,10 +940,14 @@ export function buildClientReportInputMarkdown(
   md += suppressZeroValuesInText(contentToPlainText(contentCards[0]?.content)) + '\n\n';
 
   md += '## PROPUESTAS GENERADAS Y SUS PUNTUACIONES\n\n';
+  md += 'IMPORTANTE: cada propuesta tiene un "versionId" interno. En tu respuesta JSON, el campo versionLabels[].versionId debe coincidir EXACTAMENTE con ese id.\n\n';
   if (comparisonResult?.rows) {
     for (const row of comparisonResult.rows) {
       const card = contentCards.find(c => c.id === row.versionId);
-      md += `### ${row.optionLabel || card?.sourceDisplayName || row.versionId} — ${row.finalScore}/100${row.isWinner ? ' (GANADORA)' : ''}\n\n`;
+      const isOriginal = row.versionId === '__original__' || card?.type === GeneratedContentItemType.Original;
+      if (isOriginal) continue; // versionLabels only for generated proposals
+      md += `### ${row.optionLabel || card?.sourceDisplayName || row.versionId} — ${row.finalScore}/100${row.isWinner ? ' (GANADORA)' : ''}\n`;
+      md += `versionId: \`${row.versionId}\`\n\n`;
       if (row.verificationFlags?.length) {
         md += 'Flags de verificación (tras supresión): ' + suppressZeroFlags(row.verificationFlags).join(' | ') + '\n\n';
       }
