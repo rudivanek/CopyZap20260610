@@ -1,7 +1,56 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.0
-Last Updated: 2026-07-10T03:00:00Z
+Last Updated: 2026-08-03T11:09:00Z
+
+---
+
+## Export HTML (Preview) 2 — Spanish Client Copy Report (2026-08-03)
+
+**Feature:** Added a second HTML export, `Export HTML (Preview) 2`, placed directly below the existing `Export HTML (Preview)` item in the Copy Maker sidebar. It uses the exact same session data (form state, generated outputs, comparison result, deep analysis) as the existing export, but renders a completely different, client-facing document: a polished Spanish-language *copy diagnostic report* designed to be emailed to a prospect who has never heard of the studio. The existing export path is unchanged.
+
+**Menu placement & gating:**
+- New `SidebarBtn` in `src/components/copy-maker/CopyMakerSidebar.tsx`, rendered immediately below the existing "Export HTML (Preview)" button, gated on `hasContent && isAdmin`.
+- Disabled when the session lacks scores or comparison data. Disabled tooltip (Spanish): `Genera puntuaciones y comparación antes de exportar este reporte.`
+- While the AI narrative call is in flight, the button shows "Generando…" with a pulsing icon and is disabled.
+- On success, downloads a single self-contained `.html` file via `Blob` + `URL.createObjectURL`. Filename: `Reporte-Copy-{empresaSlug}-{YYYYMMDD}.html` (e.g. `Reporte-Copy-sales-boost-consulting-20260803.html`).
+
+**Files created:**
+- `src/utils/clientReport/buildClientReportData.ts` — assembles the `ClientReportData` object from existing session data; exports `buildClientReportData`, `buildClientReportFilename`, `buildClientReportInputMarkdown`, `ClientReportData` and related interfaces, plus the config constant `SUPPRESS_ZERO_VALUE_NUMERIC_FINDINGS = true` and `CLIENT_REPORT_PREVIEW_PERCENT = 25`.
+- `src/utils/clientReport/clientReportNarrative.ts` — the single AI call that produces the four narrative fields (company name, executive summary, findings, head-to-head notes, version labels). Uses `makeStreamingReportRequest` with `getAdminClaudeModel()` and operation type `client_report_narrative`; returns `null` on any failure so the renderer falls back to deterministic values.
+- `src/utils/clientReport/renderClientReport.ts` — renders the full self-contained HTML document (inline `<style>` block, no external fonts/CDN/JS) from a `ClientReportData` object.
+
+**Files modified:**
+- `src/components/copy-maker/CopyMakerSidebar.tsx` — imports the three new modules; adds `isGeneratingHtmlPreview2` state, `canExportHtmlPreview2` guard, `handleExportHtmlPreview2` async handler, and the new `SidebarBtn` below the existing "Export HTML (Preview)".
+
+**Database / billing:**
+- New row in `llm_billing_rules`: `rule_name = 'client_report_narrative'`, `cost_multiplier = 1.0`, `usd_per_unit = 0.01`, `min_units_per_call = 1`, `rounding_mode = 'up'`, `is_active = true`. Applied via migration `add_client_report_narrative_billing_rule.sql`. The narrative call is charged once per export like any other AI operation, using the economy model (admin's configured Claude model).
+
+**Data model (`ClientReportData`):** Every field comes from existing session data except the four AI-generated fields (company name, executive summary, findings, head-to-head notes, version labels) produced by the single narrative call. The object covers: studio config (hardcoded `Sharpen.Studio` for now), company (name, URL, analysed-at timestamp + Spanish-formatted date/time labels, language), journey (baseline / winner / potential scores, deltas, version & proposal counts), executive summary (exactly 3 paragraphs), findings (exactly 4, ordered by impact), brief (audience, key message, CTA, emotion, brand values, tone line, keywords, excluded sections), head-to-head (original vs. winner headline + sub + AI note), versions (one entry per evaluated version with section-aware 25% preview slice, strengths, improvements, derived display names), roadmap (from the winner's deep-analysis suggested improvements with `points_delta`), and derived template values (`findingsCountWord`, `roadmapCountWord`, `winnerDisplayName`, `lastIndex`).
+
+**Section-aware truncation:** `sliceSections` cuts at a section boundary (never mid-sentence), targeting `CLIENT_REPORT_PREVIEW_PERCENT` (25) but always showing at least the hero plus one section. The last visible section is marked `isFaded: true` and gets a CSS fade mask in the renderer.
+
+**Potential score:** `potential = winnerScore + sum(roadmap[].points)`, capped at 100. If the deep analysis already returns a `projected_score` on a suggested improvement, that projection is used instead of the sum.
+
+**Excluded sections:** When the source is a crawl, sections classified as testimonials, cookie/consent notices, and navigation are excluded from both the analysed copy and the brief, and listed in `brief.excludedSections` so the report can state it.
+
+**The four AI calls (run in a single round-trip):** The system prompt instructs the model to write in neutral Spain-Spanish, never invent data, never call a claim false (only "not supported" / "not verifiable"), cite the site with `<q>…</q>`, and return only JSON. The user prompt passes the crawled original copy, the derived brief, all version scores and sub-scores, the existing strengths/improvements lists, the existing risk flags (after suppression), and the deep-analysis winner narrative. Expected JSON: `companyName`, `executiveSummary[3]`, `findings[4]` (categories: Credibilidad | Prueba social | Lenguaje | Conversión | Claridad | Estructura | SEO), `headToHead { originalNote, winnerNote }`, `versionLabels[]` (Propuesta A · <angle>, etc.).
+
+**Suppression rule:** `SUPPRESS_ZERO_VALUE_NUMERIC_FINDINGS = true` (default on). Any finding, risk flag, or quoted evidence whose numeric content is entirely zero (patterns like `+0`, `0 %`, `+0%`, `0.0`) is silently discarded — both from the rendered output and from the input passed to the AI call, so the model can't reintroduce it. This prevents the crawler's pre-animation `+0` markup from being reported as a real claim. Findings never accuse the site of lying; correct framings are "cifras sin fuente citada", "afirmación no verificable", "superlativo antes de la prueba".
+
+**Version naming:** Internal labels (`Generated Copy N`, `Alternative:`, `Modified:`) never appear. Proposals are mapped in score order to `Propuesta A / B / C` plus an angle the model derives from the actual text (e.g. `Propuesta A · Enfoque directo`). The original is always `Tu copy actual`. If two versions are near-identical (>85% token overlap), the later one is labelled as a variant (`Propuesta C · Directo refinado`, role line `Variante de la propuesta A con cierre reforzado`).
+
+**Company name:** Prefer `og:site_name`, then `<title>` with any trailing tagline stripped, then the AI's reading of the copy. Never falls back to the bare URL — the URL appears separately under the title.
+
+**Failure handling:** If the AI call fails or returns invalid JSON, the export still completes using deterministic fallbacks: company name from the project description / URL host, no executive summary section, findings taken verbatim from the existing risk flags (after suppression), generic version labels `Propuesta A/B/C`, and no head-to-head notes. A slightly plainer report beats a failed export.
+
+**Localisation:** 100% Spanish output. Reading levels (`avanzado` / `intermedio` / `básico`), dates (`3 de agosto de 2026, 11:09 h`), section labels (`Encabezado / Introducción / Características / Beneficios / Cómo funciona / Servicios / Cursos / Casos de éxito / Cierre`), score dimension names (`claridad / persuasión / engagement / calidad editorial / potencial de conversión`), and risk-flag text (translated at generation time via the prompt, not a lookup table) are all Spanish. Numbers use the Spanish thousands separator and a non-breaking space before `%` (`39 %`); `/100` is always lowercase.
+
+**Template:** The renderer implements the full document from the spec — dark cover with the three-stop journey rail, executive summary, prioritised findings, table of contents, head-to-head versus, brief input summary, one section per version (with 25% preview band + paywall CTA + strengths/improvements split), full ranking table, roadmap with point badges and total, final CTA, and footer with disclaimer. All CSS is inline in a single `<style>` block (deliberately verbose and self-contained — not refactored into Tailwind or the app stylesheet, because the file gets emailed and opened outside the app). Responsive at 390px (ranking table collapses to cards); prints to PDF with the dark cover intact and no cut sections.
+
+**Escaping:** Every value is HTML-escaped except fields explicitly named `*Html`, which carry sanitised inline markup (`<strong>`, `<b>`, `<q>`, `<em>` only — everything else is stripped).
+
+**Acceptance checklist met:** item appears directly below the original; original is unchanged; export produces one self-contained `.html` with no external requests; zero English strings in the output; no `Generated Copy` / `Alternative:` / `Modified:` anywhere; TOC shows per-version score, `+N pts`, and `+N % vs. actual`; cover shows the three-stop journey with correct baseline/winner/potential; `potential` equals winner score plus sum of roadmap points (or deep-analysis projection); every non-baseline version shows the preview band with a working `#contacto` anchor; `SUPPRESS_ZERO_VALUE_NUMERIC_FINDINGS` is on and no `+0` / `0 %` claim reaches the output; renders at 390px; prints to PDF with dark cover intact; credits are charged once for the narrative call and recorded in the usage table; with the AI call forced to fail, the export still completes using fallbacks.
 
 ---
 

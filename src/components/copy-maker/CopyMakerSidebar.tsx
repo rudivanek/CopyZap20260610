@@ -48,6 +48,9 @@ import { playSuccessSound } from '../../utils/soundEffects';
 import evalPrompt from '../../prompts/copyzap-eval-prompt.md?raw';
 import comparePrompt from '../../prompts/copyzap-compare-prompt.md?raw';
 import clientPrompt from '../../prompts/copyzap-client-prompt.md?raw';
+import { generateClientReportNarrative } from '../../utils/clientReport/clientReportNarrative';
+import { buildClientReportData, buildClientReportFilename } from '../../utils/clientReport/buildClientReportData';
+import { renderClientReport } from '../../utils/clientReport/renderClientReport';
 
 // ─── Shared docx builder ──────────────────────────────────────────────────────
 
@@ -1472,6 +1475,50 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
     }
   };
 
+  const [isGeneratingHtmlPreview2, setIsGeneratingHtmlPreview2] = useState(false);
+
+  const canExportHtmlPreview2 = Boolean(
+    comparisonResult?.rows?.length && generatedOutputCards.length,
+  );
+
+  const handleExportHtmlPreview2 = async () => {
+    if (!canExportHtmlPreview2) return;
+    setIsGeneratingHtmlPreview2(true);
+    try {
+      const narrative = await generateClientReportNarrative(
+        formState,
+        generatedOutputCards,
+        comparisonResult,
+        versionDeepAnalysis,
+      );
+      const data = buildClientReportData(
+        formState,
+        generatedOutputCards,
+        originalInputScore,
+        comparisonResult,
+        versionDeepAnalysis,
+        comparisonDeepAnalysisMeta,
+        narrative,
+      );
+      const html = renderClientReport(data);
+      const filename = buildClientReportFilename(data);
+      const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = filename;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      toast.success('Reporte de copy exportado');
+    } catch (err: any) {
+      toast.error('No se pudo exportar el reporte: ' + (err?.message ?? 'error desconocido'));
+    } finally {
+      setIsGeneratingHtmlPreview2(false);
+    }
+  };
+
   const handleExportLLMEval = () => {
     try {
       exportLLMEvaluationMarkdown(
@@ -2029,6 +2076,16 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                 <SidebarBtn onClick={handleOpenHtmlPreviewModal} title="Export as HTML preview with configurable word percentage (admin only)">
                   <FileCode size={10} />
                   Export HTML (Preview)
+                </SidebarBtn>
+              )}
+              {hasContent && isAdmin && (
+                <SidebarBtn
+                  onClick={handleExportHtmlPreview2}
+                  disabled={!canExportHtmlPreview2 || isGeneratingHtmlPreview2}
+                  title={!canExportHtmlPreview2 ? 'Genera puntuaciones y comparación antes de exportar este reporte.' : 'Exporta un reporte de copy en español, listo para enviar al cliente (admin only)'}
+                >
+                  <FileCode size={10} className={isGeneratingHtmlPreview2 ? 'animate-pulse' : ''} />
+                  {isGeneratingHtmlPreview2 ? 'Generando…' : 'Export HTML (Preview) 2'}
                 </SidebarBtn>
               )}
               {hasContent && isAdmin && (
