@@ -115,13 +115,19 @@ const convertMarkdownTableToHtml = (lines: string[]): string => {
  * Converts basic Markdown formatting to HTML
  * Exported for use in components that need to format comparison tables
  */
-export const markdownToHtml = (markdownText: string): string => {
+export const markdownToHtml = (markdownText: string, options?: { inlineStyles?: boolean }): string => {
   if (!markdownText) return '';
+
+  // Default to inline styles so every existing caller (FormattedContent.tsx, etc.)
+  // behaves exactly as before. Only the export path opts out via { inlineStyles: false }.
+  const inline = options?.inlineStyles !== false;
 
   let html = markdownText;
 
   // Convert horizontal rules first (---)
-  html = html.replace(/^---+$/gm, '<hr style="border: 0; border-top: 2px solid #e5e7eb; margin: 24px 0;">');
+  html = html.replace(/^---+$/gm, inline
+    ? '<hr style="border: 0; border-top: 2px solid #e5e7eb; margin: 24px 0;">'
+    : '<hr class="md-hr">');
 
   // Convert markdown tables - simpler line-by-line approach
   // Find table blocks by looking for consecutive lines that contain pipes
@@ -266,9 +272,15 @@ export const markdownToHtml = (markdownText: string): string => {
   });
   
   // Convert headers with proper styling (### H3, ## H2, # H1)
-  html = html.replace(/^### (.+)$/gm, '<div style="border-top: 2px solid #d1d5db; margin: 24px 0 16px 0; padding-top: 16px;"></div>\n<h3 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 12px 0;">$1</h3>');
-  html = html.replace(/^## (.+)$/gm, '<h2 style="font-size: 18px; font-weight: 700; color: #111827; margin: 24px 0 12px 0;">$1</h2>');
-  html = html.replace(/^# (.+)$/gm, '<h1 style="font-size: 20px; font-weight: 700; color: #111827; margin: 32px 0 16px 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 12px;">$1</h1>');
+  if (inline) {
+    html = html.replace(/^### (.+)$/gm, '<div style="border-top: 2px solid #d1d5db; margin: 24px 0 16px 0; padding-top: 16px;"></div>\n<h3 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 12px 0;">$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2 style="font-size: 18px; font-weight: 700; color: #111827; margin: 24px 0 12px 0;">$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1 style="font-size: 20px; font-weight: 700; color: #111827; margin: 32px 0 16px 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 12px;">$1</h1>');
+  } else {
+    html = html.replace(/^### (.+)$/gm, '<h3 class="md-h3">$1</h3>');
+    html = html.replace(/^## (.+)$/gm, '<h2 class="md-h2">$1</h2>');
+    html = html.replace(/^# (.+)$/gm, '<h1 class="md-h1">$1</h1>');
+  }
   
   // Convert bold (**text**)
   html = html.replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>');
@@ -309,11 +321,11 @@ export const markdownToHtml = (markdownText: string): string => {
       }
       
       if (!inUnorderedList) {
-        processedLines.push('<ul style="margin: 12px 0; padding-left: 24px; color: #4b5563; line-height: 1.6;">');
+        processedLines.push(inline ? '<ul style="margin: 12px 0; padding-left: 24px; color: #4b5563; line-height: 1.6;">' : '<ul class="md-ul">');
         inUnorderedList = true;
         listIndentLevel = currentIndent;
       }
-      processedLines.push(`  <li style="margin: 6px 0;">${content}</li>`);
+      processedLines.push(inline ? `  <li style="margin: 6px 0;">${content}</li>` : `  <li class="md-li">${content}</li>`);
     } else if (orderedListMatch) {
       const [, indent, content] = orderedListMatch;
       const currentIndent = indent.length;
@@ -325,11 +337,11 @@ export const markdownToHtml = (markdownText: string): string => {
       }
       
       if (!inOrderedList) {
-        processedLines.push('<ol style="margin: 12px 0; padding-left: 24px; color: #4b5563; line-height: 1.6;">');
+        processedLines.push(inline ? '<ol style="margin: 12px 0; padding-left: 24px; color: #4b5563; line-height: 1.6;">' : '<ol class="md-ul">');
         inOrderedList = true;
         listIndentLevel = currentIndent;
       }
-      processedLines.push(`  <li style="margin: 6px 0;">${content}</li>`);
+      processedLines.push(inline ? `  <li style="margin: 6px 0;">${content}</li>` : `  <li class="md-li">${content}</li>`);
     } else {
       // Not a list item - close any open lists
       if (inUnorderedList) {
@@ -392,7 +404,9 @@ export const markdownToHtml = (markdownText: string): string => {
       return match;
     });
 
-    return `<p style="color: #374151; line-height: 1.6; margin: 8px 0;">${styledContent}</p>`;
+    return inline
+      ? `<p style="color: #374151; line-height: 1.6; margin: 8px 0;">${styledContent}</p>`
+      : `<p class="md-p">${styledContent}</p>`;
   });
 
   return htmlParagraphs.join('\n\n');

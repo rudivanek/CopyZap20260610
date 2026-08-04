@@ -918,7 +918,7 @@ export const generateFullHtmlExportForCard = (
     const plainText = previewMaxWords && typeof renderContent === 'string'
       ? truncateWordsAtSentence(renderContent, previewMaxWords)
       : (typeof renderContent === 'string' ? renderContent : JSON.stringify(renderContent));
-    html += `<div class="sec">${stripColoredSpans(markdownToHtml(plainText))}</div>\n`;
+    html += `<div class="sec">${stripColoredSpans(markdownToHtml(plainText, { inlineStyles: false }))}</div>\n`;
   }
   if (previewPercent) {
     html += `<p style="margin-top:16px;font-size:12px;font-style:italic;color:var(--muted);">${t.previewNote(previewPercent)}</p>\n`;
@@ -2990,6 +2990,14 @@ export const exportAsFormattedHtml = (
     .v-body .sec.hero p{font-family:var(--serif);font-size:24px;line-height:1.35;color:var(--ink)}
     .v-body .sec ul{margin:0 0 10px;padding-left:22px;color:var(--ink-soft);font-size:15px;line-height:1.65}
     .v-body .sec li{margin-bottom:6px}
+    .v-body .sec .md-h1{font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);margin:28px 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line-soft)}
+    .v-body .sec .md-h1:first-child{margin-top:0}
+    .v-body .sec .md-h2{font-family:var(--sans);font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:22px 0 8px}
+    .v-body .sec .md-h3{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--ink-soft);margin:18px 0 8px}
+    .v-body .sec .md-hr{border:0;border-top:1px solid var(--line-soft);margin:22px 0}
+    .v-body .sec .md-p{font-size:15.5px;line-height:1.7;color:var(--ink-soft);margin:0 0 10px}
+    .v-body .sec .md-ul{margin:0 0 10px;padding-left:22px;color:var(--ink-soft);font-size:15px;line-height:1.65}
+    .v-body .sec .md-li{margin-bottom:6px}
     .v-body .sec table{width:100%;border-collapse:collapse;margin:10px 0;border:1px solid var(--line)}
     .v-body .sec table th,.v-body .sec table td{border:1px solid var(--line);padding:10px 12px;font-size:14px;text-align:left;color:var(--ink-soft)}
     .v-body .sec table th{background:var(--paper);color:var(--ink);font-weight:700}

@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.13
-Last Updated: 2026-08-04T20:30:00Z
+Version: 1.14
+Last Updated: 2026-08-04T21:00:00Z
 
 ---
 
@@ -180,6 +180,35 @@ Last Updated: 2026-08-04T20:30:00Z
 **Breadcrumb nav:** Structure and behaviour unchanged; colours retuned to `var(--ink)`, `var(--line)`, `var(--paper)`.
 
 **Acceptance:** `npm run build` passes. No scoring logic, data extraction, translation strings, or hidden LLM-evaluation section ids / `data-*` attributes were modified.
+
+---
+
+## Export HTML — Plain-Markdown Cards Now Match Preview 2 Design (2026-08-04)
+
+**Feature:** When a generated card stores its content as plain markdown (rather than the structured `{headline, sections[]}` JSON), the export previously rendered that markdown through `markdownToHtml()` — a function that hardcodes inline `style="..."` attributes on every `<h1>`, `<h2>`, `<h3>`, `<hr>`, `<ul>`, `<li>`, and `<p>` it emits. Because inline styles always win over stylesheet rules, those headers/bullets ignored the new Preview 2 design system and rendered in the old plain black/Arial look, breaking visual consistency inside an otherwise redesigned card.
+
+**Files modified:** `src/utils/copyFormatter.ts`, `src/utils/enhancedExports.ts`
+
+**`markdownToHtml` signature change:** The function now accepts an optional second parameter: `markdownToHtml(markdownText: string, options?: { inlineStyles?: boolean }): string`. `inlineStyles` defaults to `true`, so every existing caller — including the Copy Maker UI's `FormattedContent.tsx` — behaves exactly as before (zero visual change to the in-app formatted view). When called with `{ inlineStyles: false }`, the function emits the same tags but without inline `style` attributes, instead attaching semantic class names: `<h1 class="md-h1">`, `<h2 class="md-h2">`, `<h3 class="md-h3">`, `<hr class="md-hr">`, `<ul class="md-ul">` / `<ol class="md-ul">`, `<li class="md-li">`, `<p class="md-p">`. Table conversion, bold/italic/link/code handling, and all other behaviour are unchanged.
+
+**Export call site:** The non-structured fallback branch in `exportAsFormattedHtml` (the `else` branch of the `isStructured` check inside the per-card generator) now calls `markdownToHtml(plainText, { inlineStyles: false })` so the generated markup defers to the stylesheet rather than overriding it.
+
+**New CSS rules:** Added to the export's `<style>` block (alongside the existing `.v-body .sec` rules) so the new classes adopt the Preview 2 typography:
+
+```css
+.v-body .sec .md-h1{font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);margin:28px 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line-soft)}
+.v-body .sec .md-h1:first-child{margin-top:0}
+.v-body .sec .md-h2{font-family:var(--sans);font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin:22px 0 8px}
+.v-body .sec .md-h3{font-family:var(--sans);font-size:13px;font-weight:700;color:var(--ink-soft);margin:18px 0 8px}
+.v-body .sec .md-hr{border:0;border-top:1px solid var(--line-soft);margin:22px 0}
+.v-body .sec .md-p{font-size:15.5px;line-height:1.7;color:var(--ink-soft);margin:0 0 10px}
+.v-body .sec .md-ul{margin:0 0 10px;padding-left:22px;color:var(--ink-soft);font-size:15px;line-height:1.65}
+.v-body .sec .md-li{margin-bottom:6px}
+```
+
+`md-h1` matches the serif section-title treatment, `md-h2` mirrors the uppercase `.sec-lbl` eyebrow, `md-h3` is a smaller sans label, and `md-p` / `md-ul` / `md-li` inherit the same body text sizing and colour used by the structured-card paragraphs and lists — so plain-markdown cards now look consistent with structured cards.
+
+**Acceptance:** `npm run build` passes. The Copy Maker in-app "formatted" view (`FormattedContent.tsx`, which calls `markdownToHtml` with no options) is unchanged because `inlineStyles` defaults to `true`.
 
 ---
 
