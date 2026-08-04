@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.14
-Last Updated: 2026-08-04T21:00:00Z
+Version: 1.15
+Last Updated: 2026-08-04T21:30:00Z
 
 ---
 
@@ -209,6 +209,40 @@ Last Updated: 2026-08-04T21:00:00Z
 `md-h1` matches the serif section-title treatment, `md-h2` mirrors the uppercase `.sec-lbl` eyebrow, `md-h3` is a smaller sans label, and `md-p` / `md-ul` / `md-li` inherit the same body text sizing and colour used by the structured-card paragraphs and lists — so plain-markdown cards now look consistent with structured cards.
 
 **Acceptance:** `npm run build` passes. The Copy Maker in-app "formatted" view (`FormattedContent.tsx`, which calls `markdownToHtml` with no options) is unchanged because `inlineStyles` defaults to `true`.
+
+---
+
+## Export HTML — Plain-Markdown Headline Now Renders as Hero (2026-08-04)
+
+**Feature:** The plain-markdown fallback branch in `generateFullHtmlExportForCard` (the `else` of the `isStructured` check) previously dumped the entire markdown string — including its leading `# Headline` line — straight through `markdownToHtml`. That turned the headline into a bold `<h1 class="md-h1">` with a bottom border (a document-heading style), which was inconsistent with the `isStructured` branch just above it. The structured branch renders the headline separately in a large, non-bold serif "hero" treatment via `<div class="sec hero"><p>...</p></div>` (styled by the existing `.v-body .sec.hero p` CSS rule), and it was also redundant with the card's title shown in `.v-head h3` above.
+
+**Files modified:** `src/utils/enhancedExports.ts`
+
+**Logic change:** Before running `markdownToHtml`, the branch now matches a leading H1 with `/^\s*#\s+(.+?)\s*(?:\n|$)/` against the start of `plainText` (allowing leading blank lines). When a match is found, the captured headline text is stripped of markdown via the existing `stripMarkdown` helper and rendered inside `<div class="sec hero"><p>${headline}</p></div>`, and `markdownToHtml` (with `{ inlineStyles: false }`, per the prior fix) is run only on the remaining text after the matched headline line, wrapped in its own `<div class="sec">...</div>`. When no leading `#` headline is present, the previous behaviour is preserved — the whole `plainText` goes through `markdownToHtml` in a single `.sec`.
+
+**Resulting shape:**
+
+```js
+} else {
+  const plainText = previewMaxWords && typeof renderContent === 'string'
+    ? truncateWordsAtSentence(renderContent, previewMaxWords)
+    : (typeof renderContent === 'string' ? renderContent : JSON.stringify(renderContent));
+
+  const headlineMatch = plainText.match(/^\s*#\s+(.+?)\s*(?:\n|$)/);
+  if (headlineMatch) {
+    const headline = stripMarkdown(headlineMatch[1]);
+    const rest = plainText.slice(headlineMatch[0].length);
+    html += `<div class="sec hero"><p>${headline}</p></div>\n`;
+    html += `<div class="sec">${stripColoredSpans(markdownToHtml(rest, { inlineStyles: false }))}</div>\n`;
+  } else {
+    html += `<div class="sec">${stripColoredSpans(markdownToHtml(plainText, { inlineStyles: false }))}</div>\n`;
+  }
+}
+```
+
+The main headline now renders large, serif, non-bold, with no underline (matching `.sec.hero p` — the same visual weight as structured cards' hero headline), and the rest of the markdown content (Hero, Introduction, Features, etc.) still renders below it with the `md-h1` / `md-h2` / etc. classes from the previous fix.
+
+**Acceptance:** `npm run build` passes. Structured-card exports are unchanged.
 
 ---
 

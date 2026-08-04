@@ -918,7 +918,16 @@ export const generateFullHtmlExportForCard = (
     const plainText = previewMaxWords && typeof renderContent === 'string'
       ? truncateWordsAtSentence(renderContent, previewMaxWords)
       : (typeof renderContent === 'string' ? renderContent : JSON.stringify(renderContent));
-    html += `<div class="sec">${stripColoredSpans(markdownToHtml(plainText, { inlineStyles: false }))}</div>\n`;
+
+    const headlineMatch = plainText.match(/^\s*#\s+(.+?)\s*(?:\n|$)/);
+    if (headlineMatch) {
+      const headline = stripMarkdown(headlineMatch[1]);
+      const rest = plainText.slice(headlineMatch[0].length);
+      html += `<div class="sec hero"><p>${headline}</p></div>\n`;
+      html += `<div class="sec">${stripColoredSpans(markdownToHtml(rest, { inlineStyles: false }))}</div>\n`;
+    } else {
+      html += `<div class="sec">${stripColoredSpans(markdownToHtml(plainText, { inlineStyles: false }))}</div>\n`;
+    }
   }
   if (previewPercent) {
     html += `<p style="margin-top:16px;font-size:12px;font-style:italic;color:var(--muted);">${t.previewNote(previewPercent)}</p>\n`;
