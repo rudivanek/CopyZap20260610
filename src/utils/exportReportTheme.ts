@@ -267,5 +267,24 @@ export function buildReportStyles(overrides?: Partial<ThemeVars>): string {
   return rootVars(v) + BODY_STYLES;
 }
 
+// Returns the <link> tag(s) needed to load any Google-hosted serif font
+// referenced in the theme's --serif stack. System-font stacks (Georgia,
+// Times New Roman, Iowan Old Style/Palatino/Georgia) return an empty string
+// since no web font fetch is needed for them.
+export function getSerifFontLinkTag(serifStack: string): string {
+  const families: string[] = [];
+  if (serifStack.includes('Playfair Display')) {
+    families.push('Playfair+Display:wght@400;500;600;700;800;900');
+  }
+  if (serifStack.includes('DM Serif Display')) {
+    families.push('DM+Serif+Display:ital,wght@0,400;1,400');
+  }
+  if (families.length === 0) return '';
+  const familyParams = families.map(f => `family=${f}`).join('&');
+  return `<link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?${familyParams}&display=swap" rel="stylesheet">`;
+}
+
 // Backward compatibility: the original static export, identical to buildReportStyles() with no overrides.
 export const EXPORT_REPORT_STYLES = buildReportStyles();

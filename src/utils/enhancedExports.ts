@@ -4,7 +4,7 @@ import { ComparisonResult } from '../services/api/comprehensiveScoring';
 import { structuredToPlainText, markdownToHtml } from './copyFormatter';
 import { getScoreLabel } from './scoreColors';
 import { stripMarkdown } from './markdownUtils';
-import { buildReportStyles } from './exportReportTheme';
+import { buildReportStyles, getSerifFontLinkTag, DEFAULT_THEME_VARS } from './exportReportTheme';
 import { getCachedReportTheme } from '../services/supabaseClient';
 import { getComparisonDelta } from './comparisonDelta';
 import {
@@ -2905,6 +2905,7 @@ export const exportAsFormattedHtml = (
     const htmlLangCode = ({ english: 'en', spanish: 'es', french: 'fr', german: 'de', portuguese: 'pt', italian: 'it', dutch: 'nl' } as Record<string, string>)[lang.trim().toLowerCase()] || 'en';
 
     // HTML document start with premium styling
+    const resolvedTheme = getCachedReportTheme() ?? undefined;
     htmlContent += `<!DOCTYPE html>
 <html lang="${htmlLangCode}">
 <head>
@@ -2912,8 +2913,9 @@ export const exportAsFormattedHtml = (
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Copy Report — ${escapeHtml(formState.projectDescription || 'CopyZap')}</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  ${getSerifFontLinkTag(resolvedTheme?.serif ?? DEFAULT_THEME_VARS.serif)}
   <style>
-${buildReportStyles(getCachedReportTheme() ?? undefined)}  </style>
+${buildReportStyles(resolvedTheme)}  </style>
 </head>
 <body id="top">
 ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:center;padding:8px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;">${t.previewBanner(previewPercent)}</div>\n` : ''}

@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.18
-Last Updated: 2026-08-04T23:30:00Z
+Version: 1.19
+Last Updated: 2026-08-04T23:45:00Z
 
 ---
 
@@ -328,6 +328,50 @@ This makes the client/website-audit report read from the exact same admin-saved 
 **Anchor verification:** Version sections render with `id="${escapeOnce(v.key)}"` (line 303), `#entrada` exists (line 234), and `#ranking` exists (line 364), so every breadcrumb href resolves to a real anchor.
 
 **Acceptance:** `npm run build` passes. Both report generators (Copy Maker `exportAsFormattedHtml` and client/website-audit `renderClientReport`) now visually share the same design system and both respect the saved admin theme — a custom `--accent` saved in `/admin/report-theme` appears in the `:root{}` block of both exported HTML types, and the client report now shows the fixed bottom breadcrumb bar with working jump links.
+
+---
+
+## Google Fonts Loading for Web-Font Serif Stacks (2026-08-04)
+
+**Feature:** The Report Theme editor's "Serif (headings)" dropdown lets admins pick **Playfair Display** or **DM Serif Display** (web fonts hosted on Google Fonts) in addition to system-font stacks (Iowan Old Style/Palatino/Georgia/Times, Georgia, Times New Roman). Previously, selecting a web-font serif correctly set the `--serif` CSS variable but the actual font file was never fetched from Google Fonts — only "Inter" (the body sans) was loaded via a `<link>` tag, so the headings silently fell back to Georgia/Times. This fix injects the matching Google Fonts `<link>` tag(s) into both HTML report generators whenever the resolved serif stack references one of the two web fonts, and emits nothing for system-font stacks (no unnecessary fetch).
+
+**Shared helper in `src/utils/exportReportTheme.ts`:** Added a single exported function `getSerifFontLinkTag(serifStack: string): string` near the other exports. It inspects the resolved theme's `serif` font-stack string and returns the matching Google Fonts `<link>` tag(s) — including `<link rel="preconnect">` hints for `fonts.googleapis.com` and `fonts.gstatic.com` — or an empty string if the serif stack doesn't need a web font fetch:
+
+```ts
+export function getSerifFontLinkTag(serifStack: string): string {
+  const families: string[] = [];
+  if (serifStack.includes('Playfair Display')) {
+    families.push('Playfair+Display:wght@400;500;600;700;800;900');
+  }
+  if (serifStack.includes('DM Serif Display')) {
+    families.push('DM+Serif+Display:ital,wght@0,400;1,400');
+  }
+  if (families.length === 0) return '';
+  const familyParams = families.map(f => `family=${f}`).join('&');
+  return `<link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?${familyParams}&display=swap" rel="stylesheet">`;
+}
+```
+
+Substring matching (`serifStack.includes('Playfair Display')`) is used because the saved `serif` value is a full CSS font-stack string (e.g. `"Playfair Display",Georgia,serif`), not a bare family name. Both web-font families can be matched simultaneously if a future stack references both, and the two preconnect hints are only emitted when at least one web font is needed.
+
+**Copy Maker export (`src/utils/enhancedExports.ts`):** The import line now pulls `getSerifFontLinkTag` and `DEFAULT_THEME_VARS` alongside `buildReportStyles` from `./exportReportTheme`. Inside the per-card HTML generator, the theme is now resolved once into a local `const resolvedTheme = getCachedReportTheme() ?? undefined;` (replacing the previous inline `getCachedReportTheme() ?? undefined` call inside `buildReportStyles(...)`), and the `<head>` template injects `${getSerifFontLinkTag(resolvedTheme?.serif ?? DEFAULT_THEME_VARS.serif)}` immediately after the existing Inter `<link>`. So the head now reads:
+
+```html
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
+  ${getSerifFontLinkTag(resolvedTheme?.serif ?? DEFAULT_THEME_VARS.serif)}
+  <style>
+${buildReportStyles(resolvedTheme)}  </style>
+```
+
+`DEFAULT_THEME_VARS.serif` is the fallback when no theme is cached (before the cache warms or no theme was ever saved) — its value is the system-font stack `"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif`, which contains neither web-font substring, so `getSerifFontLinkTag` returns `''` and behavior for the default/no-theme case is unchanged.
+
+**Client/website-audit report (`src/utils/clientReport/renderClientReport.ts`):** Same pattern. The import line now pulls `getSerifFontLinkTag` and `DEFAULT_THEME_VARS` from `../exportReportTheme`. At the top of `renderClientReport()`, the theme is resolved once into `const resolvedTheme = getCachedReportTheme() ?? undefined;` (replacing the previous inline call inside `buildReportStyles(...)`), and the `<head>` injects `${getSerifFontLinkTag(resolvedTheme?.serif ?? DEFAULT_THEME_VARS.serif)}` between the `<title>` and the `<style>` block (this report has no Inter link — its body uses the sans stack which already includes Inter via system fallback).
+
+**Why conditional injection:** The link tag is only emitted when the selected serif stack actually references one of the two Google-hosted fonts, so reports using the default/system serif options don't pay for an unnecessary font fetch. Both export code paths share the same theme resolution (`getCachedReportTheme()`), so the fix only needed the one new helper plus a two-line change in each file's `<head>` template.
+
+**Acceptance:** `npm run build` passes. In the Report Theme editor, setting "Serif (headings)" to Playfair Display and generating/previewing a report now renders headlines and score numbers in Playfair Display's actual high-contrast letterforms (the `<head>` contains the Playfair Display `<link>`); same for DM Serif Display. Switching back to "Georgia" or "Iowan Old Style/Palatino/Georgia" emits no extra font `<link>` (verified by viewing page source — the `<head>` only contains the Inter link in the Copy Maker export, and no font link at all in the client report).
 
 ---
 

@@ -1,5 +1,5 @@
 import { ClientReportData, ClientReportVersion, CTA_CONTACT_URL } from './buildClientReportData';
-import { buildReportStyles } from '../exportReportTheme';
+import { buildReportStyles, getSerifFontLinkTag, DEFAULT_THEME_VARS } from '../exportReportTheme';
 import { getCachedReportTheme } from '../../services/supabaseClient';
 
 // Ensure a URL is absolute for use in href. The visible text keeps the protocol
@@ -452,14 +452,16 @@ export function renderClientReport(data: ClientReportData): string {
   // full; they appear only as compact rows in the ranking table.
   const shownVersions = data.versions.filter(v => v.isBaseline || v.isShownInFull);
   const versionsHtml = shownVersions.map(v => renderVersion(v, data)).join('\n');
+  const resolvedTheme = getCachedReportTheme() ?? undefined;
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reporte de Copy — ${escapeOnce(data.company.name)} | ${escapeOnce(data.studio.name)}</title>
+${getSerifFontLinkTag(resolvedTheme?.serif ?? DEFAULT_THEME_VARS.serif)}
 <style>
-${buildReportStyles(getCachedReportTheme() ?? undefined)}
+${buildReportStyles(resolvedTheme)}
 </style>
 </head>
 <body>
