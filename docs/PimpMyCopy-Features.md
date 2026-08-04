@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.17
-Last Updated: 2026-08-04T23:00:00Z
+Version: 1.18
+Last Updated: 2026-08-04T23:30:00Z
 
 ---
 
@@ -297,6 +297,37 @@ The main headline now renders large, serif, non-bold, with no underline (matchin
 **Export wiring (`src/utils/enhancedExports.ts`):** the static `EXPORT_REPORT_STYLES` import is replaced with `buildReportStyles(getCachedReportTheme() ?? undefined)`, so every generated HTML export reflects the cached admin theme (or defaults if none).
 
 **Acceptance:** `npm run build` passes. Migration applies cleanly. Admins can open `/admin/report-theme` from the Dashboard, adjust colors/fonts/sizes, see the live preview update, save, and generate a fresh HTML export that reflects every change across cover, TOC, version cards, and rankings with no broken layout at slider extremes. Non-admins and the state before any theme is saved still produce the original default design.
+
+---
+
+## Client/Website-Audit Report — Shared Design System + Breadcrumb Nav (2026-08-04)
+
+**Feature:** Unified the second, independent HTML report generator (`renderClientReport` — the Spanish, Sharpen.Studio-branded "website audit" client report) with the same admin-customizable Report Theme design system the Copy Maker export already uses, and added the fixed bottom breadcrumb navigation bar that the Copy Maker export already had.
+
+**Problem:** `src/utils/clientReport/renderClientReport.ts` carried its own frozen, hardcoded `const CSS = ...` block (lines 45–243) that was never wired to the admin Report Theme feature, so an admin's saved colors/fonts/sizes never reached this report. It also lacked the `<nav class="breadcrumb-nav no-print">` jump-link bar the Copy Maker export had, leaving readers to scroll the long Spanish audit document with no in-page navigation.
+
+**Change 1 — Removed duplicated CSS, wired to shared design system:** Deleted the entire `const CSS = ...` block (lines 45–243). Added two imports at the top of the file:
+
+```ts
+import { buildReportStyles } from '../exportReportTheme';
+import { getCachedReportTheme } from '../../services/supabaseClient';
+```
+
+In `renderClientReport()`, the template's `<style>\n${CSS}\n</style>` was replaced with:
+
+```ts
+<style>
+${buildReportStyles(getCachedReportTheme() ?? undefined)}
+</style>
+```
+
+This makes the client/website-audit report read from the exact same admin-saved theme (colors, fonts, weights, sizes) as the Copy Maker export, instead of its own disconnected copy. The cache is the same module-level `cachedReportTheme` populated by `fetchReportThemeOnce()` at app boot (see the Report Theme feature section above), so by the time a user generates a client report from CopyMakerSidebar the cache is already warm and any admin-saved `--accent` (or any other token) flows into this report's `:root{}` block.
+
+**Change 2 — Added breadcrumb navigation bar:** Added a new `renderBreadcrumbNav(data: ClientReportData)` function that builds a `<nav class="breadcrumb-nav no-print">` with jump links to `#entrada` (Inputs), each shown version's `#${v.key}` (baseline + proposals developed in full — `v.isBaseline || v.isShownInFull`), and `#ranking` (Rankings). Labels use `v.displayName || v.key` (the real `ClientReportVersion` fields — there is no `label` field on that type). `${renderBreadcrumbNav(data)}` is inserted right after `${renderFooter(data)}` and before the closing `</body>` tag in the main template. The `.breadcrumb-nav`, `.bc-sep`, and `.bc-label` CSS classes already exist inside `buildReportStyles()`'s output (ported from `exportReportTheme.ts`), so no new CSS was needed once Change 1 landed.
+
+**Anchor verification:** Version sections render with `id="${escapeOnce(v.key)}"` (line 303), `#entrada` exists (line 234), and `#ranking` exists (line 364), so every breadcrumb href resolves to a real anchor.
+
+**Acceptance:** `npm run build` passes. Both report generators (Copy Maker `exportAsFormattedHtml` and client/website-audit `renderClientReport`) now visually share the same design system and both respect the saved admin theme — a custom `--accent` saved in `/admin/report-theme` appears in the `:root{}` block of both exported HTML types, and the client report now shows the fixed bottom breadcrumb bar with working jump links.
 
 ---
 
