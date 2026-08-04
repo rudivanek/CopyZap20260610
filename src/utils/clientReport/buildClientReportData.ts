@@ -571,7 +571,16 @@ function cleanBaselineSections(sections: { label: string; text: string }[]): { l
     // slash/dash separator. Otherwise it is a single isolated button label.
     const isPortfolioRun = run.length >= 2 || run.some(s => hasSeparator(s.text));
     if (isPortfolioRun) {
-      out.push({ label: 'Portafolio', text: run.map(s => s.text).join('\n') });
+      // Reconstruct each block's full original text by re-joining the label
+      // (the first line splitSections stripped) with the body. Without this,
+      // portfolio entries lose their project names — only the category line
+      // survives the merge, and the reproduced text no longer matches the
+      // client's site. Never deduplicate, never drop lines, never filter by
+      // length inside the merge (issue: portfolio merge drops client names).
+      const fullText = run
+        .map(s => [s.label, s.text].filter(Boolean).join('\n'))
+        .join('\n');
+      out.push({ label: 'Portafolio', text: fullText });
     }
     // else: isolated button label — dropped.
   }
@@ -1226,8 +1235,20 @@ function mapSectionLabel(title: string): string {
   const t = (title || '').trim().toLowerCase();
   if (!t) return '';
   if (SECTION_LABEL_MAP[t]) return SECTION_LABEL_MAP[t];
+  // Match on word boundaries rather than bare substrings so a heading like
+  // "Portafolio de Servicios" is not mislabelled "Portafolio" (item: label map
+  // matches on substrings). A key matches only when it appears as a whole word
+  // (bounded by start/end or non-letter characters). Accented keys are
+  // normalised for the comparison.
+  const normT = t.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
   for (const key of Object.keys(SECTION_LABEL_MAP)) {
-    if (t.includes(key)) return SECTION_LABEL_MAP[key];
+    const normKey = key.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+    const re = new RegExp(`(^|[^a-z\\u00f1])${escapeRegex(normKey)}([^a-z\\u00f1]|$)`, 'i');
+    if (re.test(normT)) return SECTION_LABEL_MAP[key];
   }
   return title.trim();
+}
+
+function escapeRegex(s: string): string {
+  return s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
 }

@@ -164,6 +164,8 @@ p{margin:0 0 16px}
 .split .pos li:before{content:"\\2713";color:var(--gain)}
 .split .neg li:before{content:"\\2192";color:var(--accent)}
 .split .empty{font-size:13px;color:var(--muted);font-style:italic}
+.split-empty{display:block}
+.split-empty .empty-full{font-size:14px;color:var(--muted);font-style:italic;margin:0}
 .rank{margin-top:28px;background:var(--white);border:1px solid var(--line);border-radius:4px;overflow:hidden}
 .rank-row{display:grid;grid-template-columns:34px 1fr 96px 96px 88px 86px;gap:14px;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line-soft)}
 .rank-row:last-child{border-bottom:0}
@@ -423,8 +425,16 @@ ${excludedLine}
 }
 
 function renderSplitBlock(v: ClientReportVersion): string {
-  // Always render the split block so all versions read consistently (issue #5).
-  // When a list is empty, state it in one line rather than dropping the block.
+  // When both columns are empty, render one full-width sentence instead of
+  // two side-by-side "Sin observaciones destacadas." lines (item: duplicate
+  // empty note). When only one column is empty, keep the per-column note so
+  // the layout stays balanced.
+  const bothEmpty = v.strengths.length === 0 && v.improvements.length === 0;
+  if (bothEmpty) {
+    return `      <div class="split split-empty">
+        <p class="empty-full">Sin observaciones destacadas.</p>
+      </div>`;
+  }
   const posItems = v.strengths.length
     ? v.strengths.map(s => `<li>${escapeOnce(s)}</li>`).join('')
     : '<li class="empty">Sin observaciones destacadas.</li>';
@@ -440,16 +450,21 @@ function renderSplitBlock(v: ClientReportVersion): string {
 }
 
 function renderVersion(v: ClientReportVersion, data: ClientReportData): string {
-  const sectionsHtml = v.sections.map(s => {
-    const cls = [s.isHero ? 'hero' : '', s.isFaded ? 'fade' : ''].filter(Boolean).join(' ');
-    // Omit sec-lbl entirely when no real label exists (item 7).
-    const lbl = s.label
-      ? `          <div class="sec-lbl">${escapeOnce(s.label)}</div>\n`
-      : '';
-    return `        <div class="sec${cls ? ' ' + cls : ''}">
+  // Drop sections whose body text is empty entirely (item: empty sections
+  // rendered a label plus a blank <p></p>). The label alone adds nothing for
+  // the reader and the empty paragraph is visible whitespace.
+  const sectionsHtml = v.sections
+    .filter(s => s.text && s.text.trim().length > 0)
+    .map(s => {
+      const cls = [s.isHero ? 'hero' : '', s.isFaded ? 'fade' : ''].filter(Boolean).join(' ');
+      // Omit sec-lbl entirely when no real label exists (item 7).
+      const lbl = s.label
+        ? `          <div class="sec-lbl">${escapeOnce(s.label)}</div>\n`
+        : '';
+      return `        <div class="sec${cls ? ' ' + cls : ''}">
 ${lbl}          <p>${escapeOnce(s.text)}</p>
         </div>`;
-  }).join('\n');
+    }).join('\n');
 
   const winTag = v.isWinner ? ` <span class="win">★ Ganadora</span>` : '';
   const gainBlock = v.isBaseline

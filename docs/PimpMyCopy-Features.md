@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.10
-Last Updated: 2026-08-04T14:00:00Z
+Version: 1.11
+Last Updated: 2026-08-04T15:00:00Z
 
 ---
 
@@ -95,6 +95,16 @@ Last Updated: 2026-08-04T14:00:00Z
 **Refinements (v1.6):**
 
 1. **Analysed URL resolved via a priority chain.** Previously the report read the URL from a single field (`competitorUrls[0]`), which was empty for sessions created before the wizard fix. The URL is now resolved from the first available source in this order: (a) the first URL extracted from `projectDescription` free text — the user may write "Sitio: https://example.com — consultoría B2B", so the URL is parsed out rather than assumed to be the whole field; (b) the wizard's analyze-url capture (stored in `competitorUrls[0]`); (c) the first URL appearing in the original copy; (d) none — the cover link and "URL analizada" brief row are omitted and the disclaimer rewrites itself. Whichever source wins, the URL is never used as the company name; that is resolved separately from `og:site_name` / `<title>` / the AI narrative.
+
+**Refinements (v1.11):**
+
+1. **Portfolio merge preserves client names.** The v1.10 `splitSections` change stripped the first line of each portfolio block as a "label" and kept only the second line (the category) as the body. When `cleanBaselineSections` merged consecutive blocks into one "Portafolio" section, it concatenated only the bodies — so the project names (Marinaterra, Logofolio v01, Sales Boost Consulting, FCO Group, Inmaris, Vita Veta, Rancho San Lucas, SUYANA, Cellen, Cuesta Campos, Benavento) were dropped and only the service categories survived. The merge now reconstructs each block's full original text by re-joining the stripped label with the body before concatenating, so every line appears in its original order. Never deduplicate, never drop alternating lines, never filter by length inside the merge. Verified against the Sharpen export: all eleven client names appear in the merged Portafolio block, each followed by its category, in order.
+
+2. **Empty sections dropped entirely.** Sections whose body text trims to empty previously rendered their label plus a blank `<p></p>` (one in Sales Boost, three in Agenciópolis, six in CopyZap). `renderVersion` now filters out sections with empty body text before rendering, so neither the label nor the blank paragraph appears.
+
+3. **"Sin observaciones destacadas." rendered once.** When both the strengths and improvements columns were empty, the split block emitted two side-by-side "Sin observaciones destacadas." lines (one per column). `renderSplitBlock` now detects the both-empty case and renders a single full-width sentence instead, via a new `.split-empty` / `.empty-full` CSS pair.
+
+4. **Label map matches on word boundaries.** `mapSectionLabel` previously matched map keys as bare substrings, so a heading like "Portafolio de Servicios" was mislabelled "Portafolio". Matching now requires the key to appear as a whole word (bounded by start/end or non-letter characters), with accent normalisation, so only true portfolio sections get the "Portafolio" label.
 
 **Refinements (v1.10):**
 
