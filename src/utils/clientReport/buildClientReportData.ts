@@ -729,7 +729,9 @@ function buildFallbackFindings(
     seenTitles.add(key);
     // Store RAW — renderer escapes once.
     out.push({ category, title: t, bodyHtml });
-  };
+  }
+  
+}};
 
   const riskCategories = ['Credibilidad', 'Prueba social', 'Lenguaje', 'SEO', 'Claridad', 'Estructura'];
   risks.forEach((r, i) => {
