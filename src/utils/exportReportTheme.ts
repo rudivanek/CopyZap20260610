@@ -269,6 +269,3 @@ export function buildReportStyles(overrides?: Partial<ThemeVars>): string {
 
 // Backward compatibility: the original static export, identical to buildReportStyles() with no overrides.
 export const EXPORT_REPORT_STYLES = buildReportStyles();
-
-
-export { buildReportStyles }
