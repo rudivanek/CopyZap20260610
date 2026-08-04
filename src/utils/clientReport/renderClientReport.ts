@@ -21,6 +21,17 @@ function escapeOnce(text: string | number | null | undefined): string {
     .replace(/'/g, '&#039;');
 }
 
+// Spanish lowercase number words for the ranking-note count ("tres mejores").
+// Kept here rather than in the data builder so the note's wording stays
+// colocated with the note itself.
+const SPANISH_NUM_WORDS: Record<number, string> = {
+  0: 'cero', 1: 'una', 2: 'dos', 3: 'tres', 4: 'cuatro', 5: 'cinco',
+  6: 'seis', 7: 'siete', 8: 'ocho', 9: 'nueve', 10: 'diez',
+};
+function spanishNumWord(n: number): string {
+  return SPANISH_NUM_WORDS[n] ?? String(n);
+}
+
 // For *Html fields: escape once, then re-enable ONLY <strong>, <b>, <q>, <em>.
 // Everything else is stripped. Called exactly once per value.
 function sanitizeInlineHtml(html: string | null | undefined): string {
@@ -245,7 +256,7 @@ function renderCover(data: ClientReportData): string {
     <div class="kicker">Diagnóstico de copy · Sitio web</div>
     <h1>El copy de ${escapeOnce(data.company.name)} puede rendir un ${escapeOnce(data.journey.winnerDeltaPercent)}&nbsp;% más.</h1>
 ${siteLine}
-    <div class="stamp">Análisis del ${escapeOnce(data.company.analyzedAtLabel)} · ${escapeOnce(stampCount)} versiones evaluadas · Idioma: ${escapeOnce(data.company.language)}</div>
+    <div class="stamp">Análisis del ${escapeOnce(data.company.analyzedAtLabel)} · ${escapeOnce(stampCount)} propuestas evaluadas · Idioma: ${escapeOnce(data.company.language)}</div>
 
     <div class="journey">
       <div class="journey-head">Recorrido de puntuación</div>
@@ -321,7 +332,11 @@ function renderToc(data: ClientReportData): string {
         <span class="name">${escapeOnce(v.displayName)}${winTag}</span>
         ${delta}<span class="sc tnum">${escapeOnce(v.score)}<small>/100</small></span></a>`);
   });
-  rows.push(`      <a href="#ranking"><span class="idx">${escapeOnce(data.lastIndex)}</span>
+  // Ranking index is derived from the entries actually shown in the table of
+  // contents (entrada + shown versions), not from the total version count —
+  // otherwise the index jumps when some proposals are not developed in full.
+  const rankingIdx = tocVersions.length + 2;
+  rows.push(`      <a href="#ranking"><span class="idx">${escapeOnce(rankingIdx)}</span>
         <span class="name">Comparación y clasificación <em>— tabla completa</em></span>
         <span class="delta"></span><span class="sc"></span></a>`);
   return `<section>
@@ -494,12 +509,14 @@ function renderRanking(data: ClientReportData): string {
   // When some proposals were not developed in full (issue #1) or were
   // excluded from the table for lack of a score (issue #2), say so in one
   // line rather than silently omitting them.
-  const shownCount = data.versions.filter(v => v.isBaseline || v.isShownInFull).length - 1; // minus baseline
-  const rankedCount = data.versionsByScore.filter(v => !v.isBaseline).length;
+  const shownProposals = data.versions.filter(v => !v.isBaseline && v.isShownInFull).length;
   const totalEvaluated = data.generatedProposalCount || data.journey.versionCount - 1;
   const notes: string[] = [];
-  if (rankedCount < totalEvaluated) {
-    notes.push(`Se evaluaron ${escapeOnce(totalEvaluated)} versiones en total; este reporte desarrolla las ${escapeOnce(Math.min(data.maxProposalsShown, rankedCount))} mejores.`);
+  // The explanatory note appears whenever some evaluated proposals are not
+  // developed as full sections (the cap), so a reader is never left wondering
+  // why the ranking table lists proposals that exist nowhere else in the doc.
+  if (shownProposals < totalEvaluated) {
+    notes.push(`Se evaluaron ${escapeOnce(totalEvaluated)} propuestas en total; este reporte desarrolla las ${escapeOnce(spanishNumWord(shownProposals))} mejores.`);
   }
   if (data.unscoredProposalCount > 0) {
     notes.push(`${escapeOnce(data.unscoredProposalCount)} ${data.unscoredProposalCount === 1 ? 'versión adicional quedó sin evaluar comparativamente y no se incluye' : 'versiones adicionales quedaron sin evaluar comparativamente y no se incluyen'} en este reporte.`);
@@ -510,9 +527,9 @@ function renderRanking(data: ClientReportData): string {
 
   return `<section id="ranking">
   <div class="wrap">
-    <div class="eyebrow">${escapeOnce(data.versions.length + 2)} · Comparación</div>
+    <div class="eyebrow">${escapeOnce(data.versions.filter(v => v.isBaseline || v.isShownInFull).length + 2)} · Comparación</div>
     <h2>Clasificación completa</h2>
-    <p class="lede">Las ${escapeOnce(data.journey.versionCount)} versiones evaluadas con el mismo criterio, ordenadas por
+    <p class="lede">Las ${escapeOnce(totalEvaluated)} propuestas y tu copy actual, evaluadas con el mismo criterio, ordenadas por
        puntuación total.</p>
     <div class="rank">
       <div class="rank-row head"><div>#</div><div>Versión</div>

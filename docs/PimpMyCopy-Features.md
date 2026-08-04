@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.9
-Last Updated: 2026-08-04T13:00:00Z
+Version: 1.10
+Last Updated: 2026-08-04T14:00:00Z
 
 ---
 
@@ -96,11 +96,23 @@ Last Updated: 2026-08-04T13:00:00Z
 
 1. **Analysed URL resolved via a priority chain.** Previously the report read the URL from a single field (`competitorUrls[0]`), which was empty for sessions created before the wizard fix. The URL is now resolved from the first available source in this order: (a) the first URL extracted from `projectDescription` free text — the user may write "Sitio: https://example.com — consultoría B2B", so the URL is parsed out rather than assumed to be the whole field; (b) the wizard's analyze-url capture (stored in `competitorUrls[0]`); (c) the first URL appearing in the original copy; (d) none — the cover link and "URL analizada" brief row are omitted and the disclaimer rewrites itself. Whichever source wins, the URL is never used as the company name; that is resolved separately from `og:site_name` / `<title>` / the AI narrative.
 
+**Refinements (v1.10):**
+
+1. **Table of contents index derived from shown entries.** The ranking entry's index and the ranking section's eyebrow were both computed from `data.versions.length` (the total version count), so they jumped from 5 to 8 when the report only developed five entries in full. Both now derive from the entries actually shown in the table of contents (`tocVersions.length + 2`), so the index is sequential with no gap. With three proposals plus the baseline plus the ranking section, the indices run 1–6 and the eyebrow reads "6 · Comparación".
+
+2. **Version count convention unified.** The cover stamp said "N versiones evaluadas" while the ranking lede said "Las N versiones evaluadas" — one counted proposals only, the other included the baseline, so the two numbers disagreed (5 vs. 6). The convention is now proposals-only everywhere: the cover stamp reads "5 propuestas evaluadas" and the ranking lede reads "Las 5 propuestas y tu copy actual, evaluadas con el mismo criterio…". Both use `generatedProposalCount` (proposals only, excluding the baseline), so the two numbers always agree.
+
+3. **Explanatory note under the ranking table.** When the cap leaves some evaluated proposals without a full section, a reader saw proposals in the ranking table that existed nowhere else in the document and read it as a bug. The note now always appears whenever `shownProposals < totalEvaluated`: "Se evaluaron 5 propuestas en total; este reporte desarrolla las tres mejores." The count word is rendered in Spanish ("tres") via a small `spanishNumWord` helper in the renderer.
+
+4. **Custom headings treated as section labels.** `splitSections` only recognised headings present in `SECTION_LABEL_MAP`, so custom headings like "El Problema Que Nadie Te Dice" or "Branding con Propósito Real, No Decoración" stayed in the body as plain text, the section rendered without a label, and the paywall band fell back to the generic sentence. Any short first line (≤4 words) without ending punctuation is now treated as a section label even when it is not a recognised name: it is title-cased as given (via a new `titleCase` helper) and used as the section label, so custom headings render as labels and appear in "Te falta por ver".
+
+5. **Isolated button labels dropped, not mislabelled "Portafolio".** `cleanBaselineSections` previously merged any short no-punctuation block into a "Portafolio" section, so an isolated button label like "Cotizar proyecto" was mislabelled as a portfolio entry. The merge logic now groups consecutive short no-punctuation blocks into runs: a run of ≥2 blocks (or any block with a slash/dash separator) is a portfolio list and is merged into "Portafolio"; an isolated single short block with no separator is a button/nav label and is dropped entirely.
+
 **Refinements (v1.9):**
 
 1. **Unscored proposals never render as full sections.** The shown-in-full set is built from `versionsByScore`, which already filters to `!isBaseline && isScored`. So an unscored proposal can never enter the shown-in-full set, can never be assigned a letter, and can never appear with a 0/100 score or "+0 pts" delta in a card or in the table of contents. If fewer than three scored proposals exist, fewer than three full sections are shown — never padded with unscored ones. (This was already enforced by the v1.8 filter; v1.9 confirms and documents it as an explicit invariant.)
 
-2. **Ranking note no longer names an internal screen.** The second note line under the ranking table previously read "…están disponibles en Copy Maker", naming a screen inside the app that a client reader has no way to open. It now reads: "N versión(es) adicional(es) quedaron sin evaluar comparativamente y no se incluyen en este reporte." The first note line is unchanged: "Se evaluaron N versiones en total; este reporte desarrolla las tres mejores."
+2. **Ranking note no longer names an internal screen.** The second note line under the ranking table previously read "…están disponibles en Copy Maker", naming a screen inside the app that a client reader has no way to open. It now reads: "N versión(es) adicional(es) quedaron sin evaluar comparativamente y no se incluyen en este reporte." (The first note line was later refined in v1.10 to read "Se evaluaron N propuestas en total; este reporte desarrolla las tres mejores.")
 
 3. **Footer contact column removed.** The right-hand footer block containing the bare domain "sharpen.studio" and the email "hola@sharpen.studio" is deleted entirely. Every call-to-action already points to https://sharpen.studio/contacta-web/, so a bare domain and email are redundant and invite replies to an unmonitored inbox. The footer layout was adjusted so the remaining left-hand block uses the full width (`display:block` on the wrapper, `max-width:74ch` on the block) rather than sitting in a half-width column with an empty gap.
 

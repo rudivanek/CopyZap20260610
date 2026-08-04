@@ -450,13 +450,21 @@ function splitSections(text: string): { label: string; text: string }[] {
       if (words.length > 0 && words.length <= 4 && firstLine.length > 0 && !endsWithPunct) {
         // Normalize accents so "Introducción" matches the unaccented key
         // "introduccion". Without this, accented section names never resolve,
-        // the label stays empty, and the marker line bleeds into the body text
-        // (issue: labels only extracted from some sections).
+        // the label stays empty, and the marker line bleeds into the body text.
         const norm = firstLine.toLowerCase()
           .normalize('NFD').replace(/[\u0300-\u036f]/g, '');
         const mapped = SECTION_LABEL_MAP[norm];
         if (mapped) {
           label = mapped;
+          body = lines.slice(1).join('\n').trim();
+        } else {
+          // Treat any short first line without ending punctuation as a section
+          // label even when it is not a recognised name (e.g. custom headings
+          // like "El Problema Que Nadie Te Dice"). Without this, custom headings
+          // stay in the body as plain text, the section renders without a
+          // label, and the paywall band falls back to the generic sentence.
+          // Title-case the heading as given so it reads as a label, not prose.
+          label = titleCase(firstLine);
           body = lines.slice(1).join('\n').trim();
         }
       }
@@ -475,6 +483,14 @@ function splitSections(text: string): { label: string; text: string }[] {
     }
   }
   return sections;
+}
+
+// Title-case a short heading line: capitalise the first letter of each word,
+// preserving the original casing of the rest (so "El Problema Que Nadie Te
+// Dice" stays readable rather than being lowercased or ALLCAPS-ed). Used for
+// custom section headings that are not in SECTION_LABEL_MAP.
+function titleCase(line: string): string {
+  return line.split(' ').map(w => w.length ? w[0].toUpperCase() + w.slice(1) : w).join(' ');
 }
 
 // ── Zero-value suppression (spec 5) ───────────────────────────────────────────
@@ -520,41 +536,45 @@ function suppressZeroValuesInText(text: string): string {
 function cleanBaselineSections(sections: { label: string; text: string }[]): { label: string; text: string }[] {
   const cleaned = sections.filter(s => s.text.trim().length > 0);
 
-  const isButtonLabel = (t: string) => {
-    const txt = t.trim();
-    const words = txt.split(/\s+/).filter(Boolean);
-    if (words.length > 6) return false;
-    return !/[.!?;:](\s|$)/.test(txt);
-  };
+  const out: { label: string; text: string }[] = [];
 
-  const isPortfolioEntry = (t: string) => {
+  // Group consecutive short no-punctuation blocks into runs. A run of ≥2 such
+  // blocks (or a single block containing a slash/dash separator) is a
+  // portfolio list and gets merged into one "Portafolio" section. An ISOLATED
+  // short block with no separator is a button/nav label ("Cotizar proyecto",
+  // "Ver más") and is dropped — never labelled "Portafolio" (issue #6).
+  type Sec = { label: string; text: string };
+  const isShortNoPunct = (t: string) => {
     const txt = t.trim();
     if (!txt) return false;
     const words = txt.split(/\s+/).filter(Boolean);
     if (words.length > 10) return false;
-    return /[/—–-]/.test(txt) || (words.length <= 4 && !/[.!?](\s|$)/.test(txt));
+    return !/[.!?;:](\s|$)/.test(txt);
   };
+  const hasSeparator = (t: string) => /[/—–-]/.test(t);
 
-  const out: { label: string; text: string }[] = [];
-  let portfolioBuffer: string[] = [];
-
-  const flushPortfolio = () => {
-    if (portfolioBuffer.length) {
-      out.push({ label: 'Portafolio', text: portfolioBuffer.join('\n') });
-      portfolioBuffer = [];
-    }
-  };
-
-  for (const sec of cleaned) {
-    if (isButtonLabel(sec.text) && !isPortfolioEntry(sec.text)) continue;
-    if (isPortfolioEntry(sec.text)) {
-      portfolioBuffer.push(sec.text);
+  let i = 0;
+  while (i < cleaned.length) {
+    const sec = cleaned[i];
+    if (!isShortNoPunct(sec.text)) {
+      out.push(sec);
+      i++;
       continue;
     }
-    flushPortfolio();
-    out.push(sec);
+    // Collect the run of consecutive short no-punct blocks.
+    const run: Sec[] = [];
+    while (i < cleaned.length && isShortNoPunct(cleaned[i].text)) {
+      run.push(cleaned[i]);
+      i++;
+    }
+    // A run is a portfolio list if it has ≥2 entries, or any entry has a
+    // slash/dash separator. Otherwise it is a single isolated button label.
+    const isPortfolioRun = run.length >= 2 || run.some(s => hasSeparator(s.text));
+    if (isPortfolioRun) {
+      out.push({ label: 'Portafolio', text: run.map(s => s.text).join('\n') });
+    }
+    // else: isolated button label — dropped.
   }
-  flushPortfolio();
   return out;
 }
 
