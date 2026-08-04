@@ -18,12 +18,16 @@ import { stripMarkdown } from '../markdownUtils';
 export const SUPPRESS_ZERO_VALUE_NUMERIC_FINDINGS = true;
 export const CLIENT_REPORT_PREVIEW_PERCENT = 25;
 
+// Single destination for every CTA in the report (cover, paywall bands,
+// roadmap block, final CTA). Change this one constant to repoint them all.
+const CTA_CONTACT_URL = 'https://sharpen.studio/contacta-web/';
+
 const STUDIO = {
   name: 'Sharpen.Studio',
   site: 'sharpen.studio',
   email: 'hola@sharpen.studio',
-  ctaPrimaryUrl: 'https://sharpen.studio/agendar',
-  ctaSecondaryUrl: 'https://sharpen.studio/contacto',
+  ctaPrimaryUrl: CTA_CONTACT_URL,
+  ctaSecondaryUrl: CTA_CONTACT_URL,
 };
 
 // Bilingual section-label map (English + Spanish → Spanish display label).
@@ -158,6 +162,9 @@ export interface ClientReportStudio {
   ctaPrimaryUrl: string;
   ctaSecondaryUrl: string;
 }
+
+// Re-exported so renderers can import the canonical CTA URL from one place.
+export { CTA_CONTACT_URL };
 
 export interface ClientReportJourney {
   baseline: number;

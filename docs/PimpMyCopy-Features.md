@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.6
-Last Updated: 2026-08-03T21:00:00Z
+Version: 1.7
+Last Updated: 2026-08-04T00:00:00Z
 
 ---
 
@@ -95,6 +95,18 @@ Last Updated: 2026-08-03T21:00:00Z
 **Refinements (v1.6):**
 
 1. **Analysed URL resolved via a priority chain.** Previously the report read the URL from a single field (`competitorUrls[0]`), which was empty for sessions created before the wizard fix. The URL is now resolved from the first available source in this order: (a) the first URL extracted from `projectDescription` free text — the user may write "Sitio: https://example.com — consultoría B2B", so the URL is parsed out rather than assumed to be the whole field; (b) the wizard's analyze-url capture (stored in `competitorUrls[0]`); (c) the first URL appearing in the original copy; (d) none — the cover link and "URL analizada" brief row are omitted and the disclaimer rewrites itself. Whichever source wins, the URL is never used as the company name; that is resolved separately from `og:site_name` / `<title>` / the AI narrative.
+
+**Refinements (v1.7):**
+
+1. **Cover URL link fixed.** The cover's site link rendered `href="sharpen.studio"` (protocol-stripped), so the browser treated it as a relative path and the link went nowhere. The `href` now gets an `https://` prefix when the stored value has no protocol; if it already starts with `http://` or `https://` it is left untouched. The visible link text keeps the protocol stripped as before.
+
+2. **CopyZap attributed as Sharpen Studio's own product.** Both attribution lines now state that CopyZap is software Sharpen Studio built, turning a meaningless brand into evidence of capability:
+   - Cover, top-right: "ANÁLISIS REALIZADO CON COPYZAP · SOFTWARE PROPIO DE SHARPEN.STUDIO".
+   - Footer: "Análisis realizado con **CopyZap**, la herramienta de análisis y reescritura de copy que desarrollamos en Sharpen.Studio · <date>".
+
+3. **"Agendar 20 minutos" button removed from the final CTA block.** The block now holds a single button: "Solicitar el copy completo".
+
+4. **All CTA buttons point to one URL.** Every "Solicitar versión completa" button in the proposal paywall bands, the "Ver la versión completa" button in the roadmap block, and the remaining button in the final CTA block now open `https://sharpen.studio/contacta-web/` in a new tab (`target="_blank" rel="noopener noreferrer"`). The previous `#contacto` anchors and the `/agendar` / `/contacto` URLs are gone. The `id="contacto"` section keeps its id but nothing links to it. The destination URL lives in a single config constant (`CTA_CONTACT_URL` in `buildClientReportData.ts`) so it can be changed in one place later.
 
 ---
 

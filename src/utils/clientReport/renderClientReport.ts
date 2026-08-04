@@ -1,4 +1,14 @@
-import { ClientReportData, ClientReportVersion } from './buildClientReportData';
+import { ClientReportData, ClientReportVersion, CTA_CONTACT_URL } from './buildClientReportData';
+
+// Ensure a URL is absolute for use in href. The visible text keeps the protocol
+// stripped ("sharpen.studio"); the href must be absolute or the browser treats
+// it as a relative path and the link goes nowhere.
+function absoluteHref(url: string): string {
+  const u = (url || '').trim();
+  if (!u) return '';
+  if (/^https?:\/\//i.test(u)) return u;
+  return `https://${u}`;
+}
 
 // Escape ONCE, at render time only (spec 7). Values stored in the data model are raw.
 function escapeOnce(text: string | number | null | undefined): string {
@@ -221,13 +231,13 @@ footer strong{color:#fff;font-weight:600}
 
 function renderCover(data: ClientReportData): string {
   const siteLine = data.company.hasUrl
-    ? `    <a class="site" href="${escapeOnce(data.company.url)}" target="_blank" rel="noopener noreferrer">${escapeOnce(data.company.url)}</a>`
+    ? `    <a class="site" href="${escapeOnce(absoluteHref(data.company.url))}" target="_blank" rel="noopener noreferrer">${escapeOnce(data.company.url)}</a>`
     : '';
   return `<div class="cover">
   <div class="wrap">
     <div class="brandbar">
       <div class="logo">${data.studio.nameWithAccentDot}</div>
-      <div class="powered">Análisis realizado con CopyZap</div>
+      <div class="powered">Análisis realizado con CopyZap · Software propio de Sharpen.Studio</div>
     </div>
     <div class="kicker">Diagnóstico de copy · Sitio web</div>
     <h1>El copy de ${escapeOnce(data.company.name)} puede rendir un ${escapeOnce(data.journey.winnerDeltaPercent)}&nbsp;% más.</h1>
@@ -427,7 +437,7 @@ ${lbl}          <p>${escapeOnce(s.text)}</p>
   const paywall = v.isBaseline ? '' : `      <div class="paywall">
         <div class="pw-t"><b>Estás viendo el ${escapeOnce(v.keptPercent)}&nbsp;% de esta propuesta.</b>
           ${escapeOnce(v.paywallLine)}</div>
-        <a class="btn${v.isWinner ? ' accent' : ''}" href="#contacto">Solicitar versión completa</a>
+        <a class="btn${v.isWinner ? ' accent' : ''}" href="${escapeOnce(CTA_CONTACT_URL)}" target="_blank" rel="noopener noreferrer">Solicitar versión completa</a>
       </div>`;
 
   const split = renderSplitBlock(v);
@@ -515,7 +525,7 @@ ${items}
     <div class="cta-mini">
       <div class="t"><b>Estas ${escapeOnce(data.roadmapCountWord)} mejoras ya están redactadas.</b> Forman parte de la
         versión completa del copy, lista para pasar a tu sitio sin trabajo adicional de escritura.</div>
-      <a class="btn accent" href="#contacto">Ver la versión completa</a>
+      <a class="btn accent" href="${escapeOnce(CTA_CONTACT_URL)}" target="_blank" rel="noopener noreferrer">Ver la versión completa</a>
     </div>
   </div>
 </section>`;
@@ -532,8 +542,7 @@ function renderCta(data: ClientReportData): string {
          adaptadas a tu voz de marca y entregadas sección por sección para pasar directo a tu sitio— lo
          resolvemos en una semana.</p>
       <div class="acts">
-        <a class="btn accent" href="${escapeOnce(data.studio.ctaPrimaryUrl)}">Agendar 20 minutos</a>
-        <a class="btn ghost" href="${escapeOnce(data.studio.ctaSecondaryUrl)}">Solicitar el copy completo</a>
+        <a class="btn accent" href="${escapeOnce(CTA_CONTACT_URL)}" target="_blank" rel="noopener noreferrer">Solicitar el copy completo</a>
       </div>
     </div>
   </div>
@@ -550,7 +559,7 @@ function renderFooter(data: ClientReportData): string {
   <div class="wrap">
     <div class="fl">
       <strong>${escapeOnce(data.studio.name)}</strong> — branding, identidad gráfica y desarrollo web.<br>
-      Análisis realizado con <strong>CopyZap</strong> · ${escapeOnce(data.company.analyzedAtTimeLabel)}
+      Análisis realizado con <strong>CopyZap</strong>, la herramienta de análisis y reescritura de copy que desarrollamos en Sharpen.Studio · ${escapeOnce(data.company.analyzedAtTimeLabel)}
       <div class="disclaimer">
         ${disclaimer}
       </div>
