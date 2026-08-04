@@ -194,8 +194,8 @@ p{margin:0 0 16px}
 .cta-mini .t{font-size:16px;line-height:1.55;color:var(--ink);flex:1;min-width:250px}
 .cta-mini .t b{font-weight:650}
 footer{background:var(--ink);color:rgba(255,255,255,.55);padding:44px 0;font-size:13px;line-height:1.7}
-footer .wrap{display:flex;justify-content:space-between;gap:28px;flex-wrap:wrap}
-footer .fl{max-width:52ch}
+footer .wrap{display:block}
+footer .fl{max-width:74ch}
 footer strong{color:#fff;font-weight:600}
 .disclaimer{margin-top:14px;font-size:12px;color:rgba(255,255,255,.38);line-height:1.6}
 @media(max-width:760px){
@@ -502,7 +502,7 @@ function renderRanking(data: ClientReportData): string {
     notes.push(`Se evaluaron ${escapeOnce(totalEvaluated)} versiones en total; este reporte desarrolla las ${escapeOnce(Math.min(data.maxProposalsShown, rankedCount))} mejores.`);
   }
   if (data.unscoredProposalCount > 0) {
-    notes.push(`${escapeOnce(data.unscoredProposalCount)} ${data.unscoredProposalCount === 1 ? 'versión generada no figura en la tabla' : 'versiones generadas no figuran en la tabla'} por no contar con puntuación comparativa; están disponibles en Copy Maker.`);
+    notes.push(`${escapeOnce(data.unscoredProposalCount)} ${data.unscoredProposalCount === 1 ? 'versión adicional quedó sin evaluar comparativamente y no se incluye' : 'versiones adicionales quedaron sin evaluar comparativamente y no se incluyen'} en este reporte.`);
   }
   const noteHtml = notes.length
     ? `    <p class="methodo">${notes.join(' ')}</p>`
@@ -587,9 +587,6 @@ function renderFooter(data: ClientReportData): string {
       <div class="disclaimer">
         ${disclaimer}
       </div>
-    </div>
-    <div class="fl" style="max-width:22ch">
-      <strong>${escapeOnce(data.studio.site)}</strong><br>${escapeOnce(data.studio.email)}
     </div>
   </div>
 </footer>`;

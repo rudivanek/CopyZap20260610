@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.8
-Last Updated: 2026-08-04T12:00:00Z
+Version: 1.9
+Last Updated: 2026-08-04T13:00:00Z
 
 ---
 
@@ -95,6 +95,21 @@ Last Updated: 2026-08-04T12:00:00Z
 **Refinements (v1.6):**
 
 1. **Analysed URL resolved via a priority chain.** Previously the report read the URL from a single field (`competitorUrls[0]`), which was empty for sessions created before the wizard fix. The URL is now resolved from the first available source in this order: (a) the first URL extracted from `projectDescription` free text — the user may write "Sitio: https://example.com — consultoría B2B", so the URL is parsed out rather than assumed to be the whole field; (b) the wizard's analyze-url capture (stored in `competitorUrls[0]`); (c) the first URL appearing in the original copy; (d) none — the cover link and "URL analizada" brief row are omitted and the disclaimer rewrites itself. Whichever source wins, the URL is never used as the company name; that is resolved separately from `og:site_name` / `<title>` / the AI narrative.
+
+**Refinements (v1.9):**
+
+1. **Unscored proposals never render as full sections.** The shown-in-full set is built from `versionsByScore`, which already filters to `!isBaseline && isScored`. So an unscored proposal can never enter the shown-in-full set, can never be assigned a letter, and can never appear with a 0/100 score or "+0 pts" delta in a card or in the table of contents. If fewer than three scored proposals exist, fewer than three full sections are shown — never padded with unscored ones. (This was already enforced by the v1.8 filter; v1.9 confirms and documents it as an explicit invariant.)
+
+2. **Ranking note no longer names an internal screen.** The second note line under the ranking table previously read "…están disponibles en Copy Maker", naming a screen inside the app that a client reader has no way to open. It now reads: "N versión(es) adicional(es) quedaron sin evaluar comparativamente y no se incluyen en este reporte." The first note line is unchanged: "Se evaluaron N versiones en total; este reporte desarrolla las tres mejores."
+
+3. **Footer contact column removed.** The right-hand footer block containing the bare domain "sharpen.studio" and the email "hola@sharpen.studio" is deleted entirely. Every call-to-action already points to https://sharpen.studio/contacta-web/, so a bare domain and email are redundant and invite replies to an unmonitored inbox. The footer layout was adjusted so the remaining left-hand block uses the full width (`display:block` on the wrapper, `max-width:74ch` on the block) rather than sitting in a half-width column with an empty gap.
+
+4. **Confirmed-still-present items (no change, verified):**
+   - The cover URL link builds its href with an https:// prefix via `absoluteHref()`, so it is a working absolute link, while the visible text keeps showing the domain without the protocol.
+   - The cover top-right line reads (via CSS `text-transform:uppercase`): "ANÁLISIS REALIZADO CON COPYZAP · SOFTWARE PROPIO DE SHARPEN.STUDIO".
+   - The footer attribution reads: "Análisis realizado con **CopyZap**, la herramienta de análisis y reescritura de copy que desarrollamos en Sharpen.Studio · <fecha>" with CopyZap in bold.
+   - The "Agendar 20 minutos" button no longer exists; the final CTA block has a single button, "Solicitar el copy completo".
+   - Every call-to-action button — the per-proposal "Solicitar versión completa" buttons, the roadmap "Ver la versión completa" button, and the final "Solicitar el copy completo" button — points to the single `CTA_CONTACT_URL` constant (https://sharpen.studio/contacta-web/) and opens in a new tab with `target="_blank" rel="noopener noreferrer"`.
 
 **Refinements (v1.8):**
 
