@@ -11,7 +11,7 @@
  */
 
 import { useState, useEffect, useCallback } from 'react';
-import { supabase, getReportTheme, saveReportTheme, setCachedReportTheme } from '../services/supabaseClient';
+import { supabase, getReportTheme, saveReportTheme } from '../services/supabaseClient';
 import { DEFAULT_THEME_VARS, type ThemeVars } from '../utils/exportReportTheme';
 
 export interface UseReportThemeResult {
@@ -36,12 +36,12 @@ export function useReportTheme(): UseReportThemeResult {
     if (fetchError) {
       setError(fetchError.message || 'Failed to load theme');
       setThemeVars(DEFAULT_THEME_VARS);
-      setCachedReportTheme(null);
+      // Don't null out the shared module cache — fetchReportThemeOnce() may have
+      // already warmed it at app boot. The editor's local UI falls back to defaults.
     } else if (data) {
       setThemeVars(data);
     } else {
       setThemeVars(DEFAULT_THEME_VARS);
-      setCachedReportTheme(null);
     }
     setIsLoading(false);
   }, []);

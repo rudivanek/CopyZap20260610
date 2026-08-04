@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.17
-Last Updated: 2026-08-04T22:30:00Z
+Last Updated: 2026-08-04T23:00:00Z
 
 ---
 
