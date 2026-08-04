@@ -10,7 +10,7 @@ import { useFormState } from './hooks/useFormState';
 import { useMode } from './context/ModeContext';
 import { useSession } from './context/SessionContext';
 import { DEFAULT_FORM_STATE } from './constants';
-import { supabase } from './services/supabaseClient';
+import { supabase, fetchReportThemeOnce } from './services/supabaseClient';
 import { v4 as uuidv4 } from 'uuid';
 
 // Immediately loaded components (critical path)
@@ -44,6 +44,7 @@ const ManageSpecialInstructions = lazy(() => import('./components/ManageSpecialI
 const ManageCustomers = lazy(() => import('./components/ManageCustomers'));
 const CustomerDetail = lazy(() => import('./components/CustomerDetail'));
 const AdminDiagnostics = lazy(() => import('./components/AdminDiagnostics').then(m => ({ default: m.AdminDiagnostics })));
+const ReportThemeEditor = lazy(() => import('./components/admin/ReportThemeEditor').then(m => ({ default: m.ReportThemeEditor })));
 
 // Lazy loaded - Modals
 const PromptDisplay = lazy(() => import('./components/PromptDisplay'));
@@ -169,6 +170,13 @@ const AppRouter: React.FC = () => {
         }
       });
   }, [currentUser?.id]);
+
+  // Warm the report theme cache once on app load so the synchronous export
+  // generator (exportAsFormattedHtml) can read any saved admin theme without
+  // awaiting a fetch. Falls back to defaults if no row exists.
+  React.useEffect(() => {
+    fetchReportThemeOnce().catch(() => { /* ignore — defaults apply */ });
+  }, []);
 
   // Load templates when Start Hub opens
   React.useEffect(() => {
@@ -832,6 +840,20 @@ const AppRouter: React.FC = () => {
               <AuthenticatedRoute>
                 <Suspense fallback={<AppSpinner />}>
                   <AdminDiagnostics />
+                </Suspense>
+              </AuthenticatedRoute>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/report-theme"
+          element={
+            currentUser ? (
+              <AuthenticatedRoute>
+                <Suspense fallback={<AppSpinner />}>
+                  <ReportThemeEditor />
                 </Suspense>
               </AuthenticatedRoute>
             ) : (

@@ -4,7 +4,8 @@ import { ComparisonResult } from '../services/api/comprehensiveScoring';
 import { structuredToPlainText, markdownToHtml } from './copyFormatter';
 import { getScoreLabel } from './scoreColors';
 import { stripMarkdown } from './markdownUtils';
-import { EXPORT_REPORT_STYLES } from './exportReportTheme';
+import { buildReportStyles } from './exportReportTheme';
+import { getCachedReportTheme } from '../services/supabaseClient';
 import { getComparisonDelta } from './comparisonDelta';
 import {
   calculateMultiScoreDisplay,
@@ -2912,7 +2913,7 @@ export const exportAsFormattedHtml = (
   <title>Copy Report — ${escapeHtml(formState.projectDescription || 'CopyZap')}</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
   <style>
-${EXPORT_REPORT_STYLES}  </style>
+${buildReportStyles(getCachedReportTheme() ?? undefined)}  </style>
 </head>
 <body id="top">
 ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:center;padding:8px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;">${t.previewBanner(previewPercent)}</div>\n` : ''}

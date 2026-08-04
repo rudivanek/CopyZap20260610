@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.16
-Last Updated: 2026-08-04T22:00:00Z
+Version: 1.17
+Last Updated: 2026-08-04T22:30:00Z
 
 ---
 
@@ -259,6 +259,44 @@ The main headline now renders large, serif, non-bold, with no underline (matchin
 **Result:** Report exports render identically to before this change. Future design edits (colors, fonts, spacing, component styles) can be made in `exportReportTheme.ts` alone and will apply across all report exports.
 
 **Acceptance:** `npm run build` passes with no errors. This is a refactor only — no design or content changes.
+
+---
+
+## Report Theme Editor — In-App Admin Customization of HTML Exports (2026-08-04)
+
+**Feature:** Admins can now customize the visual design of every CopyZap HTML report export — colors, fonts, font weights, and font sizes — from an in-app editor, with changes saved to the database and automatically applied to all future exports. No code editing or redeploy is required.
+
+**Access:** Dashboard → Admin Controls → "Report Theme" button (Palette icon), available only to users in the `app_admins` allowlist. Opens the route `/admin/report-theme`, which is admin-gated (non-admins see an "Admins only" screen; unauthenticated users are redirected to login).
+
+**Database — new table `public.report_theme_settings`** (migration `20260804_create_report_theme_settings`):
+- `id` (text PK, defaults to `'default'`) — single-row convention; the app always reads/writes the row with `id = 'default'`.
+- `theme_vars` (jsonb, NOT NULL) — JSON object of CSS custom property values. Keys (camelCase): `ink`, `inkSoft`, `muted`, `line`, `lineSoft`, `paper`, `white`, `accent`, `accentSoft`, `gain`, `gainSoft`, `warn`, `warnSoft`, `serif`, `sans`, `fwHeading`, `fwBody`, `fsDisplay`, `fsH2`, `fsH3`, `fsHero`, `fsScoreLg`, `fsScoreMd`, `fsBody`, `fsLabel`, `fsSmall`.
+- `updated_at` (timestamptz, default `now()`), `updated_by` (uuid → `auth.users(id)`).
+- **RLS:** SELECT is public (`USING (true)`) so the synchronous export path can read the theme via the anon key without an authenticated session — the theme is presentation-only config, not user-private data. INSERT and UPDATE are restricted to admins via the existing `public.is_app_admin()` SECURITY DEFINER function (from migration `20260210163509_add_app_admins_allowlist.sql`). DELETE is intentionally not granted — "reset to defaults" overwrites `theme_vars` rather than removing the row.
+
+**Refactor of `src/utils/exportReportTheme.ts`:**
+- The `:root{}` block now declares font-size and font-weight custom properties in addition to the existing color/font-family vars: `--fw-heading` (600), `--fw-body` (400), `--fs-display` (54px), `--fs-h2` (32px), `--fs-h3` (22px), `--fs-hero` (24px), `--fs-score-lg` (34px), `--fs-score-md` (24px), `--fs-body` (15.5px), `--fs-label` (10.5px), `--fs-small` (13px) — defaults match the visual sizes already used in the stylesheet.
+- Hardcoded font-size/font-weight values in the relevant selectors are replaced with `var(--fs-*)` / `var(--fw-*)` references (every other property on each rule unchanged): `h1,h2,h3,h4` → `font-weight:var(--fw-heading)`; `h1`/`h2` clamp maxes derive from `var(--fs-display)`/`var(--fs-h2)`; `h3`, `.v-head h3` → `var(--fs-h3)`; `.v-body .sec.hero p` → `var(--fs-hero)` + `var(--fw-heading)`; `.v-scores .big` → `var(--fs-score-lg)`; `.rank-row .tot`, `.toc .sc` → `var(--fs-score-md)`; `.v-body .sec p`, `.toc .name`, `.rank-row .nm` → `var(--fs-body)`; `.eyebrow`, `.v-body .sec-lbl`, `.split h5` → `var(--fs-label)`; `.cover .stamp` → `var(--fs-small)`.
+- New exports: `ThemeVars` interface, `DEFAULT_THEME_VARS` object (camelCase keys matching the DB schema, holding all current default values), and `buildReportStyles(overrides?: Partial<ThemeVars>): string` which merges `{ ...DEFAULT_THEME_VARS, ...overrides }`, interpolates the `:root{}` block from the merged values, and returns the full stylesheet string. `EXPORT_REPORT_STYLES` is kept as `buildReportStyles()` with no overrides for backward compatibility.
+
+**New hook `src/hooks/useReportTheme.ts`:** `useReportTheme()` fetches the `id = 'default'` row via the existing Supabase client, returns `{ themeVars, isLoading, isSaving, error, saveTheme, refresh }`, and falls back to `DEFAULT_THEME_VARS` if no row exists or the fetch errors. `saveTheme(newVars)` upserts `{ id: 'default', theme_vars: merged, updated_by: currentUser.id }` and is only invoked from admin-gated UI.
+
+**Module-level cache in `src/services/supabaseClient.ts`:** Because `exportAsFormattedHtml` is a synchronous, non-hook function, it cannot await a fetch. A small module-level cache (`getCachedReportTheme()` / `setCachedReportTheme()`) is populated once at app startup by `fetchReportThemeOnce()` (called from a `useEffect` in `App.tsx`) and on every successful `useReportTheme` fetch/save. `exportAsFormattedHtml` reads the cache via `getCachedReportTheme()`; if the cache is empty (before it warms, or no theme was ever saved) it falls back to `buildReportStyles()` with defaults — so behavior for anyone who hasn't customized anything, or before the cache warms, is unchanged.
+
+**New admin page `src/components/admin/ReportThemeEditor.tsx`** (follows `AdminDiagnostics.tsx` conventions):
+- Gated with `useIsAdmin`; non-admins see an "Admins only" screen, unauthenticated users are redirected.
+- **Left panel — controls:** 13 color pickers (with hex text input) for every color var; font-family dropdowns for serif/sans (presets: Iowan/Palatino/Georgia, Georgia, Playfair Display, Times New Roman for serif; System/Inter, Helvetica, Segoe UI for sans); weight dropdowns for heading/body (400/500/600/700); range sliders for the 9 size tokens (display, h2, h3, hero, score-lg, score-md, body, label, small).
+- **Right panel — live preview:** renders the same key components real reports use — cover block with brandbar/kicker/h1/journey widget, TOC rows, a version card with hero paragraph + sec-lbl sections + strengths/improvements split, and a rankings table row — styled by injecting `buildReportStyles(currentEditedVars)` into a `<style>` tag scoped to the preview container (every selector prefixed with `.rte-preview`) so it matches real export output exactly without affecting the editor's own Tailwind UI.
+- **Preset buttons:** "Warm Paper (current)" = `DEFAULT_THEME_VARS`; "Cool Slate"; "Forest & Cream"; "Midnight Blue" — each applies the full preset to local edit state.
+- **"Save"** calls `saveTheme(editedVars)` and shows a success toast; **"Reset to defaults"** resets local edit state to `DEFAULT_THEME_VARS` (does not delete the saved row unless explicitly saved again).
+
+**Routing (`src/App.tsx`):** lazy import `ReportThemeEditor` added alongside `AdminDiagnostics`; new route `/admin/report-theme` mirrors the `/admin/diagnostics` pattern (wrapped in `AuthenticatedRoute` + `Suspense` with `AppSpinner` fallback, redirects unauthenticated users to `/login`).
+
+**Dashboard entry (`src/components/Dashboard.tsx`):** inside the existing `{isAdmin && (...)}` Admin Controls block, a new button (Palette icon, `title="Report Theme"`) navigates to `/admin/report-theme`, matching the existing Blog button's style and `navigate(...)` pattern.
+
+**Export wiring (`src/utils/enhancedExports.ts`):** the static `EXPORT_REPORT_STYLES` import is replaced with `buildReportStyles(getCachedReportTheme() ?? undefined)`, so every generated HTML export reflects the cached admin theme (or defaults if none).
+
+**Acceptance:** `npm run build` passes. Migration applies cleanly. Admins can open `/admin/report-theme` from the Dashboard, adjust colors/fonts/sizes, see the live preview update, save, and generate a fresh HTML export that reflects every change across cover, TOC, version cards, and rankings with no broken layout at slider extremes. Non-admins and the state before any theme is saved still produce the original default design.
 
 ---
 

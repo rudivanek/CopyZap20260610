@@ -2661,3 +2661,110 @@ export const loadAbsoluteScores = async (
     return {};
   }
 };
+
+// ---------------------------------------------------------------------------
+// Report theme settings (admin-editable HTML export design system)
+// ---------------------------------------------------------------------------
+
+import { DEFAULT_THEME_VARS, type ThemeVars } from '../utils/exportReportTheme';
+
+// Module-level cache populated by useReportTheme on first successful fetch.
+// exportAsFormattedHtml is synchronous and cannot await a fetch, so it reads
+// from this cache; before it warms (or if no row exists yet) it falls back to
+// the built-in DEFAULT_THEME_VARS via buildReportStyles().
+let cachedReportTheme: ThemeVars | null = null;
+let reportThemeFetchPromise: Promise<ThemeVars | null> | null = null;
+
+export function getCachedReportTheme(): ThemeVars | null {
+  return cachedReportTheme;
+}
+
+export function setCachedReportTheme(vars: ThemeVars | null): void {
+  cachedReportTheme = vars;
+}
+
+// Fetch the saved theme once per session. Subsequent calls return the cached
+// value (or the in-flight promise if a fetch is still running).
+export async function fetchReportThemeOnce(): Promise<ThemeVars | null> {
+  if (cachedReportTheme) return cachedReportTheme;
+  if (reportThemeFetchPromise) return reportThemeFetchPromise;
+
+  reportThemeFetchPromise = (async () => {
+    try {
+      const { data, error } = await supabase
+        .from('report_theme_settings')
+        .select('theme_vars')
+        .eq('id', 'default')
+        .maybeSingle();
+
+      if (error) {
+        console.error('Error fetching report theme settings:', error);
+        return null;
+      }
+      if (!data || !data.theme_vars || typeof data.theme_vars !== 'object') {
+        return null;
+      }
+      const merged: ThemeVars = { ...DEFAULT_THEME_VARS, ...(data.theme_vars as Partial<ThemeVars>) };
+      cachedReportTheme = merged;
+      return merged;
+    } catch (err) {
+      console.error('Exception fetching report theme settings:', err);
+      return null;
+    } finally {
+      reportThemeFetchPromise = null;
+    }
+  })();
+
+  return reportThemeFetchPromise;
+}
+
+export async function getReportTheme(): Promise<{ data: ThemeVars | null; error: any }> {
+  try {
+    const { data, error } = await supabase
+      .from('report_theme_settings')
+      .select('theme_vars')
+      .eq('id', 'default')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error fetching report theme settings:', error);
+      return { data: null, error };
+    }
+    if (!data || !data.theme_vars || typeof data.theme_vars !== 'object') {
+      return { data: null, error: null };
+    }
+    const merged: ThemeVars = { ...DEFAULT_THEME_VARS, ...(data.theme_vars as Partial<ThemeVars>) };
+    cachedReportTheme = merged;
+    return { data: merged, error: null };
+  } catch (err) {
+    console.error('Exception in getReportTheme:', err);
+    return { data: null, error: err };
+  }
+}
+
+export async function saveReportTheme(
+  userId: string,
+  themeVars: Partial<ThemeVars>
+): Promise<{ data: ThemeVars | null; error: any }> {
+  try {
+    const merged: ThemeVars = { ...DEFAULT_THEME_VARS, ...cachedReportTheme, ...themeVars };
+    const { data, error } = await supabase
+      .from('report_theme_settings')
+      .upsert(
+        { id: 'default', theme_vars: merged, updated_by: userId, updated_at: new Date().toISOString() },
+        { onConflict: 'id' }
+      )
+      .select('theme_vars')
+      .maybeSingle();
+
+    if (error) {
+      console.error('Error saving report theme settings:', error);
+      return { data: null, error };
+    }
+    cachedReportTheme = merged;
+    return { data: merged, error: null };
+  } catch (err) {
+    console.error('Exception in saveReportTheme:', err);
+    return { data: null, error: err };
+  }
+}

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import NavSidebar from './NavSidebar';
-import { BarChart3, FileText, Settings, DollarSign, Users, RefreshCw, Calendar, Zap, Eye, Trash2, CreditCard as Edit, ArrowRight, User, AlertCircle, Filter, Download, Lightbulb, BookOpen, Activity, ChevronDown, ChevronRight, Star, Search, X } from 'lucide-react';
+import { BarChart3, FileText, Settings, DollarSign, Users, RefreshCw, Calendar, Zap, Eye, Trash2, CreditCard as Edit, ArrowRight, User, AlertCircle, Filter, Download, Lightbulb, BookOpen, Activity, ChevronDown, ChevronRight, Star, Search, X, Palette } from 'lucide-react';
 import { retryFailedTracking, getTrackingQueueStatus } from '../services/api/tokenTracking';
 import { useAuth } from '../hooks/useAuth';
 import { useIsAdmin } from '../hooks/useIsAdmin';
@@ -1085,6 +1085,14 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                   title="Manage Blog Posts"
                 >
                   <BookOpen size={16} />
+                </button>
+
+                <button
+                  onClick={() => navigate('/admin/report-theme')}
+                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm flex items-center transition-colors shadow-md hover:shadow-lg"
+                  title="Report Theme"
+                >
+                  <Palette size={16} />
                 </button>
 
                 {/* Beta Registrations Count */}
