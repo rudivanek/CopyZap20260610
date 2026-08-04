@@ -258,6 +258,15 @@ function escapeHtml(text: string): string {
     .replace(/'/g, '&#039;');
 }
 
+function renderTextAsParagraphs(text: string, pStyle: string): string {
+  return text
+    .split(/\n\s*\n/)
+    .map(p => p.trim())
+    .filter(p => p.length > 0)
+    .map(p => `<p style="${pStyle}">${p.replace(/\n/g, '<br>')}</p>`)
+    .join('\n');
+}
+
 /**
  * Normalize copy content for Markdown export.
  * Converts all formats (markdown, plain text, structured) into consistent clean markdown.
@@ -888,7 +897,7 @@ export const generateFullHtmlExportForCard = (
     structured.sections.forEach(section => {
       if (section && section.title) {
         html += `<p style="font-weight:600;color:#374151;margin:16px 0 6px 0;">${stripMarkdown(section.title)}</p>\n`;
-        if (section.content) html += `<p style="white-space:pre-wrap;margin:0 0 12px 0;">${stripMarkdown(section.content)}</p>\n`;
+        if (section.content) html += renderTextAsParagraphs(stripMarkdown(section.content), 'margin:0 0 12px 0;line-height:1.6;') + '\n';
         if (section.listItems?.length) {
           html += '<ul style="margin:8px 0 12px 0;padding-left:20px;">\n';
           section.listItems.forEach(item => { html += `<li style="margin:4px 0;">${stripMarkdown(item)}</li>\n`; });
@@ -3018,7 +3027,7 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
 
     htmlContent += `<p style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px;">${sourceLabel}</p>\n`;
     if (sourceText) {
-      htmlContent += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:16px;font-style:italic;color:#374151;white-space:pre-wrap;font-size:14px;line-height:1.7;margin-bottom:20px;">${sourceText}</div>\n`;
+      htmlContent += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:16px 16px 4px;font-style:italic;color:#374151;font-size:14px;margin-bottom:20px;">${renderTextAsParagraphs(sourceText, 'margin:0 0 11px 0;line-height:1.6;')}</div>\n`;
     }
 
     // Configuration table
