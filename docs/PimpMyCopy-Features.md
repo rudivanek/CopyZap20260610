@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.19
-Last Updated: 2026-08-04T23:45:00Z
+Version: 1.20
+Last Updated: 2026-08-04T23:59:00Z
 
 ---
 
@@ -372,6 +372,43 @@ ${buildReportStyles(resolvedTheme)}  </style>
 **Why conditional injection:** The link tag is only emitted when the selected serif stack actually references one of the two Google-hosted fonts, so reports using the default/system serif options don't pay for an unnecessary font fetch. Both export code paths share the same theme resolution (`getCachedReportTheme()`), so the fix only needed the one new helper plus a two-line change in each file's `<head>` template.
 
 **Acceptance:** `npm run build` passes. In the Report Theme editor, setting "Serif (headings)" to Playfair Display and generating/previewing a report now renders headlines and score numbers in Playfair Display's actual high-contrast letterforms (the `<head>` contains the Playfair Display `<link>`); same for DM Serif Display. Switching back to "Georgia" or "Iowan Old Style/Palatino/Georgia" emits no extra font `<link>` (verified by viewing page source — the `<head>` only contains the Inter link in the Copy Maker export, and no font link at all in the client report).
+
+---
+
+## Expanded Google Font Choices + Generalized Font Loading (2026-08-04)
+
+**Feature:** Expanded the Report Theme editor's font dropdowns with more Google-hosted options and generalized the font-loading helper so any new preset — heading or body — gets its web font loaded automatically through a single shared map. Previously only Playfair Display and DM Serif Display (serif) were wired to load, and only Inter (sans) was fetched via a hardcoded `<link>`; the rest of the sans presets (Helvetica, Segoe UI) were system fonts that didn't need a fetch, but there was no way to pick a web-font body face at all.
+
+**Expanded preset lists in `src/components/admin/ReportThemeEditor.tsx`:**
+
+`SERIF_PRESETS` grew from 4 entries to 8. The "DM Serif Display" entry (which had been dropped from the live list but was still referenced by the font-loading helper) was re-added, and three new web-font options were added: Lora, Merriweather, and Cormorant Garamond. The full list is now: Iowan / Palatino / Georgia (default), Georgia, Times New Roman, Playfair Display, DM Serif Display, Lora, Merriweather, Cormorant Garamond.
+
+`SANS_PRESETS` grew from 3 entries to 7. Four new web-font options were added: Roboto, Work Sans, Source Sans 3, and Manrope. The full list is now: System / Inter (default), Helvetica, Segoe UI, Roboto, Work Sans, Source Sans 3, Manrope.
+
+**Generalized helper in `src/utils/exportReportTheme.ts`:** The previous `getSerifFontLinkTag(serifStack)` was replaced by `getGoogleFontLinkTag(serifStack, sansStack)`. Instead of hardcoding substring checks for individual font names inside the function body, the new helper is driven by a single `GOOGLE_FONT_FAMILIES` map — a `Record<string, string>` keyed by the font family name (as it appears inside a `--serif`/`--sans` stack string) and valued by its Google Fonts css2 `family=` parameter:
+
+```ts
+const GOOGLE_FONT_FAMILIES: Record<string, string> = {
+  'Inter': 'Inter:wght@400;500;600;700;900',
+  'Playfair Display': 'Playfair+Display:wght@400;500;600;700;800;900',
+  'DM Serif Display': 'DM+Serif+Display:ital,wght@0,400;1,400',
+  'Lora': 'Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600',
+  'Merriweather': 'Merriweather:wght@300;400;700;900',
+  'Cormorant Garamond': 'Cormorant+Garamond:wght@400;500;600;700',
+  'Roboto': 'Roboto:wght@400;500;600;700;900',
+  'Work Sans': 'Work+Sans:wght@400;500;600;700;800',
+  'Source Sans 3': 'Source+Sans+3:wght@400;500;600;700;900',
+  'Manrope': 'Manrope:wght@400;500;600;700;800',
+};
+```
+
+`getGoogleFontLinkTag` iterates over every key in the map and includes the family in the request if either the serif or sans stack string `.includes(name)`. "Inter" is always included (seeded into the `Set` at construction) since it's the default body font's primary web-font fallback, so every report always loads Inter even when the sans stack is a system-only one. The output is a single combined Google Fonts request with `preconnect` hints, e.g. `<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&family=Playfair+Display:wght@400;500;600;700;800;900&family=Manrope:wght@400;500;600;700;800&display=swap" rel="stylesheet">`. The old `getSerifFontLinkTag` export was removed (no other call sites existed).
+
+**Why a map:** adding a new Google-hosted font later is a two-line change — add the preset to `SERIF_PRESETS`/`SANS_PRESETS` in the editor and add one entry to `GOOGLE_FONT_FAMILIES` in the helper. Anything not in the map is assumed to be a system font and won't trigger a web font fetch, so system-only stacks (Georgia, Times New Roman, Helvetica, Segoe UI, Iowan/Palatino/Georgia) contribute nothing beyond Inter.
+
+**Both report generators updated:** In `src/utils/enhancedExports.ts`, the import changed from `getSerifFontLinkTag` to `getGoogleFontLinkTag`, and the hardcoded Inter `<link>` line was removed — it's now folded into the combined `getGoogleFontLinkTag` call (Inter is always seeded). The `<head>` injects `${getGoogleFontLinkTag(resolvedTheme?.serif ?? DEFAULT_THEME_VARS.serif, resolvedTheme?.sans ?? DEFAULT_THEME_VARS.sans)}` in place of the old Inter link + serif-only link pair. In `src/utils/clientReport/renderClientReport.ts`, the same import swap and head-template change applied — the single `getGoogleFontLinkTag(...)` call replaces the old `getSerifFontLinkTag(...)` line.
+
+**Acceptance:** `npm run build` passes. The Serif dropdown now lists 8 options (including DM Serif Display, Lora, Merriweather, Cormorant Garamond) and the Sans dropdown lists 7 (including Roboto, Work Sans, Source Sans 3, Manrope). Verified the helper logic with a standalone script that calls `getGoogleFontLinkTag` with sample stack strings: a default system-only combo loads only Inter; Playfair + Manrope loads Inter + Playfair Display + Manrope; DM Serif + Roboto loads Inter + DM Serif Display + Roboto; Lora + Work Sans loads Inter + Lora + Work Sans; Merriweather + Source Sans 3 loads Inter + Merriweather + Source Sans 3; Cormorant + Helvetica loads Inter + Cormorant Garamond; Georgia + Helvetica (system only) loads only Inter. No live `report_theme_settings` row was mutated during verification.
 
 ---
 

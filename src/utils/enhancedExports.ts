@@ -4,7 +4,7 @@ import { ComparisonResult } from '../services/api/comprehensiveScoring';
 import { structuredToPlainText, markdownToHtml } from './copyFormatter';
 import { getScoreLabel } from './scoreColors';
 import { stripMarkdown } from './markdownUtils';
-import { buildReportStyles, getSerifFontLinkTag, DEFAULT_THEME_VARS } from './exportReportTheme';
+import { buildReportStyles, getGoogleFontLinkTag, DEFAULT_THEME_VARS } from './exportReportTheme';
 import { getCachedReportTheme } from '../services/supabaseClient';
 import { getComparisonDelta } from './comparisonDelta';
 import {
@@ -2912,8 +2912,7 @@ export const exportAsFormattedHtml = (
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Copy Report — ${escapeHtml(formState.projectDescription || 'CopyZap')}</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
-  ${getSerifFontLinkTag(resolvedTheme?.serif ?? DEFAULT_THEME_VARS.serif)}
+  ${getGoogleFontLinkTag(resolvedTheme?.serif ?? DEFAULT_THEME_VARS.serif, resolvedTheme?.sans ?? DEFAULT_THEME_VARS.sans)}
   <style>
 ${buildReportStyles(resolvedTheme)}  </style>
 </head>

@@ -1,5 +1,5 @@
 import { ClientReportData, ClientReportVersion, CTA_CONTACT_URL } from './buildClientReportData';
-import { buildReportStyles, getSerifFontLinkTag, DEFAULT_THEME_VARS } from '../exportReportTheme';
+import { buildReportStyles, getGoogleFontLinkTag, DEFAULT_THEME_VARS } from '../exportReportTheme';
 import { getCachedReportTheme } from '../../services/supabaseClient';
 
 // Ensure a URL is absolute for use in href. The visible text keeps the protocol
@@ -459,7 +459,7 @@ export function renderClientReport(data: ClientReportData): string {
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Reporte de Copy — ${escapeOnce(data.company.name)} | ${escapeOnce(data.studio.name)}</title>
-${getSerifFontLinkTag(resolvedTheme?.serif ?? DEFAULT_THEME_VARS.serif)}
+${getGoogleFontLinkTag(resolvedTheme?.serif ?? DEFAULT_THEME_VARS.serif, resolvedTheme?.sans ?? DEFAULT_THEME_VARS.sans)}
 <style>
 ${buildReportStyles(resolvedTheme)}
 </style>

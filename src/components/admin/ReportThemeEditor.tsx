@@ -25,14 +25,22 @@ const COLOR_VARS: { key: keyof ThemeVars; label: string }[] = [
 const SERIF_PRESETS: { label: string; value: string }[] = [
   { label: 'Iowan / Palatino / Georgia (default)', value: '"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif' },
   { label: 'Georgia', value: 'Georgia,"Times New Roman",serif' },
-  { label: 'Playfair Display', value: '"Playfair Display",Georgia,serif' },
   { label: 'Times New Roman', value: '"Times New Roman",Times,serif' },
+  { label: 'Playfair Display', value: '"Playfair Display",Georgia,serif' },
+  { label: 'DM Serif Display', value: '"DM Serif Display",Georgia,serif' },
+  { label: 'Lora', value: 'Lora,Georgia,serif' },
+  { label: 'Merriweather', value: 'Merriweather,Georgia,serif' },
+  { label: 'Cormorant Garamond', value: '"Cormorant Garamond",Georgia,serif' },
 ];
 
 const SANS_PRESETS: { label: string; value: string }[] = [
   { label: 'System / Inter (default)', value: '-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif' },
   { label: 'Helvetica', value: 'Helvetica,Arial,sans-serif' },
   { label: 'Segoe UI', value: '"Segoe UI",Tahoma,Geneva,sans-serif' },
+  { label: 'Roboto', value: 'Roboto,Arial,sans-serif' },
+  { label: 'Work Sans', value: '"Work Sans",Arial,sans-serif' },
+  { label: 'Source Sans 3', value: '"Source Sans 3",Arial,sans-serif' },
+  { label: 'Manrope', value: 'Manrope,Arial,sans-serif' },
 ];
 
 const WEIGHTS: { label: string; value: number }[] = [

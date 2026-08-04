@@ -267,20 +267,35 @@ export function buildReportStyles(overrides?: Partial<ThemeVars>): string {
   return rootVars(v) + BODY_STYLES;
 }
 
-// Returns the <link> tag(s) needed to load any Google-hosted serif font
-// referenced in the theme's --serif stack. System-font stacks (Georgia,
-// Times New Roman, Iowan Old Style/Palatino/Georgia) return an empty string
-// since no web font fetch is needed for them.
-export function getSerifFontLinkTag(serifStack: string): string {
-  const families: string[] = [];
-  if (serifStack.includes('Playfair Display')) {
-    families.push('Playfair+Display:wght@400;500;600;700;800;900');
+// Maps a font family name (as it appears inside a --serif/--sans stack string)
+// to its Google Fonts css2 "family=" parameter. Add an entry here whenever a
+// new Google-hosted font is added to SERIF_PRESETS or SANS_PRESETS in
+// ReportThemeEditor.tsx — anything not listed here is assumed to be a system
+// font and won't trigger a web font fetch.
+const GOOGLE_FONT_FAMILIES: Record<string, string> = {
+  'Inter': 'Inter:wght@400;500;600;700;900',
+  'Playfair Display': 'Playfair+Display:wght@400;500;600;700;800;900',
+  'DM Serif Display': 'DM+Serif+Display:ital,wght@0,400;1,400',
+  'Lora': 'Lora:ital,wght@0,400;0,500;0,600;0,700;1,400;1,600',
+  'Merriweather': 'Merriweather:wght@300;400;700;900',
+  'Cormorant Garamond': 'Cormorant+Garamond:wght@400;500;600;700',
+  'Roboto': 'Roboto:wght@400;500;600;700;900',
+  'Work Sans': 'Work+Sans:wght@400;500;600;700;800',
+  'Source Sans 3': 'Source+Sans+3:wght@400;500;600;700;900',
+  'Manrope': 'Manrope:wght@400;500;600;700;800',
+};
+
+// Returns the <link> tag(s) needed to load every Google-hosted font
+// referenced in the theme's --serif and --sans stacks, as a single request.
+// "Inter" is always included since it's the default body font's primary
+// web-font fallback. System-only stacks (Georgia, Times New Roman, Helvetica,
+// Segoe UI, Iowan/Palatino/Georgia) contribute nothing beyond Inter.
+export function getGoogleFontLinkTag(serifStack: string, sansStack: string): string {
+  const families = new Set<string>(['Inter']);
+  for (const name of Object.keys(GOOGLE_FONT_FAMILIES)) {
+    if (serifStack.includes(name) || sansStack.includes(name)) families.add(name);
   }
-  if (serifStack.includes('DM Serif Display')) {
-    families.push('DM+Serif+Display:ital,wght@0,400;1,400');
-  }
-  if (families.length === 0) return '';
-  const familyParams = families.map(f => `family=${f}`).join('&');
+  const familyParams = [...families].map(name => `family=${GOOGLE_FONT_FAMILIES[name]}`).join('&');
   return `<link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?${familyParams}&display=swap" rel="stylesheet">`;
