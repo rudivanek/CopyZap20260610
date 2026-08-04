@@ -856,31 +856,36 @@ export const generateFullHtmlExportForCard = (
   else if (scoreVal >= 70) scoreColor = '#d97706';
 
   // Section with page-break-before for print
-  html += `<section id="output-${card.id}" data-copy-id="${card.id}" data-copy-kind="${copyKind}" data-copy-label="${escapeHtml(copyLabel)}" style="page-break-before: always; margin-bottom: 0; padding-top: 16px;">\n`;
+  html += `<section id="output-${card.id}" data-copy-id="${card.id}" data-copy-kind="${copyKind}" data-copy-label="${escapeHtml(copyLabel)}" class="version" style="page-break-before: always; margin-bottom: 0; padding:0;">\n`;
 
-  // Section header
-  html += `<span style="display:inline-block;background:#374151;color:#ffffff;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:0.08em;padding:2px 10px;border-radius:999px;margin-bottom:10px;">${variantTypeLabel}</span>\n`;
-  html += '<div style="display:flex;align-items:baseline;justify-content:space-between;gap:16px;flex-wrap:wrap;">\n';
-  html += '<div style="display:flex;align-items:baseline;gap:12px;flex-wrap:wrap;">\n';
-  html += `<h2 style="font-size:22px;font-weight:700;color:#111827;margin:0;">${escapeHtml(copyLabel)}</h2>\n`;
-  if (isWinner) {
-    html += `<span style="color:#f97316;font-size:13px;font-weight:700;">&#9733; ${t.winner}</span>\n`;
+  // Compute delta vs baseline (original copy) if available
+  let gainDelta: number | null = null;
+  if (allComparison?.rows?.length) {
+    const baseline = allComparison.rows.find(r => r.versionId === '__original__' || r.optionLabel === 'Original Copy');
+    if (baseline?.finalScore != null && card.score?.overall != null) {
+      gainDelta = card.score.overall - baseline.finalScore;
+    }
   }
-  if (card.persona) {
-    html += `<span style="color:#374151;font-size:12px;font-weight:500;background:#f3f4f6;border:1px solid #d1d5db;padding:2px 8px;border-radius:4px;">${card.persona}</span>\n`;
-  }
+
+  // ── Version head ──
+  html += '<div class="v-head">\n';
+  html += '<div class="t">\n';
+  html += `<h3>${escapeHtml(copyLabel)}${isWinner ? `<span class="win">${t.winner}</span>` : ''}</h3>\n`;
+  html += `<div class="role">${variantTypeLabel}${card.persona ? ` &middot; ${escapeHtml(card.persona)}` : ''}</div>\n`;
   html += '</div>\n';
   if (card.score) {
-    html += `<div style="display:inline-flex;align-items:baseline;gap:4px;border:1px solid #e5e7eb;border-radius:8px;padding:8px 16px;">\n`;
-    html += `<span style="font-size:32px;font-weight:700;color:${scoreColor};line-height:1;">${card.score.overall}</span>\n`;
-    html += `<span style="font-size:14px;font-weight:400;color:#9ca3af;">/100</span>\n`;
-    html += `</div>\n`;
+    html += '<div class="v-scores">\n';
+    html += `<div class="big">${card.score.overall}<small>/100</small></div>\n`;
+    if (gainDelta !== null) {
+      const sign = gainDelta >= 0 ? '+' : '';
+      html += `<div class="gain">${sign}${gainDelta}<small>vs original</small></div>\n`;
+    }
+    html += '</div>\n';
   }
   html += '</div>\n';
-  html += '<div style="border-top:1px solid #e5e7eb;margin:12px 0 28px;"></div>\n';
 
-  // Copy body
-  html += '<div data-copy-body="true" style="background:#ffffff;border-left:1px solid #e5e7eb;padding:24px 28px;border-radius:0 6px 6px 0;font-size:15px;line-height:1.8;color:#374151;margin-bottom:36px;">\n';
+  // ── Version body ──
+  html += '<div class="v-body" data-copy-body="true">\n';
   let previewMaxWords: number | undefined;
   if (previewPercent) {
     const totalWords = isStructured && actualContent
@@ -893,45 +898,48 @@ export const generateFullHtmlExportForCard = (
     : actualContent;
   if (isStructured && renderContent) {
     const structured = renderContent as StructuredCopyOutput;
-    html += `<p style="font-size:18px;font-weight:700;color:#111827;margin:0 0 16px 0;">${stripMarkdown(structured.headline)}</p>\n`;
+    html += '<div class="sec hero">\n';
+    html += `<p>${stripMarkdown(structured.headline)}</p>\n`;
+    html += '</div>\n';
     structured.sections.forEach(section => {
       if (section && section.title) {
-        html += `<p style="font-weight:600;color:#374151;margin:16px 0 6px 0;">${stripMarkdown(section.title)}</p>\n`;
-        if (section.content) html += renderTextAsParagraphs(stripMarkdown(section.content), 'margin:0 0 12px 0;line-height:1.6;') + '\n';
+        html += '<div class="sec">\n';
+        html += `<div class="sec-lbl">${stripMarkdown(section.title)}</div>\n`;
+        if (section.content) html += renderTextAsParagraphs(stripMarkdown(section.content), 'margin:0 0 10px 0;line-height:1.7;') + '\n';
         if (section.listItems?.length) {
-          html += '<ul style="margin:8px 0 12px 0;padding-left:20px;">\n';
-          section.listItems.forEach(item => { html += `<li style="margin:4px 0;">${stripMarkdown(item)}</li>\n`; });
+          html += '<ul>\n';
+          section.listItems.forEach(item => { html += `<li>${stripMarkdown(item)}</li>\n`; });
           html += '</ul>\n';
         }
+        html += '</div>\n';
       }
     });
   } else {
     const plainText = previewMaxWords && typeof renderContent === 'string'
       ? truncateWordsAtSentence(renderContent, previewMaxWords)
       : (typeof renderContent === 'string' ? renderContent : JSON.stringify(renderContent));
-    html += `<div>${stripColoredSpans(markdownToHtml(plainText))}</div>\n`;
+    html += `<div class="sec">${stripColoredSpans(markdownToHtml(plainText))}</div>\n`;
   }
   if (previewPercent) {
-    html += `<p style="margin-top:16px;font-size:12px;font-style:italic;color:#9ca3af;">${t.previewNote(previewPercent)}</p>\n`;
+    html += `<p style="margin-top:16px;font-size:12px;font-style:italic;color:var(--muted);">${t.previewNote(previewPercent)}</p>\n`;
   }
   html += '</div>\n';
 
   // Quality Score block
   if (card.score) {
-    html += '<div style="margin-bottom:32px;">\n';
-    html += `<p style="font-size:11px;letter-spacing:0.1em;color:#6b7280;text-transform:uppercase;font-weight:600;margin:0 0 12px 0;">${t.qualityScore}</p>\n`;
+    html += '<div class="sec" style="padding:0 28px 22px;">\n';
+    html += `<div class="sec-lbl">${t.qualityScore}</div>\n`;
 
     if (card.score.improvementExplanation) {
-      html += `<p style="font-size:11px;letter-spacing:0.08em;color:#6b7280;text-transform:uppercase;font-weight:600;margin:0 0 6px 0;">${t.whyImproved}</p>\n`;
-      html += `<p style="font-size:14px;color:#374151;line-height:1.7;margin:0 0 20px 0;">${card.score.improvementExplanation}</p>\n`;
+      html += `<p style="font-size:14px;color:var(--ink-soft);line-height:1.7;margin:0 0 16px 0;">${card.score.improvementExplanation}</p>\n`;
     }
 
-    html += `<p style="font-size:11px;letter-spacing:0.08em;color:#6b7280;text-transform:uppercase;font-weight:600;margin:0 0 10px 0;">${t.scoreBreakdown}</p>\n`;
-    html += '<dl style="margin:0 0 20px 0;">\n';
-    html += `<dt style="color:#6b7280;font-size:13px;font-weight:600;margin:0 0 2px 0;">${t.clarity}</dt><dd style="color:#374151;font-size:14px;margin:0 0 12px 0;">${card.score.clarity}</dd>\n`;
-    html += `<dt style="color:#6b7280;font-size:13px;font-weight:600;margin:0 0 2px 0;">${t.persuasiveness}</dt><dd style="color:#374151;font-size:14px;margin:0 0 12px 0;">${card.score.persuasiveness}</dd>\n`;
-    html += `<dt style="color:#6b7280;font-size:13px;font-weight:600;margin:0 0 2px 0;">${t.toneMatch}</dt><dd style="color:#374151;font-size:14px;margin:0 0 12px 0;">${card.score.toneMatch}</dd>\n`;
-    html += `<dt style="color:#6b7280;font-size:13px;font-weight:600;margin:0 0 2px 0;">${t.engagement}</dt><dd style="color:#374151;font-size:14px;margin:0 0 12px 0;">${card.score.engagement}</dd>\n`;
+    html += `<div class="sec-lbl" style="margin-top:14px;">${t.scoreBreakdown}</div>\n`;
+    html += '<dl style="margin:0 0 20px 0;display:grid;grid-template-columns:1fr 1fr;gap:8px 24px;">\n';
+    html += `<dt style="color:var(--muted);font-size:13px;font-weight:600;margin:0;">${t.clarity}</dt><dd style="color:var(--ink-soft);font-size:14px;margin:0;">${card.score.clarity}</dd>\n`;
+    html += `<dt style="color:var(--muted);font-size:13px;font-weight:600;margin:0;">${t.persuasiveness}</dt><dd style="color:var(--ink-soft);font-size:14px;margin:0;">${card.score.persuasiveness}</dd>\n`;
+    html += `<dt style="color:var(--muted);font-size:13px;font-weight:600;margin:0;">${t.toneMatch}</dt><dd style="color:var(--ink-soft);font-size:14px;margin:0;">${card.score.toneMatch}</dd>\n`;
+    html += `<dt style="color:var(--muted);font-size:13px;font-weight:600;margin:0;">${t.engagement}</dt><dd style="color:var(--ink-soft);font-size:14px;margin:0;">${card.score.engagement}</dd>\n`;
 
     // Word Count + Reading Level — computed from actual content text
     const cardPlainText = isStructured
@@ -939,23 +947,23 @@ export const generateFullHtmlExportForCard = (
       : (typeof actualContent === 'string' ? actualContent : Array.isArray(actualContent) ? (actualContent as string[]).join('\n') : '');
     const cardWcrl = cardPlainText ? computeWordCountAndReadingLevel(cardPlainText) : null;
     if (cardWcrl) {
-      html += `<dt style="color:#6b7280;font-size:13px;font-weight:600;margin:0 0 2px 0;">${t.wordCount}</dt><dd style="color:#374151;font-size:14px;margin:0 0 12px 0;">${cardWcrl.wordCount} ${t.words}</dd>\n`;
-      html += `<dt style="color:#6b7280;font-size:13px;font-weight:600;margin:0 0 2px 0;">${t.readingLevel}</dt><dd style="color:#374151;font-size:14px;margin:0 0 12px 0;">${cardWcrl.readingLevel}</dd>\n`;
+      html += `<dt style="color:var(--muted);font-size:13px;font-weight:600;margin:0;">${t.wordCount}</dt><dd style="color:var(--ink-soft);font-size:14px;margin:0;">${cardWcrl.wordCount} ${t.words}</dd>\n`;
+      html += `<dt style="color:var(--muted);font-size:13px;font-weight:600;margin:0;">${t.readingLevel}</dt><dd style="color:var(--ink-soft);font-size:14px;margin:0;">${cardWcrl.readingLevel}</dd>\n`;
     } else {
-      html += `<dt style="color:#6b7280;font-size:13px;font-weight:600;margin:0 0 2px 0;">${t.wordCount}</dt><dd style="color:#374151;font-size:14px;margin:0 0 12px 0;">—</dd>\n`;
+      html += `<dt style="color:var(--muted);font-size:13px;font-weight:600;margin:0;">${t.wordCount}</dt><dd style="color:var(--ink-soft);font-size:14px;margin:0;">—</dd>\n`;
     }
     // Word Count Accuracy vs target (kept separately when available)
     if (typeof card.score.wordCountAccuracy === 'number') {
       const wca = card.score.wordCountAccuracy;
       const wcaLabel = wca >= 90 ? t.excellentMatch : wca >= 75 ? t.goodMatch : wca >= 60 ? t.acceptableMatch : t.poorMatch;
-      html += `<dt style="color:#6b7280;font-size:13px;font-weight:600;margin:0 0 2px 0;">${t.wordCountVsTarget}</dt><dd style="color:#374151;font-size:14px;margin:0 0 12px 0;">${wca}/100 — ${wcaLabel}</dd>\n`;
+      html += `<dt style="color:var(--muted);font-size:13px;font-weight:600;margin:0;">${t.wordCountVsTarget}</dt><dd style="color:var(--ink-soft);font-size:14px;margin:0;">${wca}/100 — ${wcaLabel}</dd>\n`;
     }
     html += '</dl>\n';
 
     if (card.score.suggestions && card.score.suggestions.length > 0) {
-      html += `<p style="font-size:11px;letter-spacing:0.08em;color:#6b7280;text-transform:uppercase;font-weight:600;margin:0 0 8px 0;">${t.optimizationSuggestions}</p>\n`;
-      html += '<ul style="margin:0 0 0 0;padding-left:20px;color:#374151;">\n';
-      card.score.suggestions.forEach(s => { html += `<li style="font-size:14px;line-height:1.6;margin:4px 0;">${s}</li>\n`; });
+      html += `<div class="sec-lbl" style="margin-top:14px;">${t.optimizationSuggestions}</div>\n`;
+      html += '<ul style="margin:0;padding-left:22px;color:var(--ink-soft);font-size:15px;line-height:1.65;">\n';
+      card.score.suggestions.forEach(s => { html += `<li style="margin-bottom:6px;">${s}</li>\n`; });
       html += '</ul>\n';
     }
     html += '</div>\n';
@@ -970,48 +978,49 @@ export const generateFullHtmlExportForCard = (
   if (contentForScoring.trim()) {
     const analysis = generateExportAnalysis(contentForScoring, exportLangCode || 'en');
 
-    html += '<div style="margin-bottom:32px;">\n';
-
-    // Absolute Score breakdown removed — scores shown in rankings table only
-
     if (analysis.keyStrengths?.length || analysis.suggestedImprovements?.length) {
-      html += '<div style="border-top:1px solid #e5e7eb;margin:16px 0;"></div>\n';
-      if (analysis.keyStrengths?.length) {
-        html += `<p style="font-size:11px;letter-spacing:0.08em;color:#6b7280;text-transform:uppercase;font-weight:600;margin:0 0 8px 0;">${t.keyStrengthsLabel}</p>\n`;
-        html += '<ul style="margin:0 0 16px 0;padding-left:0;list-style:none;">\n';
-        analysis.keyStrengths.forEach(s => { html += `<li style="font-size:14px;color:#374151;line-height:1.6;margin:4px 0;"><span style="color:#16a34a;">&#10003;</span> ${s}</li>\n`; });
-        html += '</ul>\n';
-      }
-      if (analysis.suggestedImprovements?.length) {
-        const validDeltas = analysis.suggestedImprovements
-          .filter((item: any) => typeof item === 'object' && item.points_delta && item.points_delta > 0)
-          .map((item: any) => item.points_delta);
-        const totalDeltaPoints = validDeltas.reduce((sum: number, delta: number) => sum + delta, 0);
+      html += '<div class="split">\n';
 
-        html += `<p style="font-size:11px;letter-spacing:0.08em;color:#6b7280;text-transform:uppercase;font-weight:600;margin:0 0 8px 0;">${t.suggestedImprovementsLabel}`;
-        if (totalDeltaPoints > 0) {
-          html += `<span style="color:#9ca3af;font-weight:400;letter-spacing:normal;">${t.potentialPts(totalDeltaPoints)}</span>`;
-        }
-        html += '</p>\n';
-        html += '<ul style="margin:0 0 0 0;padding-left:0;list-style:none;">\n';
+      // Strengths column
+      html += '<div class="pos">\n';
+      html += `<h5>${t.keyStrengthsLabel}</h5>\n`;
+      if (analysis.keyStrengths?.length) {
+        html += '<ul>\n';
+        analysis.keyStrengths.forEach(s => { html += `<li>${s}</li>\n`; });
+        html += '</ul>\n';
+      } else {
+        html += '<p class="empty">—</p>\n';
+      }
+      html += '</div>\n';
+
+      // Improvements column
+      html += '<div class="neg">\n';
+      const validDeltas = analysis.suggestedImprovements
+        .filter((item: any) => typeof item === 'object' && item.points_delta && item.points_delta > 0)
+        .map((item: any) => item.points_delta);
+      const totalDeltaPoints = validDeltas.reduce((sum: number, delta: number) => sum + delta, 0);
+      html += `<h5>${t.suggestedImprovementsLabel}${totalDeltaPoints > 0 ? ` <span style="color:var(--muted);font-weight:400;letter-spacing:normal;text-transform:none;font-size:12px;">${t.potentialPts(totalDeltaPoints)}</span>` : ''}</h5>\n`;
+      if (analysis.suggestedImprovements?.length) {
+        html += '<ul>\n';
         analysis.suggestedImprovements.forEach((item: any) => {
-          const isStructured = typeof item === 'object';
-          const text = isStructured ? item.text : item;
-          const pointsDelta = isStructured ? item.points_delta : null;
-          let badge = '';
-          if (pointsDelta && pointsDelta > 0) {
-            badge = ` <span style="display:inline-block;background:#fed7aa;color:#92400e;border:1px solid #fdba74;padding:2px 6px;border-radius:12px;font-size:11px;font-weight:600;margin-left:8px;">+${pointsDelta} pts</span>`;
-          }
-          html += `<li style="font-size:14px;color:#374151;line-height:1.6;margin:4px 0;"><span style="color:#374151;">&rarr;</span> ${text}${badge}</li>\n`;
+          const isStructuredItem = typeof item === 'object';
+          const text = isStructuredItem ? item.text : item;
+          const pointsDelta = isStructuredItem ? item.points_delta : null;
+          const badge = (pointsDelta && pointsDelta > 0) ? ` <span style="color:var(--warn);font-weight:600;">+${pointsDelta}</span>` : '';
+          html += `<li>${text}${badge}</li>\n`;
         });
         html += '</ul>\n';
         if (totalDeltaPoints > 0 && card.score?.finalScore) {
           const cardProjScore = Math.min(92, card.score.finalScore + totalDeltaPoints);
-          html += `<p style="font-size:13px;color:#6b7280;margin-top:8px;">Apply all suggestions &rarr; estimated score: ${cardProjScore}/100</p>\n`;
+          html += `<p style="font-size:13px;color:var(--muted);margin-top:10px;">${t.applyAllSuggestions(cardProjScore)}</p>\n`;
         }
+      } else {
+        html += '<p class="empty">—</p>\n';
       }
+      html += '</div>\n';
+
+      html += '</div>\n';
     }
-    html += '</div>\n';
   }
 
   // GEO Score block
@@ -2893,36 +2902,148 @@ export const exportAsFormattedHtml = (
   <title>Copy Report — ${escapeHtml(formState.projectDescription || 'CopyZap')}</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;900&display=swap" rel="stylesheet">
   <style>
-    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-    html { scroll-behavior: smooth; }
-    body {
-      font-family: 'Inter', system-ui, sans-serif;
-      font-size: 15px;
-      line-height: 1.7;
-      background: #ffffff;
-      color: #374151;
-      max-width: 860px;
-      margin: 0 auto;
-      padding: 48px 32px 80px;
+    :root{
+      --ink:#12151C; --ink-soft:#3A414F; --muted:#6B7386; --line:#E2DED6; --line-soft:#EDEAE3;
+      --paper:#F7F5F1; --white:#FFFFFF; --accent:#D7452C; --accent-soft:#FBE9E5;
+      --gain:#1C7A5B; --gain-soft:#E4F1EC; --warn:#A8720E; --warn-soft:#FBF0DA;
+      --serif:"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif;
+      --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif;
+      --mono:ui-monospace,SFMono-Regular,"SF Mono",Menlo,Consolas,monospace;
     }
-    h1, h2, h3, h4 { color: #111827; }
-    a { color: #111827; text-decoration: none; }
-    a:hover { text-decoration: underline; }
-    code, pre { font-family: 'Courier New', monospace; }
-    .label {
-      font-size: 11px;
-      letter-spacing: 0.1em;
-      color: #6b7280;
-      text-transform: uppercase;
-      font-weight: 600;
-    }
+    *{box-sizing:border-box}
+    html{-webkit-text-size-adjust:100%;scroll-behavior:smooth}
+    body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--sans);font-size:16px;line-height:1.65;-webkit-font-smoothing:antialiased}
+    .wrap{max-width:940px;margin:0 auto;padding:0 28px}
+    section{padding:64px 0;border-top:1px solid var(--line)}
+    section:first-of-type{border-top:0}
+    h1,h2,h3,h4{font-family:var(--serif);font-weight:600;letter-spacing:-.015em;margin:0}
+    h1{font-size:clamp(34px,5.4vw,54px);line-height:1.08}
+    h2{font-size:clamp(26px,3.6vw,36px);line-height:1.15;margin-bottom:10px}
+    h3{font-size:22px;line-height:1.25}
+    p{margin:0 0 16px}
+    a{color:var(--ink);text-decoration:none}
+    a:hover{text-decoration:underline}
+    code,pre{font-family:var(--mono)}
+    .eyebrow{font-family:var(--sans);font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:var(--muted);margin:0 0 14px}
+    .eyebrow.accent{color:var(--accent)}
+    .lede{font-size:19px;line-height:1.6;color:var(--ink-soft);max-width:64ch}
+    .tnum{font-variant-numeric:tabular-nums}
+    .cover{background:var(--ink);color:#F2F0EC;padding:56px 0 64px;border:0}
+    .brandbar{display:flex;justify-content:space-between;align-items:center;gap:20px;padding-bottom:34px;margin-bottom:44px;border-bottom:1px solid rgba(255,255,255,.14);flex-wrap:wrap}
+    .logo{font-family:var(--serif);font-size:21px;letter-spacing:-.02em;color:#fff}
+    .logo span{color:var(--accent)}
+    .powered{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.5)}
+    .cover h1{color:#fff;max-width:20ch}
+    .cover .kicker{font-size:11px;font-weight:700;letter-spacing:.18em;text-transform:uppercase;color:var(--accent);margin-bottom:20px}
+    .cover .stamp{font-size:13px;color:rgba(255,255,255,.45);margin-top:6px}
+    .journey{margin-top:48px;background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.13);border-radius:4px;padding:34px 30px 30px}
+    .journey-head{font-size:11px;font-weight:700;letter-spacing:.16em;text-transform:uppercase;color:rgba(255,255,255,.5);margin-bottom:26px}
+    .stops{display:flex;align-items:flex-end;gap:0}
+    .stop{flex:1;text-align:center;position:relative}
+    .stop .num{font-family:var(--serif);font-size:clamp(38px,7vw,60px);line-height:1;color:rgba(255,255,255,.42);font-variant-numeric:tabular-nums}
+    .stop .num small{font-size:.4em;color:rgba(255,255,255,.3);margin-left:2px}
+    .stop.now .num{color:#fff}
+    .stop.goal .num{color:var(--accent)}
+    .stop .lbl{font-size:12px;letter-spacing:.06em;color:rgba(255,255,255,.55);margin-top:10px}
+    .stop .lbl b{display:block;color:rgba(255,255,255,.85);font-weight:600;letter-spacing:0;font-size:13px}
+    .rail{height:2px;margin:26px 0 0;background:linear-gradient(90deg,rgba(255,255,255,.22) 0%,rgba(255,255,255,.5) 48%,var(--accent) 100%);position:relative}
+    .rail i{position:absolute;top:-4px;width:10px;height:10px;border-radius:50%;background:var(--ink);border:2px solid rgba(255,255,255,.55);transform:translateX(-50%)}
+    .rail i.a{left:16.6%} .rail i.b{left:50%;background:#fff;border-color:#fff} .rail i.c{left:83.3%;background:var(--accent);border-color:var(--accent)}
+    .journey-foot{margin-top:24px;padding-top:20px;border-top:1px solid rgba(255,255,255,.12);font-size:14px;color:rgba(255,255,255,.7);line-height:1.6}
+    .journey-foot b{color:#fff;font-weight:600}
+    .toc{background:var(--white);border:1px solid var(--line);border-radius:4px;overflow:hidden;margin-top:26px}
+    .toc a{display:flex;align-items:center;gap:16px;padding:16px 22px;border-bottom:1px solid var(--line-soft);text-decoration:none;color:var(--ink)}
+    .toc a:last-child{border-bottom:0}
+    .toc a:hover{background:var(--paper)}
+    .toc .idx{font-family:var(--mono);font-size:12px;color:var(--muted);width:18px;flex:none}
+    .toc .name{flex:1;font-size:15.5px;font-weight:550;line-height:1.35}
+    .toc .win{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gain);background:var(--gain-soft);padding:3px 7px;border-radius:2px;margin-left:8px;white-space:nowrap}
+    .toc .sc{font-family:var(--serif);font-size:21px;width:70px;text-align:right;flex:none;font-variant-numeric:tabular-nums}
+    .toc .sc small{font-size:.55em;color:var(--muted)}
+    .toc a.is-win .sc{color:var(--gain)}
+    .brief-tbl{margin-top:26px;background:var(--white);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+    .brief-row{display:grid;grid-template-columns:200px 1fr;gap:14px;padding:14px 22px;border-bottom:1px solid var(--line-soft)}
+    .brief-row:last-child{border-bottom:0}
+    .brief-row .k{font-size:11px;font-weight:700;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}
+    .brief-row .v{font-size:15px;color:var(--ink-soft);line-height:1.55}
+    .preview-box{margin-top:26px;background:var(--white);border:1px solid var(--line);border-radius:4px;padding:24px 26px}
+    .preview-box .sec-lbl{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:12px}
+    .preview-box .preview-text{font-size:14.5px;line-height:1.6;color:var(--ink-soft)}
+    .preview-box .preview-text p{margin:0 0 11px}
+    .preview-box .preview-text p:last-child{margin-bottom:0}
+    .version{background:var(--white);border:1px solid var(--line);border-radius:4px;margin-top:26px;overflow:hidden}
+    .v-head{padding:24px 28px;border-bottom:1px solid var(--line-soft);display:flex;justify-content:space-between;align-items:flex-start;gap:20px;flex-wrap:wrap}
+    .v-head .t{flex:1;min-width:220px}
+    .v-head h3{margin:0 0 4px;display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+    .v-head .role{font-size:13.5px;color:var(--muted)}
+    .v-head .win{font-size:10px;font-weight:700;letter-spacing:.1em;text-transform:uppercase;color:var(--gain);background:var(--gain-soft);padding:3px 7px;border-radius:2px;white-space:nowrap}
+    .v-scores{display:flex;align-items:baseline;gap:18px;flex:none}
+    .v-scores .big{font-family:var(--serif);font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
+    .v-scores .big small{font-size:.42em;color:var(--muted)}
+    .v-scores .gain{font-size:14px;font-weight:600;color:var(--gain);text-align:right;font-variant-numeric:tabular-nums}
+    .v-scores .gain small{display:block;font-weight:400;color:var(--muted);font-size:12px}
+    .v-body{padding:26px 28px 0}
+    .v-body .sec{margin-bottom:22px}
+    .v-body .sec-lbl{font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
+    .v-body .sec p{margin:0 0 10px;font-size:15.5px;line-height:1.7;color:var(--ink-soft)}
+    .v-body .sec p:last-child{margin-bottom:0}
+    .v-body .sec.hero p{font-family:var(--serif);font-size:24px;line-height:1.35;color:var(--ink)}
+    .v-body .sec ul{margin:0 0 10px;padding-left:22px;color:var(--ink-soft);font-size:15px;line-height:1.65}
+    .v-body .sec li{margin-bottom:6px}
+    .v-body .sec table{width:100%;border-collapse:collapse;margin:10px 0;border:1px solid var(--line)}
+    .v-body .sec table th,.v-body .sec table td{border:1px solid var(--line);padding:10px 12px;font-size:14px;text-align:left;color:var(--ink-soft)}
+    .v-body .sec table th{background:var(--paper);color:var(--ink);font-weight:700}
+    .split{display:grid;grid-template-columns:1fr 1fr;gap:0;border-top:1px solid var(--line-soft)}
+    .split>div{padding:24px 28px}
+    .split>div+div{border-left:1px solid var(--line-soft)}
+    .split h5{font-family:var(--sans);font-size:10.5px;font-weight:700;letter-spacing:.14em;text-transform:uppercase;margin:0 0 14px}
+    .split .pos h5{color:var(--gain)} .split .neg h5{color:var(--accent)}
+    .split ul{margin:0;padding:0;list-style:none}
+    .split li{position:relative;padding-left:22px;margin-bottom:10px;font-size:14.5px;line-height:1.55;color:var(--ink-soft)}
+    .split li:before{position:absolute;left:0;top:0;font-weight:700}
+    .split .pos li:before{content:"\\2713";color:var(--gain)}
+    .split .neg li:before{content:"\\2192";color:var(--accent)}
+    .split .empty{font-size:13px;color:var(--muted);font-style:italic}
+    .rank{margin-top:28px;background:var(--white);border:1px solid var(--line);border-radius:4px;overflow:hidden}
+    .rank-row{display:grid;grid-template-columns:34px 1fr 96px 96px 88px 86px;gap:14px;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line-soft)}
+    .rank-row:last-child{border-bottom:0}
+    .rank-row.head{background:var(--paper);padding:12px 22px;font-size:10.5px;font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+    .rank-row.is-win{background:var(--gain-soft)}
+    .rank-row .pos{font-family:var(--serif);font-size:20px;color:var(--muted);font-variant-numeric:tabular-nums}
+    .rank-row.is-win .pos{color:var(--gain)}
+    .rank-row .nm{font-size:15px;font-weight:550;line-height:1.35}
+    .rank-row .nm small{display:block;font-weight:400;color:var(--muted);font-size:12.5px;margin-top:2px}
+    .rank-row .cell{font-size:14.5px;font-variant-numeric:tabular-nums;color:var(--ink-soft)}
+    .rank-row .cell small{display:block;font-size:11.5px;color:var(--muted)}
+    .rank-row .tot{font-family:var(--serif);font-size:24px;text-align:right;font-variant-numeric:tabular-nums}
+    .rank-row.is-win .tot{color:var(--gain)}
+    .rank-row .tot small{font-size:.5em;color:var(--muted)}
+    .rank-row .dl{font-size:14px;font-weight:600;color:var(--gain);text-align:right;font-variant-numeric:tabular-nums}
+    .rank-row .dl small{display:block;font-weight:400;color:var(--muted);font-size:11.5px}
+    .rank-row.base .dl{color:var(--muted);font-weight:400}
+    .methodo{margin-top:16px;font-size:13px;color:var(--muted);line-height:1.6;max-width:74ch}
+    .road{margin-top:28px;background:var(--white);border:1px solid var(--line);border-radius:4px}
+    .road-item{display:flex;gap:20px;padding:22px 26px;border-bottom:1px solid var(--line-soft)}
+    .road-item:last-of-type{border-bottom:0}
+    .road-item .pts{flex:none;width:56px;height:38px;border-radius:3px;background:var(--gain-soft);color:var(--gain);font-weight:700;font-size:15px;display:flex;align-items:center;justify-content:center;font-variant-numeric:tabular-nums}
+    .road-item .txt{font-size:15px;line-height:1.62;color:var(--ink-soft)}
+    .road-item .txt b{color:var(--ink);font-weight:650}
+    .road-total{display:flex;justify-content:space-between;align-items:center;gap:16px;flex-wrap:wrap;padding:22px 26px;background:var(--ink);color:#fff}
+    .road-total .lb{font-size:14.5px;color:rgba(255,255,255,.7)}
+    .road-total .lb b{color:#fff;font-weight:600}
+    .road-total .vv{font-family:var(--serif);font-size:34px;line-height:1;font-variant-numeric:tabular-nums}
+    .road-total .vv small{font-size:.42em;color:rgba(255,255,255,.5)}
+    .cta-mini{display:flex;justify-content:space-between;align-items:center;gap:20px;flex-wrap:wrap;background:var(--accent-soft);border:1px solid #F2D3CC;border-radius:4px;padding:24px 26px;margin-top:30px}
+    footer{background:var(--ink);color:rgba(255,255,255,.55);padding:44px 0;font-size:13px;line-height:1.7}
+    footer strong{color:#fff;font-weight:600}
+    .disclaimer{margin-top:14px;font-size:12px;color:rgba(255,255,255,.38);line-height:1.6}
     .breadcrumb-nav {
       position: fixed;
       bottom: 0;
       left: 0;
       right: 0;
-      background: #ffffff;
-      border-top: 1px solid #e5e7eb;
+      background: var(--paper);
+      border-top: 1px solid var(--line);
       padding: 8px 24px;
       display: flex;
       align-items: center;
@@ -2931,10 +3052,10 @@ export const exportAsFormattedHtml = (
       overflow: hidden;
       z-index: 100;
       font-size: 12px;
-      color: #6b7280;
+      color: var(--muted);
     }
     .breadcrumb-nav a {
-      color: #374151;
+      color: var(--ink-soft);
       text-decoration: none;
       white-space: nowrap;
       overflow: hidden;
@@ -2942,15 +3063,26 @@ export const exportAsFormattedHtml = (
       max-width: 120px;
       display: inline-block;
     }
-    .breadcrumb-nav a:hover { color: #111827; text-decoration: underline; }
-    .breadcrumb-nav .bc-sep { margin: 0 6px; color: #d1d5db; flex-shrink: 0; }
-    .breadcrumb-nav .bc-label { margin-right: 10px; font-weight: 600; color: #9ca3af; flex-shrink: 0; }
+    .breadcrumb-nav a:hover { color: var(--ink); text-decoration: underline; }
+    .breadcrumb-nav .bc-sep { margin: 0 6px; color: var(--line); flex-shrink: 0; }
+    .breadcrumb-nav .bc-label { margin-right: 10px; font-weight: 600; color: var(--muted); flex-shrink: 0; }
     @media print {
-      body { padding: 24px; }
+      body { background: var(--white); }
       .no-print { display: none !important; }
       section { page-break-before: always; }
       #doc-header, #toc, #input-summary { page-break-before: auto; }
-      .score-block, .geo-block, .seo-block { page-break-inside: avoid; }
+      .score-block, .geo-block, .seo-block, .version, .rank { page-break-inside: avoid; }
+    }
+    @media(max-width:760px){
+      section{padding:44px 0} .wrap{padding:0 20px}
+      .split{grid-template-columns:1fr}
+      .split>div+div{border-left:0;border-top:1px solid var(--line-soft)}
+      .brief-row{grid-template-columns:1fr;gap:4px}
+      .rank-row{grid-template-columns:28px 1fr 84px;gap:10px}
+      .rank-row .cell{display:none} .rank-row.head .cell{display:none}
+      .rank-row .dl{grid-column:2;text-align:left} .rank-row .tot{grid-column:3;grid-row:1}
+      .stops{gap:4px;align-items:flex-start} .stop .num{font-size:clamp(28px,9vw,40px)} .stop .lbl{font-size:11px}
+      .journey{padding:26px 18px 24px}
     }
   </style>
 </head>
@@ -2958,42 +3090,87 @@ export const exportAsFormattedHtml = (
 ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:center;padding:8px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;">${t.previewBanner(previewPercent)}</div>\n` : ''}
 `;
 
-    // ── DOCUMENT HEADER ─────────────────────────────────────────────────────────
-    htmlContent += '<div id="doc-header" style="text-align:left;padding-bottom:28px;margin-bottom:40px;">\n';
-    htmlContent += `<p class="label" style="margin-bottom:10px;font-size:10px;letter-spacing:0.14em;color:#9ca3af;text-transform:uppercase;font-weight:600;">${t.copyReportLabel}</p>\n`;
-    htmlContent += `<h1 style="font-size:30px;font-weight:800;color:#111827;margin-bottom:10px;letter-spacing:-0.01em;">${escapeHtml(formState.projectDescription || 'Untitled Project')}</h1>\n`;
-    htmlContent += `<p style="font-size:13px;color:#6b7280;margin:0;">${t.generatedLabel}: ${formatExportTimestamp()} &nbsp;&middot;&nbsp; ${totalVariants} ${totalVariants !== 1 ? t.variantsEvaluated : t.variantEvaluated} &nbsp;&middot;&nbsp; ${t.languageLabel}: ${lang}</p>\n`;
-    htmlContent += '<hr style="border:0;border-top:1px solid #e5e7eb;margin:20px 0 0;">\n';
-    htmlContent += '</div>\n';
-
-    // Winner announcement banner
-    if (winnerRow) {
-      const winnerCard = contentCards.find(c => c.id === winnerVersionId);
-      const winnerLabel = winnerCard?.sourceDisplayName || winnerRow.optionLabel || t.winner;
-      // Use the raw LLM score (winnerRow.score) — it's the primary ranking signal and matches
-      // what the user sees in the rankings table. finalScore can be dragged lower by heuristics
-      // that are unreliable for blended/structured content.
-      const bannerScore = winnerRow.finalScore ?? (winnerRow as any).score;
-      htmlContent += `<div style="background:#fff7ed;border-left:4px solid #f97316;padding:14px 20px;border-radius:0 6px 6px 0;font-size:14px;font-weight:600;color:#9a3412;margin:0 0 40px 0;">&#9733;&nbsp; ${t.winnerBanner(winnerLabel, bannerScore)}</div>\n`;
+    // ── DOCUMENT HEADER (cover) ─────────────────────────────────────────────────
+    const baselineScore = (() => {
+      if (comparisonResult?.rows?.length) {
+        const orig = comparisonResult.rows.find(r => r.versionId === '__original__' || r.optionLabel === 'Original Copy');
+        if (orig?.finalScore != null) return orig.finalScore;
+        const lowest = [...comparisonResult.rows].sort((a, b) => (a.finalScore ?? 0) - (b.finalScore ?? 0))[0];
+        return lowest?.finalScore ?? null;
+      }
+      const lowestCard = [...contentCards].sort((a, b) => (a.score?.overall ?? 0) - (b.score?.overall ?? 0))[0];
+      return lowestCard?.score?.overall ?? null;
+    })();
+    const winnerScore = winnerRow?.finalScore ?? winnerRow?.score ?? null;
+    let projectedScore: number | null = null;
+    if (versionDeepAnalysis && winnerVersionId) {
+      const wa = versionDeepAnalysis[winnerVersionId];
+      if (wa?.suggestedImprovements?.length && winnerRow) {
+        const total = wa.suggestedImprovements
+          .filter((item: any) => typeof item === 'object' && item.points_delta > 0)
+          .reduce((sum: number, item: any) => sum + item.points_delta, 0);
+        if (total > 0) projectedScore = Math.min(92, (winnerRow.finalScore ?? 0) + total);
+      }
     }
 
+    htmlContent += '<section id="doc-header" class="cover" style="padding:56px 0 64px;">\n';
+    htmlContent += '<div class="wrap">\n';
+    htmlContent += '<div class="brandbar">\n';
+    htmlContent += '<div class="logo">Copy<span>Zap</span></div>\n';
+    htmlContent += '<div class="powered">' + t.copyReportLabel + '</div>\n';
+    htmlContent += '</div>\n';
+    htmlContent += `<div class="kicker">${t.copyReportLabel}</div>\n`;
+    htmlContent += `<h1>${escapeHtml(formState.projectDescription || 'Untitled Project')}</h1>\n`;
+    htmlContent += `<div class="stamp">${t.generatedLabel}: ${formatExportTimestamp()} &nbsp;&middot;&nbsp; ${totalVariants} ${totalVariants !== 1 ? t.variantsEvaluated : t.variantEvaluated} &nbsp;&middot;&nbsp; ${t.languageLabel}: ${lang}</div>\n`;
+
+    if (baselineScore !== null || winnerScore !== null) {
+      htmlContent += '<div class="journey">\n';
+      htmlContent += `<div class="journey-head">${t.analysisLabel}</div>\n`;
+      htmlContent += '<div class="stops">\n';
+      if (baselineScore !== null) {
+        htmlContent += `<div class="stop"><div class="num">${baselineScore}<small>/100</small></div><div class="lbl"><b>${t.original}</b>baseline</div></div>\n`;
+      }
+      if (winnerScore !== null) {
+        const winnerLabel = winnerRow?.optionLabel || contentCards.find(c => c.id === winnerVersionId)?.sourceDisplayName || t.winner;
+        htmlContent += `<div class="stop now"><div class="num">${winnerScore}<small>/100</small></div><div class="lbl"><b>${escapeHtml(stripEmoji(winnerLabel))}</b>${t.winner}</div></div>\n`;
+      }
+      if (projectedScore !== null) {
+        htmlContent += `<div class="stop goal"><div class="num">${projectedScore}<small>/100</small></div><div class="lbl"><b>${t.suggestedImprovementsLabel}</b>potential</div></div>\n`;
+      }
+      htmlContent += '</div>\n';
+      const railMarks = (baselineScore !== null ? 1 : 0) + (winnerScore !== null ? 1 : 0) + (projectedScore !== null ? 1 : 0);
+      if (railMarks >= 2) {
+        htmlContent += '<div class="rail">';
+        if (baselineScore !== null) htmlContent += '<i class="a"></i>';
+        if (winnerScore !== null) htmlContent += '<i class="b"></i>';
+        if (projectedScore !== null) htmlContent += '<i class="c"></i>';
+        htmlContent += '</div>\n';
+      }
+      if (winnerScore !== null && baselineScore !== null) {
+        const delta = winnerScore - baselineScore;
+        const pct = baselineScore > 0 ? Math.round((delta / baselineScore) * 100) : 0;
+        const sign = delta >= 0 ? '+' : '';
+        htmlContent += `<div class="journey-foot"><b>${sign}${delta} pts (${sign}${pct}%)</b> &nbsp;${t.applyAllSuggestions(projectedScore ?? winnerScore)}</div>\n`;
+      }
+      htmlContent += '</div>\n';
+    }
+    htmlContent += '</div>\n';
+    htmlContent += '</section>\n';
+
     // ── TABLE OF CONTENTS ────────────────────────────────────────────────────────
-    htmlContent += '<nav id="toc" style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:8px;padding:24px;margin-bottom:48px;">\n';
-    htmlContent += `<p class="label" style="margin-bottom:16px;">${t.contentsLabel}</p>\n`;
+    htmlContent += '<section id="toc" style="padding:48px 0;border-top:0;">\n';
+    htmlContent += '<div class="wrap">\n';
+    htmlContent += `<p class="eyebrow">${t.contentsLabel}</p>\n`;
+    htmlContent += '<div class="toc">\n';
 
     // TOC row helper
     let tocIdx = 0;
     const renderTocRow = (id: string, name: string, score: number | null, isWin: boolean) => {
-      const scoreStr = score !== null ? `${score}/100` : '';
-      const winTag = isWin ? ` &nbsp;<span style="color:#f97316;font-weight:700;">&#9733; ${t.winner}</span>` : '';
-      const rowColor = isWin ? '#f97316' : '#111827';
-      const rowWeight = isWin ? '700' : '400';
       tocIdx++;
-      return `<div style="display:flex;align-items:baseline;gap:0;margin-bottom:6px;">`
-        + `<a href="#${id}" style="color:${rowColor};font-weight:${rowWeight};font-size:14px;white-space:nowrap;">${tocIdx}. ${name}${winTag}</a>`
-        + `<span style="flex:1;border-bottom:1px dotted #d1d5db;margin:0 8px 3px;"></span>`
-        + `<span style="font-size:13px;font-weight:${rowWeight};color:${rowColor};white-space:nowrap;">${scoreStr}</span>`
-        + `</div>\n`;
+      const idxStr = String(tocIdx).padStart(2, '0');
+      const winBadge = isWin ? `<span class="win">${t.winner}</span>` : '';
+      const scoreStr = score !== null ? `${score}<small>/100</small>` : '<small>&nbsp;</small>';
+      return `<a href="#${id}"${isWin ? ' class="is-win"' : ''}><span class="idx">${idxStr}</span><span class="name">${escapeHtml(stripEmoji(name))}${winBadge}</span><span class="sc">${scoreStr}</span></a>\n`;
     };
 
     // Build a score lookup from comparisonResult rows (authoritative source for scores)
@@ -3006,7 +3183,6 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
 
     htmlContent += renderTocRow('input-summary', t.inputSummaryLabel, null, false);
     contentCards.forEach(card => {
-      // Prefer comparison score (authoritative), fall back to card.score.overall
       const score = comparisonScoreMap.get(card.id) ?? card.score?.overall ?? null;
       const isWin = card.id === winnerVersionId;
       htmlContent += renderTocRow(`output-${card.id}`, stripEmoji(card.sourceDisplayName || card.type), score, isWin);
@@ -3014,20 +3190,25 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
     if (comparisonResult) {
       htmlContent += renderTocRow('comparison-rankings', t.comparisonRankingsLabel, null, false);
     }
-    htmlContent += '</nav>\n';
+    htmlContent += '</div>\n';
+    htmlContent += '</div>\n';
+    htmlContent += '</section>\n';
 
     // ── INPUT SUMMARY ────────────────────────────────────────────────────────────
-    htmlContent += '<section id="input-summary" style="border-left:1px solid #e5e7eb;padding-left:20px;margin-bottom:56px;">\n';
-    htmlContent += '<p class="label" style="margin-bottom:12px;">' + t.inputSummaryLabel + '</p>\n';
+    htmlContent += '<section id="input-summary">\n';
+    htmlContent += '<div class="wrap">\n';
+    htmlContent += `<p class="eyebrow accent">${t.inputSummaryLabel}</p>\n`;
 
     const sourceText = formState.tab === 'create'
       ? (formState.businessDescription || '')
       : (formState.originalCopy || '');
     const sourceLabel = formState.tab === 'create' ? t.businessDescription : t.originalCopyLabel;
 
-    htmlContent += `<p style="font-size:12px;font-weight:600;color:#6b7280;margin-bottom:6px;">${sourceLabel}</p>\n`;
     if (sourceText) {
-      htmlContent += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:16px 16px 4px;font-style:italic;color:#374151;font-size:14px;margin-bottom:20px;">${renderTextAsParagraphs(sourceText, 'margin:0 0 11px 0;line-height:1.6;')}</div>\n`;
+      htmlContent += '<div class="preview-box">\n';
+      htmlContent += `<div class="sec-lbl">${escapeHtml(sourceLabel)}</div>\n`;
+      htmlContent += `<div class="preview-text">${renderTextAsParagraphs(sourceText, 'margin:0 0 11px 0;line-height:1.6;')}</div>\n`;
+      htmlContent += '</div>\n';
     }
 
     // Configuration table
@@ -3044,16 +3225,13 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
     if (formState.brandValues) configRows.push([t.brandValuesLabel, formState.brandValues]);
     if (formState.keywords) configRows.push([t.keywordsLabel, formState.keywords]);
 
-    htmlContent += '<table style="width:100%;border-collapse:collapse;font-size:13px;">\n';
-    htmlContent += `<thead><tr style="border-bottom:2px solid #111827;"><th style="text-align:left;padding:8px;color:#6b7280;font-weight:600;">${t.settingLabel}</th><th style="text-align:left;padding:8px;color:#6b7280;font-weight:600;">${t.valueLabel}</th></tr></thead>\n`;
-    htmlContent += '<tbody>\n';
-    configRows.forEach(([setting, value], i) => {
-      const bg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
-      htmlContent += `<tr style="background:${bg};border-bottom:1px solid #e5e7eb;"><td style="padding:8px 8px;color:#6b7280;">${setting}</td><td style="padding:8px 8px;color:#111827;font-weight:500;">${value}</td></tr>\n`;
+    htmlContent += '<div class="brief-tbl">\n';
+    configRows.forEach(([setting, value]) => {
+      htmlContent += `<div class="brief-row"><div class="k">${escapeHtml(setting)}</div><div class="v">${escapeHtml(value)}</div></div>\n`;
     });
-    htmlContent += '</tbody></table>\n';
+    htmlContent += '</div>\n';
+    htmlContent += '</div>\n';
     htmlContent += '</section>\n';
-    htmlContent += '<hr style="border:none;border-top:1px solid #e5e7eb;margin:0 0 56px;">\n';
 
 
     // (Input Summary already rendered above)
@@ -3155,9 +3333,10 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
     );
 
     if (comparisonResult || comparisonCards.length > 0) {
-      htmlContent += '<section id="comparison-rankings" style="margin-top: 80px;">\n';
-      htmlContent += `<p class="label" style="font-size: 11px; letter-spacing: 0.1em; text-transform: uppercase; color: #6b7280; margin: 0 0 8px 0;">${t.analysisLabel}</p>\n`;
-      htmlContent += `<h2 style="font-size: 26px; font-weight: 800; color: #111827; margin: 0 0 24px 0; padding-bottom: 16px; border-bottom: 1px solid #e5e7eb;">${t.comparisonRankingsLabel}</h2>\n`;
+      htmlContent += '<section id="comparison-rankings">\n';
+      htmlContent += '<div class="wrap">\n';
+      htmlContent += `<p class="eyebrow accent">${t.analysisLabel}</p>\n`;
+      htmlContent += `<h2>${t.comparisonRankingsLabel}</h2>\n`;
 
       if (comparisonResult && comparisonResult.rows && comparisonResult.rows.length > 0) {
         // Find the original copy score as baseline for delta calculations
@@ -3168,8 +3347,9 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
 
         const sortedRows = [...comparisonResult.rows].sort((a, b) => (b.finalScore ?? 0) - (a.finalScore ?? 0));
 
-        // Rankings — flex-div layout matching the app's ranking list style
-        htmlContent += '<div style="margin-bottom: 40px;">\n';
+        // Rankings table — .rank / .rank-row design
+        htmlContent += '<div class="rank">\n';
+        htmlContent += `<div class="rank-row head"><div class="pos">#</div><div class="nm">${t.versionLabel}</div><div class="cell">${t.editorialQuality}</div><div class="cell">${t.conversionPotential}</div><div class="dl">${t.deltaLabel}</div><div class="tot">${t.totalLabel}</div></div>\n`;
 
         sortedRows.forEach((row, idx) => {
           const matchedCard = contentCards.find(c => c.id === row.versionId)
@@ -3178,24 +3358,6 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
           const score = row.finalScore ?? 0;
           const isOriginal = row.versionId === '__original__' || row.optionLabel === 'Original Copy';
           const isWinner = row.isWinner === true;
-
-          // Score color
-          let scoreColor = '#16a34a';
-          if (score < 70) scoreColor = '#dc2626';
-          else if (score < 80) scoreColor = '#d97706';
-          else if (score < 90) scoreColor = '#111827';
-
-          // Delta vs original
-          let deltaHtml = '';
-          if (isOriginal) {
-            deltaHtml = '<span style="font-size: 12px; color: #9ca3af;">baseline</span>';
-          } else if (originalBaseScore !== null) {
-            const delta = score - originalBaseScore;
-            const pct = originalBaseScore > 0 ? Math.round((delta / originalBaseScore) * 100) : 0;
-            const sign = delta >= 0 ? '+' : '';
-            const deltaColor = delta >= 0 ? '#16a34a' : '#dc2626';
-            deltaHtml = `<span style="font-size: 12px; font-weight: 600; color: ${deltaColor}; white-space: nowrap;">${sign}${delta} pts (${sign}${pct}%)</span>`;
-          }
 
           // Get content text for new computations
           let htmlContentStr = '';
@@ -3211,95 +3373,63 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
             }
           }
 
-          // Dual scores + word count
           const htmlEq = htmlContentStr ? computeEditorialQuality(htmlContentStr) : score;
           const htmlCp = htmlContentStr ? computeConversionPotential(htmlContentStr) : score;
-          const htmlWcrl = htmlContentStr ? computeWordCountAndReadingLevel(htmlContentStr) : null;
-          const htmlPb = htmlContentStr ? computePersuasionBreakdown(htmlContentStr) : null;
-          const htmlAf = htmlContentStr ? computeAudienceFit(htmlContentStr, false) : null;
-          const htmlRisks = htmlContentStr ? computeRiskFactors(htmlContentStr, row.verificationFlags) : [];
 
-          // Generation date
-          let dateStr = '';
-          if (matchedCard?.generatedAt) {
-            try {
-              const d = new Date(matchedCard.generatedAt);
-              dateStr = d.toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit', hour12: true });
-            } catch { /* ignore */ }
+          // Delta vs original
+          let deltaHtml = '';
+          let deltaClass = '';
+          if (isOriginal) {
+            deltaHtml = `<small>baseline</small>`;
+            deltaClass = 'base';
+          } else if (originalBaseScore !== null) {
+            const delta = score - originalBaseScore;
+            const pct = originalBaseScore > 0 ? Math.round((delta / originalBaseScore) * 100) : 0;
+            const sign = delta >= 0 ? '+' : '';
+            deltaHtml = `${sign}${delta}<small>${sign}${pct}%</small>`;
           }
 
-          // Row container (full-width block, not flex row, to accommodate expanded content)
-          const rowBorder = isWinner ? '#f97316' : 'transparent';
-          htmlContent += `<div style="padding:14px 0 14px 12px;border-bottom:1px solid #e5e7eb;border-left:3px solid ${rowBorder};">\n`;
+          const rowClasses = ['rank-row'];
+          if (isWinner) rowClasses.push('is-win');
+          if (isOriginal) rowClasses.push('base');
 
-          // Row header: rank + name + delta + score
-          htmlContent += '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:12px;">\n';
-          htmlContent += '<div style="display:flex;align-items:flex-start;gap:12px;">\n';
-          htmlContent += `<span style="font-size:12px;font-weight:700;color:#9ca3af;min-width:20px;padding-top:2px;">${idx + 1}</span>\n`;
-          htmlContent += '<div>\n';
-          htmlContent += `<div style="font-size:14px;font-weight:700;color:#111827;margin-bottom:2px;">${versionLabel}${isWinner ? ` <span style="font-size:11px;font-weight:600;color:#f97316;">&#9733; ${t.winner}</span>` : ''}</div>\n`;
-          if (dateStr) htmlContent += `<div style="font-size:11px;color:#9ca3af;margin-bottom:4px;">${dateStr}</div>\n`;
-          htmlContent += '</div>\n</div>\n';
-          // Score + delta
-          htmlContent += '<div style="display:flex;flex-direction:column;align-items:flex-end;gap:2px;flex-shrink:0;padding-left:16px;">\n';
-          htmlContent += `<div>${deltaHtml}</div>\n`;
-          htmlContent += `<div style="font-size:16px;font-weight:700;color:${scoreColor};">${score}<span style="font-size:11px;font-weight:400;color:#9ca3af;">/100</span></div>\n`;
-          htmlContent += '</div>\n</div>\n';
+          htmlContent += `<div class="${rowClasses.join(' ')}">\n`;
+          htmlContent += `<div class="pos">${idx + 1}</div>\n`;
+          htmlContent += `<div class="nm">${escapeHtml(stripEmoji(versionLabel))}${isWinner ? ` <span class="win" style="display:inline-block;margin-left:8px;">${t.winner}</span>` : ''}<small>${isOriginal ? t.original : (matchedCard?.persona || '')}</small></div>\n`;
+          htmlContent += `<div class="cell">${htmlEq}</div>\n`;
+          htmlContent += `<div class="cell">${htmlCp}</div>\n`;
+          htmlContent += `<div class="dl">${deltaHtml}</div>\n`;
+          htmlContent += `<div class="tot">${score}<small>/100</small></div>\n`;
+          htmlContent += '</div>\n';
 
-          // ── ITEM 7: Verification flags at top ──
+          // Verification flags + risk factors (kept inline below the row, styled subtly)
           if (row.verificationFlags && row.verificationFlags.length > 0) {
-            htmlContent += '<div style="margin-top:10px;padding:8px 12px;background:#fef3c7;border-left:3px solid #fbbf24;border-radius:4px;">\n';
-            htmlContent += `<p style="margin:0 0 4px 0;font-size:10px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.05em;">⚠️ ${t.verifyBeforePublishing}</p>\n`;
+            htmlContent += '<div class="rank-row" style="display:block;padding:10px 22px 12px 70px;background:var(--warn-soft);border-bottom:1px solid var(--line-soft);">\n';
+            htmlContent += `<p style="margin:0 0 4px 0;font-size:10px;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:.05em;">&#9888; ${t.verifyBeforePublishing}</p>\n`;
             htmlContent += '<ul style="margin:0;padding:0;list-style:none;">\n';
             row.verificationFlags.forEach((flag: string) => {
               const translatedFlag = translateVerificationFlag(flag, exportLangCode);
               const ef = String(translatedFlag).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-              htmlContent += `<li style="font-size:11px;color:#78350f;line-height:1.5;margin-bottom:2px;">• "${ef}" — ${t.sourceUnknown}</li>\n`;
+              htmlContent += `<li style="font-size:11px;color:#78350f;line-height:1.5;margin-bottom:2px;">&bull; "${ef}" &mdash; ${t.sourceUnknown}</li>\n`;
             });
             htmlContent += '</ul>\n</div>\n';
           }
 
-          // ── ITEM 1: Dual scores ──
-          htmlContent += '<div style="display:flex;gap:12px;flex-wrap:wrap;margin-top:10px;">\n';
-          const eqColor = htmlEq >= 80 ? '#15803d' : htmlEq >= 60 ? '#92400e' : '#dc2626';
-          const cpColor = htmlCp >= 80 ? '#1e40af' : htmlCp >= 60 ? '#92400e' : '#dc2626';
-          htmlContent += `<div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:6px;padding:6px 12px;min-width:140px;">\n`;
-          htmlContent += `<div style="font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">${t.editorialQuality}</div>\n`;
-          htmlContent += `<div style="font-size:18px;font-weight:800;color:${eqColor};">${htmlEq}<span style="font-size:10px;font-weight:400;color:#9ca3af;">/100</span></div>\n`;
-          htmlContent += '</div>\n';
-          htmlContent += `<div style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:6px;padding:6px 12px;min-width:160px;">\n`;
-          htmlContent += `<div style="font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">${t.conversionPotential}</div>\n`;
-          htmlContent += `<div style="font-size:18px;font-weight:800;color:${cpColor};">${htmlCp}<span style="font-size:10px;font-weight:400;color:#9ca3af;">/100</span></div>\n`;
-          htmlContent += '</div>\n';
-          // ── ITEM 8: Word count + reading level ──
-          if (htmlWcrl) {
-            const rlColor = htmlWcrl.readingLevel === 'Easy' ? '#15803d' : htmlWcrl.readingLevel === 'Medium' ? '#92400e' : '#374151';
-            htmlContent += `<div style="background:#f9fafb;border:1px solid #e5e7eb;border-radius:6px;padding:6px 12px;">\n`;
-            htmlContent += `<div style="font-size:9px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.06em;margin-bottom:2px;">${t.wordsSlashLevel}</div>\n`;
-            htmlContent += `<div style="font-size:13px;font-weight:700;color:${rlColor};">${htmlWcrl.wordCount} <span style="font-weight:400;">${t.words}</span> · <span style="color:${rlColor};">${htmlWcrl.readingLevel}</span></div>\n`;
-            htmlContent += '</div>\n';
-          }
-          htmlContent += '</div>\n';
-
-          // ── ITEM 4: Risk Factors ──
+          const htmlRisks = htmlContentStr ? computeRiskFactors(htmlContentStr, row.verificationFlags) : [];
           if (htmlRisks.length > 0) {
-            htmlContent += '<div style="margin-top:10px;padding:8px 12px;background:#fef2f2;border-left:3px solid #fca5a5;border-radius:4px;">\n';
-            htmlContent += `<p style="margin:0 0 4px 0;font-size:10px;font-weight:700;color:#dc2626;text-transform:uppercase;letter-spacing:0.05em;">${t.riskFactorsLabel}</p>\n`;
+            htmlContent += '<div class="rank-row" style="display:block;padding:10px 22px 12px 70px;background:var(--accent-soft);border-bottom:1px solid var(--line-soft);">\n';
+            htmlContent += `<p style="margin:0 0 4px 0;font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;">${t.riskFactorsLabel}</p>\n`;
             htmlContent += '<ul style="margin:0;padding:0;list-style:none;">\n';
             htmlRisks.forEach(r => {
               const er = String(r).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-              htmlContent += `<li style="font-size:11px;color:#7f1d1d;line-height:1.5;margin-bottom:2px;">• ${er}</li>\n`;
+              htmlContent += `<li style="font-size:11px;color:#7f1d1d;line-height:1.5;margin-bottom:2px;">&bull; ${er}</li>\n`;
             });
             htmlContent += '</ul>\n</div>\n';
           }
-
-          htmlContent += '</div>\n';
         });
 
         htmlContent += '</div>\n';
-        htmlContent += '<p style="font-size:12px;color:#9ca3af;margin-top:12px;font-style:italic;">\n';
-        htmlContent += `  &#9432; ${t.scoresRelativeNote}\n`;
-        htmlContent += '</p>\n';
+        htmlContent += `<p class="methodo">&#9432; ${t.scoresRelativeNote}</p>\n`;
 
         // Deep analysis for the winner only
         const winnerRow = comparisonResult.rows.find(r => r.isWinner);
@@ -3309,13 +3439,13 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
           const winnerAnalysis = versionDeepAnalysis[winnerCard.id];
           if (winnerAnalysis) {
             const winnerLabel = stripEmoji(winnerRow?.optionLabel || winnerCard.sourceDisplayName || t.winner);
-            htmlContent += `<h3 style="font-size: 18px; font-weight: 700; color: #111827; margin: 40px 0 16px 0;">${t.bestPerformingVersion(winnerLabel)}</h3>\n`;
+            htmlContent += `<h3 style="margin-top:40px;">${t.bestPerformingVersion(winnerLabel)}</h3>\n`;
 
             if (winnerAnalysis.keyStrengths && winnerAnalysis.keyStrengths.length > 0) {
-              htmlContent += `<p style="font-size: 13px; font-weight: 600; color: #374151; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.06em;">${t.keyStrengthsLabel}</p>\n`;
-              htmlContent += '<ul style="margin: 0 0 24px 0; padding-left: 20px; color: #374151; font-size: 15px; line-height: 1.7;">\n';
+              htmlContent += `<p class="eyebrow" style="margin-top:20px;">${t.keyStrengthsLabel}</p>\n`;
+              htmlContent += '<ul style="margin:0 0 24px 0;padding-left:22px;color:var(--ink-soft);font-size:15px;line-height:1.7;">\n';
               winnerAnalysis.keyStrengths.forEach((s: string) => {
-                htmlContent += `<li style="margin-bottom: 6px;">${s}</li>\n`;
+                htmlContent += `<li style="margin-bottom:6px;">${s}</li>\n`;
               });
               htmlContent += '</ul>\n';
             }
@@ -3325,38 +3455,33 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
                 .filter((item: any) => typeof item === 'object' && item.points_delta > 0)
                 .reduce((sum: number, item: any) => sum + item.points_delta, 0);
 
-              htmlContent += `<p style="font-size: 13px; font-weight: 600; color: #374151; margin: 0 0 8px 0; text-transform: uppercase; letter-spacing: 0.06em;">${t.suggestedImprovementsLabel}</p>\n`;
-              htmlContent += '<ul style="margin: 0 0 8px 0; padding-left: 0; list-style: none;">\n';
+              htmlContent += `<p class="eyebrow accent" style="margin-top:20px;">${t.suggestedImprovementsLabel}${winnerDeltaTotal > 0 ? ` &middot; ${t.potentialPts(winnerDeltaTotal)}` : ''}</p>\n`;
+              htmlContent += '<div class="road">\n';
               winnerAnalysis.suggestedImprovements.forEach((item: any) => {
                 const isObj = typeof item === 'object';
                 const text = isObj ? item.text : item;
                 const delta = isObj ? item.points_delta : null;
                 const escapedText = String(text).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-                if (delta && delta > 0) {
-                  htmlContent += `<li style="margin-bottom: 6px; display: flex; justify-content: space-between; align-items: flex-start; gap: 12px;"><span>${escapedText}</span><span style="background:#f3f4f6;color:#374151;border:1px solid #e5e7eb;border-radius:4px;padding:2px 8px;font-size:11px;font-weight:700;white-space:nowrap;">+${delta} pts</span></li>\n`;
-                } else {
-                  htmlContent += `<li style="margin-bottom: 6px;">${escapedText}</li>\n`;
-                }
+                const ptsBadge = (delta && delta > 0) ? `<div class="pts">+${delta}</div>` : '<div class="pts">&mdash;</div>';
+                htmlContent += `<div class="road-item">${ptsBadge}<div class="txt">${escapedText}</div></div>\n`;
               });
-              htmlContent += '</ul>\n';
               if (winnerDeltaTotal > 0 && winnerRow) {
                 const winnerProjScore = Math.min(92, winnerRow.finalScore + winnerDeltaTotal);
-                htmlContent += `<p style="font-size:13px;color:#6b7280;margin-top:8px;margin-bottom:24px;">${t.applyAllSuggestions(winnerProjScore)}</p>\n`;
-              } else {
-                htmlContent += '<div style="margin-bottom:24px;"></div>\n';
+                htmlContent += `<div class="road-total"><div class="lb">${t.applyAllSuggestions(winnerProjScore)}</div><div class="vv">${winnerProjScore}<small>/100</small></div></div>\n`;
               }
+              htmlContent += '</div>\n';
             }
 
             if (winnerAnalysis.summary) {
-              htmlContent += `<p style="font-size: 15px; color: #374151; line-height: 1.7; margin: 0 0 24px 0; padding: 16px 20px; background: #f9fafb; border-left: 1px solid #e5e7eb;">${winnerAnalysis.summary}</p>\n`;
+              htmlContent += `<p style="font-size:15px;color:var(--ink-soft);line-height:1.7;margin:24px 0 0 0;padding:16px 20px;background:var(--paper);border-left:3px solid var(--line);">${winnerAnalysis.summary}</p>\n`;
             }
           }
         }
 
         // Fallback: if we have a comparisonDeepAnalysisMeta winner explanation
         if (comparisonDeepAnalysisMeta?.winnerExplanation && !versionDeepAnalysis) {
-          htmlContent += `<h3 style="font-size: 18px; font-weight: 700; color: #111827; margin: 32px 0 16px 0;">${t.whyThisVersionWon}</h3>\n`;
-          htmlContent += `<p style="font-size: 15px; color: #374151; line-height: 1.7; margin: 0 0 24px 0;">${comparisonDeepAnalysisMeta.winnerExplanation}</p>\n`;
+          htmlContent += `<h3 style="margin-top:32px;">${t.whyThisVersionWon}</h3>\n`;
+          htmlContent += `<p style="font-size:15px;color:var(--ink-soft);line-height:1.7;margin:0 0 24px 0;">${comparisonDeepAnalysisMeta.winnerExplanation}</p>\n`;
         }
 
       } else if (comparisonCards.length > 0) {

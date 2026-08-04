@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.12
-Last Updated: 2026-08-04T20:00:00Z
+Version: 1.13
+Last Updated: 2026-08-04T20:30:00Z
 
 ---
 
@@ -156,6 +156,30 @@ Last Updated: 2026-08-04T20:00:00Z
 3. **"Agendar 20 minutos" button removed from the final CTA block.** The block now holds a single button: "Solicitar el copy completo".
 
 4. **All CTA buttons point to one URL.** Every "Solicitar versión completa" button in the proposal paywall bands, the "Ver la versión completa" button in the roadmap block, and the remaining button in the final CTA block now open `https://sharpen.studio/contacta-web/` in a new tab (`target="_blank" rel="noopener noreferrer"`). The previous `#contacto` anchors and the `/agendar` / `/contacto` URLs are gone. The `id="contacto"` section keeps its id but nothing links to it. The destination URL lives in a single config constant (`CTA_CONTACT_URL` in `buildClientReportData.ts`) so it can be changed in one place later.
+
+---
+
+## Export HTML — `exportAsFormattedHtml` Visual Redesign (2026-08-04)
+
+**Feature:** Replaced the inline-styled, gray-toned markup of `exportAsFormattedHtml` (the standard "Export HTML" report, not the Spanish client report) with a new presentation-layer design system. All scoring logic, data extraction, translation strings, TOC behaviour, and the hidden `#llm-evaluation-context` / `#llm-evaluation-data` sections are untouched — only the visible/styled sections changed.
+
+**File modified:** `src/utils/enhancedExports.ts`
+
+**Design system (CSS):** A single `<style>` block now defines a warm-paper / ink palette via CSS custom properties (`--ink`, `--paper`, `--line`, `--accent`, `--gain`, `--warn`, plus `--serif` / `--sans` / `--mono` font stacks). The previous `body` max-width / inline-style approach is replaced with a `.wrap` (max-width 940px) container and `section` blocks separated by hairline rules. The `.breadcrumb-nav` and `@media print` rules from the previous block are preserved, recoloured to the new palette, and merged alongside the new system. A `@media(max-width:760px)` block collapses the split columns, brief rows, ranking grid, and journey widget for mobile.
+
+**Cover / header (`#doc-header`):** Replaced the plain text header + winner banner with a dark `.cover` block: `.brandbar` (CopyZap wordmark left, "Copy Evaluation Report" label right) → `.kicker` → `<h1>` project title → `.stamp` (generated date, variant count, language). When scores are available, a `.journey` widget renders up to three `.stop` entries — baseline (lowest / original score), winning version (winner score + label), and potential (projected score from the winner's deep-analysis suggested improvements, capped at 92, falling back to baseline → winner only when no projection exists) — connected by a `.rail` with positioned dots. A `.journey-foot` line states the delta in points and percent.
+
+**Table of contents (`#toc`):** `renderTocRow` now emits `.toc a` rows with `.idx` (mono index), `.name` (plus `.win` badge when the row is the winner), and `.sc` (serif score, `/100`), replacing the previous dotted-leader flex markup.
+
+**Input summary (`#input-summary`):** The configuration `<table>` is replaced with `.brief-tbl` / `.brief-row` (`.k` / `.v`) grid rows. The source-text preview is wrapped in `.preview-box` with a `.preview-text` div containing one `<p>` per paragraph (reusing the `renderTextAsParagraphs` helper from the earlier spacing fix).
+
+**Per-version cards (`generateFullHtmlExportForCard`):** Each card is now `.version` > `.v-head` (`.t` with `<h3>` title + `.win` badge if winner, `.role` subtitle; `.v-scores` with `.big` score and `.gain` delta vs. the original baseline) > `.v-body` with one `.sec` per content block (`.sec-lbl` + `<p>` paragraphs; the first/hero block gets `.sec.hero` with serif styling). The strengths/improvements block is now a `.split` with `.pos` / `.neg` columns (checkmark / arrow bullets via `:before`), replacing the previous inline bullet lists. The on-the-fly `generateExportAnalysis` still feeds the two columns.
+
+**Rankings (`#comparison-rankings`):** Rebuilt as `.rank` > `.rank-row.head` + one `.rank-row` per version (`.pos` rank, `.nm` name + sub-label, `.cell` editorial-quality and conversion-potential columns, `.dl` delta vs. original, `.tot` total score). `.rank-row.is-win` highlights the winner; `.rank-row.base` styles the original/baseline row. Verification flags and risk factors render as inline sub-rows beneath the relevant version row, recoloured to `--warn-soft` / `--accent-soft`. The winner's deep-analysis suggested improvements render as a `.road` block with `.road-item` point badges and a dark `.road-total` showing the projected score.
+
+**Breadcrumb nav:** Structure and behaviour unchanged; colours retuned to `var(--ink)`, `var(--line)`, `var(--paper)`.
+
+**Acceptance:** `npm run build` passes. No scoring logic, data extraction, translation strings, or hidden LLM-evaluation section ids / `data-*` attributes were modified.
 
 ---
 
