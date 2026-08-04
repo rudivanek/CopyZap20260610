@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.15
-Last Updated: 2026-08-04T21:30:00Z
+Version: 1.16
+Last Updated: 2026-08-04T22:00:00Z
 
 ---
 
@@ -243,6 +243,22 @@ Last Updated: 2026-08-04T21:30:00Z
 The main headline now renders large, serif, non-bold, with no underline (matching `.sec.hero p` — the same visual weight as structured cards' hero headline), and the rest of the markdown content (Hero, Introduction, Features, etc.) still renders below it with the `md-h1` / `md-h2` / etc. classes from the previous fix.
 
 **Acceptance:** `npm run build` passes. Structured-card exports are unchanged.
+
+---
+
+## Export Report Theme — Single Source of Truth (2026-08-04)
+
+**Feature:** The full CSS design system that styles the CopyZap HTML report export (cover, TOC, version cards, rankings, roadmap, footer, breadcrumb nav, print + mobile media queries) has been extracted out of `src/utils/enhancedExports.ts` into a dedicated file `src/utils/exportReportTheme.ts`, so the design can be maintained in one place going forward instead of being buried inline in the export-generation code.
+
+**Files modified:**
+- `src/utils/exportReportTheme.ts` (new) — exports a single constant `EXPORT_REPORT_STYLES` containing the verbatim CSS previously living between the `<style>` and `</style>` tags of `exportAsFormattedHtml` in `enhancedExports.ts` (formerly lines ~2914–3105). A short comment at the top of the file notes: "Single source of truth for the CopyZap HTML report design system (Preview 2 style). Edit this file to change colors, fonts, spacing, or component styles across all future report exports."
+- `src/utils/enhancedExports.ts` — imports `EXPORT_REPORT_STYLES` from `./exportReportTheme` and replaces the inline `<style>...</style>` block with `<style>${EXPORT_REPORT_STYLES}</style>`.
+
+**Scope of extraction:** This is a pure extraction — no rule, value, or selector was changed. The report has a single stylesheet covering cover/TOC/version cards/rankings/etc., and that one block is the only `<style>` block in `exportAsFormattedHtml`, so nothing else needed consolidating. Per-element `style="..."` attributes that are generated dynamically from data (e.g. score-color-based styles computed at runtime) are intentionally left untouched in `enhancedExports.ts` — only the static design-system CSS moved.
+
+**Result:** Report exports render identically to before this change. Future design edits (colors, fonts, spacing, component styles) can be made in `exportReportTheme.ts` alone and will apply across all report exports.
+
+**Acceptance:** `npm run build` passes with no errors. This is a refactor only — no design or content changes.
 
 ---
 
