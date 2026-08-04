@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.7
-Last Updated: 2026-08-04T00:00:00Z
+Version: 1.8
+Last Updated: 2026-08-04T12:00:00Z
 
 ---
 
@@ -95,6 +95,18 @@ Last Updated: 2026-08-04T00:00:00Z
 **Refinements (v1.6):**
 
 1. **Analysed URL resolved via a priority chain.** Previously the report read the URL from a single field (`competitorUrls[0]`), which was empty for sessions created before the wizard fix. The URL is now resolved from the first available source in this order: (a) the first URL extracted from `projectDescription` free text — the user may write "Sitio: https://example.com — consultoría B2B", so the URL is parsed out rather than assumed to be the whole field; (b) the wizard's analyze-url capture (stored in `competitorUrls[0]`); (c) the first URL appearing in the original copy; (d) none — the cover link and "URL analizada" brief row are omitted and the disclaimer rewrites itself. Whichever source wins, the URL is never used as the company name; that is resolved separately from `og:site_name` / `<title>` / the AI narrative.
+
+**Refinements (v1.8):**
+
+1. **Proposals shown in full capped at three.** A new `MAX_PROPOSALS_SHOWN = 3` constant limits how many proposals get a full version section (heading, copy, paywall band, strengths/limits). The winner plus the next highest-scoring proposals up to that cap are developed in full; the rest appear only as compact rows in the ranking table. Letters A/B/C are assigned to the shown proposals only (the existing score-ordered letter assignment already yields this). The baseline is always shown in full. The table of contents now lists only the shown proposals plus the baseline, so it no longer advertises sections the report does not contain.
+
+2. **"Se evaluaron N versiones" note under the ranking table.** When some proposals were not developed in full, a single line appears below the ranking table: "Se evaluaron N versiones en total; este reporte desarrolla las tres mejores." N is the true count of generated copy versions, not the count that happen to have comparison rows.
+
+3. **Cover stamp reports the true version count.** Previously the stamp read `journey.versionCount`, which was the length of the filtered card list — a mix that could undercount real copy versions (when the name-based filter dropped a card whose display name contained "Analysis"/"Comparison") or inflate it (when SEO metadata, FAQ schema, or GEO outputs slipped in). The stamp now reports `generatedProposalCount`, the count of cards whose type is a real copy version (Improved, Alternative, RestyledImproved, RestyledAlternative, Boosted), excluding the baseline and all non-copy noise.
+
+4. **Version filtering by type, not by name.** The old filter kept a card unless its `sourceDisplayName` contained "Analysis" or "Comparison". That was fragile: it silently dropped any copy card whose name happened to include those words, and it let non-copy cards (SEO metadata, FAQ schema, GEO outputs) through. The filter now keeps only cards whose `type` is a real copy version (plus the original baseline). This is the root cause of the user's report that fewer versions appeared than Copy Maker held: a copy card named, for example, "Comparison of variants" would have been dropped by the old name filter even though it was a real proposal.
+
+5. **Unscored proposals surfaced, not silently omitted.** Proposals that have no comparison score are now excluded from the ranking table (they have no comparable score) but kept in the full-versions list, and a second note line appears under the table when any exist: "N versión(es) generada(s) no figura(n) en la tabla por no contar con puntuación comparativa; están disponibles en Copy Maker." Each version carries an `isScored` flag; the ranking table and the `versionsByScore` sort use only scored proposals, while the full-versions list and counts include unscored ones so the work is visible.
 
 **Refinements (v1.7):**
 

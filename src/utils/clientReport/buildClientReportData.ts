@@ -22,6 +22,29 @@ export const CLIENT_REPORT_PREVIEW_PERCENT = 25;
 // roadmap block, final CTA). Change this one constant to repoint them all.
 const CTA_CONTACT_URL = 'https://sharpen.studio/contacta-web/';
 
+// Maximum number of proposals rendered as full version sections (heading,
+// copy, paywall band, strengths/limits). The winner plus the next
+// highest-scoring proposals up to this cap are developed in full; the rest
+// appear only as compact rows in the ranking table.
+export const MAX_PROPOSALS_SHOWN = 3;
+
+// Card types that represent a real generated copy version. Everything else
+// (SEO metadata, FAQ schema, GEO outputs, analysis/comparison cards) is noise
+// for this report and is excluded from the version count and the body.
+const COPY_VERSION_TYPES = new Set<GeneratedContentItemType>([
+  GeneratedContentItemType.Improved,
+  GeneratedContentItemType.Alternative,
+  GeneratedContentItemType.RestyledImproved,
+  GeneratedContentItemType.RestyledAlternative,
+  GeneratedContentItemType.Boosted,
+]);
+
+function isCopyVersionCard(card: GeneratedContentItem): boolean {
+  return COPY_VERSION_TYPES.has(card.type)
+    || card.id === '__original__'
+    || card.type === GeneratedContentItemType.Original;
+}
+
 const STUDIO = {
   name: 'Sharpen.Studio',
   site: 'sharpen.studio',
@@ -91,6 +114,11 @@ export interface ClientReportVersion {
   roleLine: string;
   isBaseline: boolean;
   isWinner: boolean;
+  // Whether this version is developed as a full section (heading, copy,
+  // paywall band, strengths/limits). True for the winner + next highest-
+  // scoring proposals up to MAX_PROPOSALS_SHOWN, and always for the baseline.
+  isShownInFull: boolean;
+  isScored: boolean;
   score: number;
   deltaPoints: number | null;
   deltaPercent: number | null;
@@ -192,6 +220,15 @@ export interface ClientReportData {
   roadmapCountWord: string;
   winnerDisplayName: string;
   lastIndex: number;
+  // True count of generated copy versions in the session (excludes baseline
+  // and SEO/FAQ/GEO noise). The cover stamp reports this so it never
+  // undercounts the work done in Copy Maker.
+  generatedProposalCount: number;
+  // Proposals that have no comparison score. Excluded from the ranking table
+  // but surfaced in a note so they are not silently omitted.
+  unscoredProposalCount: number;
+  // Cap applied to full version sections (mirrors MAX_PROPOSALS_SHOWN).
+  maxProposalsShown: number;
 }
 
 export interface ClientReportNarrative {
@@ -740,9 +777,11 @@ export function buildClientReportData(
   narrative: ClientReportNarrative | null,
 ): ClientReportData {
   const ORIGINAL_VERSION_ID = '__original__';
-  const contentCards = (generatedOutputCards ?? []).filter(card =>
-    !card.sourceDisplayName?.includes('Analysis') && !card.sourceDisplayName?.includes('Comparison'),
-  );
+  // Keep only real copy versions (improved/alternative/restyled/boosted) plus the
+  // original baseline. SEO metadata, FAQ schema, GEO outputs and analysis/
+  // comparison cards are noise here and would otherwise inflate the version
+  // count or be silently dropped by the old name-based filter (issue #2).
+  const contentCards = (generatedOutputCards ?? []).filter(isCopyVersionCard);
   const hasOriginalInCards = contentCards.some(c => c.id === ORIGINAL_VERSION_ID || c.type === GeneratedContentItemType.Original);
   const originalRowInComparison = comparisonResult?.rows?.find(r => r.versionId === ORIGINAL_VERSION_ID);
   if (!hasOriginalInCards && originalRowInComparison && formState.originalCopy?.trim()) {
@@ -812,7 +851,17 @@ export function buildClientReportData(
     }
   }
 
-  const proposalCount = contentCards.filter(c => c.id !== ORIGINAL_VERSION_ID && c.type !== GeneratedContentItemType.Original).length;
+  // True count of generated copy proposals in the session (excludes baseline
+  // and SEO/FAQ/GEO noise). This is what the cover stamp reports so it never
+  // undercounts the work done in Copy Maker (issue #2).
+  const generatedProposalCount = contentCards.filter(c => c.id !== ORIGINAL_VERSION_ID && c.type !== GeneratedContentItemType.Original).length;
+  // Proposals that have no comparison score. Excluded from the ranking table
+  // but surfaced in a note so they are not silently omitted (issue #2).
+  const unscoredProposalCount = contentCards.filter(c =>
+    c.id !== ORIGINAL_VERSION_ID
+    && c.type !== GeneratedContentItemType.Original
+    && !scoreMap.has(c.id)
+  ).length;
   const versionCount = contentCards.length;
 
   const narrativeLabels = new Map<string, { displayName: string; roleLine: string }>();
@@ -914,6 +963,8 @@ export function buildClientReportData(
       roleLine,
       isBaseline,
       isWinner,
+      isShownInFull: false,
+      isScored: isBaseline || scoreMap.has(card.id),
       score,
       deltaPoints,
       deltaPercent,
@@ -936,10 +987,26 @@ export function buildClientReportData(
   });
 
   // Ranking: sorted by score desc, baseline always last (spec 8.1).
+  // Unscored proposals are excluded from the table (they have no comparable
+  // score) but kept in `versions` so the full-versions list and the note can
+  // surface them (issue #2).
   const versionsByScore: ClientReportVersion[] = [
-    ...versions.filter(v => !v.isBaseline).sort((a, b) => b.score - a.score),
+    ...versions.filter(v => !v.isBaseline && v.isScored).sort((a, b) => b.score - a.score),
     ...versions.filter(v => v.isBaseline),
   ];
+
+  // Cap the proposals developed as full sections (issue #1): winner + next
+  // highest-scoring proposals up to MAX_PROPOSALS_SHOWN. The baseline is
+  // always shown in full. Assign letters A/B/C to the shown proposals only.
+  const shownProposalKeys = new Set(
+    versionsByScore
+      .filter(v => !v.isBaseline)
+      .slice(0, MAX_PROPOSALS_SHOWN)
+      .map(v => v.key),
+  );
+  for (const v of versions) {
+    v.isShownInFull = v.isBaseline || shownProposalKeys.has(v.key);
+  }
 
   const originalCard = contentCards.find(c => c.id === ORIGINAL_VERSION_ID || c.type === GeneratedContentItemType.Original);
   const winnerCard = contentCards.find(c => c.id === winnerVersionId);
@@ -1017,7 +1084,7 @@ export function buildClientReportData(
     winnerDeltaPoints,
     winnerDeltaPercent,
     versionCount,
-    proposalCount: proposalCount || Math.max(0, versions.length - 1),
+    proposalCount: generatedProposalCount || Math.max(0, versions.length - 1),
   };
 
   const winnerDisplayName = versions.find(v => v.isWinner)?.displayName || 'La propuesta ganadora';
@@ -1038,6 +1105,9 @@ export function buildClientReportData(
     roadmapCountWord: numberWord(roadmapItems.length, false),
     winnerDisplayName,
     lastIndex: versions.length + 2,
+    generatedProposalCount,
+    unscoredProposalCount,
+    maxProposalsShown: MAX_PROPOSALS_SHOWN,
   };
 }
 
@@ -1059,9 +1129,7 @@ export function buildClientReportInputMarkdown(
   versionDeepAnalysis: Record<string, VersionDeepAnalysis> | null | undefined,
 ): string {
   const ORIGINAL_VERSION_ID = '__original__';
-  const contentCards = (generatedOutputCards ?? []).filter(card =>
-    !card.sourceDisplayName?.includes('Analysis') && !card.sourceDisplayName?.includes('Comparison'),
-  );
+  const contentCards = (generatedOutputCards ?? []).filter(isCopyVersionCard);
   const hasOriginal = contentCards.some(c => c.id === ORIGINAL_VERSION_ID || c.type === GeneratedContentItemType.Original);
   if (!hasOriginal && formState.originalCopy?.trim()) {
     contentCards.unshift({

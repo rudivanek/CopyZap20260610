@@ -233,6 +233,9 @@ function renderCover(data: ClientReportData): string {
   const siteLine = data.company.hasUrl
     ? `    <a class="site" href="${escapeOnce(absoluteHref(data.company.url))}" target="_blank" rel="noopener noreferrer">${escapeOnce(data.company.url)}</a>`
     : '';
+  // Cover stamp reports the true count of generated copy versions in the
+  // session, not the number that happen to have comparison rows (issue #2).
+  const stampCount = data.generatedProposalCount || data.journey.versionCount;
   return `<div class="cover">
   <div class="wrap">
     <div class="brandbar">
@@ -242,7 +245,7 @@ function renderCover(data: ClientReportData): string {
     <div class="kicker">Diagnóstico de copy · Sitio web</div>
     <h1>El copy de ${escapeOnce(data.company.name)} puede rendir un ${escapeOnce(data.journey.winnerDeltaPercent)}&nbsp;% más.</h1>
 ${siteLine}
-    <div class="stamp">Análisis del ${escapeOnce(data.company.analyzedAtLabel)} · ${escapeOnce(data.journey.versionCount)} versiones evaluadas · Idioma: ${escapeOnce(data.company.language)}</div>
+    <div class="stamp">Análisis del ${escapeOnce(data.company.analyzedAtLabel)} · ${escapeOnce(stampCount)} versiones evaluadas · Idioma: ${escapeOnce(data.company.language)}</div>
 
     <div class="journey">
       <div class="journey-head">Recorrido de puntuación</div>
@@ -303,7 +306,10 @@ function renderToc(data: ClientReportData): string {
   rows.push(`      <a href="#entrada"><span class="idx">1</span>
         <span class="name">Resumen de entrada <em>— qué leímos de tu sitio</em></span>
         <span class="delta"></span><span class="sc"></span></a>`);
-  data.versions.forEach((v, i) => {
+  // Table of contents lists only the proposals developed in full (issue #1):
+  // winner + next highest-scoring up to MAX_PROPOSALS_SHOWN, plus the baseline.
+  const tocVersions = data.versions.filter(v => v.isBaseline || v.isShownInFull);
+  tocVersions.forEach((v, i) => {
     const cls = v.isBaseline ? 'base' : (v.isWinner ? 'is-win' : '');
     const winTag = v.isWinner ? `<span class="win">★ Ganadora</span>` : '';
     const delta = v.isBaseline
@@ -485,6 +491,23 @@ function renderRanking(data: ClientReportData): string {
       </div>`;
   }).join('\n');
 
+  // When some proposals were not developed in full (issue #1) or were
+  // excluded from the table for lack of a score (issue #2), say so in one
+  // line rather than silently omitting them.
+  const shownCount = data.versions.filter(v => v.isBaseline || v.isShownInFull).length - 1; // minus baseline
+  const rankedCount = data.versionsByScore.filter(v => !v.isBaseline).length;
+  const totalEvaluated = data.generatedProposalCount || data.journey.versionCount - 1;
+  const notes: string[] = [];
+  if (rankedCount < totalEvaluated) {
+    notes.push(`Se evaluaron ${escapeOnce(totalEvaluated)} versiones en total; este reporte desarrolla las ${escapeOnce(Math.min(data.maxProposalsShown, rankedCount))} mejores.`);
+  }
+  if (data.unscoredProposalCount > 0) {
+    notes.push(`${escapeOnce(data.unscoredProposalCount)} ${data.unscoredProposalCount === 1 ? 'versión generada no figura en la tabla' : 'versiones generadas no figuran en la tabla'} por no contar con puntuación comparativa; están disponibles en Copy Maker.`);
+  }
+  const noteHtml = notes.length
+    ? `    <p class="methodo">${notes.join(' ')}</p>`
+    : '';
+
   return `<section id="ranking">
   <div class="wrap">
     <div class="eyebrow">${escapeOnce(data.versions.length + 2)} · Comparación</div>
@@ -497,6 +520,7 @@ function renderRanking(data: ClientReportData): string {
         <div class="dl">Mejora</div><div class="tot">Total</div></div>
 ${rows}
     </div>
+${noteHtml}
     <p class="methodo"><b>Cómo se calcula.</b> Cada versión se evalúa sobre seis dimensiones —claridad,
       persuasión, engagement, calidad editorial, potencial de conversión y ajuste al público definido— con el
       mismo criterio y el mismo contexto de marca. Las puntuaciones son comparativas entre las versiones de
@@ -572,7 +596,12 @@ function renderFooter(data: ClientReportData): string {
 }
 
 export function renderClientReport(data: ClientReportData): string {
-  const versionsHtml = data.versions.map(v => renderVersion(v, data)).join('\n');
+  // Render full version sections only for the shown set (issue #1): winner
+  // plus next highest-scoring proposals up to MAX_PROPOSALS_SHOWN, plus the
+  // baseline always. Unscored proposals beyond the cap are not developed in
+  // full; they appear only as compact rows in the ranking table.
+  const shownVersions = data.versions.filter(v => v.isBaseline || v.isShownInFull);
+  const versionsHtml = shownVersions.map(v => renderVersion(v, data)).join('\n');
   return `<!DOCTYPE html>
 <html lang="es">
 <head>
