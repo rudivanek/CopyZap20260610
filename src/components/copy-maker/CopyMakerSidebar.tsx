@@ -385,27 +385,6 @@ function SectionHeader({
   );
 }
 
-function SubSectionHeader({
-  label,
-  open,
-  onToggle,
-}: {
-  label: string;
-  open: boolean;
-  onToggle: () => void;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onToggle}
-      className="w-full flex items-center justify-between py-0.5 text-[8px] font-normal uppercase tracking-widest text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
-    >
-      <span>{label}</span>
-      {open ? <ChevronDown size={9} /> : <ChevronRight size={9} />}
-    </button>
-  );
-}
-
 function SidebarBtn({
   onClick,
   disabled,
@@ -736,10 +715,6 @@ const CardActions: React.FC<CardActionsProps> = ({
   onAddCards,
 }) => {
   // All sub-sections collapsed by default
-  const [openCreate, setOpenCreate] = useState(false);
-  const [openGenerate, setOpenGenerate] = useState(false);
-  const [openAnalyze, setOpenAnalyze] = useState(false);
-  const [openCopy, setOpenCopy] = useState(false);
   const [scoreOpen, setScoreOpen] = useState(false);
   const [copyOpen, setCopyOpen] = useState(false);
 
@@ -1034,79 +1009,138 @@ const CardActions: React.FC<CardActionsProps> = ({
     GeneratedContentItemType.GeoLocalVariations,
   ].includes(card.type);
 
+  const canCreate = !isAnalysisCard && !isGeoCard && card.type !== GeneratedContentItemType.Original;
+
   return (
-    <div className="space-y-0.5 pb-1">
-      {/* a) Create */}
-      {!isAnalysisCard && !isGeoCard && card.type !== GeneratedContentItemType.Original && (
-        <div>
-          <SubSectionHeader label="Create" open={openCreate} onToggle={() => setOpenCreate(p => !p)} />
-          {openCreate && (
-            <div className="space-y-px pl-1">
-              {showAlternativeButton && (
-                <SidebarBtn onClick={onAlternative} title="Create a new version">
-                  <Wand2 size={10} />
-                  New Version
-                </SidebarBtn>
-              )}
-              <SidebarBtn
-                onClick={() => setShowImproveModal(true)}
-                title="Improve this copy"
-              >
-                <Edit size={10} />
-                Improve
-              </SidebarBtn>
-              {!contentDetails.isHeadlines && (
-                <SidebarBtn
-                  onClick={() => setShowVoiceModal(true)}
-                  title="Apply a different voice style"
-                >
-                  <Sparkles size={10} />
-                  Change Voice
-                </SidebarBtn>
-              )}
-              {showBoostButton && (
-                <SidebarBtn
-                  onClick={onBoost!}
-                  disabled={boostDisabled}
-                  title={
-                    boostLimitReached
-                      ? `Max ${MAX_BOOST_ITERATIONS} boosts reached`
-                      : scoreAtMax
-                      ? 'Score already at max'
-                      : 'Generate a performance-optimized version'
-                  }
-                >
-                  <Zap size={10} />
-                  Enhance
-                </SidebarBtn>
-              )}
-            </div>
-          )}
-        </div>
+    <div className="space-y-px pb-1">
+      {/* 1. New Version */}
+      {canCreate && showAlternativeButton && (
+        <SidebarBtn onClick={onAlternative} title="Create a new version">
+          <Wand2 size={10} />
+          New Version
+        </SidebarBtn>
       )}
 
-      {/* b) Generate */}
-      {!isGeoCard && (
-        <div>
-          <SubSectionHeader label="Generate" open={openGenerate} onToggle={() => setOpenGenerate(p => !p)} />
-          {openGenerate && (
-            <div className="space-y-px pl-1">
-              {showSeoButton && (
-                <SidebarBtn onClick={() => setShowSeoOptionsModal(true)} disabled={anyAnalysisRunning} title="Generate SEO metadata">
-                  <Globe size={10} />
-                  {isGeneratingSeoMetadata ? 'Generating…' : 'SEO Metadata'}
-                </SidebarBtn>
-              )}
-              {!hasGeoPackage && (
-                <SidebarBtn onClick={() => setShowGeoGenerateModal(true)} disabled={anyAnalysisRunning || isGeneratingGeo} title="Generate GEO content elements">
-                  <Globe size={10} />
-                  {isGeneratingGeo ? 'Generating…' : 'GEO Generate'}
-                </SidebarBtn>
-              )}
-            </div>
-          )}
-        </div>
+      {/* 2. Improve */}
+      {canCreate && (
+        <SidebarBtn onClick={() => setShowImproveModal(true)} title="Improve this copy">
+          <Edit size={10} />
+          Improve
+        </SidebarBtn>
       )}
+
+      {/* 3. Change Voice */}
+      {canCreate && !contentDetails.isHeadlines && (
+        <SidebarBtn onClick={() => setShowVoiceModal(true)} title="Apply a different voice style">
+          <Sparkles size={10} />
+          Change Voice
+        </SidebarBtn>
+      )}
+
+      {/* 4. Boost */}
+      {canCreate && showBoostButton && (
+        <SidebarBtn
+          onClick={onBoost!}
+          disabled={boostDisabled}
+          title={
+            boostLimitReached
+              ? `Max ${MAX_BOOST_ITERATIONS} boosts reached`
+              : scoreAtMax
+              ? 'Score already at max'
+              : 'Generate a performance-optimized version'
+          }
+        >
+          <Zap size={10} />
+          Enhance
+        </SidebarBtn>
+      )}
+
+      {/* 5. Generate SEO Metadata */}
+      {!isGeoCard && showSeoButton && (
+        <SidebarBtn onClick={() => setShowSeoOptionsModal(true)} disabled={anyAnalysisRunning} title="Generate SEO metadata">
+          <Globe size={10} />
+          {isGeneratingSeoMetadata ? 'Generating…' : 'SEO Metadata'}
+        </SidebarBtn>
+      )}
+
+      {/* 6. Generate GEO Elements */}
+      {!isGeoCard && !hasGeoPackage && (
+        <SidebarBtn onClick={() => setShowGeoGenerateModal(true)} disabled={anyAnalysisRunning || isGeneratingGeo} title="Generate GEO content elements">
+          <Globe size={10} />
+          {isGeneratingGeo ? 'Generating…' : 'GEO Generate'}
+        </SidebarBtn>
+      )}
+
+      {/* 7. Score — inline dropdown (not a section header) */}
+      {(showContentScoreButton || showGeoScoreButton) && (
+        missingCount >= 2 ? (
+          <>
+            <ZoneItem
+              icon={Gauge}
+              label="Score"
+              onClick={() => setScoreOpen(o => !o)}
+              expanded={scoreOpen}
+              title="Choose scoring scope"
+              trailing={<ChevronDown size={10} className={scoreOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />}
+            />
+            {scoreOpen && (
+              <InlineFlyout>
+                <FlyoutOption
+                  label="Content + GEO"
+                  onClick={async () => {
+                    if (showContentScoreButton) await handleGenerateContentScore();
+                    if (showGeoScoreButton) await handleGenerateGeoScore();
+                  }}
+                  disabled={anyAnalysisRunning}
+                />
+                {showContentScoreButton && (
+                  <FlyoutOption label="Content only" onClick={handleGenerateContentScore} disabled={anyAnalysisRunning} />
+                )}
+                {showGeoScoreButton && (
+                  <FlyoutOption label="GEO only" onClick={handleGenerateGeoScore} disabled={anyAnalysisRunning} />
+                )}
+              </InlineFlyout>
+            )}
+          </>
+        ) : showContentScoreButton ? (
+          <SidebarBtn onClick={handleGenerateContentScore} disabled={anyAnalysisRunning} title="Generate content score">
+            <Gauge size={10} />
+            {isGeneratingContentScore ? 'Scoring…' : 'Score'}
+          </SidebarBtn>
+        ) : showGeoScoreButton ? (
+          <SidebarBtn onClick={handleGenerateGeoScore} disabled={anyAnalysisRunning} title="Generate GEO score">
+            <Gauge size={10} />
+            {isGeneratingGeoScore ? 'Scoring…' : 'GEO Score'}
+          </SidebarBtn>
+        ) : null
+      )}
+
+      {/* 8. Copy — inline dropdown (not a section header) */}
+      <ZoneItem
+        icon={Copy}
+        label={copied ? 'Copied!' : 'Copy'}
+        onClick={() => setCopyOpen(o => !o)}
+        expanded={copyOpen}
+        title="Choose copy format"
+        trailing={copied ? <Check size={10} className="text-gray-500 dark:text-gray-400" /> : <ChevronDown size={10} className={copyOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />}
+      />
+      {copyOpen && (
+        <InlineFlyout>
+          <FlyoutOption label="Plain text" onClick={handleCopy} />
+          <FlyoutOption label="HTML" onClick={handleCopyHtml} />
+          <FlyoutOption label="Markdown" onClick={handleCopyMd} />
+        </InlineFlyout>
+      )}
+
+      {/* Save as Brand Voice — preserved (not in the 8-item spec; removing would be a behavior change) */}
+      {onSaveAsBrandVoice && (
+        <SidebarBtn onClick={() => onSaveAsBrandVoice(contentDetails.text)} title="Save as Brand Voice profile">
+          <BookOpen size={10} />
+          Save as Brand Voice
+        </SidebarBtn>
+      )}
+
+      {/* ── Modals / portals (all preserved unchanged) ────────────────────────── */}
       {showSeoOptionsModal && ReactDOM.createPortal(
         <SeoGenerationOptionsModal
           isOpen={showSeoOptionsModal}
@@ -1200,55 +1234,48 @@ const CardActions: React.FC<CardActionsProps> = ({
         document.body
       )}
 
-      {/* c) Score — dropdown replacing All Analyses/Score/GEO cluster */}
+      {/* 7. Score — inline dropdown (not a section header) */}
       {(showContentScoreButton || showGeoScoreButton) && (
-        <div>
-          <SubSectionHeader label="Score" open={openAnalyze} onToggle={() => setOpenAnalyze(p => !p)} />
-          {openAnalyze && (
-            <div className="space-y-px pl-1">
-              {missingCount >= 2 ? (
-                <>
-                  <ZoneItem
-                    icon={Gauge}
-                    label="Score"
-                    onClick={() => setScoreOpen(o => !o)}
-                    expanded={scoreOpen}
-                    title="Choose scoring scope"
-                    trailing={<ChevronDown size={10} className={scoreOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />}
-                  />
-                  {scoreOpen && (
-                    <InlineFlyout>
-                      <FlyoutOption
-                        label="Content + GEO"
-                        onClick={async () => {
-                          if (showContentScoreButton) await handleGenerateContentScore();
-                          if (showGeoScoreButton) await handleGenerateGeoScore();
-                        }}
-                        disabled={anyAnalysisRunning}
-                      />
-                      {showContentScoreButton && (
-                        <FlyoutOption label="Content only" onClick={handleGenerateContentScore} disabled={anyAnalysisRunning} />
-                      )}
-                      {showGeoScoreButton && (
-                        <FlyoutOption label="GEO only" onClick={handleGenerateGeoScore} disabled={anyAnalysisRunning} />
-                      )}
-                    </InlineFlyout>
-                  )}
-                </>
-              ) : showContentScoreButton ? (
-                <SidebarBtn onClick={handleGenerateContentScore} disabled={anyAnalysisRunning} title="Generate content score">
-                  <Gauge size={10} />
-                  {isGeneratingContentScore ? 'Scoring…' : 'Score'}
-                </SidebarBtn>
-              ) : showGeoScoreButton ? (
-                <SidebarBtn onClick={handleGenerateGeoScore} disabled={anyAnalysisRunning} title="Generate GEO score">
-                  <Gauge size={10} />
-                  {isGeneratingGeoScore ? 'Scoring…' : 'GEO Score'}
-                </SidebarBtn>
-              ) : null}
-            </div>
-          )}
-        </div>
+        missingCount >= 2 ? (
+          <>
+            <ZoneItem
+              icon={Gauge}
+              label="Score"
+              onClick={() => setScoreOpen(o => !o)}
+              expanded={scoreOpen}
+              title="Choose scoring scope"
+              trailing={<ChevronDown size={10} className={scoreOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />}
+            />
+            {scoreOpen && (
+              <InlineFlyout>
+                <FlyoutOption
+                  label="Content + GEO"
+                  onClick={async () => {
+                    if (showContentScoreButton) await handleGenerateContentScore();
+                    if (showGeoScoreButton) await handleGenerateGeoScore();
+                  }}
+                  disabled={anyAnalysisRunning}
+                />
+                {showContentScoreButton && (
+                  <FlyoutOption label="Content only" onClick={handleGenerateContentScore} disabled={anyAnalysisRunning} />
+                )}
+                {showGeoScoreButton && (
+                  <FlyoutOption label="GEO only" onClick={handleGenerateGeoScore} disabled={anyAnalysisRunning} />
+                )}
+              </InlineFlyout>
+            )}
+          </>
+        ) : showContentScoreButton ? (
+          <SidebarBtn onClick={handleGenerateContentScore} disabled={anyAnalysisRunning} title="Generate content score">
+            <Gauge size={10} />
+            {isGeneratingContentScore ? 'Scoring…' : 'Score'}
+          </SidebarBtn>
+        ) : showGeoScoreButton ? (
+          <SidebarBtn onClick={handleGenerateGeoScore} disabled={anyAnalysisRunning} title="Generate GEO score">
+            <Gauge size={10} />
+            {isGeneratingGeoScore ? 'Scoring…' : 'GEO Score'}
+          </SidebarBtn>
+        ) : null
       )}
       {showContentScoreProcessingModal && ReactDOM.createPortal(
         <ProcessingModal
@@ -1283,38 +1310,30 @@ const CardActions: React.FC<CardActionsProps> = ({
         document.body
       )}
 
-      {/* d) Copy — dropdown replacing three copy buttons */}
-      <div>
-        <SubSectionHeader label="Copy" open={openCopy} onToggle={() => setOpenCopy(p => !p)} />
-        {openCopy && (
-          <div className="space-y-px pl-1">
-            <ZoneItem
-              icon={Copy}
-              label={copied ? 'Copied!' : 'Copy'}
-              onClick={() => setCopyOpen(o => !o)}
-              expanded={copyOpen}
-              title="Choose copy format"
-              trailing={copied ? <Check size={10} className="text-gray-500 dark:text-gray-400" /> : <ChevronDown size={10} className={copyOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />}
-            />
-            {copyOpen && (
-              <InlineFlyout>
-                <FlyoutOption label="Plain text" onClick={handleCopy} />
-                <FlyoutOption label="HTML" onClick={handleCopyHtml} />
-                <FlyoutOption label="Markdown" onClick={handleCopyMd} />
-              </InlineFlyout>
-            )}
-            {onSaveAsBrandVoice && (
-              <SidebarBtn
-                onClick={() => onSaveAsBrandVoice(contentDetails.text)}
-                title="Save as Brand Voice profile"
-              >
-                <BookOpen size={10} />
-                Save as Brand Voice
-              </SidebarBtn>
-            )}
-          </div>
-        )}
-      </div>
+      {/* 8. Copy — inline dropdown (not a section header) */}
+      <ZoneItem
+        icon={Copy}
+        label={copied ? 'Copied!' : 'Copy'}
+        onClick={() => setCopyOpen(o => !o)}
+        expanded={copyOpen}
+        title="Choose copy format"
+        trailing={copied ? <Check size={10} className="text-gray-500 dark:text-gray-400" /> : <ChevronDown size={10} className={copyOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />}
+      />
+      {copyOpen && (
+        <InlineFlyout>
+          <FlyoutOption label="Plain text" onClick={handleCopy} />
+          <FlyoutOption label="HTML" onClick={handleCopyHtml} />
+          <FlyoutOption label="Markdown" onClick={handleCopyMd} />
+        </InlineFlyout>
+      )}
+
+      {/* Save as Brand Voice — preserved (not in the 8-item spec; removing would be a behavior change) */}
+      {onSaveAsBrandVoice && (
+        <SidebarBtn onClick={() => onSaveAsBrandVoice(contentDetails.text)} title="Save as Brand Voice profile">
+          <BookOpen size={10} />
+          Save as Brand Voice
+        </SidebarBtn>
+      )}
     </div>
   );
 };

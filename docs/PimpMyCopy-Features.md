@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.21
-Last Updated: 2026-08-06T00:00:00Z
+Last Updated: 2026-08-06T12:00:00Z
 
 ---
 
@@ -6704,7 +6704,7 @@ New shared primitives added at the top of the sidebar file: `ZoneHeader`, `ZoneI
 4. Blend Best Version (`GitMerge`, `onBlendVersions`) — same `comparisonResult` gating.
 5. Reports (`FileStack`) — opens a side panel (see below).
 
-**This-version zone contents (in order):** the per-card collapsible groups (same engine as before — `CardActions` sub-component with its Create / Generate / Analyze / Copy-Export sub-sections, all modal/abort state preserved). The Analyze cluster (All Analyses / Score / GEO) collapsed into a **Score dropdown** (`Gauge` icon): when both content and GEO scoring are available it shows a 3-option flyout ("Content + GEO" / "Content only" / "GEO only"); when only one is available it shows a single direct-action button instead of a 1-option dropdown. The Copy cluster (Copy / Copy HTML / Copy MD) collapsed into a **Copy dropdown** (`Copy` icon) with a 3-option flyout ("Plain text" / "HTML" / "Markdown"). "Save as Brand Voice" remains as a direct button under the Copy dropdown.
+**This-version zone contents (in order):** a *flat* list of 8 items at the same visual level/indentation as the Session-zone items above — no CREATE/GENERATE/SCORE/COPY section headers, no accordions. Items: 1) New Version (`onAlternative`, only if `showAlternativeButton`), 2) Improve (`setShowImproveModal(true)`), 3) Change Voice (`setShowVoiceModal(true)`), 4) Boost (`onBoost`, only if `showBoostButton`), 5) Generate SEO Metadata (only if `showSeoButton`), 6) Generate GEO Elements, 7) **Score** as an inline dropdown (▾) — when both content and GEO scoring are available it shows a 3-option flyout ("Content + GEO" / "Content only" / "GEO only"); when only one of `showContentScoreButton`/`showGeoScoreButton` is true it renders a single direct-action button instead of a 1-option dropdown, 8) **Copy** as an inline dropdown (▾) with a 3-option flyout ("Plain text" / "HTML" / "Markdown"). The two dropdowns open as a small inline flyout directly under that one row, not as expanding sections. "Save as Brand Voice" is preserved as a direct button after the Copy dropdown (removing it would be a behavior change). The old `SubSectionHeader` component and its four `openCreate`/`openGenerate`/`openAnalyze`/`openCopy` state vars were deleted as dead code. All modal/abort state and every existing visibility condition (`showAlternativeButton`, `showBoostButton`, `showSeoButton`, `showContentScoreButton`, `showGeoScoreButton`) are preserved exactly — this is a structural fix only, not a behavior change.
 
 **Reports side panel:** 4+ options → side panel (per the interaction-pattern rule). Slides in from the right with a close button. For a regular user it contains exactly 2 items: "Copy as Markdown" (`handleCopyAllMarkdown`) and "Export as HTML file" (`handleExportToHtml`). For an admin (`useIsAdmin(currentUser)`), an additional visually separated **"Admin-only"** section (amber `#c2703d` / bg `#fdf3ec` / dashed border `#f3ddc7`) contains all 8 admin items with every existing `hasContent`, `comparisonResult`, and version-count gating condition preserved exactly: Export HTML (Preview), Export HTML (Preview) 2 — Spanish client report, LLM Eval Export, LLM Audit Export, Evaluation Report, Compare Report, Client Report, View Prompts.
 
