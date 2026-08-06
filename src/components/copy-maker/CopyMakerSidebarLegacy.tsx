@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Save, FileText, Code, FileCode, Sparkles, FlaskConical, CheckCircle2, BookmarkPlus, ChevronDown, ChevronRight, Wand2, CreditCard as Edit, Zap, Globe, BookCheck, MapPin, Copy, Check, BookOpen, PanelRight, X, Trash2, RefreshCw, GitMerge, File as FileEdit, FileStack, Rocket, PenLine, Camera, LayoutDashboard, Loader2, Scale, UserCheck, Drama, Search, Gauge, Download } from 'lucide-react';
+import { Save, FileText, Code, FileCode, Sparkles, FlaskConical, CheckCircle2, BookmarkPlus, ChevronDown, ChevronRight, Wand2, CreditCard as Edit, Zap, Globe, BookCheck, MapPin, Copy, Check, BookOpen, PanelRight, X, Trash2, RefreshCw, GitMerge, File as FileEdit, Rocket, PenLine, Camera, LayoutDashboard, Loader2, Scale, UserCheck } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getUserSavedOutputsMeta, getUserCopySessions } from '../../services/supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -437,113 +437,6 @@ function SidebarBtn({
   );
 }
 
-// ─── Two-zone layout primitives (Task 1 redesign) ──────────────────────────────
-
-interface ZoneTheme {
-  accent: string;
-  bg: string;
-  border: string;
-}
-
-const SESSION_ZONE: ZoneTheme = { accent: '#8457d1', bg: '#f6f2fd', border: '#e5d9f8' };
-const VERSION_ZONE: ZoneTheme = { accent: '#2f6fd6', bg: '#f0f5fd', border: '#dbe6f9' };
-const ADMIN_ZONE: ZoneTheme = { accent: '#c2703d', bg: '#fdf3ec', border: '#f3ddc7' };
-
-function ZoneHeader({ label, theme }: { label: string; theme: ZoneTheme }) {
-  return (
-    <div
-      className="flex items-center gap-1.5 px-2.5 py-1.5 border-b"
-      style={{ borderColor: theme.border, background: theme.bg }}
-    >
-      <span className="inline-block w-1 h-2.5 rounded-sm" style={{ background: theme.accent }} />
-      <span
-        className="font-semibold uppercase"
-        style={{ color: theme.accent, fontSize: '10.5px', letterSpacing: '0.06em' }}
-      >
-        {label}
-      </span>
-    </div>
-  );
-}
-
-// Zone item — matches the new typography: Inter 300 12.5–13px; bumps to 400 +
-// white bg + shadow when its dropdown is open.
-function ZoneItem({
-  icon: Icon,
-  label,
-  onClick,
-  disabled,
-  title,
-  expanded,
-  trailing,
-}: {
-  icon: React.ElementType;
-  label: string;
-  onClick?: () => void;
-  disabled?: boolean;
-  title?: string;
-  expanded?: boolean;
-  trailing?: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className="w-full flex items-center gap-2 px-2 py-1 rounded text-left transition-colors"
-      style={{
-        fontWeight: expanded ? 400 : 300,
-        fontSize: '12.5px',
-        color: disabled ? '#9ca3af' : '#374151',
-        background: expanded ? '#ffffff' : 'transparent',
-        boxShadow: expanded ? '0 1px 3px rgba(0,0,0,0.08)' : 'none',
-        border: expanded ? '1px solid #e5e7eb' : '1px solid transparent',
-      }}
-    >
-      <Icon size={13} strokeWidth={1.5} style={{ flexShrink: 0 }} />
-      <span className="flex-1 truncate">{label}</span>
-      {trailing}
-    </button>
-  );
-}
-
-// Inline flyout for ≤3-option dropdowns (Save, Score, Copy).
-function InlineFlyout({ children }: { children: React.ReactNode }) {
-  return (
-    <div className="ml-6 pl-2 border-l border-gray-200 dark:border-gray-700 space-y-px py-0.5">
-      {children}
-    </div>
-  );
-}
-
-function FlyoutOption({
-  label,
-  onClick,
-  disabled,
-  title,
-}: {
-  label: string;
-  onClick: () => void;
-  disabled?: boolean;
-  title?: string;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      disabled={disabled}
-      title={title}
-      className="w-full flex items-center px-2 py-0.5 rounded text-left transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-      style={{ fontSize: '11.5px', fontWeight: 300, color: '#4b5563' }}
-      onMouseEnter={e => { if (!disabled) (e.currentTarget as HTMLElement).style.background = '#f3f4f6'; }}
-      onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = ''; }}
-    >
-      {label}
-    </button>
-  );
-}
-
 // ─── Improve Modal ────────────────────────────────────────────────────────────
 
 interface ImproveModalProps {
@@ -740,8 +633,6 @@ const CardActions: React.FC<CardActionsProps> = ({
   const [openGenerate, setOpenGenerate] = useState(false);
   const [openAnalyze, setOpenAnalyze] = useState(false);
   const [openCopy, setOpenCopy] = useState(false);
-  const [scoreOpen, setScoreOpen] = useState(false);
-  const [copyOpen, setCopyOpen] = useState(false);
 
   // SEO analysis state — mirrors GeneratedCopyCard exactly
   const [isGeneratingSeoMetadata, setIsGeneratingSeoMetadata] = useState(false);
@@ -1200,52 +1091,37 @@ const CardActions: React.FC<CardActionsProps> = ({
         document.body
       )}
 
-      {/* c) Score — dropdown replacing All Analyses/Score/GEO cluster */}
+      {/* c) Analyze */}
       {(showContentScoreButton || showGeoScoreButton) && (
         <div>
-          <SubSectionHeader label="Score" open={openAnalyze} onToggle={() => setOpenAnalyze(p => !p)} />
+          <SubSectionHeader label="Analyze" open={openAnalyze} onToggle={() => setOpenAnalyze(p => !p)} />
           {openAnalyze && (
             <div className="space-y-px pl-1">
-              {missingCount >= 2 ? (
-                <>
-                  <ZoneItem
-                    icon={Gauge}
-                    label="Score"
-                    onClick={() => setScoreOpen(o => !o)}
-                    expanded={scoreOpen}
-                    title="Choose scoring scope"
-                    trailing={<ChevronDown size={10} className={scoreOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />}
-                  />
-                  {scoreOpen && (
-                    <InlineFlyout>
-                      <FlyoutOption
-                        label="Content + GEO"
-                        onClick={async () => {
-                          if (showContentScoreButton) await handleGenerateContentScore();
-                          if (showGeoScoreButton) await handleGenerateGeoScore();
-                        }}
-                        disabled={anyAnalysisRunning}
-                      />
-                      {showContentScoreButton && (
-                        <FlyoutOption label="Content only" onClick={handleGenerateContentScore} disabled={anyAnalysisRunning} />
-                      )}
-                      {showGeoScoreButton && (
-                        <FlyoutOption label="GEO only" onClick={handleGenerateGeoScore} disabled={anyAnalysisRunning} />
-                      )}
-                    </InlineFlyout>
-                  )}
-                </>
-              ) : showContentScoreButton ? (
+              {missingCount >= 2 && (
+                <SidebarBtn
+                  onClick={async () => {
+                    if (showContentScoreButton) await handleGenerateContentScore();
+                    if (showGeoScoreButton) await handleGenerateGeoScore();
+                  }}
+                  disabled={anyAnalysisRunning}
+                  title="Generate Content and GEO scores"
+                >
+                  <Sparkles size={10} />
+                  All Analyses
+                </SidebarBtn>
+              )}
+              {showContentScoreButton && (
                 <SidebarBtn onClick={handleGenerateContentScore} disabled={anyAnalysisRunning} title="Generate content score">
-                  <Gauge size={10} />
+                  <BookCheck size={10} />
                   {isGeneratingContentScore ? 'Scoring…' : 'Score'}
                 </SidebarBtn>
-              ) : showGeoScoreButton ? (
+              )}
+              {showGeoScoreButton && (
                 <SidebarBtn onClick={handleGenerateGeoScore} disabled={anyAnalysisRunning} title="Generate GEO score">
-                  <Gauge size={10} />
-                  {isGeneratingGeoScore ? 'Scoring…' : 'GEO Score'}
+                  <MapPin size={10} />
+                  {isGeneratingGeoScore ? 'Scoring…' : 'GEO'}
                 </SidebarBtn>
-              ) : null}
+              )}
             </div>
           )}
         </div>
@@ -1283,26 +1159,23 @@ const CardActions: React.FC<CardActionsProps> = ({
         document.body
       )}
 
-      {/* d) Copy — dropdown replacing three copy buttons */}
+      {/* d) Copy / Export */}
       <div>
-        <SubSectionHeader label="Copy" open={openCopy} onToggle={() => setOpenCopy(p => !p)} />
+        <SubSectionHeader label="Copy / Export" open={openCopy} onToggle={() => setOpenCopy(p => !p)} />
         {openCopy && (
           <div className="space-y-px pl-1">
-            <ZoneItem
-              icon={Copy}
-              label={copied ? 'Copied!' : 'Copy'}
-              onClick={() => setCopyOpen(o => !o)}
-              expanded={copyOpen}
-              title="Choose copy format"
-              trailing={copied ? <Check size={10} className="text-gray-500 dark:text-gray-400" /> : <ChevronDown size={10} className={copyOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />}
-            />
-            {copyOpen && (
-              <InlineFlyout>
-                <FlyoutOption label="Plain text" onClick={handleCopy} />
-                <FlyoutOption label="HTML" onClick={handleCopyHtml} />
-                <FlyoutOption label="Markdown" onClick={handleCopyMd} />
-              </InlineFlyout>
-            )}
+            <SidebarBtn onClick={handleCopy} title="Copy plain text">
+              {copied ? <Check size={10} className="text-gray-500 dark:text-gray-400" /> : <Copy size={10} />}
+              {copied ? 'Copied!' : 'Copy'}
+            </SidebarBtn>
+            <SidebarBtn onClick={handleCopyHtml} title="Copy as HTML">
+              {copiedHtml ? <Check size={10} className="text-gray-500 dark:text-gray-400" /> : <Code size={10} />}
+              {copiedHtml ? 'HTML Copied!' : 'Copy HTML'}
+            </SidebarBtn>
+            <SidebarBtn onClick={handleCopyMd} title="Copy as Markdown">
+              {copiedMd ? <Check size={10} className="text-gray-500 dark:text-gray-400" /> : <FileText size={10} />}
+              {copiedMd ? 'MD Copied!' : 'Copy MD'}
+            </SidebarBtn>
             {onSaveAsBrandVoice && (
               <SidebarBtn
                 onClick={() => onSaveAsBrandVoice(contentDetails.text)}
@@ -1440,9 +1313,11 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
   const location = useLocation();
 
   const [collapsed, setCollapsed] = useState(false);
-  // Two-zone redesign: per-zone dropdown state. Legacy section-collapse state removed.
-  const [saveOpen, setSaveOpen] = useState(false);
-  const [reportsOpen, setReportsOpen] = useState(false);
+  const [sessionOpen, setSessionOpen] = useState(true);
+  const [outputOpen, setOutputOpen] = useState(true);
+  const [scoringOpen, setScoringOpen] = useState(true);
+  const [blendOpen, setBlendOpen] = useState(true);
+  const [copiesOpen, setCopiesOpen] = useState(true);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [rescoringCardIds, setRescoringCardIds] = useState<Set<string>>(new Set());
 
@@ -2074,7 +1949,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
       {/* Scrollable content — takes remaining height */}
       <div className="flex-1 overflow-y-auto min-h-0" style={{ scrollbarWidth: 'thin' }}>
 
-        {/* ── Navigate section (unchanged) ─────────────────────────── */}
+        {/* ── Navigate section ────────────────────────────────────── */}
         <div className="border-b border-gray-200 dark:border-gray-700 pb-2">
           <div className="px-2.5 pt-2 pb-1">
             <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: '#f97316' }}>
@@ -2141,117 +2016,218 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
           </div>
         </div>
 
-        {/* ════════════════════════════════════════════════════════════ */}
-        {/* ── SESSION ZONE (purple) — acts on the whole session ─────── */}
-        {/* ════════════════════════════════════════════════════════════ */}
+        {/* ── Section 1: Session ──────────────────────────────────── */}
         {hasPopulatedFields && (
-          <div
-            className="border-b"
-            style={{ borderColor: SESSION_ZONE.border, background: SESSION_ZONE.bg }}
-          >
-            <ZoneHeader label="Session" theme={SESSION_ZONE} />
-            <div className="space-y-px px-1.5 py-1.5">
-              {/* 1. Evaluate Inputs */}
-              {onEvaluateInputs && (
-                <ZoneItem
-                  icon={CheckCircle2}
-                  label="Evaluate Inputs"
-                  onClick={onEvaluateInputs}
-                  disabled={isEvaluating}
-                  title="Evaluate Inputs"
-                />
-              )}
+          <div className="border-b border-gray-100 dark:border-gray-800">
+            <SectionHeader label="Session" open={sessionOpen} onToggle={() => setSessionOpen(p => !p)} />
+            {sessionOpen && (
+              <div className="space-y-px px-1.5 pb-1.5">
+                {onEvaluateInputs && (
+                  <SidebarBtn onClick={onEvaluateInputs} disabled={isEvaluating} title="Evaluate Inputs">
+                    <CheckCircle2 size={10} className={isEvaluating ? 'animate-pulse' : ''} />
+                    Evaluate Inputs
+                  </SidebarBtn>
+                )}
+                {onSaveSession && (
+                  <SidebarBtn onClick={onSaveSession} title="Save Session">
+                    <BookmarkPlus size={10} />
+                    Save Session
+                  </SidebarBtn>
+                )}
+                {onSaveTemplate && (
+                  <SidebarBtn onClick={onSaveTemplate} title="Save as Template">
+                    <Save size={10} />
+                    Save as Template
+                  </SidebarBtn>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
-              {/* 2. Save — dropdown replacing 3 buttons */}
-              {(onSaveSession || onSaveTemplate || onSaveOutput) && (
-                <>
-                  <ZoneItem
-                    icon={Download}
-                    label="Save"
-                    onClick={() => setSaveOpen(o => !o)}
-                    expanded={saveOpen}
-                    title="Save session, template, or output"
-                    trailing={<ChevronDown size={10} className={saveOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />}
-                  />
-                  {saveOpen && (
-                    <InlineFlyout>
-                      {onSaveSession && (
-                        <FlyoutOption label="Session" onClick={onSaveSession} />
-                      )}
-                      {onSaveTemplate && (
-                        <FlyoutOption label="Template" onClick={onSaveTemplate} />
-                      )}
-                      {onSaveOutput && (
-                        <FlyoutOption
-                          label="Output"
-                          onClick={onSaveOutput}
-                          disabled={!generatedOutputCards || generatedOutputCards.length === 0}
-                        />
-                      )}
-                    </InlineFlyout>
-                  )}
-                </>
+        {/* ── Section 2: Output ───────────────────────────────────── */}
+        <div className="border-b border-gray-100 dark:border-gray-800">
+          <SectionHeader label="Output" open={outputOpen} onToggle={() => setOutputOpen(p => !p)} />
+          {outputOpen && (
+            <div className="space-y-px px-1.5 pb-1.5">
+              {hasContent && (
+                <SidebarBtn
+                  onClick={onSaveOutput}
+                  disabled={!generatedOutputCards || generatedOutputCards.length === 0}
+                  title="Save Output"
+                >
+                  <Save size={10} />
+                  Save Output
+                </SidebarBtn>
               )}
+              {hasContent && (
+                <SidebarBtn onClick={handleCopyAllMarkdown} title="Copy all content as Markdown">
+                  <FileText size={10} />
+                  Copy as Markdown
+                </SidebarBtn>
+              )}
+              {hasContent && (
+                <SidebarBtn onClick={handleExportToHtml} title="Export as formatted HTML file">
+                  <FileCode size={10} />
+                  Export HTML
+                </SidebarBtn>
+              )}
+              {hasContent && isAdmin && (
+                <SidebarBtn onClick={handleOpenHtmlPreviewModal} title="Export as HTML preview with configurable word percentage (admin only)">
+                  <FileCode size={10} />
+                  Export HTML (Preview)
+                </SidebarBtn>
+              )}
+              {hasContent && isAdmin && (
+                <SidebarBtn
+                  onClick={handleExportHtmlPreview2}
+                  disabled={!canExportHtmlPreview2 || isGeneratingHtmlPreview2}
+                  title={!canExportHtmlPreview2 ? 'Genera puntuaciones y comparación antes de exportar este reporte.' : 'Exporta un reporte de copy en español, listo para enviar al cliente (admin only)'}
+                >
+                  <FileCode size={10} className={isGeneratingHtmlPreview2 ? 'animate-pulse' : ''} />
+                  {isGeneratingHtmlPreview2 ? 'Generando…' : 'Export HTML (Preview) 2'}
+                </SidebarBtn>
+              )}
+              {hasContent && isAdmin && (
+                <SidebarBtn onClick={handleExportLLMEval} title="Export for LLM Evaluation (.md)">
+                  <Sparkles size={10} />
+                  LLM Eval Export
+                </SidebarBtn>
+              )}
+              {hasContent && !!comparisonResult && isAdmin && (
+                <SidebarBtn onClick={handleExportLLMAudit} title="Export for LLM Evaluation Audit (.md)">
+                  <FlaskConical size={10} />
+                  LLM Audit Export
+                </SidebarBtn>
+              )}
+              {hasContent && !!comparisonResult && sortedGeneratedVersions.length >= 2 && isAdmin && (
+                <SidebarBtn
+                  onClick={handleGenerateEvalReport}
+                  disabled={isGeneratingEvalReport}
+                  title="Generate an AI-powered Evaluation Report comparing CopyZap scores with expert copy critique"
+                >
+                  <Scale size={10} className={isGeneratingEvalReport ? 'animate-pulse' : ''} />
+                  {isGeneratingEvalReport ? 'Generating…' : 'Evaluation Report'}
+                </SidebarBtn>
+              )}
+              {hasContent && !!comparisonResult && sortedGeneratedVersions.length >= 2 && isAdmin && (
+                <SidebarBtn
+                  onClick={handleGenerateCompareReport}
+                  disabled={isGeneratingCompareReport}
+                  title="Generate a Compare Report with absolute score breakdown and divergence analysis"
+                >
+                  <GitMerge size={10} className={isGeneratingCompareReport ? 'animate-pulse' : ''} />
+                  {isGeneratingCompareReport ? 'Generating…' : 'Compare Report'}
+                </SidebarBtn>
+              )}
+              {hasContent && !!comparisonResult && sortedGeneratedVersions.length >= 2 && isAdmin && (
+                <SidebarBtn
+                  onClick={handleGenerateClientReport}
+                  disabled={isGeneratingClientReport}
+                  title="Generate a client-ready report with scores, validation, and improvements"
+                >
+                  <UserCheck size={10} className={isGeneratingClientReport ? 'animate-pulse' : ''} />
+                  {isGeneratingClientReport ? 'Generating…' : 'Client Report'}
+                </SidebarBtn>
+              )}
+              {isAdmin && (
+                <SidebarBtn onClick={onViewPrompts} title="View Prompts">
+                  <Code size={10} />
+                  View Prompts
+                </SidebarBtn>
+              )}
+            </div>
+          )}
+        </div>
 
-              {/* 3. Score all — same gating/label logic as before */}
-              {unscorledCount >= 2 && (
-                <ZoneItem
-                  icon={BookCheck}
-                  label={rescoringCardIds.size > 0 ? 'Scoring…' : allVersionsScored ? `Re-score all (${scorableVersions.length})` : `Score all (${scorableVersions.length})`}
+        {/* ── Section 2B: Scoring ────────────────────────────────────── */}
+        {unscorledCount >= 2 && (
+          <div className="border-b border-gray-100 dark:border-gray-800">
+            <SectionHeader label="Scoring" open={scoringOpen} onToggle={() => setScoringOpen(p => !p)} />
+            {scoringOpen && (
+              <div className="space-y-1 px-1.5 pb-1.5">
+                <SidebarBtn
                   onClick={handleScoreAllMissing}
                   disabled={rescoringCardIds.size > 0}
                   title={allVersionsScored ? `Re-score all ${scorableVersions.length} outputs` : `Score all ${unscorledCount} unscored outputs`}
-                />
-              )}
+                >
+                  <BookCheck size={10} />
+                  {rescoringCardIds.size > 0 ? 'Scoring…' : allVersionsScored ? `Re-score all (${scorableVersions.length})` : `Score all (${scorableVersions.length})`}
+                </SidebarBtn>
+                {!formState.section && (
+                  <p className="text-[8px] text-gray-400 dark:text-gray-600 px-1 leading-snug">
+                    No section set — scoring as general copy
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+        )}
 
-              {/* 4. Blend Best Version */}
-              {onBlendVersions && (
-                <ZoneItem
-                  icon={GitMerge}
-                  label={isBlending ? 'Blending…' : 'Blend Best Version'}
+        {/* ── Section 2C: Blend Best Version ────────────────────────── */}
+        {onBlendVersions && (
+          <div className="border-b border-gray-100 dark:border-gray-800">
+            <SectionHeader label="Blend Best Version" open={blendOpen} onToggle={() => setBlendOpen(p => !p)} />
+            {blendOpen && (
+              <div className="space-y-1 px-1.5 pb-1.5">
+                <SidebarBtn
                   onClick={() => onBlendVersions()}
                   disabled={!comparisonResult || isBlending}
                   title={!comparisonResult ? 'Score your copies first' : 'Blend the best-performing versions into one'}
-                />
-              )}
+                >
+                  <GitMerge size={10} className={isBlending ? 'animate-pulse' : ''} />
+                  {isBlending ? 'Blending…' : 'Blend Best Versions'}
+                </SidebarBtn>
+              </div>
+            )}
+          </div>
+        )}
 
-              {/* 5. Reports — side panel (regular + admin items) */}
-              {hasContent && (
-                <ZoneItem
-                  icon={FileStack}
-                  label="Reports"
-                  onClick={() => setReportsOpen(o => !o)}
-                  expanded={reportsOpen}
-                  title="Copy and export reports"
-                  trailing={<ChevronDown size={10} className={reportsOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />}
-                />
+        {/* ── Section 2D: Best Elements Summary ───────────────────── */}
+        {onGenerateBestElements && comparisonResult && sortedGeneratedVersions.length >= 2 && (
+          <div className="border-b border-gray-100 dark:border-gray-800">
+            <SectionHeader label="Best Elements" open={blendOpen} onToggle={() => {}} />
+            <div className="space-y-1 px-1.5 pb-1.5">
+              <SidebarBtn
+                onClick={() => onGenerateBestElements()}
+                disabled={isGeneratingBestElements}
+                title="Identify the strongest section from each version across key dimensions"
+              >
+                <Sparkles size={10} className={isGeneratingBestElements ? 'animate-pulse' : ''} />
+                {isGeneratingBestElements ? 'Analyzing…' : 'Best Elements Summary'}
+              </SidebarBtn>
+              {isGeneratingBestElements && ReactDOM.createPortal(
+                <ProcessingModal
+                  isOpen={isGeneratingBestElements}
+                  message="Analyzing Best Elements…"
+                  onCancel={() => {}}
+                />,
+                document.body
               )}
             </div>
           </div>
         )}
 
-        {/* ════════════════════════════════════════════════════════════ */}
-        {/* ── THIS VERSION ZONE (blue) — acts on the selected card ──── */}
-        {/* ════════════════════════════════════════════════════════════ */}
+        {/* ── Section 3: Generated Copies ─────────────────────────── */}
         {sortedGeneratedVersions.length > 0 && (
-          <div
-            className="border-b"
-            style={{ borderColor: VERSION_ZONE.border, background: VERSION_ZONE.bg }}
-          >
-            <ZoneHeader label="This version" theme={VERSION_ZONE} />
-            <div className="space-y-px px-1.5 py-1.5">
-              {/* Per-card selector list (collapsible groups, same engine) */}
-              {sortedGeneratedVersions
-                .filter(card => card.type !== GeneratedContentItemType.GeoOptimized)
-                .map((card) => {
+          <div>
+            <SectionHeader
+              label={`Copies (${sortedGeneratedVersions.length})`}
+              open={copiesOpen}
+              onToggle={() => setCopiesOpen(p => !p)}
+            />
+            {copiesOpen && (
+              <div className="px-1.5 pb-2 space-y-0.5">
+                {sortedGeneratedVersions
+                  .filter(card => card.type !== GeneratedContentItemType.GeoOptimized)
+                  .map((card) => {
                   const groupOpen = isCardGroupOpen(card.id);
-                  const isActiveCard = card.id === activeCardId;
                   return (
                     <div
                       key={card.id}
-                      className="border rounded overflow-hidden"
-                      style={{ borderColor: isActiveCard ? VERSION_ZONE.accent : '#e5e7eb' }}
+                      className="border border-gray-100 dark:border-gray-800 rounded overflow-hidden"
                     >
+                      {/* Group header — collapsed by default */}
                       {confirmDeleteId === card.id ? (
                         <div className="flex items-center justify-between w-full px-2 py-1">
                           <span className="text-[9px] text-red-500">Delete this output?</span>
@@ -2283,18 +2259,11 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                         <button
                           type="button"
                           onClick={() => toggleCardGroup(card.id)}
-                          className="w-full flex items-center justify-between px-2 py-1 text-[9px] font-medium transition-colors text-left"
-                          style={isActiveCard ? {
-                            background: 'rgba(47,111,214,0.08)',
-                            color: VERSION_ZONE.accent,
-                            borderLeft: '2px solid ' + VERSION_ZONE.accent,
-                            paddingLeft: '6px',
-                          } : {
-                            color: '#6b7280',
-                            background: 'transparent',
-                            borderLeft: '2px solid transparent',
-                            paddingLeft: '6px',
-                          }}
+                          className={`w-full flex items-center justify-between px-2 py-1 text-[9px] font-medium transition-colors text-left
+                            ${card.id === activeCardId
+                              ? 'bg-orange-50 dark:bg-orange-950 text-orange-600 dark:text-orange-400 border-l-2 border-orange-500'
+                              : 'text-gray-400 dark:text-gray-500 bg-gray-50 dark:bg-gray-900 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300'
+                            }`}
                         >
                           <span className="truncate pr-1">
                             {card.sourceDisplayName || card.type}
@@ -2336,7 +2305,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                       )}
 
                       {groupOpen && (
-                        <div className="px-1.5 pt-0.5 bg-white dark:bg-black">
+                        <div className="px-1.5 pt-0.5">
                           <CardActions
                             card={card}
                             formState={formState}
@@ -2360,114 +2329,11 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                     </div>
                   );
                 })}
-            </div>
+              </div>
+            )}
           </div>
         )}
       </div>
-
-      {/* ════════════════════════════════════════════════════════════ */}
-      {/* ── REPORTS SIDE PANEL (4+ options → panel) ────────────────── */}
-      {/* ════════════════════════════════════════════════════════════ */}
-      {reportsOpen && ReactDOM.createPortal(
-        <div
-          className="fixed inset-0 z-[60] flex items-start justify-end"
-          onClick={() => setReportsOpen(false)}
-        >
-          <div
-            className="bg-white dark:bg-gray-900 shadow-2xl w-80 max-w-[90vw] h-full overflow-y-auto border-l border-gray-200 dark:border-gray-700 animate-slideInRight"
-            onClick={(e) => e.stopPropagation()}
-            style={{ animation: 'slideInRight 0.18s ease-out' }}
-          >
-            <style>{`@keyframes slideInRight { from { transform: translateX(100%); } to { transform: translateX(0); } }`}</style>
-            {/* Panel header */}
-            <div className="flex items-center justify-between px-3 py-2 border-b border-gray-200 dark:border-gray-700 sticky top-0 bg-white dark:bg-gray-900 z-10">
-              <span className="text-xs font-semibold text-gray-700 dark:text-gray-200">Reports</span>
-              <button
-                type="button"
-                onClick={() => setReportsOpen(false)}
-                className="p-1 rounded text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-              >
-                <X size={14} />
-              </button>
-            </div>
-
-            {/* Regular user items */}
-            <div className="p-2 space-y-px">
-              <FlyoutOption label="Copy as Markdown" onClick={() => { handleCopyAllMarkdown(); setReportsOpen(false); }} disabled={!hasContent} />
-              <FlyoutOption label="Export as HTML file" onClick={() => { handleExportToHtml(); setReportsOpen(false); }} disabled={!hasContent} />
-            </div>
-
-            {/* Admin-only section (amber) */}
-            {isAdmin && (
-              <>
-                <div
-                  className="mx-2 mt-1 mb-1 px-2 py-1 rounded border border-dashed"
-                  style={{ borderColor: ADMIN_ZONE.border, background: ADMIN_ZONE.bg }}
-                >
-                  <span
-                    className="font-semibold uppercase"
-                    style={{ color: ADMIN_ZONE.accent, fontSize: '9.5px', letterSpacing: '0.06em' }}
-                  >
-                    Admin-only
-                  </span>
-                </div>
-                <div className="px-2 pb-2 space-y-px">
-                  <FlyoutOption
-                    label="Export HTML (Preview)"
-                    onClick={() => { handleOpenHtmlPreviewModal(); setReportsOpen(false); }}
-                    disabled={!hasContent}
-                  />
-                  <FlyoutOption
-                    label="Export HTML (Preview) 2 — Spanish client report"
-                    onClick={() => { handleExportHtmlPreview2(); setReportsOpen(false); }}
-                    disabled={!hasContent || !canExportHtmlPreview2 || isGeneratingHtmlPreview2}
-                  />
-                  <FlyoutOption
-                    label="LLM Eval Export"
-                    onClick={() => { handleExportLLMEval(); setReportsOpen(false); }}
-                    disabled={!hasContent}
-                  />
-                  <FlyoutOption
-                    label="LLM Audit Export"
-                    onClick={() => { handleExportLLMAudit(); setReportsOpen(false); }}
-                    disabled={!hasContent || !comparisonResult}
-                  />
-                  <FlyoutOption
-                    label="Evaluation Report"
-                    onClick={() => { handleGenerateEvalReport(); setReportsOpen(false); }}
-                    disabled={!hasContent || !comparisonResult || sortedGeneratedVersions.length < 2 || isGeneratingEvalReport}
-                  />
-                  <FlyoutOption
-                    label="Compare Report"
-                    onClick={() => { handleGenerateCompareReport(); setReportsOpen(false); }}
-                    disabled={!hasContent || !comparisonResult || sortedGeneratedVersions.length < 2 || isGeneratingCompareReport}
-                  />
-                  <FlyoutOption
-                    label="Client Report"
-                    onClick={() => { handleGenerateClientReport(); setReportsOpen(false); }}
-                    disabled={!hasContent || !comparisonResult || sortedGeneratedVersions.length < 2 || isGeneratingClientReport}
-                  />
-                  <FlyoutOption
-                    label="View Prompts"
-                    onClick={() => { onViewPrompts(); setReportsOpen(false); }}
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        </div>,
-        document.body
-      )}
-
-      {/* Best Elements generation modal (kept; section removed per Task 5) */}
-      {isGeneratingBestElements && ReactDOM.createPortal(
-        <ProcessingModal
-          isOpen={isGeneratingBestElements}
-          message="Analyzing Best Elements…"
-          onCancel={() => {}}
-        />,
-        document.body
-      )}
       {isGeneratingEvalReport && ReactDOM.createPortal(
         <ProcessingModal
           isOpen={isGeneratingEvalReport}

@@ -6,10 +6,11 @@ import { PrefillToCopyMaker } from '../../../features/quickPolish/types';
 // Component imports
 import CopyForm from '../../CopyForm';
 import AppSpinner from '../../ui/AppSpinner';
-import FloatingActionBar from '../../FloatingActionBar';
 import FloatingOutputNavigation from '../../FloatingOutputNavigation';
-import LeftFloatingActionBar from '../../LeftFloatingActionBar';
 import CopyMakerSidebar from '../CopyMakerSidebar';
+// TEMPORARY rollback safety net (Task 7). Delete CopyMakerSidebarLegacy and this
+// import once the redesigned sidebar has been live for ~2 weeks with no regressions.
+import CopyMakerSidebarLegacy from '../CopyMakerSidebarLegacy';
 import UrlParamLoader from '../../UrlParamLoader';
 import LoadingOverlay from '../../ui/LoadingOverlay';
 import PublicFooter from '../../PublicFooter';
@@ -2286,8 +2287,13 @@ try {
           const regularOutputs = versions.filter(c => !c.comparedContent);
           const analysisCards = versions.filter(c => c.comparedContent);
           const sorted = [...regularOutputs, ...analysisCards];
+          // TEMPORARY rollback toggle (Task 7): ?legacySidebar=1 renders the
+          // pre-redesign sidebar. Remove this check + CopyMakerSidebarLegacy
+          // once the redesigned sidebar has been live ~2 weeks with no regressions.
+          const useLegacySidebar = new URLSearchParams(window.location.search).get('legacySidebar') === '1';
+          const SidebarComponent = useLegacySidebar ? CopyMakerSidebarLegacy : CopyMakerSidebar;
           return (
-            <CopyMakerSidebar
+            <SidebarComponent
               formState={formState}
               hasPopulatedFields={hasAnyPopulatedFields(formState)}
               onSaveSession={handleSaveSessionClick}
@@ -2454,6 +2460,8 @@ try {
               bestElementsResult={formState.copyResult?.bestElementsResult}
               onCompileBestElements={handleCompileBestElements}
               isCompiling={isGeneratingBestElements}
+              onGenerateBestElements={handleGenerateBestElements}
+              isGeneratingBestElements={isGeneratingBestElements}
             />
           ) : (
             <EmptyState

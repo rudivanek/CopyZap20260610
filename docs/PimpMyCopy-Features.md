@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.20
-Last Updated: 2026-08-04T23:59:00Z
+Version: 1.21
+Last Updated: 2026-08-06T00:00:00Z
 
 ---
 
@@ -6684,3 +6684,38 @@ New exported function `makeStreamingReportRequest(model, messages, temperature, 
 Both `handleGenerateEvalReport` and `handleGenerateCompareReport` now call `makeStreamingReportRequest` instead of `makeApiRequestWithFallback`. The return value is the assembled string directly (no `.choices[0].message.content` unwrap needed).
 
 ---
+
+## CopyMaker Sidebar Two-Zone Redesign (2026-08-06)
+
+**Feature:** Restructured the Copy Maker sidebar (`src/components/copy-maker/CopyMakerSidebar.tsx`) from a flat list of 30 buttons across 9 collapsible sections into two visually distinct zones with clear color accents, collapsed low-value multi-button clusters into dropdowns/flyouts, fixed the broken Best Elements section toggle, removed dead code, and added a temporary rollback toggle.
+
+**Two-zone layout:** The sidebar now renders two clearly separated zones, each with its own accent color, a color bar + uppercase label header, and a soft background/border:
+- **"Session" zone** (purple `#8457d1` / bg `#f6f2fd` / border `#e5d9f8`) — contains everything that acts on the whole session.
+- **"This version" zone** (blue `#2f6fd6` / bg `#f0f5fd` / border `#dbe6f9`) — contains everything that acts on the currently-selected generated card.
+
+Typography: zone title labels are `Inter 600`, 10.5px, uppercase, letter-spacing ~0.06em; item labels are `Inter 300`, 12.5px. The item whose dropdown/flyout is currently open bumps to `Inter 400` with a white background + subtle shadow so it reads as "expanded" without making every item bold. Icons use `lucide-react` at stroke-width 1.5 (no second icon library introduced).
+
+New shared primitives added at the top of the sidebar file: `ZoneHeader`, `ZoneItem`, `InlineFlyout`, `FlyoutOption`, plus `SESSION_ZONE` / `VERSION_ZONE` / `ADMIN_ZONE` theme constants.
+
+**Session zone contents (in order):**
+1. Evaluate Inputs (`CheckCircle2`, `onEvaluateInputs`)
+2. Save — new dropdown (`Download` icon) replacing the three separate Save Session / Save as Template / Save Output buttons. Inline flyout with "Session" / "Template" / "Output" options → existing `onSaveSession` / `onSaveTemplate` / `onSaveOutput` handlers.
+3. Score all (`BookCheck`, `handleScoreAllMissing`) — same label logic (`Score all (N)` / `Re-score all (N)`) and same `unscorledCount >= 2` visibility condition.
+4. Blend Best Version (`GitMerge`, `onBlendVersions`) — same `comparisonResult` gating.
+5. Reports (`FileStack`) — opens a side panel (see below).
+
+**This-version zone contents (in order):** the per-card collapsible groups (same engine as before — `CardActions` sub-component with its Create / Generate / Analyze / Copy-Export sub-sections, all modal/abort state preserved). The Analyze cluster (All Analyses / Score / GEO) collapsed into a **Score dropdown** (`Gauge` icon): when both content and GEO scoring are available it shows a 3-option flyout ("Content + GEO" / "Content only" / "GEO only"); when only one is available it shows a single direct-action button instead of a 1-option dropdown. The Copy cluster (Copy / Copy HTML / Copy MD) collapsed into a **Copy dropdown** (`Copy` icon) with a 3-option flyout ("Plain text" / "HTML" / "Markdown"). "Save as Brand Voice" remains as a direct button under the Copy dropdown.
+
+**Reports side panel:** 4+ options → side panel (per the interaction-pattern rule). Slides in from the right with a close button. For a regular user it contains exactly 2 items: "Copy as Markdown" (`handleCopyAllMarkdown`) and "Export as HTML file" (`handleExportToHtml`). For an admin (`useIsAdmin(currentUser)`), an additional visually separated **"Admin-only"** section (amber `#c2703d` / bg `#fdf3ec` / dashed border `#f3ddc7`) contains all 8 admin items with every existing `hasContent`, `comparisonResult`, and version-count gating condition preserved exactly: Export HTML (Preview), Export HTML (Preview) 2 — Spanish client report, LLM Eval Export, LLM Audit Export, Evaluation Report, Compare Report, Client Report, View Prompts.
+
+**Best Elements fold (Task 5):** The standalone "Best Elements" sidebar section (the old Section 2D, which had a non-functional `onToggle={() => {}}` and incorrectly shared `blendOpen` state with the "Blend Best Version" section above it) was removed entirely. The Best Elements **display** and **Compile** action already lived in `ResultsPanel` (`BestElementsCard` + `onCompileBestElements`); the only missing piece was the **trigger**. A "Generate Best Elements Summary" trigger button (`Sparkles`, purple) was added to `ResultsPanel` near the existing `BestElementsCard`, gated on the same conditions (`comparisonResult` + 2+ versions) and labeled to make clear it reflects all compared versions, not just one card. This resolves the scope mismatch flagged in the task: the cross-version trigger and display now both live in the results area rather than being duplicated per-card. `onGenerateBestElements` and `isGeneratingBestElements` are now threaded through `ResultsPanel`'s props from `CopyMakerTab`.
+
+**Rollback toggle (Task 7 — temporary):** The pre-redesign sidebar was preserved as `src/components/copy-maker/CopyMakerSidebarLegacy.tsx` (renamed internal component, same default export shape). `CopyMakerTab` checks `?legacySidebar=1` in the URL query string and renders `CopyMakerSidebarLegacy` instead of the redesigned `CopyMakerSidebar` when set. Both imports and the URL-param check carry explicit comments marking this as a temporary safety net to be deleted (along with the legacy file) once the redesigned sidebar has been live for ~2 weeks with no regressions — so it doesn't become permanent dead weight.
+
+**Dead-code cleanup (Task 8):** Removed 5 dead files with zero functional impact (confirmed no callers anywhere in the codebase): `src/components/x-HomePage.tsx`, `src/components/ModeToggle.tsx`, `src/components/Header.tsx`, `src/components/LeftFloatingActionBar.tsx`, `src/components/FloatingActionBar.tsx`. The latter two were imported by `CopyMakerTab` but never rendered (dead imports, also removed). Also removed the disabled action-button block in `src/components/GeneratedCopyCard.tsx` (the `{false && ...}` block wrapped in a comment reading "Action Buttons — removed; actions are handled exclusively through the sidebar" — the sidebar already has working equivalents).
+
+**Interaction-pattern rule applied:** ≤3 options with no grouping/descriptions → inline flyout (Save, Score, Copy). 4+ options or options that benefit from grouping → side panel (Reports).
+
+**Acceptance:** `npm run build` passes. Regular users see exactly: Evaluate Inputs, Save (▾3), Score all, Blend Best Version, Reports (▾2) in the Session zone; the unchanged per-card actions in the This-Version zone with Score and Copy collapsed to dropdowns. Admins see the same Session zone plus a visually distinct amber "Admin-only reports" group with all 8 admin items, gating conditions unchanged. Best Elements Summary no longer appears as a standalone sidebar section; its trigger, content, and Compile action are all reachable from the results area. `?legacySidebar=1` renders the old sidebar unchanged. The 5 dead files and dead code block are removed. No existing handler, prop, or visibility condition was changed in behavior — only presentation/grouping.
+
+**Honest caveat:** I verified the build passes and the wiring is type-correct, but I could not open the sidebar in a browser to visually confirm the two-zone color accents, the dropdown flyouts, or the Reports side panel rendering — no browser automation is available here. The logic, props, and gating conditions are preserved by construction (the same handlers and conditions are invoked, just re-grouped), but the final visual check in the editor is yours to run.
