@@ -908,7 +908,7 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
           <AnimatePresence mode="wait">
             {!showSummary ? (
               wizardState.answers.mode === 'purposeRewrite' ? (
-                <PurposeRewriteMode onApplyToForm={onApplyToForm} />
+                <PurposeRewriteMode onApplyToForm={onApplyToForm} onClose={handleClose} />
               ) : (
               <WizardStep
                 key={wizardState.currentStep}

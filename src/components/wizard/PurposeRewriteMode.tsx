@@ -13,11 +13,12 @@ import { QUICK_POLISH_TONE_MAP } from '../../features/quickPolish/toneMapping';
 
 interface PurposeRewriteModeProps {
   onApplyToForm?: (data: Partial<FormState>) => void;
+  onClose?: () => void;
 }
 
 const countWords = (value: string): number => value.trim().split(/\s+/).filter(Boolean).length;
 
-const PurposeRewriteMode: React.FC<PurposeRewriteModeProps> = ({ onApplyToForm }) => {
+const PurposeRewriteMode: React.FC<PurposeRewriteModeProps> = ({ onApplyToForm, onClose }) => {
   const { forceAdvanced } = useMode();
   const [inputText, setInputText] = useState('');
   const [contentType, setContentType] = useState<ContentType>('plain');
@@ -111,7 +112,7 @@ const PurposeRewriteMode: React.FC<PurposeRewriteModeProps> = ({ onApplyToForm }
       specialInstructions: specialInstructions || undefined,
     });
     toast.success('Selected output added to Copy Maker');
-    onBack();
+    onClose?.();
   };
 
   const handleCopy = async (text: string, index: number): Promise<void> => {
@@ -147,7 +148,7 @@ const PurposeRewriteMode: React.FC<PurposeRewriteModeProps> = ({ onApplyToForm }
         {showField('cta') && <Field label="Call to action" value={cta} onChange={setCta} placeholder="What action should readers take?" />}
       </section>}
 
-      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900"><label className="text-sm font-semibold text-gray-900 dark:text-white">Special Instructions <span className="font-normal text-gray-400">(optional)</span></label><textarea value={specialInstructions} onChange={(event) => setSpecialInstructions(event.target.value)} rows={3} placeholder="Add any specific instructions for the rewrite..." className="mt-2 w-full rounded-xl border border-gray-300 bg-gray-50 p-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white" /><p className="mt-2 text-xs text-gray-500">Guide the rewrite with details about words, ideas, or constraints to keep or avoid.</p></section>
+      <section className="rounded-2xl border border-gray-200 bg-white p-5 shadow-sm dark:border-gray-700 dark:bg-gray-900"><label className="text-sm font-semibold text-gray-900 dark:text-white">Special Instructions <span className="font-normal text-gray-400">(optional)</span></label><textarea value={specialInstructions} onChange={(event) => setSpecialInstructions(event.target.value)} rows={3} placeholder={"Keep it under 80 words\nAvoid buzzwords\nKeep the first sentence unchanged\nDo not add new claims\nUse simple, clear language"} className="mt-2 w-full rounded-xl border border-gray-300 bg-gray-50 p-3 text-sm text-gray-900 dark:border-gray-600 dark:bg-gray-800 dark:text-white" /><p className="mt-2 text-xs text-gray-500">Optional constraints for polishing (length, wording, style). These will NOT change the selected intent.</p></section>
 
       <div className="flex flex-wrap items-center justify-between gap-4"><div><span className="mr-3 text-sm font-semibold text-gray-900 dark:text-white">Variants</span>{([1, 2, 3] as const).map((value) => <button key={value} type="button" onClick={() => setVariantsCount(value)} className={`mr-2 rounded-lg border px-4 py-2 text-sm ${variantsCount === value ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300' : 'border-gray-300 text-gray-600 dark:border-gray-600 dark:text-gray-300'}`}>{value}</button>)}</div><button type="button" onClick={handlePolish} disabled={isLoading} className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60">{isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Polish copy</button></div>
 
@@ -161,3 +162,6 @@ const PurposeRewriteMode: React.FC<PurposeRewriteModeProps> = ({ onApplyToForm }
 const Field: React.FC<{ label: string; value: string; onChange: (value: string) => void; placeholder: string }> = ({ label, value, onChange, placeholder }) => <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}<input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" /></label>;
 
 export default PurposeRewriteMode;
+
+
+export default PurposeRewriteMode
