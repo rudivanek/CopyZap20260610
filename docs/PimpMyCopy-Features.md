@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.21
-Last Updated: 2026-08-06T12:00:00Z
+Last Updated: 2026-08-07T00:00:00Z
 
 ---
 
@@ -6719,3 +6719,22 @@ New shared primitives added at the top of the sidebar file: `ZoneHeader`, `ZoneI
 **Acceptance:** `npm run build` passes. Regular users see exactly: Evaluate Inputs, Save (▾3), Score all, Blend Best Version, Reports (▾2) in the Session zone; the unchanged per-card actions in the This-Version zone with Score and Copy collapsed to dropdowns. Admins see the same Session zone plus a visually distinct amber "Admin-only reports" group with all 8 admin items, gating conditions unchanged. Best Elements Summary no longer appears as a standalone sidebar section; its trigger, content, and Compile action are all reachable from the results area. `?legacySidebar=1` renders the old sidebar unchanged. The 5 dead files and dead code block are removed. No existing handler, prop, or visibility condition was changed in behavior — only presentation/grouping.
 
 **Honest caveat:** I verified the build passes and the wiring is type-correct, but I could not open the sidebar in a browser to visually confirm the two-zone color accents, the dropdown flyouts, or the Reports side panel rendering — no browser automation is available here. The logic, props, and gating conditions are preserved by construction (the same handlers and conditions are invoked, just re-grouped), but the final visual check in the editor is yours to run.
+
+## Deleted Version Row Removed From Performance Comparison (2026-08-07)
+
+**Bug:** Deleting a generated output/version removed the card from its own list, but the deleted version's row stayed in the Performance Comparison table/chart indefinitely because `comparisonResult.rows` was never filtered.
+
+**Fix:** Updated `handleDeleteOutput` in `src/components/copy-maker/CopyMakerTab/CopyMakerTab.tsx` so that, in the same `setFormState` call that filters `generatedVersions`, it also updates `comparisonResult`:
+
+1. Computes `validVersionIds` from the remaining (non-deleted) versions — same set already computed for score-cache cleanup.
+2. Filters `comparisonResult.rows` down to rows where `row.versionId === ORIGINAL_VERSION_ID` (the `'__original__'` baseline, never a deletable card) OR `row.versionId` is in `validVersionIds`. Every other row is dropped.
+3. If the deleted version was the current winner (`winnerVersionId` no longer present in the filtered rows), re-crowns a new winner: picks the remaining row (excluding `'__original__'`) with the highest `finalScore`. If no candidate rows remain, sets `winnerVersionId` to an empty string.
+4. Recomputes `isWinner` on every remaining row to match the (possibly new) `winnerVersionId`.
+5. Writes the updated `comparisonResult` (filtered `rows`, updated `winnerVersionId`, updated `isWinner` flags) back into `copyResult` alongside the updated `generatedVersions` and `versionScores`, in the same `setFormState` call.
+6. The comparison panel itself stays visible exactly as before — only the stale row is removed. `comparisonResult` is never set to `null`. No other fields on `comparisonResult` (`priorityActions`, `finalRecommendation`, `winnerExplanation`, `winnerFactors`, `winnerBreakdown`, `decisionLayer`, etc.) are touched.
+
+**Edge cases handled:** deleting a non-winner (winner stays the same, only the deleted row disappears); deleting the winner (new winner re-crowned from remaining versions by highest `finalScore`, only that row marked `isWinner`); deleting down to zero remaining generated versions (no crash — `winnerVersionId` becomes `''`, `rows` contains at most the `'__original__'` baseline row). The `'__original__'` baseline row is always kept regardless of which version is deleted.
+
+**Acceptance:** `npm run build` passes. The Performance Comparison panel remains visible after a delete with the remaining rows only — the deleted version's row disappears immediately, the winner is re-crowned correctly if needed, and nothing crashes when all generated versions are deleted.
+
+**Honest caveat:** Build passes and the wiring is type-correct; I could not exercise the delete flow in a browser to visually confirm the row disappears and the winner re-crowns, so the final functional check in the editor is yours to run.

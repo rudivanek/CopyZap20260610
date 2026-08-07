@@ -857,18 +857,56 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
     setFormState(prev => {
       const remainingVersions = prev.copyResult!.generatedVersions.filter(item => item.id !== itemToDelete.id);
       const validVersionIds = remainingVersions.map(v => v.id);
+      const validIdSet = new Set(validVersionIds);
 
       // Clean cache of deleted version
       const existingCache = prev.copyResult?.versionScores || {};
       const updatedCache = cleanScoreCache(existingCache, validVersionIds);
+
+      // Filter stale row(s) for the deleted version out of comparisonResult.
+      // Keep the '__original__' baseline row regardless (it's not a deletable card).
+      // Panel stays visible — only the stale row is removed.
+      const prevComparison = prev.copyResult?.comparisonResult;
+      let nextComparison = prevComparison;
+      if (prevComparison) {
+        const filteredRows = (prevComparison.rows ?? []).filter(
+          r => r.versionId === ORIGINAL_VERSION_ID || validIdSet.has(r.versionId)
+        );
+
+        // Re-crown a winner if the deleted version was the winner (or if the winner row was filtered out).
+        let nextWinnerId = prevComparison.winnerVersionId;
+        const winnerStillPresent = filteredRows.some(r => r.versionId === nextWinnerId);
+        if (!winnerStillPresent) {
+          const candidates = filteredRows.filter(r => r.versionId !== ORIGINAL_VERSION_ID);
+          if (candidates.length > 0) {
+            const best = candidates.reduce((acc, r) =>
+              r.finalScore > acc.finalScore ? r : acc
+            );
+            nextWinnerId = best.versionId;
+          } else {
+            nextWinnerId = '';
+          }
+        }
+
+        const reFlaggedRows = filteredRows.map(r => ({
+          ...r,
+          isWinner: r.versionId === nextWinnerId && nextWinnerId !== '',
+        }));
+
+        nextComparison = {
+          ...prevComparison,
+          rows: reFlaggedRows,
+          winnerVersionId: nextWinnerId,
+        };
+      }
 
       return {
         ...prev,
         copyResult: {
           ...prev.copyResult!,
           generatedVersions: remainingVersions,
-          versionScores: updatedCache
-          // Keep comparisonResult - user requested it should always remain visible
+          versionScores: updatedCache,
+          comparisonResult: nextComparison
         }
       };
     });
