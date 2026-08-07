@@ -1,6 +1,6 @@
 import React, { useState, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
-import { File as FileEdit, Rocket, PenLine, Camera, LayoutDashboard, ChevronRight, Loader2 } from 'lucide-react';
+import { File as FileEdit, Rocket, Camera, LayoutDashboard, ChevronRight, Loader2 } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { getUserSavedOutputsMeta, getUserCopySessions } from '../services/supabaseClient';
@@ -122,7 +122,6 @@ const NavSidebar: React.FC = () => {
   const baseItems = [
     { label: 'Copy Maker', path: '/copy-maker', Icon: FileEdit, adminOnly: false },
     { label: 'Start Hub', path: null, Icon: Rocket, adminOnly: false },
-    { label: 'Purpose Rewrite', path: '/quick-polish', Icon: PenLine, adminOnly: true },
     { label: 'Copy Snap', path: '/copy-snap', Icon: Camera, adminOnly: true },
     { label: 'Dashboard', path: '/dashboard', Icon: LayoutDashboard, adminOnly: false },
   ];

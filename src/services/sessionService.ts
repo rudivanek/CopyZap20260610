@@ -69,9 +69,7 @@ class SessionManager {
     }
     // Priority 2: Use output type with appropriate prefix
     else if (outputType && outputType.trim().length > 0) {
-      if (outputType === 'quick-polish') {
-        rawName = `Purpose Rewrite : ${dateStr} ${timeStr}`;
-      } else if (outputType === 'copy-snap') {
+      if (outputType === 'copy-snap') {
         rawName = `CopySnap : ${dateStr} ${timeStr}`;
       } else {
         const contentType = this.formatContentType(outputType);
@@ -109,9 +107,7 @@ class SessionManager {
     // Determine database scope_key from outputType or explicit dbScopeKey
     let determinedScopeKey = dbScopeKey || 'copy-maker';
     if (!dbScopeKey) {
-      if (outputType === 'quick-polish') {
-        determinedScopeKey = 'quick-polish';
-      } else if (outputType === 'copy-snap') {
+      if (outputType === 'copy-snap') {
         determinedScopeKey = 'copy-snap';
       }
     }
@@ -508,9 +504,7 @@ class SessionManager {
     // Determine database scope_key from outputType or explicit dbScopeKey
     let determinedScopeKey = dbScopeKey || 'copy-maker';
     if (!dbScopeKey) {
-      if (originalSession.outputType === 'quick-polish') {
-        determinedScopeKey = 'quick-polish';
-      } else if (originalSession.outputType === 'copy-snap') {
+      if (originalSession.outputType === 'copy-snap') {
         determinedScopeKey = 'copy-snap';
       }
     }

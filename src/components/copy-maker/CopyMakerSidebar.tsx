@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Save, FileText, Code, FileCode, Sparkles, FlaskConical, CheckCircle2, BookmarkPlus, ChevronDown, ChevronRight, Wand2, CreditCard as Edit, Zap, Globe, BookCheck, MapPin, Copy, Check, BookOpen, PanelRight, X, Trash2, RefreshCw, GitMerge, File as FileEdit, FileStack, Rocket, PenLine, Camera, LayoutDashboard, Loader2, Scale, UserCheck, Drama, Search, Gauge, Download } from 'lucide-react';
+import { Save, FileText, Code, FileCode, Sparkles, FlaskConical, CheckCircle2, BookmarkPlus, ChevronDown, ChevronRight, Wand2, CreditCard as Edit, Zap, Globe, BookCheck, MapPin, Copy, Check, BookOpen, PanelRight, X, Trash2, RefreshCw, GitMerge, File as FileEdit, FileStack, Rocket, Camera, LayoutDashboard, Loader2, Scale, UserCheck, Drama, Search, Gauge, Download } from 'lucide-react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { getUserSavedOutputsMeta, getUserCopySessions } from '../../services/supabaseClient';
 import { toast } from 'react-hot-toast';
@@ -2104,7 +2104,6 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
             {([
               { label: 'Copy Maker', path: '/copy-maker', Icon: FileEdit, adminOnly: false },
               { label: 'Start Hub', path: null, Icon: Rocket, adminOnly: false },
-              { label: 'Purpose Rewrite', path: '/quick-polish', Icon: PenLine, adminOnly: true },
               { label: 'Copy Snap', path: '/copy-snap', Icon: Camera, adminOnly: true },
               { label: 'Dashboard', path: '/dashboard', Icon: LayoutDashboard, adminOnly: false },
             ] as { label: string; path: string | null; Icon: React.ElementType; adminOnly: boolean }[])

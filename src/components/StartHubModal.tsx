@@ -277,11 +277,6 @@ const StartHubModal: React.FC<StartHubModalProps> = ({
     onClose();
   };
 
-  const handleIntentPolishSelect = () => {
-    onClose();
-    navigate('/quick-polish');
-  };
-
   const handleCopySnapSelect = () => {
     onClose();
     navigate('/copy-snap');
@@ -398,13 +393,6 @@ const StartHubModal: React.FC<StartHubModalProps> = ({
               Improve existing copy
             </h3>
             <div className="space-y-3">
-              <OptionCard
-                icon={<Sparkles className="w-5 h-5" />}
-                title="Purpose Rewrite"
-                description="Quickly improve existing copy with purpose-based rewriting."
-                onClick={handleIntentPolishSelect}
-              />
-
               {isAdmin && (
                 <OptionCard
                   icon={<Zap className="w-5 h-5" />}

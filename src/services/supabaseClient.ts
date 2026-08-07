@@ -988,7 +988,7 @@ export const getUserCopySessions = async (
       .from('pmc_copy_sessions')
       .select('*, customer:customer_id(name)')
       .eq('user_id', userId)
-      .in('scope_key', ['copy-maker', 'quick-polish', 'copy-snap']); // Show all app sessions
+      .in('scope_key', ['copy-maker', 'copy-snap']); // Show all app sessions
 
     const result = await query
       .order('created_at', { ascending: false })
