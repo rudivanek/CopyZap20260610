@@ -50,7 +50,7 @@ import { isFieldVisible } from '../../../utils/fieldVisibility';
 import { getSectionsToExpand } from '../../../utils/templateLoader';
 
 // Types
-import { FormState, User, GeneratedContentItem, GeneratedContentItemType, Model, SavedOutput, ScoringContext } from '../../../types';
+import { FormState, User, GeneratedContentItem, GeneratedContentItemType, Model, SavedOutput, ScoringContext, Tone } from '../../../types';
 import { calculateTargetWordCount } from '../../../services/api/utils';
 import { hasAnyPopulatedFields } from '../../../utils/formUtils';
 import { playSuccessSound } from '../../../utils/soundEffects';
@@ -60,6 +60,18 @@ import { validateApiKey, getAvailableModels, getModelLabel } from '../../../serv
 import { generateContentScores, generateSeoMetadata, calculateGeoScore } from '../../../services/apiService';
 import { getUserPreferences, dismissStartHub } from '../../../services/supabaseClient';
 import { sessionManager } from '../../../services/sessionService';
+
+// Maps Purpose Rewrite (QuickPolish) tone vocabulary to Copy Maker's Tone enum.
+// QuickPolish uses lowercase values ('neutral' | 'premium' | 'friendly' | 'bold' | 'formal');
+// Copy Maker's Tone enum is capitalized and a different vocabulary.
+// Without this translation the Tone dropdown silently holds an invalid string.
+const QUICK_POLISH_TONE_MAP: Record<string, Tone> = {
+  neutral: 'Professional',
+  premium: 'Persuasive',
+  friendly: 'Friendly',
+  bold: 'Bold',
+  formal: 'Professional',
+};
 
 interface FillFormCardProps {
   hasData: boolean;
@@ -1583,8 +1595,8 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
       hasIntent: !!prefill.intent,
       languageCode: prefill.language || 'not provided',
       languageConverted: convertedLanguage || 'not converted',
-      selectedOutputWordCount: prefill.selected_output_word_count || 'not provided',
-      willSetWordCountToCustom: !!prefill.selected_output_word_count
+      originalInputWordCount: prefill.original_input_word_count || 'not provided',
+      willSetWordCountToCustom: !!prefill.original_input_word_count
     });
 
     // Apply prefill to form state
@@ -1603,7 +1615,7 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
         callToAction: prefill.intent?.cta,
         language: convertedLanguage,
         wordCount: 'custom',
-        customWordCount: prefill.selected_output_word_count || 0
+        customWordCount: prefill.original_input_word_count || 0
       },
       source,
       context: {
@@ -1612,7 +1624,7 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
         languageCode: prefill.language,
         originalInputLength: prefill.original_input.length,
         selectedOutputLength: prefill.selected_output.length,
-        selectedOutputWordCount: prefill.selected_output_word_count || 0
+        originalInputWordCount: prefill.original_input_word_count || 0
       }
     });
     setFormState(prev => {
@@ -1623,20 +1635,28 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
         specialInstructions: prefill.special_instructions || prev.specialInstructions, // Special Instructions
         section: prefill.intent?.label || prev.section, // Intent → Section
         targetAudience: prefill.intent?.audience || prev.targetAudience, // Who is this for? → Target Audience
-        tone: (prefill.intent?.tone as any) || prev.tone, // Tone
+        // Translate QuickPolish's lowercase tone vocabulary into Copy Maker's Tone enum.
+        // Unknown values fall back to 'Professional' rather than passing an invalid string through.
+        tone: prefill.intent?.tone
+          ? (QUICK_POLISH_TONE_MAP[prefill.intent.tone] ?? 'Professional')
+          : prev.tone,
+        // QuickPolish's intent.goal maps to Copy Maker's keyMessage (the core message/goal).
+        keyMessage: prefill.intent?.goal || prev.keyMessage,
         callToAction: prefill.intent?.cta || prev.callToAction, // Call to Action
         // Apply optional metadata if available
         // Convert language code ('es') to full language name ('Spanish')
         language: convertedLanguage || prev.language,
         // Set word count to custom with the word count from the selected variant
-        wordCount: prefill.selected_output_word_count ? 'Custom' : prev.wordCount,
-        customWordCount: prefill.selected_output_word_count || prev.customWordCount,
+        // NOTE: prefill.original_input_word_count holds the word count of the ORIGINAL INPUT text,
+        // not the selected polished output. This is intentional — it sets the target length for Copy Maker.
+        wordCount: prefill.original_input_word_count ? 'Custom' : prev.wordCount,
+        customWordCount: prefill.original_input_word_count || prev.customWordCount,
       };
 
       console.log('📝 Form state updated with word count:', {
         wordCount: updatedState.wordCount,
         customWordCount: updatedState.customWordCount,
-        prefillWordCount: prefill.selected_output_word_count
+        prefillWordCount: prefill.original_input_word_count
       });
 
       return updatedState;

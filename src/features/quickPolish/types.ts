@@ -30,7 +30,7 @@ export interface PrefillToCopyMaker {
   source: 'intent_polish';
   original_input: string;       // raw user input (text or html)
   selected_output: string;      // the chosen polished output
-  selected_output_word_count?: number; // word count of the selected output
+  original_input_word_count?: number; // word count of the ORIGINAL INPUT text (not the selected output)
   language?: string;            // e.g. "en" | "es" if known
   intent?: {
     id?: string;

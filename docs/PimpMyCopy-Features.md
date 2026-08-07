@@ -6738,3 +6738,47 @@ New shared primitives added at the top of the sidebar file: `ZoneHeader`, `ZoneI
 **Acceptance:** `npm run build` passes. The Performance Comparison panel remains visible after a delete with the remaining rows only — the deleted version's row disappears immediately, the winner is re-crowned correctly if needed, and nothing crashes when all generated versions are deleted.
 
 **Honest caveat:** Build passes and the wiring is type-correct; I could not exercise the delete flow in a browser to visually confirm the row disappears and the winner re-crowns, so the final functional check in the editor is yours to run.
+
+## Purpose Rewrite → Copy Maker Handoff Field Mapping Fix (2026-08-07)
+
+**Bug:** When a user in Purpose Rewrite clicked "Continue in Copy Maker," the polished text handed off correctly, but the Tone dropdown landed in a garbled/blank state — and two other sender fields (`content_type`, `intent.goal`) were silently dropped.
+
+### Primary fix — tone vocabulary translation
+
+**Root cause:** Purpose Rewrite's tone values (`src/features/quickPolish/intents.ts`, `TONE_OPTIONS`) are lowercase (`'neutral' | 'premium' | 'friendly' | 'bold' | 'formal'`). Copy Maker's `Tone` type (`src/types/index.ts`) is capitalized and a different vocabulary (`'Professional' | 'Friendly' | 'Bold' | 'Minimalist' | 'Creative' | 'Persuasive'`). The handoff code in `src/components/copy-maker/CopyMakerTab/CopyMakerTab.tsx` (~line 1626, in the one-shot prefill effect) did an unchecked `as any` cast: `tone: (prefill.intent?.tone as any) || prev.tone`. The lowercase value never matched any option in the Tone `<select>` (populated from `TONES` in `src/constants/index.ts`), so React held an invalid string like `"premium"` while the dropdown appeared blank/reset.
+
+**Fix:** Added an explicit `QUICK_POLISH_TONE_MAP: Record<string, Tone>` constant near the top of `CopyMakerTab.tsx` that translates every QuickPolish tone to a valid `Tone` enum value:
+
+- `neutral` → `Professional`
+- `premium` → `Persuasive`
+- `friendly` → `Friendly`
+- `bold` → `Bold`
+- `formal` → `Professional`
+
+The prefill-apply effect now uses `QUICK_POLISH_TONE_MAP[prefill.intent.tone] ?? 'Professional'` instead of the `as any` cast. Unknown values fall back to `'Professional'` rather than silently passing an invalid string through. The `Tone` type is now imported from `../../../types` (it was previously only used via the `FormState` shape).
+
+### Secondary fix #2 — `content_type` handling
+
+`content_type` is sent by `QuickPolishPage.tsx` (`handleContinueInCopyMaker`, ~line 438) but Copy Maker's `FormState` has no corresponding content-type/structure field today. The receiving prefill effect already reads it into a debug-log context object (`contentType: prefill.content_type`) but does not map it onto any form field. No `FormState` field is a clean home for it (the closest, `pageType`/`section`, are already populated from `intent.label`). It is therefore intentionally left unmapped — no `// TODO` was added because the value is already surfaced in the debug log for traceability, and forcing it into an unrelated field would itself be a "crazy field" bug.
+
+### Secondary fix #3 — `intent.goal` mapping
+
+`intent.goal` is sent by `QuickPolishPage.tsx` (~line 434) but was previously never read on the receiving side. It is now mapped onto Copy Maker's `keyMessage` field (the "Key Message / core message" concept is the closest existing FormState field for the QuickPolish "goal / desired outcome" concept):
+
+```ts
+keyMessage: prefill.intent?.goal || prev.keyMessage,
+```
+
+### Fix #4 — word-count field rename
+
+Renamed `selected_output_word_count` to `original_input_word_count` across the codebase to accurately describe what it holds (the word count of the *original input text*, not the selected polished output — this is intentional, since it sets the target length for Copy Maker). Touched:
+
+- `src/features/quickPolish/types.ts` (`PrefillToCopyMaker` interface field + comment)
+- `src/features/quickPolish/QuickPolishPage.tsx` (sender assignment)
+- `src/components/copy-maker/CopyMakerTab/CopyMakerTab.tsx` (all reads: word-count decision, `customWordCount` assignment, debug log fields)
+
+This is a rename only — the value and behavior are unchanged.
+
+**Acceptance:** `npm run build` passes. Going through Purpose Rewrite with each of `neutral/premium/friendly/bold/formal` tones and clicking "Continue in Copy Maker" now lands a real, correctly-selected Tone option in Copy Maker every time — never blank, never reset to a default that doesn't match. `originalCopy`, `targetAudience`, `callToAction`, `language`, and `customWordCount` still populate correctly (no regression). `keyMessage` now populates from `intent.goal`. A normal (non-handoff) visit to Copy Maker is unaffected — all changes are gated on `prefill` being present.
+
+**Honest caveat:** Build passes and the wiring is type-correct (the `Tone` import resolves, the map keys cover every value in `TONE_OPTIONS`), but I could not exercise the handoff flow in a browser to visually confirm the Tone dropdown shows the right option for each preset — that final functional check in the editor is yours to run.

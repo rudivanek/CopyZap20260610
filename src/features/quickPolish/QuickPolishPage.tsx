@@ -425,7 +425,7 @@ export function QuickPolishPage() {
       source: 'intent_polish',
       original_input: inputText,
       selected_output: selectedResult.text,
-      selected_output_word_count: originalInputWordCount,
+      original_input_word_count: originalInputWordCount,
       language: detectedLang,
       intent: {
         id: intentId,
