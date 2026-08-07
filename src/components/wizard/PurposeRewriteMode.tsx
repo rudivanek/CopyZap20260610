@@ -101,7 +101,9 @@ const PurposeRewriteMode: React.FC<PurposeRewriteModeProps> = ({ onApplyToForm, 
     const detectedLanguage = convertLanguageCodeToFormDataLanguage(detectLanguage(inputText));
     forceAdvanced('wizard_apply');
     onApplyToForm?.({
+      tab: 'improve',
       originalCopy: results[selectedIndex].text,
+      section: selectedPreset?.label || undefined,
       targetAudience: audience || undefined,
       keyMessage: goal || undefined,
       callToAction: cta || undefined,
@@ -162,6 +164,5 @@ const PurposeRewriteMode: React.FC<PurposeRewriteModeProps> = ({ onApplyToForm, 
 const Field: React.FC<{ label: string; value: string; onChange: (value: string) => void; placeholder: string }> = ({ label, value, onChange, placeholder }) => <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}<input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" /></label>;
 
 export default PurposeRewriteMode;
-
 
 export default PurposeRewriteMode
