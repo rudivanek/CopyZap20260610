@@ -30,15 +30,16 @@ export function getInputClassName(
   fieldName: string,
   fieldsWithPlaceholders?: string[],
   baseClassName?: string,
-  fieldValue?: string
+  fieldValue?: unknown
 ): string {
-  const hasPlaceholder = hasBracketPlaceholder(fieldValue);
-  const isEmpty = fieldValue === undefined || fieldValue.trim().length === 0;
+  const valueStr = typeof fieldValue === 'string' ? fieldValue : '';
+  const hasPlaceholder = hasBracketPlaceholder(valueStr);
+  const isEmpty = valueStr.trim().length === 0;
   const isFlaggedEmpty = Boolean(fieldsWithPlaceholders?.includes(fieldName)) && isEmpty;
   const shouldHighlight = hasPlaceholder || isFlaggedEmpty;
 
   if (shouldHighlight) {
-    console.log(`🎨 Applying orange highlight to input: ${fieldName} with value:`, fieldValue?.substring(0, 50));
+    console.log(`🎨 Applying orange highlight to input: ${fieldName} with value:`, valueStr.substring(0, 50));
   }
 
   const defaultBase = 'border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5';
@@ -69,15 +70,16 @@ export function getTextareaClassName(
   fieldName: string,
   fieldsWithPlaceholders?: string[],
   baseClassName?: string,
-  fieldValue?: string
+  fieldValue?: unknown
 ): string {
-  const hasPlaceholder = hasBracketPlaceholder(fieldValue);
-  const isEmpty = fieldValue === undefined || fieldValue.trim().length === 0;
+  const valueStr = typeof fieldValue === 'string' ? fieldValue : '';
+  const hasPlaceholder = hasBracketPlaceholder(valueStr);
+  const isEmpty = valueStr.trim().length === 0;
   const isFlaggedEmpty = Boolean(fieldsWithPlaceholders?.includes(fieldName)) && isEmpty;
   const shouldHighlight = hasPlaceholder || isFlaggedEmpty;
 
   if (shouldHighlight) {
-    console.log(`🎨 Applying orange highlight to textarea: ${fieldName} with value:`, fieldValue?.substring(0, 50));
+    console.log(`🎨 Applying orange highlight to textarea: ${fieldName} with value:`, valueStr.substring(0, 50));
   }
 
   const defaultBase = 'border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5';
