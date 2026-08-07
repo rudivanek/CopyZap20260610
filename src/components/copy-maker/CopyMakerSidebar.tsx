@@ -1234,49 +1234,7 @@ const CardActions: React.FC<CardActionsProps> = ({
         document.body
       )}
 
-      {/* 7. Score — inline dropdown (not a section header) */}
-      {(showContentScoreButton || showGeoScoreButton) && (
-        missingCount >= 2 ? (
-          <>
-            <ZoneItem
-              icon={Gauge}
-              label="Score"
-              onClick={() => setScoreOpen(o => !o)}
-              expanded={scoreOpen}
-              title="Choose scoring scope"
-              trailing={<ChevronDown size={10} className={scoreOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />}
-            />
-            {scoreOpen && (
-              <InlineFlyout>
-                <FlyoutOption
-                  label="Content + GEO"
-                  onClick={async () => {
-                    if (showContentScoreButton) await handleGenerateContentScore();
-                    if (showGeoScoreButton) await handleGenerateGeoScore();
-                  }}
-                  disabled={anyAnalysisRunning}
-                />
-                {showContentScoreButton && (
-                  <FlyoutOption label="Content only" onClick={handleGenerateContentScore} disabled={anyAnalysisRunning} />
-                )}
-                {showGeoScoreButton && (
-                  <FlyoutOption label="GEO only" onClick={handleGenerateGeoScore} disabled={anyAnalysisRunning} />
-                )}
-              </InlineFlyout>
-            )}
-          </>
-        ) : showContentScoreButton ? (
-          <SidebarBtn onClick={handleGenerateContentScore} disabled={anyAnalysisRunning} title="Generate content score">
-            <Gauge size={10} />
-            {isGeneratingContentScore ? 'Scoring…' : 'Score'}
-          </SidebarBtn>
-        ) : showGeoScoreButton ? (
-          <SidebarBtn onClick={handleGenerateGeoScore} disabled={anyAnalysisRunning} title="Generate GEO score">
-            <Gauge size={10} />
-            {isGeneratingGeoScore ? 'Scoring…' : 'GEO Score'}
-          </SidebarBtn>
-        ) : null
-      )}
+
       {showContentScoreProcessingModal && ReactDOM.createPortal(
         <ProcessingModal
           isOpen={showContentScoreProcessingModal}
@@ -1310,30 +1268,7 @@ const CardActions: React.FC<CardActionsProps> = ({
         document.body
       )}
 
-      {/* 8. Copy — inline dropdown (not a section header) */}
-      <ZoneItem
-        icon={Copy}
-        label={copied ? 'Copied!' : 'Copy'}
-        onClick={() => setCopyOpen(o => !o)}
-        expanded={copyOpen}
-        title="Choose copy format"
-        trailing={copied ? <Check size={10} className="text-gray-500 dark:text-gray-400" /> : <ChevronDown size={10} className={copyOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />}
-      />
-      {copyOpen && (
-        <InlineFlyout>
-          <FlyoutOption label="Plain text" onClick={handleCopy} />
-          <FlyoutOption label="HTML" onClick={handleCopyHtml} />
-          <FlyoutOption label="Markdown" onClick={handleCopyMd} />
-        </InlineFlyout>
-      )}
 
-      {/* Save as Brand Voice — preserved (not in the 8-item spec; removing would be a behavior change) */}
-      {onSaveAsBrandVoice && (
-        <SidebarBtn onClick={() => onSaveAsBrandVoice(contentDetails.text)} title="Save as Brand Voice profile">
-          <BookOpen size={10} />
-          Save as Brand Voice
-        </SidebarBtn>
-      )}
     </div>
   );
 };
