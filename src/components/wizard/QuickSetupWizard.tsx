@@ -11,6 +11,7 @@ import { applyOptimizationRestorePolicy } from '../../utils/optimizationRestoreP
 import WizardHeader from './WizardHeader';
 import WizardFooter from './WizardFooter';
 import WizardStep from './WizardStep';
+import IntentImproveMode from './IntentImproveMode';
 import WizardSummary from './WizardSummary';
 
 import { Model } from '../../types';
@@ -907,6 +908,15 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
         <div className="max-w-5xl mx-auto px-6 md:px-12 lg:px-16 py-8">
           <AnimatePresence mode="wait">
             {!showSummary ? (
+              wizardState.answers.mode === 'improve' ? (
+                <IntentImproveMode
+                  onApplyToForm={onApplyToForm}
+                  onBack={() => {
+                    updateAnswer('mode', 'create');
+                    goToStep(1);
+                  }}
+                />
+              ) : (
               <WizardStep
                 key={wizardState.currentStep}
                 step={wizardState.currentStep}
@@ -915,11 +925,12 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
                 onNext={nextStep}
                 onPrev={prevStep}
                 isGenerating={isGenerating}
-                onApplyFromStep2={(wizardState.currentStep === 1 && (wizardState.answers.mode === 'improve' || wizardState.answers.mode === 'create')) ? handleApplyFromStep2 : undefined}
+                onApplyFromStep2={wizardState.currentStep === 1 && wizardState.answers.mode === 'create' ? handleApplyFromStep2 : undefined}
                 onApplyAndGenerateFromStep2={wizardState.currentStep === 2 ? handleApplyAndGenerateFromStep2 : undefined}
                 currentUser={currentUser}
                 selectedModel={selectedModel}
               />
+              )
             ) : (
               <WizardSummary
                 key="summary"

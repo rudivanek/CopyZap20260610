@@ -5,6 +5,20 @@ Last Updated: 2026-08-07T00:00:00Z
 
 ---
 
+## Purpose Rewrite in the Copy Wizard (2026-08-07)
+
+**Feature:** The Copy Wizard's improve mode is now labeled **Purpose Rewrite** and uses the same intent-led rewrite flow as the standalone Purpose Rewrite experience. Users paste existing copy, choose one of the eleven intent presets, and see only the intent-specific fields declared by that preset. Audience, goal, tone, and call-to-action fields remain progressive and dynamic rather than appearing as a fixed form.
+
+**Purpose Rewrite flow:** The improve branch contains a plain-text or HTML content toggle, live word count, intent picker, dynamic intent fields, the existing special-instructions field and helper text, a one/two/three variant selector, and the existing polish service. Results support copy, selection, recommendation highlighting, refinement, and continuation into Copy Maker. Save-to-output is intentionally not included in this wizard branch because the selected rewrite is handed directly to Copy Maker, where the normal save flow remains available.
+
+**Copy Maker handoff:** Continuing with a selected variant fills `originalCopy` with the selected rewrite, maps the intent's audience to `targetAudience`, goal to `keyMessage`, and CTA to `callToAction`, detects the source language, sets a custom target length using the original input word count, and opens the Advanced form. Purpose Rewrite tone values use the shared `QUICK_POLISH_TONE_MAP`, including the Professional fallback, so all supported tones remain selected in the Copy Maker tone control.
+
+**Wizard routing:** Create mode continues to use the existing wizard form. Improve mode renders the intent flow directly and keeps the Back to Mode Selection action. Analyze URL is now available in create mode, where its context analysis pre-fills the create brief fields; the existing URL-analysis buttons and behavior are unchanged.
+
+**Files modified:** `src/components/wizard/IntentImproveMode.tsx`, `src/components/wizard/QuickSetupWizard.tsx`, `src/components/wizard/WizardStep.tsx`, `src/components/StartHubModal.tsx`, `src/components/copy-maker/CopyMakerTab/CopyMakerTab.tsx`, and `src/features/quickPolish/toneMapping.ts`.
+
+---
+
 ## Export HTML (Preview) 2 — Spanish Client Copy Report (2026-08-03)
 
 **Feature:** Added a second HTML export, `Export HTML (Preview) 2`, placed directly below the existing `Export HTML (Preview)` item in the Copy Maker sidebar. It uses the exact same session data (form state, generated outputs, comparison result, deep analysis) as the existing export, but renders a completely different, client-facing document: a polished Spanish-language *copy diagnostic report* designed to be emailed to a prospect who has never heard of the studio. The existing export path is unchanged.

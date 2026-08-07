@@ -344,7 +344,7 @@ const StartHubModal: React.FC<StartHubModalProps> = ({
                 />
                 <SubOption
                   icon={<RefreshCw className="w-3.5 h-3.5" />}
-                  title="Improve existing copy"
+                  title="Purpose Rewrite"
                   description="Enhance and refine your current content"
                   onClick={() => handleWizardSelect('improve')}
                 />

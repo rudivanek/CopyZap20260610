@@ -60,18 +60,7 @@ import { validateApiKey, getAvailableModels, getModelLabel } from '../../../serv
 import { generateContentScores, generateSeoMetadata, calculateGeoScore } from '../../../services/apiService';
 import { getUserPreferences, dismissStartHub } from '../../../services/supabaseClient';
 import { sessionManager } from '../../../services/sessionService';
-
-// Maps Purpose Rewrite (QuickPolish) tone vocabulary to Copy Maker's Tone enum.
-// QuickPolish uses lowercase values ('neutral' | 'premium' | 'friendly' | 'bold' | 'formal');
-// Copy Maker's Tone enum is capitalized and a different vocabulary.
-// Without this translation the Tone dropdown silently holds an invalid string.
-const QUICK_POLISH_TONE_MAP: Record<string, Tone> = {
-  neutral: 'Professional',
-  premium: 'Persuasive',
-  friendly: 'Friendly',
-  bold: 'Bold',
-  formal: 'Professional',
-};
+import { QUICK_POLISH_TONE_MAP } from '../../../features/quickPolish/toneMapping';
 
 interface FillFormCardProps {
   hasData: boolean;

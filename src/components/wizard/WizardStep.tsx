@@ -583,14 +583,14 @@ const WizardStep: React.FC<WizardStepProps> = ({
               className="w-4 h-4 text-blue-600 focus:ring-blue-500"
             />
             <span className="ml-2 text-sm text-gray-900 dark:text-gray-100">
-              Improve existing copy
+              Purpose Rewrite
             </span>
           </label>
         </div>
       </div>
 
-      {/* URL Analysis Section - Only show for improve mode */}
-      {answers.mode === 'improve' && (
+      {/* URL Analysis Section - Only show for create mode */}
+      {answers.mode === 'create' && (
         <div>
           {!showUrlSection ? (
             <button
@@ -683,32 +683,26 @@ const WizardStep: React.FC<WizardStepProps> = ({
       )}
 
 
-      {/* What Are You Creating - Only show for create and improve */}
+      {/* What Are You Creating */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          {answers.mode === 'create' ? 'What are you creating?' : 'Paste your existing copy'} <span className="text-red-500">*</span>
+          What are you creating? <span className="text-red-500">*</span>
         </label>
         <textarea
           value={answers.whatAreYouCreating}
           onChange={(e) => updateAnswer('whatAreYouCreating', e.target.value)}
-          rows={answers.mode === 'improve' ? 4 : 3}
+          rows={3}
           className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 p-2"
-          placeholder={
-            answers.mode === 'create'
-              ? "e.g., A landing page for my project management SaaS targeting small businesses..."
-              : "Paste the copy you want to improve here..."
-          }
+          placeholder="e.g., A landing page for my project management SaaS targeting small businesses..."
         />
         {answers.whatAreYouCreating.length > 0 && answers.whatAreYouCreating.length < 20 && (
           <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
-            {answers.mode === 'create'
-              ? 'Try to be more specific. Add details about your topic or product.'
-              : 'Please paste more content to improve.'}
+            Try to be more specific. Add details about your topic or product.
           </p>
         )}
       </div>
 
-      {/* Target Audience - Only show for create and improve */}
+      {/* Target Audience */}
       <div>
         <div className="flex items-center justify-between mb-1">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -734,7 +728,7 @@ const WizardStep: React.FC<WizardStepProps> = ({
         />
       </div>
 
-      {/* Pain Points (Optional) - Only show for create and improve */}
+      {/* Pain Points (Optional) */}
       <div>
         <div className="flex items-center justify-between mb-1">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -786,8 +780,8 @@ const WizardStep: React.FC<WizardStepProps> = ({
         />
       </div>
 
-      {/* Footer for both improve and create modes */}
-      {(answers.mode === 'improve' || answers.mode === 'create') && (
+      {/* Footer */}
+      {answers.mode === 'create' && (
         <div className="pt-6 mt-6">
           <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-4">
             You can edit everything later in Advanced Mode.
@@ -922,11 +916,7 @@ const WizardStep: React.FC<WizardStepProps> = ({
       <div className="bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-lg p-4">
         <p className="text-sm text-gray-500 dark:text-gray-200">
           <strong>Smart defaults:</strong> We've automatically configured settings based on your project.
-          {answers.mode === 'improve' && (
-            <span className="block mt-1.5 text-xs text-primary-600 dark:text-primary-400">
-              SEO and GEO optimizations are always enabled for improved copy.
-            </span>
-          )}
+
         </p>
       </div>
 
