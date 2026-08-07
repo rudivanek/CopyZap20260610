@@ -465,7 +465,7 @@ export interface CopySession {
   output_type?: string; // Added output_type field
   brief_description?: string; // Added brief description field
   session_name?: string; // Auto-generated human-readable session name
-  scope_key?: string; // Session scope: 'copy-maker', 'copy-snap', 'quick-polish'
+  scope_key?: string; // Session scope: 'copy-maker' or 'copy-snap'
 }
 
 // Template interface

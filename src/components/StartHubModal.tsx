@@ -279,11 +279,6 @@ const StartHubModal: React.FC<StartHubModalProps> = ({
     onClose();
   };
 
-  const handleIntentPolishSelect = () => {
-    onClose();
-    navigate('/quick-polish');
-  };
-
   const handleCopySnapSelect = () => {
     onClose();
     navigate('/copy-snap');
@@ -350,12 +345,6 @@ const StartHubModal: React.FC<StartHubModalProps> = ({
                   description="Enhance and refine your current content"
                   onClick={() => handleWizardSelect('improve')}
                 />
-                <SubOption
-                  icon={<Zap className="w-3.5 h-3.5" />}
-                  title="Quick Polish"
-                  description="Fast touch-ups and refinements"
-                  onClick={() => handleWizardSelect('polish')}
-                />
               </OptionCard>
 
               <OptionCard
@@ -400,13 +389,6 @@ const StartHubModal: React.FC<StartHubModalProps> = ({
               Improve existing copy
             </h3>
             <div className="space-y-3">
-              <OptionCard
-                icon={<Sparkles className="w-5 h-5" />}
-                title="Purpose Rewrite"
-                description="Quickly improve existing copy with purpose-based rewriting."
-                onClick={handleIntentPolishSelect}
-              />
-
               {isAdmin && (
                 <OptionCard
                   icon={<Zap className="w-5 h-5" />}

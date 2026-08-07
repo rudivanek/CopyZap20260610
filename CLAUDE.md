@@ -40,7 +40,7 @@ npm run check:hardcoded-admins  # Scan for hardcoded admin credentials
 
 1. **Global context** (`/src/context/`)
    - `SessionContext.tsx` — Current copy session (form inputs, generated outputs, comparison state)
-   - `ModeContext.tsx` — Quick Polish vs. regular Copy Maker mode toggle
+   - `ModeContext.tsx` — Copy Maker form density mode (`quick`, `standard`, or `advanced`)
    - `ThemeContext.tsx` — Dark/light theme
    - `GuidanceHintContext.tsx` — Contextual help hints in Copy Maker
 
@@ -53,7 +53,7 @@ npm run check:hardcoded-admins  # Scan for hardcoded admin credentials
 3. **Page-level components** (`/src/components/`)
    - `CopyMakerTab` — Main interface for copy generation (form + results side-by-side)
    - `Dashboard` — Session history list with metadata queries
-   - `QuickPolishPage` — Alternative UX for polish-mode workflows
+   - `QuickSetupWizard` — Guided setup for creating new copy or improving existing copy
    - `CopySnap` — Copy scoring-only feature
 
 4. **Supabase client** (`/src/services/supabaseClient.ts`)

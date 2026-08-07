@@ -122,7 +122,6 @@ const NavSidebar: React.FC = () => {
   const baseItems = [
     { label: 'Copy Maker', path: '/copy-maker', Icon: FileEdit, adminOnly: false },
     { label: 'Start Hub', path: null, Icon: Rocket, adminOnly: false },
-    { label: 'Purpose Rewrite', path: '/quick-polish', Icon: PenLine, adminOnly: true },
     { label: 'Copy Snap', path: '/copy-snap', Icon: Camera, adminOnly: true },
     { label: 'Dashboard', path: '/dashboard', Icon: LayoutDashboard, adminOnly: false },
   ];

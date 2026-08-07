@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.21
-Last Updated: 2026-08-07T00:00:00Z
+Last Updated: 2026-08-07T16:41:57Z
 
 ---
 
@@ -6782,3 +6782,26 @@ This is a rename only — the value and behavior are unchanged.
 **Acceptance:** `npm run build` passes. Going through Purpose Rewrite with each of `neutral/premium/friendly/bold/formal` tones and clicking "Continue in Copy Maker" now lands a real, correctly-selected Tone option in Copy Maker every time — never blank, never reset to a default that doesn't match. `originalCopy`, `targetAudience`, `callToAction`, `language`, and `customWordCount` still populate correctly (no regression). `keyMessage` now populates from `intent.goal`. A normal (non-handoff) visit to Copy Maker is unaffected — all changes are gated on `prefill` being present.
 
 **Honest caveat:** Build passes and the wiring is type-correct (the `Tone` import resolves, the map keys cover every value in `TONE_OPTIONS`), but I could not exercise the handoff flow in a browser to visually confirm the Tone dropdown shows the right option for each preset — that final functional check in the editor is yours to run.
+
+
+## Purpose Rewrite merged into the Quick Prompt Wizard (2026-08-07)
+
+**Feature:** The Quick Prompt Wizard now has exactly two entry modes: **Make new copy** and **Improve existing copy**. The previous generic improve setup, the separate Quick Polish mode, and the standalone Purpose Rewrite page have been consolidated into one intent-based improve experience inside the wizard.
+
+**Improve flow:** Selecting **Improve existing copy** opens the intent-based workflow directly in the wizard. Users paste their existing copy, choose whether it is plain text or HTML, select one of the 11 intent presets, and see only the fields declared by that preset. Audience, desired outcome, tone, and call-to-action fields remain dynamically controlled by each preset. Preset default tones are applied when the intent changes unless the user has explicitly selected a tone; explicit tone choices are preserved until the intent changes again.
+
+The improve flow keeps the original Purpose Rewrite special-instructions textarea and its helper text, including the example constraints for word count, buzzwords, preserving the first sentence, avoiding new claims, and using simple language. Users can request one, two, or three variants, polish the input, copy any result, refine an individual result with optional notes, and see the existing recommendation and evidence-based explanation for each returned variant.
+
+**Direct wizard handoff:** Selecting a result applies it directly to the already-mounted Copy Maker form through the wizard callback. The handoff does not navigate, write session storage, or depend on a route. It applies the selected variant as `originalCopy`, carries audience, goal, call-to-action, detected language, special instructions, and the original input word count into the matching Copy Maker fields, and switches the form to Advanced mode with the `wizard_apply` reason. A confirmation message tells the user that the improved copy was loaded into Copy Maker.
+
+**Tone safety:** Purpose Rewrite tones are lowercase (`neutral`, `premium`, `friendly`, `bold`, and `formal`), while Copy Maker tones use a capitalized vocabulary. The shared `src/features/quickPolish/toneMapping.ts` module translates every Purpose Rewrite tone to a valid Copy Maker tone and uses `Professional` for unknown values. Both the embedded wizard handoff and any remaining Purpose Rewrite tone consumers use this shared mapping rather than assigning a raw lowercase value.
+
+**Removed entry points:** The Quick Polish mode radio option, both Purpose Rewrite sidebar entries, the standalone Purpose Rewrite Start Hub card, the Quick Polish Start Hub sub-option, and the standalone `/quick-polish` route were removed. The small-screen gate now opens Copy Maker instead of linking to the retired page. The obsolete `QuickPolishPage.tsx`, `QuickPolishMode.tsx`, route-specific reopen logic, and Purpose Rewrite session scope handling were removed. Existing `intents.ts`, `quickPolishService.ts`, `microConfirmation.ts`, and `variantRecommendation.ts` remain reusable modules for the embedded flow.
+
+**Saving choice:** The old standalone Purpose Rewrite save modal was not carried into the wizard. This is intentional because the user immediately lands in Copy Maker, which already provides the application's save and output-management controls; the embedded wizard does not create a separate saved-output record.
+
+**Make new copy:** The existing Make new copy path remains on the wizard's original two-step setup and generation flow. Its form fields, template suggestions, advanced-mode handling, and generation callback are unchanged.
+
+**Documentation and maintenance:** `CLAUDE.md` now describes `ModeContext` as the Copy Maker form-density mode and lists `QuickSetupWizard` instead of the deleted standalone page. The feature documentation records the new single improve path and the direct handoff contract.
+
+**Verification:** The production build and TypeScript check pass. A source scan finds no remaining `QuickPolishPage`, `QuickPolishMode`, `/quick-polish`, `Quick Polish`, `Purpose Rewrite`, or `PrefillToCopyMaker` references under `src`. Browser-level interaction testing was not available in this environment, so the five tone presets and the visual handoff should still be checked manually in the running app.
