@@ -11,7 +11,7 @@ import { applyOptimizationRestorePolicy } from '../../utils/optimizationRestoreP
 import WizardHeader from './WizardHeader';
 import WizardFooter from './WizardFooter';
 import WizardStep from './WizardStep';
-import IntentImproveMode from './IntentImproveMode';
+import PurposeRewriteMode from './PurposeRewriteMode';
 import WizardSummary from './WizardSummary';
 
 import { Model } from '../../types';
@@ -24,14 +24,14 @@ interface QuickSetupWizardProps {
   onApplyToForm?: (templateData: Partial<FormState>) => void;
   onGenerate?: (wizardData?: Partial<FormState>) => void;
   sessionId?: string;
-  initialMode?: 'create' | 'improve';
+  initialMode?: 'create' | 'improve' | 'purposeRewrite';
   initialStep?: number | null;
 }
 
 interface WizardState {
   currentStep: number;
   answers: {
-    mode: 'create' | 'improve';
+    mode: 'create' | 'improve' | 'purposeRewrite';
     projectDescription: string;
     whatAreYouCreating: string;
     targetAudience: string;
@@ -236,8 +236,7 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
   const nextStep = () => {
     // Validation before moving to next step
     if (wizardState.currentStep === 1) {
-      // Skip step 2 for improve mode - it's now a single-step flow
-      if (wizardState.answers.mode === 'improve') {
+      if (wizardState.answers.mode === 'improve' || wizardState.answers.mode === 'purposeRewrite') {
         return;
       }
       if (!wizardState.answers.projectDescription.trim()) {
@@ -857,7 +856,7 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
       )}
 
       {/* Simple Header for Improve and Create Modes */}
-      {!showSummary && (wizardState.answers.mode === 'improve' || wizardState.answers.mode === 'create') && (
+      {!showSummary && (wizardState.answers.mode === 'improve' || wizardState.answers.mode === 'create' || wizardState.answers.mode === 'purposeRewrite') && (
         <div className="border-b border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900">
           {/* Top bar with Quick Setup and Exit Wizard */}
           <div className="px-6 py-4 border-b border-gray-100 dark:border-gray-800">
@@ -908,14 +907,8 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
         <div className="max-w-5xl mx-auto px-6 md:px-12 lg:px-16 py-8">
           <AnimatePresence mode="wait">
             {!showSummary ? (
-              wizardState.answers.mode === 'improve' ? (
-                <IntentImproveMode
-                  onApplyToForm={onApplyToForm}
-                  onBack={() => {
-                    updateAnswer('mode', 'create');
-                    goToStep(1);
-                  }}
-                />
+              wizardState.answers.mode === 'purposeRewrite' ? (
+                <PurposeRewriteMode onApplyToForm={onApplyToForm} />
               ) : (
               <WizardStep
                 key={wizardState.currentStep}
@@ -925,7 +918,7 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
                 onNext={nextStep}
                 onPrev={prevStep}
                 isGenerating={isGenerating}
-                onApplyFromStep2={wizardState.currentStep === 1 && wizardState.answers.mode === 'create' ? handleApplyFromStep2 : undefined}
+                onApplyFromStep2={wizardState.currentStep === 1 && (wizardState.answers.mode === 'improve' || wizardState.answers.mode === 'create') ? handleApplyFromStep2 : undefined}
                 onApplyAndGenerateFromStep2={wizardState.currentStep === 2 ? handleApplyAndGenerateFromStep2 : undefined}
                 currentUser={currentUser}
                 selectedModel={selectedModel}
@@ -947,7 +940,19 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
         </div>
       </div>
 
-      {/* Footer removed for all single-step modes (improve and create) */}
+      {wizardState.answers.mode === 'purposeRewrite' && (
+        <div className="border-t border-gray-200 bg-white px-6 py-4 dark:border-gray-800 dark:bg-gray-900">
+          <div className="mx-auto max-w-5xl">
+            <button
+              type="button"
+              onClick={() => updateAnswer('mode', 'create')}
+              className="text-sm text-gray-600 transition-colors hover:text-gray-900 dark:text-gray-300 dark:hover:text-white"
+            >
+              ← Back to Mode Selection
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Hidden Field Warning Modal */}
       {showHiddenFieldWarning && (

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowLeft, Check, Copy, Loader2, RefreshCw, Sparkles } from 'lucide-react';
+import { Check, Copy, Loader2, RefreshCw, Sparkles } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { FormState } from '../../types';
 import { useMode } from '../../context/ModeContext';
@@ -7,17 +7,17 @@ import { detectLanguage, convertLanguageCodeToFormDataLanguage } from '../../uti
 import { polishContent } from '../../features/quickPolish/quickPolishService';
 import { INTENT_PRESETS, TONE_OPTIONS } from '../../features/quickPolish/intents';
 import { selectRecommendedVariant } from '../../features/quickPolish/variantRecommendation';
+import { buildMicroConfirmation } from '../../features/quickPolish/microConfirmation';
 import { ContentType, PolishResultItem, QuickPolishInput } from '../../features/quickPolish/types';
 import { QUICK_POLISH_TONE_MAP } from '../../features/quickPolish/toneMapping';
 
-interface IntentImproveModeProps {
+interface PurposeRewriteModeProps {
   onApplyToForm?: (data: Partial<FormState>) => void;
-  onBack: () => void;
 }
 
 const countWords = (value: string): number => value.trim().split(/\s+/).filter(Boolean).length;
 
-const IntentImproveMode: React.FC<IntentImproveModeProps> = ({ onApplyToForm, onBack }) => {
+const PurposeRewriteMode: React.FC<PurposeRewriteModeProps> = ({ onApplyToForm }) => {
   const { forceAdvanced } = useMode();
   const [inputText, setInputText] = useState('');
   const [contentType, setContentType] = useState<ContentType>('plain');
@@ -124,9 +124,6 @@ const IntentImproveMode: React.FC<IntentImproveModeProps> = ({ onApplyToForm, on
 
   return (
     <div className="space-y-6">
-      <button type="button" onClick={onBack} className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-300 hover:text-gray-900 dark:hover:text-white">
-        <ArrowLeft className="h-4 w-4" /> Back to Mode Selection
-      </button>
       <div className="text-center">
         <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-2xl bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300"><Sparkles className="h-6 w-6" /></div>
         <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Purpose Rewrite</h2>
@@ -154,7 +151,7 @@ const IntentImproveMode: React.FC<IntentImproveModeProps> = ({ onApplyToForm, on
 
       <div className="flex flex-wrap items-center justify-between gap-4"><div><span className="mr-3 text-sm font-semibold text-gray-900 dark:text-white">Variants</span>{([1, 2, 3] as const).map((value) => <button key={value} type="button" onClick={() => setVariantsCount(value)} className={`mr-2 rounded-lg border px-4 py-2 text-sm ${variantsCount === value ? 'border-primary-500 bg-primary-50 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300' : 'border-gray-300 text-gray-600 dark:border-gray-600 dark:text-gray-300'}`}>{value}</button>)}</div><button type="button" onClick={handlePolish} disabled={isLoading} className="inline-flex items-center gap-2 rounded-xl bg-primary-600 px-5 py-3 text-sm font-semibold text-white shadow-sm transition hover:bg-primary-700 disabled:cursor-not-allowed disabled:opacity-60">{isLoading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Sparkles className="h-4 w-4" />} Polish copy</button></div>
 
-      {results.length > 0 && <section className="space-y-4"><div className="flex items-center justify-between"><h3 className="text-lg font-semibold text-gray-900 dark:text-white">Choose your rewrite</h3><span className="text-xs text-gray-500">Recommended option is highlighted</span></div>{results.map((result, index) => <article key={`${index}-${result.text.slice(0, 12)}`} className={`rounded-2xl border p-5 ${selectedIndex === index ? 'border-primary-500 ring-2 ring-primary-500/20' : 'border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-900`}><div className="flex items-start justify-between gap-4"><div className="flex items-center gap-2"><span className="text-sm font-semibold text-gray-900 dark:text-white">Version {index + 1}</span>{index === recommendedIndex && results.length > 1 && <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Recommended</span>}{result.isRefined && <span className="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-semibold text-blue-800">Refined</span>}</div><button type="button" onClick={() => setSelectedIndex(index)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${selectedIndex === index ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}>{selectedIndex === index ? <><Check className="mr-1 inline h-3.5 w-3.5" /> Selected</> : 'Select'}</button></div><p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-gray-700 dark:text-gray-200">{result.text}</p><div className="mt-4 flex gap-2"><button type="button" onClick={() => void handleCopy(result.text, index)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">{copiedIndex === index ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} Copy</button><button type="button" onClick={() => { setRefineIndex(index); setRefineNotes(''); }} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300"><RefreshCw className="h-3.5 w-3.5" /> Refine</button></div></article>)}<button type="button" disabled={selectedIndex === null} onClick={handleContinue} className="w-full rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200">Continue to Copy Maker</button></section>}
+      {results.length > 0 && <section className="space-y-4"><div className="flex items-center justify-between"><h3 className="text-lg font-semibold text-gray-900 dark:text-white">Choose your rewrite</h3><span className="text-xs text-gray-500">Recommended option is highlighted</span></div>{results.map((result, index) => <article key={`${index}-${result.text.slice(0, 12)}`} className={`rounded-2xl border p-5 ${selectedIndex === index ? 'border-primary-500 ring-2 ring-primary-500/20' : 'border-gray-200 dark:border-gray-700'} bg-white dark:bg-gray-900`}><div className="flex items-start justify-between gap-4"><div className="flex items-center gap-2"><span className="text-sm font-semibold text-gray-900 dark:text-white">Version {index + 1}</span>{index === recommendedIndex && results.length > 1 && <span className="rounded-full bg-amber-100 px-2 py-1 text-[11px] font-semibold text-amber-800">Recommended</span>}{result.isRefined && <span className="rounded-full bg-blue-100 px-2 py-1 text-[11px] font-semibold text-blue-800">Refined</span>}</div><button type="button" onClick={() => setSelectedIndex(index)} className={`rounded-lg px-3 py-1.5 text-xs font-semibold ${selectedIndex === index ? 'bg-primary-600 text-white' : 'bg-gray-100 text-gray-600 dark:bg-gray-800 dark:text-gray-300'}`}>{selectedIndex === index ? <><Check className="mr-1 inline h-3.5 w-3.5" /> Selected</> : 'Select'}</button></div><p className="mt-4 whitespace-pre-wrap text-sm leading-7 text-gray-700 dark:text-gray-200">{result.text}</p><div className="mt-4 flex flex-wrap gap-2">{buildMicroConfirmation({ intentId: result.intentId, tone: result.tone, contentType: result.contentType, isRefined: result.isRefined, sourceText: result.sourceText, outputText: result.text }).map((tag) => <span key={tag} className="rounded-full bg-gray-100 px-2.5 py-1 text-[11px] font-medium text-gray-600 dark:bg-gray-800 dark:text-gray-300">{tag}</span>)}</div><div className="mt-3 flex gap-2"><button type="button" onClick={() => void handleCopy(result.text, index)} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300">{copiedIndex === index ? <Check className="h-3.5 w-3.5" /> : <Copy className="h-3.5 w-3.5" />} Copy</button><button type="button" onClick={() => { setRefineIndex(index); setRefineNotes(''); }} className="inline-flex items-center gap-1.5 rounded-lg border border-gray-200 px-3 py-1.5 text-xs text-gray-600 dark:border-gray-700 dark:text-gray-300"><RefreshCw className="h-3.5 w-3.5" /> Refine</button></div></article>)}<button type="button" disabled={selectedIndex === null} onClick={handleContinue} className="w-full rounded-xl bg-gray-900 px-5 py-3 text-sm font-semibold text-white transition hover:bg-gray-700 disabled:cursor-not-allowed disabled:opacity-50 dark:bg-white dark:text-gray-900 dark:hover:bg-gray-200">Continue to Copy Maker</button></section>}
 
       {refineIndex !== null && <div className="rounded-2xl border border-primary-200 bg-primary-50 p-5 dark:border-primary-800 dark:bg-primary-900/20"><h3 className="text-sm font-semibold text-gray-900 dark:text-white">Refine this version</h3><textarea value={refineNotes} onChange={(event) => setRefineNotes(event.target.value)} rows={3} placeholder="What should change?" className="mt-3 w-full rounded-xl border border-gray-300 bg-white p-3 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" /><div className="mt-3 flex justify-end gap-2"><button type="button" onClick={() => setRefineIndex(null)} className="rounded-lg px-3 py-2 text-sm text-gray-600">Cancel</button><button type="button" onClick={() => void handleRefine()} disabled={isRefining} className="rounded-lg bg-primary-600 px-4 py-2 text-sm font-semibold text-white disabled:opacity-60">{isRefining ? 'Refining...' : 'Apply refinement'}</button></div></div>}
     </div>
@@ -163,4 +160,4 @@ const IntentImproveMode: React.FC<IntentImproveModeProps> = ({ onApplyToForm, on
 
 const Field: React.FC<{ label: string; value: string; onChange: (value: string) => void; placeholder: string }> = ({ label, value, onChange, placeholder }) => <label className="text-sm font-medium text-gray-700 dark:text-gray-300">{label}<input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} className="mt-1.5 w-full rounded-lg border border-gray-300 bg-white p-2.5 text-sm dark:border-gray-600 dark:bg-gray-800 dark:text-white" /></label>;
 
-export default IntentImproveMode;
+export default PurposeRewriteMode;

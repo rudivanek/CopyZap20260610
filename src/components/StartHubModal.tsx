@@ -21,7 +21,7 @@ import { getUserPreferences, enableStartHub, dismissStartHub } from '../services
 import { useIsAdmin } from '../hooks/useIsAdmin';
 
 export type StartHubFeature = 'copy_wizard' | 'copy_form' | 'template_loader';
-export type WizardMode = 'create' | 'improve' | null;
+export type WizardMode = 'create' | 'improve' | 'purposeRewrite' | null;
 export type UiLevel = 'quick' | 'standard' | 'advanced' | null;
 
 export interface StartHubConfig {
@@ -344,9 +344,15 @@ const StartHubModal: React.FC<StartHubModalProps> = ({
                 />
                 <SubOption
                   icon={<RefreshCw className="w-3.5 h-3.5" />}
-                  title="Purpose Rewrite"
+                  title="Improve existing copy"
                   description="Enhance and refine your current content"
                   onClick={() => handleWizardSelect('improve')}
+                />
+                <SubOption
+                  icon={<Wand2 className="w-3.5 h-3.5" />}
+                  title="Purpose Rewrite"
+                  description="Polish copy for a specific purpose"
+                  onClick={() => handleWizardSelect('purposeRewrite')}
                 />
               </OptionCard>
 

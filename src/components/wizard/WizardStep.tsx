@@ -32,7 +32,7 @@ interface GroupedSuggestions {
 interface WizardStepProps {
   step: number;
   answers: {
-    mode: 'create' | 'improve';
+    mode: 'create' | 'improve' | 'purposeRewrite';
     projectDescription: string;
     whatAreYouCreating: string;
     targetAudience: string;
@@ -583,14 +583,28 @@ const WizardStep: React.FC<WizardStepProps> = ({
               className="w-4 h-4 text-blue-600 focus:ring-blue-500"
             />
             <span className="ml-2 text-sm text-gray-900 dark:text-gray-100">
+              Improve existing copy
+            </span>
+          </label>
+
+          <label className="flex items-center cursor-pointer">
+            <input
+              type="radio"
+              name="wizardCopyMode"
+              value="purposeRewrite"
+              checked={answers.mode === 'purposeRewrite'}
+              onChange={() => updateAnswer('mode', 'purposeRewrite')}
+              className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+            />
+            <span className="ml-2 text-sm text-gray-900 dark:text-gray-100">
               Purpose Rewrite
             </span>
           </label>
         </div>
       </div>
 
-      {/* URL Analysis Section - Only show for create mode */}
-      {answers.mode === 'create' && (
+      {/* URL Analysis Section - Only show for improve mode */}
+      {answers.mode === 'improve' && (
         <div>
           {!showUrlSection ? (
             <button
@@ -683,26 +697,32 @@ const WizardStep: React.FC<WizardStepProps> = ({
       )}
 
 
-      {/* What Are You Creating */}
+      {/* What Are You Creating - Only show for create and improve */}
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-          What are you creating? <span className="text-red-500">*</span>
+          {answers.mode === 'create' ? 'What are you creating?' : 'Paste your existing copy'} <span className="text-red-500">*</span>
         </label>
         <textarea
           value={answers.whatAreYouCreating}
           onChange={(e) => updateAnswer('whatAreYouCreating', e.target.value)}
-          rows={3}
+          rows={answers.mode === 'improve' ? 4 : 3}
           className="w-full bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 p-2"
-          placeholder="e.g., A landing page for my project management SaaS targeting small businesses..."
+          placeholder={
+            answers.mode === 'create'
+              ? "e.g., A landing page for my project management SaaS targeting small businesses..."
+              : "Paste the copy you want to improve here..."
+          }
         />
         {answers.whatAreYouCreating.length > 0 && answers.whatAreYouCreating.length < 20 && (
           <p className="mt-0.5 text-xs text-amber-600 dark:text-amber-400">
-            Try to be more specific. Add details about your topic or product.
+            {answers.mode === 'create'
+              ? 'Try to be more specific. Add details about your topic or product.'
+              : 'Please paste more content to improve.'}
           </p>
         )}
       </div>
 
-      {/* Target Audience */}
+      {/* Target Audience - Only show for create and improve */}
       <div>
         <div className="flex items-center justify-between mb-1">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -728,7 +748,7 @@ const WizardStep: React.FC<WizardStepProps> = ({
         />
       </div>
 
-      {/* Pain Points (Optional) */}
+      {/* Pain Points (Optional) - Only show for create and improve */}
       <div>
         <div className="flex items-center justify-between mb-1">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -780,8 +800,8 @@ const WizardStep: React.FC<WizardStepProps> = ({
         />
       </div>
 
-      {/* Footer */}
-      {answers.mode === 'create' && (
+      {/* Footer for both improve and create modes */}
+      {(answers.mode === 'improve' || answers.mode === 'create') && (
         <div className="pt-6 mt-6">
           <p className="text-center text-sm text-gray-500 dark:text-gray-400 mb-4">
             You can edit everything later in Advanced Mode.
@@ -871,6 +891,13 @@ const WizardStep: React.FC<WizardStepProps> = ({
       </div>
 
       {/* Feature Toggles - Hidden for 'improve' mode (always enabled implicitly) */}
+      {answers.mode === 'improve' && (
+        <div className="space-y-3 pt-2">
+          <span className="block mt-1.5 text-xs text-primary-600 dark:text-primary-400">
+            SEO and GEO optimizations are always enabled for improved copy.
+          </span>
+        </div>
+      )}
       {answers.mode === 'create' && (
       <div className="space-y-3 pt-2">
         <div className="flex items-start space-x-3">
