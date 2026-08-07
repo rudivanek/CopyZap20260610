@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { ArrowRight, Award, Check, Copy, Loader2, Sparkles } from 'lucide-react';
+import { ArrowRight, Award, Check, Copy, Globe, Loader2, Sparkles } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { polishContent } from '../../features/quickPolish/quickPolishService';
 import { INTENT_PRESETS, TONE_OPTIONS } from '../../features/quickPolish/intents';
@@ -10,6 +10,9 @@ import { trackTokenUsage } from '../../services/api/tokenTracking';
 import { detectLanguage } from '../../utils/languageDetection';
 import { User, Model, FormState } from '../../types';
 import { mapQuickPolishTone } from '../../features/quickPolish/toneMapping';
+import { analyzeUrl } from '../../services/api/urlAnalysis';
+import { getSupabaseClient } from '../../services/supabaseClient';
+import { htmlToText } from '../../utils/htmlToText';
 
 interface IntentImproveModeProps {
   currentUser?: User;
@@ -18,6 +21,7 @@ interface IntentImproveModeProps {
   onGeneratingChange: (value: boolean) => void;
   onApplyToForm: (data: Partial<FormState>) => void;
   onBack: () => void;
+  sessionId?: string;
 }
 
 const countWords = (value: string): number => value.trim().split(/\s+/).filter(Boolean).length;
@@ -29,9 +33,13 @@ const IntentImproveMode: React.FC<IntentImproveModeProps> = ({
   onGeneratingChange,
   onApplyToForm,
   onBack,
+  sessionId,
 }) => {
   const [inputText, setInputText] = useState('');
   const [contentType, setContentType] = useState<ContentType>('plain');
+  const [urlToAnalyze, setUrlToAnalyze] = useState('');
+  const [isAnalyzingUrl, setIsAnalyzingUrl] = useState(false);
+  const [analyzedUrl, setAnalyzedUrl] = useState<string | null>(null);
   const [intentId, setIntentId] = useState('');
   const [audience, setAudience] = useState('');
   const [goal, setGoal] = useState('');
@@ -140,6 +148,65 @@ const IntentImproveMode: React.FC<IntentImproveModeProps> = ({
     }
   };
 
+  const handleAnalyzeUrl = async () => {
+    if (!urlToAnalyze.trim()) {
+      toast.error('Please enter a URL to analyze');
+      return;
+    }
+    if (!currentUser) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    let finalUrl = urlToAnalyze.trim();
+    if (finalUrl && !finalUrl.match(/^https?:\/\//i)) {
+      finalUrl = 'https://' + finalUrl;
+      setUrlToAnalyze(finalUrl);
+    }
+
+    try {
+      new URL(finalUrl);
+    } catch {
+      toast.error('Invalid URL format');
+      return;
+    }
+
+    setIsAnalyzingUrl(true);
+    try {
+      const supabase = await getSupabaseClient();
+      const { data: { session } } = await supabase.auth.getSession();
+      if (!session) throw new Error('No active session. Please log in.');
+
+      const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+      const result = await analyzeUrl(
+        finalUrl,
+        currentUser.id,
+        supabaseUrl,
+        session.access_token,
+        'fullCopy',
+        currentUser.email,
+        selectedModel,
+        sessionId || null
+      );
+
+      if (result.data?.structuredCopy) {
+        const plainText = htmlToText(result.data.structuredCopy);
+        setInputText(plainText);
+        setContentType('plain');
+      }
+      if (result.data?.targetAudience && showAudience && !audience) {
+        setAudience(result.data.targetAudience);
+      }
+      setAnalyzedUrl(finalUrl);
+      toast.success('Copy extracted from page!');
+    } catch (error: any) {
+      console.error('URL analysis error:', error);
+      toast.error(error.message || 'Failed to analyze URL');
+    } finally {
+      setIsAnalyzingUrl(false);
+    }
+  };
+
   const handleContinue = () => {
     if (selectedOutputIndex === null || !results[selectedOutputIndex]) return toast.error('Please select an output first');
     const selected = results[selectedOutputIndex];
@@ -156,14 +223,15 @@ const IntentImproveMode: React.FC<IntentImproveModeProps> = ({
       wordCount: 'Custom',
       customWordCount: originalInputWordCount,
       specialInstructions,
-      projectDescription: selectedPreset?.label || 'Improve existing copy',
-      productServiceName: selectedPreset?.label || 'Improve existing copy',
+      projectDescription: selectedPreset?.label || 'Purpose Rewrite',
+      productServiceName: selectedPreset?.label || 'Purpose Rewrite',
       generateSeoMetadata: false,
       templatePrefilledFields: ['originalCopy', 'targetAudience', 'keyMessage', 'callToAction', 'language', 'tone', 'wordCount', 'customWordCount', 'specialInstructions'],
       copyResult: { generatedVersions: [] },
       isLoading: false,
       isEvaluating: false,
       generationProgress: [],
+      ...(analyzedUrl ? { competitorUrls: [analyzedUrl] } : {}),
     };
     onApplyToForm(mapped);
     toast.success('Improved copy loaded into Copy Maker');
@@ -175,11 +243,33 @@ const IntentImproveMode: React.FC<IntentImproveModeProps> = ({
         ← Back to Mode Selection
       </button>
       <div>
-        <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Improve existing copy</h2>
+        <h2 className="text-3xl font-bold text-gray-900 dark:text-gray-100">Purpose Rewrite</h2>
         <p className="mt-2 text-gray-600 dark:text-gray-400">Choose the purpose first, then polish only what the copy needs.</p>
       </div>
 
       <section className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 p-5 space-y-3">
+        <label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Analyze URL <span className="font-normal text-gray-500">(optional)</span></label>
+        <div className="flex gap-2">
+          <input
+            type="url"
+            value={urlToAnalyze}
+            onChange={(event) => setUrlToAnalyze(event.target.value)}
+            placeholder="https://example.com/page"
+            disabled={isAnalyzingUrl || isGenerating}
+            className="flex-1 rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-2.5 text-sm text-gray-900 dark:text-gray-100"
+          />
+          <button
+            onClick={handleAnalyzeUrl}
+            disabled={isAnalyzingUrl || isGenerating || !urlToAnalyze.trim()}
+            className="inline-flex items-center gap-2 rounded-lg bg-[#DD6B20] hover:bg-[#C05621] px-4 py-2.5 text-sm font-medium text-white disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {isAnalyzingUrl ? (
+              <><Loader2 size={16} className="animate-spin" />Extracting...</>
+            ) : (
+              <><Globe size={16} />Analyze URL</>
+            )}
+          </button>
+        </div>
         <div className="flex items-center justify-between"><label className="text-sm font-semibold text-gray-700 dark:text-gray-300">Paste your copy</label><span className="text-xs text-gray-500">{countWords(inputText)} words</span></div>
         <textarea value={inputText} onChange={(event) => setInputText(event.target.value)} placeholder="Paste your text here..." disabled={isGenerating} className="w-full min-h-[150px] rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3 text-gray-900 dark:text-gray-100 resize-y" />
         <div className="flex gap-2">
@@ -220,3 +310,6 @@ interface FieldProps { label: string; value: string; onChange: (value: string) =
 const Field: React.FC<FieldProps> = ({ label, value, onChange, placeholder, disabled }) => <div><label className="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300">{label}</label><input value={value} onChange={(event) => onChange(event.target.value)} placeholder={placeholder} disabled={disabled} className="w-full rounded-lg border border-gray-300 dark:border-gray-700 bg-gray-50 dark:bg-gray-800 p-3 text-sm text-gray-900 dark:text-gray-100" /></div>;
 
 export default IntentImproveMode;
+
+
+export default IntentImproveMode

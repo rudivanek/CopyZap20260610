@@ -930,6 +930,7 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
                 onGeneratingChange={setIsGenerating}
                 onApplyToForm={handleIntentImproveApply}
                 onBack={() => updateAnswer('mode', 'create')}
+                sessionId={sessionId}
               />
             ) : !showSummary ? (
               <WizardStep

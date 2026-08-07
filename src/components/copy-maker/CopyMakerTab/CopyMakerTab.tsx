@@ -1,7 +1,6 @@
 import React, { useState, useRef, useCallback, useEffect } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { toast } from 'react-hot-toast';
-import { PrefillToCopyMaker } from '../../../features/quickPolish/types';
 
 // Component imports
 import CopyForm from '../../CopyForm';
@@ -44,13 +43,11 @@ import { useSession } from '../../../context/SessionContext';
 
 // Utils
 import { mapPrefillToFormState } from './utils/mapPrefillToFormState';
-import { convertLanguageCodeToFormDataLanguage } from '../../../utils/languageDetection';
-import { logAutoApply } from '../../../utils/debugAutoApply';
 import { isFieldVisible } from '../../../utils/fieldVisibility';
 import { getSectionsToExpand } from '../../../utils/templateLoader';
 
 // Types
-import { FormState, User, GeneratedContentItem, GeneratedContentItemType, Model, SavedOutput, ScoringContext, Tone } from '../../../types';
+import { FormState, User, GeneratedContentItem, GeneratedContentItemType, Model, SavedOutput, ScoringContext } from '../../../types';
 import { calculateTargetWordCount } from '../../../services/api/utils';
 import { hasAnyPopulatedFields } from '../../../utils/formUtils';
 import { playSuccessSound } from '../../../utils/soundEffects';
@@ -60,18 +57,6 @@ import { validateApiKey, getAvailableModels, getModelLabel } from '../../../serv
 import { generateContentScores, generateSeoMetadata, calculateGeoScore } from '../../../services/apiService';
 import { getUserPreferences, dismissStartHub } from '../../../services/supabaseClient';
 import { sessionManager } from '../../../services/sessionService';
-
-// Maps Purpose Rewrite (QuickPolish) tone vocabulary to Copy Maker's Tone enum.
-// QuickPolish uses lowercase values ('neutral' | 'premium' | 'friendly' | 'bold' | 'formal');
-// Copy Maker's Tone enum is capitalized and a different vocabulary.
-// Without this translation the Tone dropdown silently holds an invalid string.
-const QUICK_POLISH_TONE_MAP: Record<string, Tone> = {
-  neutral: 'Professional',
-  premium: 'Persuasive',
-  friendly: 'Friendly',
-  bold: 'Bold',
-  formal: 'Professional',
-};
 
 interface FillFormCardProps {
   hasData: boolean;
@@ -1518,174 +1503,6 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
 
   // Handle Intent Polish prefill from location state OR sessionStorage
   // One-shot prefill; do not auto-generate or auto-score.
-  const hasAppliedPrefillRef = useRef(false);
-
-  useEffect(() => {
-    // Guard: only apply once, even in React StrictMode
-    if (hasAppliedPrefillRef.current) {
-      return;
-    }
-
-    const PREFILL_KEY = 'CZ_PREFILL_TO_COPY_MAKER_V1';
-    let prefill: PrefillToCopyMaker | undefined;
-    let source: 'router-state' | 'sessionStorage' | null = null;
-
-    // Try to read from location.state first
-    const state = location.state as any;
-    if (state?.prefill) {
-      prefill = state.prefill as PrefillToCopyMaker;
-      source = 'router-state';
-      console.log('📦 Found prefill in router state');
-    }
-
-    // Fallback: read from sessionStorage
-    if (!prefill) {
-      const storedJson = sessionStorage.getItem(PREFILL_KEY);
-      if (storedJson) {
-        try {
-          prefill = JSON.parse(storedJson) as PrefillToCopyMaker;
-          source = 'sessionStorage';
-          console.log('📦 Found prefill in sessionStorage');
-        } catch (error) {
-          console.error('Failed to parse prefill from sessionStorage:', error);
-        }
-      }
-    }
-
-    // No prefill found
-    if (!prefill || !source) {
-      return;
-    }
-
-    // Validate prefill data
-    if (prefill.source !== 'intent_polish') {
-      console.warn('Prefill source is not intent_polish, ignoring');
-      return;
-    }
-
-    if (!prefill.original_input || typeof prefill.original_input !== 'string' || prefill.original_input.length === 0) {
-      console.error('Invalid prefill: missing or empty original_input');
-      toast.error('Invalid prefill data: missing original input');
-      // Clean up
-      sessionStorage.removeItem(PREFILL_KEY);
-      navigate(location.pathname, { replace: true, state: {} });
-      return;
-    }
-
-    if (!prefill.selected_output || typeof prefill.selected_output !== 'string' || prefill.selected_output.length === 0) {
-      console.error('Invalid prefill: missing or empty selected_output');
-      toast.error('Invalid prefill data: missing selected output');
-      // Clean up
-      sessionStorage.removeItem(PREFILL_KEY);
-      navigate(location.pathname, { replace: true, state: {} });
-      return;
-    }
-
-    // Mark as applied BEFORE applying to prevent double-application in StrictMode
-    hasAppliedPrefillRef.current = true;
-
-    // Convert language code to full language name for form state
-    const convertedLanguage = prefill.language ? convertLanguageCodeToFormDataLanguage(prefill.language) : undefined;
-
-    console.log('✅ Prefill applied in Copy Maker', {
-      source,
-      originalLength: prefill.original_input.length,
-      outputLength: prefill.selected_output.length,
-      contentType: prefill.content_type,
-      hasIntent: !!prefill.intent,
-      languageCode: prefill.language || 'not provided',
-      languageConverted: convertedLanguage || 'not converted',
-      originalInputWordCount: prefill.original_input_word_count || 'not provided',
-      willSetWordCountToCustom: !!prefill.original_input_word_count
-    });
-
-    // Apply prefill to form state
-    // Set mode to "Improve existing copy" and populate all relevant fields
-    // This does NOT trigger auto-generation, auto-scoring, or auto-voice analysis
-    logAutoApply({
-      ruleId: 'CM-AUTO-005',
-      target: 'field',
-      before: { tab: 'unknown', originalCopy: '', section: '', targetAudience: '', tone: '', callToAction: '', language: '', wordCount: '', customWordCount: 0 },
-      after: {
-        tab: 'improve',
-        originalCopy: prefill.selected_output?.substring(0, 50) + '...',
-        section: prefill.intent?.label,
-        targetAudience: prefill.intent?.audience,
-        tone: prefill.intent?.tone,
-        callToAction: prefill.intent?.cta,
-        language: convertedLanguage,
-        wordCount: 'custom',
-        customWordCount: prefill.original_input_word_count || 0
-      },
-      source,
-      context: {
-        contentType: prefill.content_type,
-        hasIntent: !!prefill.intent,
-        languageCode: prefill.language,
-        originalInputLength: prefill.original_input.length,
-        selectedOutputLength: prefill.selected_output.length,
-        originalInputWordCount: prefill.original_input_word_count || 0
-      }
-    });
-    setFormState(prev => {
-      const updatedState = {
-        ...prev,
-        tab: 'improve', // Set to "Improve existing copy" mode
-        originalCopy: prefill.selected_output, // Selected polished output → Original copy field
-        specialInstructions: prefill.special_instructions || prev.specialInstructions, // Special Instructions
-        section: prefill.intent?.label || prev.section, // Intent → Section
-        targetAudience: prefill.intent?.audience || prev.targetAudience, // Who is this for? → Target Audience
-        // Translate QuickPolish's lowercase tone vocabulary into Copy Maker's Tone enum.
-        // Unknown values fall back to 'Professional' rather than passing an invalid string through.
-        tone: prefill.intent?.tone
-          ? (QUICK_POLISH_TONE_MAP[prefill.intent.tone] ?? 'Professional')
-          : prev.tone,
-        // QuickPolish's intent.goal maps to Copy Maker's keyMessage (the core message/goal).
-        keyMessage: prefill.intent?.goal || prev.keyMessage,
-        callToAction: prefill.intent?.cta || prev.callToAction, // Call to Action
-        // Apply optional metadata if available
-        // Convert language code ('es') to full language name ('Spanish')
-        language: convertedLanguage || prev.language,
-        // Set word count to custom with the word count from the selected variant
-        // NOTE: prefill.original_input_word_count holds the word count of the ORIGINAL INPUT text,
-        // not the selected polished output. This is intentional — it sets the target length for Copy Maker.
-        wordCount: prefill.original_input_word_count ? 'Custom' : prev.wordCount,
-        customWordCount: prefill.original_input_word_count || prev.customWordCount,
-      };
-
-      console.log('📝 Form state updated with word count:', {
-        wordCount: updatedState.wordCount,
-        customWordCount: updatedState.customWordCount,
-        prefillWordCount: prefill.original_input_word_count
-      });
-
-      return updatedState;
-    });
-
-    // Show success message
-    toast.success('Content loaded from Purpose Rewrite');
-
-    // Show the banner prompting user to fill in required fields
-    setShowIntentPolishBanner(true);
-
-    // Auto-hide the banner after 2 seconds
-    setTimeout(() => {
-      setShowIntentPolishBanner(false);
-    }, 2000);
-
-    // Focus on Project Description field
-    setTimeout(() => {
-      if (projectDescriptionRef.current) {
-        projectDescriptionRef.current.focus();
-        projectDescriptionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
-    }, 100);
-
-    // Clean up IMMEDIATELY after apply to prevent re-application
-    sessionStorage.removeItem(PREFILL_KEY);
-    navigate(location.pathname, { replace: true, state: {} });
-  }, [location, navigate, setFormState]);
-
   // Show Start Hub when navigating back to Copy Maker from other sections
   useEffect(() => {
     const checkNavigationTrigger = () => {

@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.21
-Last Updated: 2026-08-07T16:41:57Z
+Last Updated: 2026-08-07T17:02:24Z
 
 ---
 
@@ -6805,3 +6805,18 @@ The improve flow keeps the original Purpose Rewrite special-instructions textare
 **Documentation and maintenance:** `CLAUDE.md` now describes `ModeContext` as the Copy Maker form-density mode and lists `QuickSetupWizard` instead of the deleted standalone page. The feature documentation records the new single improve path and the direct handoff contract.
 
 **Verification:** The production build and TypeScript check pass. A source scan finds no remaining `QuickPolishPage`, `QuickPolishMode`, `/quick-polish`, `Quick Polish`, `Purpose Rewrite`, or `PrefillToCopyMaker` references under `src`. Browser-level interaction testing was not available in this environment, so the five tone presets and the visual handoff should still be checked manually in the running app.
+
+
+## Purpose Rewrite URL analysis and display naming (2026-08-07)
+
+**Feature:** The embedded Intent improve flow now restores the URL analysis capability that was present in the former improve wizard mode. The flow remains internal mode `improve`, but its visible label is now **Purpose Rewrite** in both the wizard mode selector and the Start Hub wizard sub-option. The create mode remains labeled **Make new copy** and its behavior is unchanged.
+
+**Analyze URL affordance:** Purpose Rewrite displays an optional URL field and one **Analyze URL** button directly above the copy input. Users can enter a page address and analyze it without leaving the wizard. The existing URL normalization and validation behavior is retained: missing protocols receive `https://`, and malformed addresses show **Invalid URL format** without starting a request.
+
+**Extraction behavior:** A valid URL calls the existing URL analysis service using the `fullCopy` extraction mode. While the request is active, the button is disabled, shows a loading indicator, and cannot be double-fired. On success, the returned structured HTML copy is converted through the existing HTML-to-text utility and placed into the same plain-text input used for manually pasted copy. The content type is switched to plain text so the user sees readable copy rather than markup. A successful extraction shows the existing success notification pattern; service failures show a visible error notification.
+
+**State handoff:** The analyzed URL is retained in the embedded improve flow and passed into Copy Maker as the first competitor URL when the user applies a polished result. This preserves downstream report and analysis features that rely on the source URL. If the selected intent includes an audience field and the user has not entered one, the extracted page audience is used as a suggested value.
+
+**Intent workflow compatibility:** URL extraction only fills the existing copy input. It does not restore the obsolete Analyze Context path or the former three-button set. After extraction, users choose an intent and use Polish exactly as they would with manually entered copy, including recommendations, refinements, tone mapping, and Advanced-mode handoff.
+
+**Verification:** TypeScript checking and the production build pass. The internal mode key remains `improve`; only the visible wording changed.

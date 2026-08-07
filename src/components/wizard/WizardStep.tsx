@@ -583,7 +583,7 @@ const WizardStep: React.FC<WizardStepProps> = ({
               className="w-4 h-4 text-blue-600 focus:ring-blue-500"
             />
             <span className="ml-2 text-sm text-gray-900 dark:text-gray-100">
-              Improve existing copy
+              Purpose Rewrite
             </span>
           </label>
 
