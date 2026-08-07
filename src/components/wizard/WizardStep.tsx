@@ -32,7 +32,7 @@ interface GroupedSuggestions {
 interface WizardStepProps {
   step: number;
   answers: {
-    mode: 'create' | 'improve' | 'polish';
+    mode: 'create' | 'improve';
     projectDescription: string;
     whatAreYouCreating: string;
     targetAudience: string;
@@ -586,20 +586,6 @@ const WizardStep: React.FC<WizardStepProps> = ({
               Improve existing copy
             </span>
           </label>
-
-          <label className="flex items-center cursor-pointer">
-            <input
-              type="radio"
-              name="wizardCopyMode"
-              value="polish"
-              checked={answers.mode === 'polish'}
-              onChange={() => updateAnswer('mode', 'polish')}
-              className="w-4 h-4 text-blue-600 focus:ring-blue-500"
-            />
-            <span className="ml-2 text-sm text-gray-900 dark:text-gray-100">
-              Quick Polish
-            </span>
-          </label>
         </div>
       </div>
 
@@ -698,7 +684,6 @@ const WizardStep: React.FC<WizardStepProps> = ({
 
 
       {/* What Are You Creating - Only show for create and improve */}
-      {answers.mode !== 'polish' && (
       <div>
         <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
           {answers.mode === 'create' ? 'What are you creating?' : 'Paste your existing copy'} <span className="text-red-500">*</span>
@@ -723,10 +708,7 @@ const WizardStep: React.FC<WizardStepProps> = ({
         )}
       </div>
 
-      )}
-
       {/* Target Audience - Only show for create and improve */}
-      {answers.mode !== 'polish' && (
       <div>
         <div className="flex items-center justify-between mb-1">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -752,10 +734,7 @@ const WizardStep: React.FC<WizardStepProps> = ({
         />
       </div>
 
-      )}
-
       {/* Pain Points (Optional) - Only show for create and improve */}
-      {answers.mode !== 'polish' && (
       <div>
         <div className="flex items-center justify-between mb-1">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -780,10 +759,8 @@ const WizardStep: React.FC<WizardStepProps> = ({
           placeholder="e.g., They struggle with scattered tools, missed deadlines, and poor team communication..."
         />
       </div>
-      )}
 
       {/* Special Requirements (Optional) - Moved to Step 1 for streamlined flow */}
-      {answers.mode !== 'polish' && (
       <div>
         <div className="flex items-center justify-between mb-2">
           <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">
@@ -808,7 +785,6 @@ const WizardStep: React.FC<WizardStepProps> = ({
           placeholder='e.g., "Use British English", "Focus on environmental benefits", "Keep it concise and direct"'
         />
       </div>
-      )}
 
       {/* Footer for both improve and create modes */}
       {(answers.mode === 'improve' || answers.mode === 'create') && (

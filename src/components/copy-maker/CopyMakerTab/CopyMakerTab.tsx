@@ -1349,13 +1349,11 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
           ruleId: 'CM-AUTO-006',
           target: 'tab',
           before: formState.tab,
-          after: config.wizardMode === 'polish' || config.wizardMode === 'improve' ? 'improve' : 'create',
+          after: config.wizardMode === 'improve' ? 'improve' : 'create',
           source: 'start_hub_selection',
           context: { openFeature: 'copy_wizard', wizardMode: config.wizardMode, wizardStep: config.wizardStep }
         });
-        if (config.wizardMode === 'polish') {
-          setFormState(prev => ({ ...prev, tab: 'improve' }));
-        } else if (config.wizardMode === 'create') {
+        if (config.wizardMode === 'create') {
           setFormState(prev => ({ ...prev, tab: 'create' }));
         } else if (config.wizardMode === 'improve') {
           setFormState(prev => ({ ...prev, tab: 'improve' }));

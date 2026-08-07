@@ -7,7 +7,7 @@ import { getApiConfig, handleApiResponse, makeApiRequestWithFallback } from '../
 interface WizardSummaryProps {
   generatedData: Partial<FormState> | null;
   wizardAnswers: {
-    mode?: 'create' | 'improve' | 'polish';
+    mode?: 'create' | 'improve';
     whatAreYouCreating: string;
     targetAudience: string;
     painPoints: string;

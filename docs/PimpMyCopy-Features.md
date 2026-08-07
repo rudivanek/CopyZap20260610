@@ -1,6 +1,6 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.21
+Version: 1.22
 Last Updated: 2026-08-07T00:00:00Z
 
 ---
@@ -6782,3 +6782,35 @@ This is a rename only — the value and behavior are unchanged.
 **Acceptance:** `npm run build` passes. Going through Purpose Rewrite with each of `neutral/premium/friendly/bold/formal` tones and clicking "Continue in Copy Maker" now lands a real, correctly-selected Tone option in Copy Maker every time — never blank, never reset to a default that doesn't match. `originalCopy`, `targetAudience`, `callToAction`, `language`, and `customWordCount` still populate correctly (no regression). `keyMessage` now populates from `intent.goal`. A normal (non-handoff) visit to Copy Maker is unaffected — all changes are gated on `prefill` being present.
 
 **Honest caveat:** Build passes and the wiring is type-correct (the `Tone` import resolves, the map keys cover every value in `TONE_OPTIONS`), but I could not exercise the handoff flow in a browser to visually confirm the Tone dropdown shows the right option for each preset — that final functional check in the editor is yours to run.
+
+---
+
+## Quick Setup Wizard — Remove "Quick Polish" Mode (2026-08-07)
+
+**Date added:** 2026-08-07
+
+**Files changed:**
+- `src/components/wizard/QuickSetupWizard.tsx` — removed the `QuickPolishMode` import, the `polishConfig` state, the polish-mode validation skip in `nextStep()`, the entire `handleQuickPolishGenerate` handler, the polish-mode branch in `canProceedToNext` validation, the `mode === 'polish'` render branch (which rendered `<QuickPolishMode>`), and the "Back Button for Quick Polish" footer block. Narrowed the `initialMode` and `answers.mode` union types from `'create' | 'improve' | 'polish'` to `'create' | 'improve'`.
+- `src/components/wizard/WizardStep.tsx` — narrowed the `mode` prop type to `'create' | 'improve'`, removed the third radio button ("Quick Polish", `value="polish"`), and removed the four `{answers.mode !== 'polish' && (...)}` guard wrappers around the "What Are You Creating", "Target Audience", "Pain Points", and "Special Requirements" sections so they now render unconditionally.
+- `src/components/wizard/WizardSummary.tsx` — narrowed the `mode` type to `'create' | 'improve'`.
+- `src/components/StartHubModal.tsx` — narrowed the exported `WizardMode` type to `'create' | 'improve' | null`, removed the "Quick Polish" `SubOption` (the one calling `handleWizardSelect('polish')`) from the "Start with Copy Wizard" card so it now shows two sub-options instead of three, and simplified the now-redundant `focusField` ternary branch.
+- `src/components/copy-maker/CopyMakerTab/CopyMakerTab.tsx` — removed the dead `config.wizardMode === 'polish'` branch from the Start Hub handoff handler.
+- `src/components/wizard/QuickPolishMode.tsx` — **deleted.** `QuickSetupWizard.tsx` was its only importer.
+
+### What was removed
+
+The wizard's mode selector previously offered three options: "Make new copy" (`create`), "Improve existing copy" (`improve`), and "Quick Polish" (`polish`). The `polish` mode rendered a separate `QuickPolishMode` component offering generic transforms (Shorten / Expand / Change Tone / Improve Clarity / More Persuasive / Fix Grammar / Custom) and was the weakest of the three overlapping "improve my copy" paths in the app. It has been removed entirely; the wizard now has exactly two modes.
+
+### What was deliberately NOT touched
+
+- The standalone **Purpose Rewrite** page at `src/features/quickPolish/QuickPolishPage.tsx` and its `/quick-polish` route — unchanged.
+- The Purpose Rewrite nav entries in `NavSidebar.tsx` and `CopyMakerSidebar.tsx` — unchanged.
+- The Purpose Rewrite card in `StartHubModal.tsx` (the one calling `handleIntentPolishSelect` and navigating to `/quick-polish`) — kept. This is a separate entry from the removed wizard sub-option; the naming was the trap.
+- The wizard's `improve` mode, including its "Analyze URL" section — unchanged.
+- Everything under `src/features/quickPolish/` (`intents.ts`, `quickPolishService.ts`, `microConfirmation.ts`, `variantRecommendation.ts`, `types.ts`) — unchanged.
+
+### Verification
+
+- `grep -rn "QuickPolishMode\|QuickPolishConfig\|'polish'" src/` returns no hits in the wizard or Start Hub. Hits inside `src/features/quickPolish/` are expected and untouched.
+- `npx tsc --noEmit` passes.
+- `npm run build` passes.

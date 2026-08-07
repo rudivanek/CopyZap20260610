@@ -21,7 +21,7 @@ import { getUserPreferences, enableStartHub, dismissStartHub } from '../services
 import { useIsAdmin } from '../hooks/useIsAdmin';
 
 export type StartHubFeature = 'copy_wizard' | 'copy_form' | 'template_loader';
-export type WizardMode = 'create' | 'improve' | 'polish' | null;
+export type WizardMode = 'create' | 'improve' | null;
 export type UiLevel = 'quick' | 'standard' | 'advanced' | null;
 
 export interface StartHubConfig {
@@ -228,9 +228,7 @@ const StartHubModal: React.FC<StartHubModalProps> = ({
       panelsHidden: [],
       focusField: mode === 'create'
         ? 'business_description'
-        : mode === 'improve'
-          ? 'existing_copy_input'
-          : 'existing_copy_input'
+        : 'existing_copy_input'
     };
 
     onSelect(config);
@@ -349,12 +347,6 @@ const StartHubModal: React.FC<StartHubModalProps> = ({
                   title="Improve existing copy"
                   description="Enhance and refine your current content"
                   onClick={() => handleWizardSelect('improve')}
-                />
-                <SubOption
-                  icon={<Zap className="w-3.5 h-3.5" />}
-                  title="Quick Polish"
-                  description="Fast touch-ups and refinements"
-                  onClick={() => handleWizardSelect('polish')}
                 />
               </OptionCard>
 
