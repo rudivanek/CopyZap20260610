@@ -21,63 +21,63 @@ function hasBracketPlaceholder(value?: string): boolean {
   return BRACKET_PLACEHOLDER_PATTERN.test(trimmedValue);
 }
 
+// Highlight when EITHER condition holds:
+//   1. value contains a [bracket] placeholder (legacy template/prefill behavior), OR
+//   2. this fieldName is flagged in fieldsWithPlaceholders AND the field is empty
+//      (the wizard hand-off uses #2 to draw attention to required fields it can't fill).
+// The empty check means the highlight self-clears the moment the user types.
 export function getInputClassName(
   fieldName: string,
   fieldsWithPlaceholders?: string[],
   baseClassName?: string,
   fieldValue?: string
 ): string {
-  // ONLY apply orange background if field value contains bracket placeholders
-  // Field must have actual text content with brackets like [placeholder text]
   const hasPlaceholder = hasBracketPlaceholder(fieldValue);
+  const isEmpty = fieldValue === undefined || fieldValue.trim().length === 0;
+  const isFlaggedEmpty = Boolean(fieldsWithPlaceholders?.includes(fieldName)) && isEmpty;
+  const shouldHighlight = hasPlaceholder || isFlaggedEmpty;
 
-  if (hasPlaceholder) {
+  if (shouldHighlight) {
     console.log(`🎨 Applying orange highlight to input: ${fieldName} with value:`, fieldValue?.substring(0, 50));
   }
 
-  // Default base className for inputs
   const defaultBase = 'border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5';
-
-  // Use provided base or default
   const base = baseClassName || defaultBase;
 
-  // Apply light orange background ONLY if field has bracket placeholders
-  if (hasPlaceholder) {
+  if (shouldHighlight) {
     return `bg-orange-50 dark:bg-orange-950/30 ${base}`;
   }
-
-  // Default white/black background for all other cases (including empty fields)
   return `bg-white dark:bg-black ${base}`;
 }
 
 /**
  * Get className for textarea fields with placeholder highlighting
  */
+// Highlight when EITHER condition holds:
+//   1. value contains a [bracket] placeholder (legacy template/prefill behavior), OR
+//   2. this fieldName is flagged in fieldsWithPlaceholders AND the field is empty
+//      (the wizard hand-off uses #2 to draw attention to required fields it can't fill).
+// The empty check means the highlight self-clears the moment the user types.
 export function getTextareaClassName(
   fieldName: string,
   fieldsWithPlaceholders?: string[],
   baseClassName?: string,
   fieldValue?: string
 ): string {
-  // ONLY apply orange background if field value contains bracket placeholders
-  // Field must have actual text content with brackets like [placeholder text]
   const hasPlaceholder = hasBracketPlaceholder(fieldValue);
+  const isEmpty = fieldValue === undefined || fieldValue.trim().length === 0;
+  const isFlaggedEmpty = Boolean(fieldsWithPlaceholders?.includes(fieldName)) && isEmpty;
+  const shouldHighlight = hasPlaceholder || isFlaggedEmpty;
 
-  if (hasPlaceholder) {
+  if (shouldHighlight) {
     console.log(`🎨 Applying orange highlight to textarea: ${fieldName} with value:`, fieldValue?.substring(0, 50));
   }
 
-  // Default base className for textareas
   const defaultBase = 'border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5';
-
-  // Use provided base or default
   const base = baseClassName || defaultBase;
 
-  // Apply light orange background ONLY if field has bracket placeholders
-  if (hasPlaceholder) {
+  if (shouldHighlight) {
     return `bg-orange-50 dark:bg-orange-950/30 ${base}`;
   }
-
-  // Default white/black background for all other cases (including empty fields)
   return `bg-white dark:bg-black ${base}`;
 }

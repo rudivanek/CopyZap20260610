@@ -1652,10 +1652,15 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
     // Show success message
     toast.success('Content loaded from Purpose Rewrite');
 
-    // Show the banner prompting user to fill in required fields
+    // Show the banner prompting user to fill in required fields.
+    // NOTE: setShowIntentPolishBanner and its JSX above are ALSO used by the new in-wizard
+    // hand-off path (onApplyToForm ~line 2684). When this old CZ_PREFILL_TO_COPY_MAKER_V1
+    // effect is deleted in a planned cleanup, keep the banner state + JSX — the wizard
+    // path depends on them. The 2s auto-hide below is specific to THIS legacy path; the
+    // banner JSX itself is self-managing (hides once both fields are filled).
     setShowIntentPolishBanner(true);
 
-    // Auto-hide the banner after 2 seconds
+    // Auto-hide the banner after 2 seconds (legacy path only)
     setTimeout(() => {
       setShowIntentPolishBanner(false);
     }, 2000);
@@ -2132,7 +2137,11 @@ try {
   // State for raw output modal
   const [showRawOutputModal, setShowRawOutputModal] = React.useState(false);
 
-  // State for IntentPolish prefill banner
+  // State for IntentPolish prefill banner.
+  // Used by BOTH the old cross-route prefill effect (CZ_PREFILL_TO_COPY_MAKER_V1, ~line 1656)
+  // AND the new in-wizard hand-off path (onApplyToForm below, ~line 2684, triggered when
+  // templateData.fieldsWithPlaceholders is non-empty). When the old prefill effect is deleted
+  // in a planned cleanup, this state and its JSX below MUST be kept — the wizard path depends on them.
   const [showIntentPolishBanner, setShowIntentPolishBanner] = useState(false);
 
   return (
@@ -2152,16 +2161,32 @@ try {
         onClearAll={handleClearAllOverride}
       />
 
-      {/* IntentPolish Prefill Banner - Auto-hide after 2s */}
-      {showIntentPolishBanner && (
+      {/* IntentPolish Prefill Banner.
+          Self-managing: shown while projectDescription OR productServiceName is empty,
+          so it disappears on its own once both required fields are filled.
+          Also reachable via the wizard hand-off path (onApplyToForm below) — keep this JSX
+          and the showIntentPolishBanner state above when the old CZ_PREFILL prefill effect is removed. */}
+      {(showIntentPolishBanner &&
+        (!formState.projectDescription?.trim() || !formState.productServiceName?.trim())) && (
         <div className="mx-4 mt-4 bg-blue-50 dark:bg-blue-900/20 border-2 border-blue-400 dark:border-blue-700 rounded-lg p-4 shadow-lg animate-fadeIn">
-          <div className="flex items-center gap-3">
-            <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-            <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
-              Please fill in your Project Description and Product/Service Name.
-            </p>
+          <div className="flex items-start justify-between gap-3">
+            <div className="flex items-center gap-3">
+              <svg className="w-5 h-5 text-blue-600 dark:text-blue-400 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+              <p className="text-sm font-medium text-blue-800 dark:text-blue-300">
+                Please fill in your Project Description and Product/Service Name.
+              </p>
+            </div>
+            <button
+              onClick={() => setShowIntentPolishBanner(false)}
+              className="text-blue-500 dark:text-blue-400 hover:text-blue-700 dark:hover:text-blue-200 transition-colors flex-shrink-0"
+              aria-label="Dismiss"
+            >
+              <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
         </div>
       )}
@@ -2709,6 +2734,20 @@ try {
             // Keep outputStructure if it exists (from URL extraction), otherwise clear it
             outputStructure: hasOutputStructure ? templateData.outputStructure : []
           }));
+
+          // Wizard hand-off: if the wizard flagged required fields it couldn't fill
+          // (e.g. Purpose Rewrite flags projectDescription + productServiceName),
+          // surface the IntentPolish banner so the orange highlights are explained,
+          // and focus the first empty required field so the user can start typing.
+          if (Array.isArray(templateData.fieldsWithPlaceholders) && templateData.fieldsWithPlaceholders.length > 0) {
+            setShowIntentPolishBanner(true);
+            setTimeout(() => {
+              if (projectDescriptionRef.current && !templateData.projectDescription) {
+                projectDescriptionRef.current.focus();
+                projectDescriptionRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' });
+              }
+            }, 100);
+          }
         }}
         onGenerate={(wizardData) => {
           // If wizard provides data, use it directly and trigger generation via useEffect
