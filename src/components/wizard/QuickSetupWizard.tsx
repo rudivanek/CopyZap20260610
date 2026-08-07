@@ -12,7 +12,7 @@ import WizardHeader from './WizardHeader';
 import WizardFooter from './WizardFooter';
 import WizardStep from './WizardStep';
 import WizardSummary from './WizardSummary';
-import IntentImproveMode from './IntentImproveMode';
+import QuickPolishMode, { QuickPolishConfig } from './QuickPolishMode';
 
 import { Model } from '../../types';
 
@@ -24,14 +24,14 @@ interface QuickSetupWizardProps {
   onApplyToForm?: (templateData: Partial<FormState>) => void;
   onGenerate?: (wizardData?: Partial<FormState>) => void;
   sessionId?: string;
-  initialMode?: 'create' | 'improve';
+  initialMode?: 'create' | 'improve' | 'polish';
   initialStep?: number | null;
 }
 
 interface WizardState {
   currentStep: number;
   answers: {
-    mode: 'create' | 'improve';
+    mode: 'create' | 'improve' | 'polish';
     projectDescription: string;
     whatAreYouCreating: string;
     targetAudience: string;
@@ -145,6 +145,7 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
   const [isGenerating, setIsGenerating] = useState(false);
   const [generatedData, setGeneratedData] = useState<Partial<FormState> | null>(null);
   const [showSummary, setShowSummary] = useState(false);
+  const [polishConfig, setPolishConfig] = useState<QuickPolishConfig | null>(null);
   const [showHiddenFieldWarning, setShowHiddenFieldWarning] = useState(false);
   const [hiddenFields, setHiddenFields] = useState<string[]>([]);
   const [pendingApplyData, setPendingApplyData] = useState<Partial<FormState> | null>(null);
@@ -183,6 +184,7 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
       setShowSummary(false);
       setGeneratedData(null);
       setPreviewData(null);
+      setPolishConfig(null);
     }
   }, [isOpen, initialMode, initialStep]);
 
@@ -236,6 +238,10 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
   const nextStep = () => {
     // Validation before moving to next step
     if (wizardState.currentStep === 1) {
+      // Skip validation for polish mode as it shows QuickPolishMode component
+      if (wizardState.answers.mode === 'polish') {
+        return;
+      }
       // Skip step 2 for improve mode - it's now a single-step flow
       if (wizardState.answers.mode === 'improve') {
         return;
@@ -785,17 +791,100 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
   };
 
 
-  const handleIntentImproveApply = (data: Partial<FormState>) => {
-    if (mode !== 'advanced') forceAdvanced('wizard_apply');
-    onApplyToForm?.({
-      ...applyOptimizationRestorePolicy('wizard', data),
-      sessionId,
-      copyResult: { generatedVersions: [] },
-      isLoading: false,
-      isEvaluating: false,
-      generationProgress: [],
-    });
-    handleClose();
+  const handleQuickPolishGenerate = async (config: QuickPolishConfig) => {
+    if (!currentUser) {
+      toast.error('User not authenticated');
+      return;
+    }
+
+    setIsGenerating(true);
+    setPolishConfig(config);
+
+    try {
+      // Auto-detect language from input text
+      const detectedLanguage = detectLanguage(config.originalCopy);
+
+      // Build special instruction based on improvement type
+      let specialInstructions = '';
+
+      // Check if custom instructions mention language/translation
+      const hasLanguageInstruction = config.customInstructions &&
+        /\b(translate|in\s+(english|spanish|french|german|italian|portuguese|chinese|japanese|korean|russian|arabic)|to\s+(english|spanish|french|german|italian|portuguese|chinese|japanese|korean|russian|arabic))\b/i.test(config.customInstructions);
+
+      switch (config.improvementType) {
+        case 'shorten':
+          specialInstructions = `Rewrite this copy to be approximately ${config.targetLength} words. Keep the core message but make it more concise and impactful.`;
+          break;
+        case 'expand':
+          specialInstructions = `Expand this copy to approximately ${config.targetLength} words. Add more detail, examples, and explanation while maintaining the original message.`;
+          break;
+        case 'tone':
+          specialInstructions = `Rewrite this copy in a ${config.targetTone} tone. Maintain the same information but adjust the writing style and voice.`;
+          break;
+        case 'clarity':
+          specialInstructions = 'Improve the clarity of this copy. Simplify complex sentences, use clearer language, and improve overall readability.';
+          break;
+        case 'persuasive':
+          specialInstructions = 'Make this copy more persuasive. Add urgency, strengthen the call-to-action, and emphasize benefits more clearly.';
+          break;
+        case 'grammar':
+          specialInstructions = 'Fix grammar and improve flow. Correct any errors, improve sentence structure, and polish the overall writing quality.';
+          break;
+        case 'custom':
+          specialInstructions = config.customInstructions || '';
+          break;
+      }
+
+      // Append custom instructions if provided (for non-custom types)
+      if (config.improvementType !== 'custom' && config.customInstructions) {
+        specialInstructions += ` Additional instructions: ${config.customInstructions}`;
+      }
+
+      // Only add "same language" constraint if user hasn't specified a language change
+      if (!hasLanguageInstruction) {
+        specialInstructions += ' IMPORTANT: Output must be in the same language as the input.';
+      }
+
+      // Create a meaningful project description for Quick Polish
+      const improvementLabel = config.improvementType === 'custom'
+        ? 'Custom Polish'
+        : config.improvementType.charAt(0).toUpperCase() + config.improvementType.slice(1);
+      const projectDesc = `Quick Polish - ${improvementLabel}`;
+
+      // Create minimal FormState for Quick Polish
+      const polishFormState: Partial<FormState> = {
+        model: selectedModel,
+        tab: 'improve',
+        originalCopy: config.originalCopy,
+        specialInstructions,
+        tone: config.targetTone || 'Friendly',
+        wordCount: config.targetLength ? 'Custom' : 'Medium: 100-200',
+        customWordCount: config.targetLength,
+        language: detectedLanguage,
+        projectDescription: projectDesc,
+        productServiceName: projectDesc,
+        generateSeoMetadata: false,
+        templatePrefilledFields: ['originalCopy', 'specialInstructions', 'tone', 'wordCount'],
+        copyResult: { generatedVersions: [] },
+        isLoading: false,
+        isEvaluating: false,
+        generationProgress: []
+      };
+
+      // Close wizard and apply + generate
+      handleClose(true);
+
+      if (onGenerate) {
+        onGenerate(polishFormState);
+      }
+
+      toast.success('Generating improved copy...');
+    } catch (error: any) {
+      console.error('Error with Quick Polish:', error);
+      toast.error(`Failed to generate: ${error.message}`);
+    } finally {
+      setIsGenerating(false);
+    }
   };
 
   // Calculate progress - 2 steps total
@@ -922,15 +1011,11 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
       <div className="flex-1 overflow-y-auto">
         <div className="max-w-5xl mx-auto px-6 md:px-12 lg:px-16 py-8">
           <AnimatePresence mode="wait">
-            {wizardState.answers.mode === 'improve' ? (
-              <IntentImproveMode
-                currentUser={currentUser}
-                selectedModel={selectedModel}
+            {wizardState.answers.mode === 'polish' ? (
+              <QuickPolishMode
+                onGenerate={handleQuickPolishGenerate}
                 isGenerating={isGenerating}
-                onGeneratingChange={setIsGenerating}
-                onApplyToForm={handleIntentImproveApply}
-                onBack={() => updateAnswer('mode', 'create')}
-                sessionId={sessionId}
+                onClose={handleClose}
               />
             ) : !showSummary ? (
               <WizardStep
@@ -941,7 +1026,7 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
                 onNext={nextStep}
                 onPrev={prevStep}
                 isGenerating={isGenerating}
-                onApplyFromStep2={wizardState.currentStep === 1 && wizardState.answers.mode === 'create' ? handleApplyFromStep2 : undefined}
+                onApplyFromStep2={(wizardState.currentStep === 1 && (wizardState.answers.mode === 'improve' || wizardState.answers.mode === 'create')) ? handleApplyFromStep2 : undefined}
                 onApplyAndGenerateFromStep2={wizardState.currentStep === 2 ? handleApplyAndGenerateFromStep2 : undefined}
                 currentUser={currentUser}
                 selectedModel={selectedModel}
@@ -964,6 +1049,20 @@ const QuickSetupWizard: React.FC<QuickSetupWizardProps> = ({
 
       {/* Footer removed for all single-step modes (improve and create) */}
 
+      {/* Back Button for Quick Polish */}
+      {wizardState.answers.mode === 'polish' && (
+        <div className="border-t border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900 px-6 py-4">
+          <div className="max-w-4xl mx-auto">
+            <button
+              onClick={() => updateAnswer('mode', 'create')}
+              disabled={isGenerating}
+              className="px-6 py-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 font-medium transition-colors disabled:opacity-50"
+            >
+              ← Back to Mode Selection
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Hidden Field Warning Modal */}
       {showHiddenFieldWarning && (

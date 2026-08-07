@@ -900,6 +900,11 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
     const tags = output.tags || [];
     const id = output.id;
 
+    // Check for quick-polish
+    if (tags.includes('quick-polish')) {
+      return `/quick-polish?${paramType}=${id}`;
+    }
+
     // Check for copy-snap modes
     if (tags.includes('improve') || tags.includes('answer') || tags.includes('question')) {
       return `/copy-snap?${paramType}=${id}`;
@@ -912,6 +917,9 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
   // Helper function to determine route for copy sessions
   const getSessionRoute = useCallback((session: CopySession) => {
     // Check scope_key first (most reliable)
+    if (session.scope_key === 'quick-polish') {
+      return `/quick-polish?sessionId=${session.id}`;
+    }
     if (session.scope_key === 'copy-snap') {
       return `/copy-snap?sessionId=${session.id}`;
     }

@@ -279,6 +279,11 @@ const StartHubModal: React.FC<StartHubModalProps> = ({
     onClose();
   };
 
+  const handleIntentPolishSelect = () => {
+    onClose();
+    navigate('/quick-polish');
+  };
+
   const handleCopySnapSelect = () => {
     onClose();
     navigate('/copy-snap');
@@ -341,9 +346,15 @@ const StartHubModal: React.FC<StartHubModalProps> = ({
                 />
                 <SubOption
                   icon={<RefreshCw className="w-3.5 h-3.5" />}
-                  title="Purpose Rewrite"
+                  title="Improve existing copy"
                   description="Enhance and refine your current content"
                   onClick={() => handleWizardSelect('improve')}
+                />
+                <SubOption
+                  icon={<Zap className="w-3.5 h-3.5" />}
+                  title="Quick Polish"
+                  description="Fast touch-ups and refinements"
+                  onClick={() => handleWizardSelect('polish')}
                 />
               </OptionCard>
 
@@ -386,9 +397,16 @@ const StartHubModal: React.FC<StartHubModalProps> = ({
           {/* Section 2: Improve existing copy */}
           <div className="space-y-2">
             <h3 className="text-xs font-medium uppercase tracking-wider text-gray-500 dark:text-gray-400 px-1">
-              Purpose Rewrite
+              Improve existing copy
             </h3>
             <div className="space-y-3">
+              <OptionCard
+                icon={<Sparkles className="w-5 h-5" />}
+                title="Purpose Rewrite"
+                description="Quickly improve existing copy with purpose-based rewriting."
+                onClick={handleIntentPolishSelect}
+              />
+
               {isAdmin && (
                 <OptionCard
                   icon={<Zap className="w-5 h-5" />}

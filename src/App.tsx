@@ -35,6 +35,7 @@ const MIN_DESKTOP_WIDTH = 1024;
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const CopyMakerTab = lazy(() => import('./components/copy-maker/CopyMakerTab/CopyMakerTab'));
 const CopySnap = lazy(() => import('./components/CopySnap'));
+const QuickPolishPage = lazy(() => import('./features/quickPolish/QuickPolishPage').then(m => ({ default: m.QuickPolishPage })));
 
 // Lazy loaded - Admin components
 const ManageUsers = lazy(() => import('./components/ManageUsers'));
@@ -773,6 +774,20 @@ const AppRouter: React.FC = () => {
                   <CopySnap currentUser={currentUser} />
                 </Suspense>
               </AdminRoute>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/quick-polish"
+          element={
+            currentUser ? (
+              <AuthenticatedRoute>
+                <Suspense fallback={<AppSpinner />}>
+                  <QuickPolishPage />
+                </Suspense>
+              </AuthenticatedRoute>
             ) : (
               <Navigate to="/login" replace />
             )

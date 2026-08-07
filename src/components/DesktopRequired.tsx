@@ -43,10 +43,10 @@ const DesktopRequired: React.FC = () => {
                 Open Copy Snap
               </button>
               <button
-                onClick={() => navigate('/copy-maker')}
+                onClick={() => navigate('/quick-polish')}
                 className="w-full bg-gradient-to-r from-green-600 to-green-500 hover:from-green-500 hover:to-green-400 text-white font-medium text-base px-5 py-3 rounded transition-all duration-200 ease-in-out transform hover:scale-[1.02]"
               >
-                Open Copy Maker
+                Open Purpose Rewrite
               </button>
             </>
           )}
