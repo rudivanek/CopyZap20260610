@@ -45,6 +45,13 @@ export function getInputClassName(
   const base = baseClassName || defaultBase;
 
   if (shouldHighlight) {
+    // Bracket placeholders (template/prefill) get only a background tint; flagged-empty
+    // required fields get a ring too so the highlight is visible at a glance. The two
+    // cases are intentionally distinct: "replace this placeholder" vs "fill this required
+    // field that's blocking you" deserve different urgency.
+    if (isFlaggedEmpty) {
+      return `bg-orange-50 dark:bg-orange-950/30 ring-2 ring-primary-500 dark:ring-primary-400 ${base}`;
+    }
     return `bg-orange-50 dark:bg-orange-950/30 ${base}`;
   }
   return `bg-white dark:bg-black ${base}`;
@@ -77,6 +84,11 @@ export function getTextareaClassName(
   const base = baseClassName || defaultBase;
 
   if (shouldHighlight) {
+    // See getInputClassName: bracket placeholders tint only, flagged-empty required
+    // fields also get a visible ring.
+    if (isFlaggedEmpty) {
+      return `bg-orange-50 dark:bg-orange-950/30 ring-2 ring-primary-500 dark:ring-primary-400 ${base}`;
+    }
     return `bg-orange-50 dark:bg-orange-950/30 ${base}`;
   }
   return `bg-white dark:bg-black ${base}`;
