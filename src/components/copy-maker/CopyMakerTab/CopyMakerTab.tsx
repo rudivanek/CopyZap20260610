@@ -2530,7 +2530,7 @@ try {
           console.log('Received wizard data in CopyMakerTab:', templateData);
           console.log('Special Instructions received:', templateData.specialInstructions);
 
-          // Only preserve outputStructure if it has actual content (from Extract Copy feature)
+          // Only preserve outputStructure if it has actual content (from URL extraction)
           // Otherwise clear it to generate plain text markdown
           const hasOutputStructure = templateData.outputStructure &&
                                       Array.isArray(templateData.outputStructure) &&
@@ -2575,7 +2575,7 @@ try {
             console.log('Wizard data prioritizeWordCount:', wizardData.prioritizeWordCount);
             shouldGenerateAfterWizardRef.current = true;
 
-            // Only preserve outputStructure if it has actual content (from Extract Copy)
+            // Only preserve outputStructure if it has actual content (from URL extraction)
             const hasOutputStructure = wizardData.outputStructure &&
                                         Array.isArray(wizardData.outputStructure) &&
                                         wizardData.outputStructure.length > 0;

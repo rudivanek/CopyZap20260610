@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.23
-Last Updated: 2026-08-07T19:36:43Z
+Last Updated: 2026-08-07T20:10:00Z
 
 ---
 
@@ -28,6 +28,26 @@ Last Updated: 2026-08-07T19:36:43Z
 **Wizard routing:** Purpose Rewrite has its own `purposeRewrite` mode value, third radio button, render branch, validation skip, and Back to Mode Selection footer action. The existing create and improve branches continue to render `WizardStep`; the improve branch keeps Analyze URL gated by `answers.mode === 'improve'` with all existing buttons and behavior. The Start Hub's Copy Wizard card now has a third Purpose Rewrite sub-option; there is no separate standalone Purpose Rewrite card or `/quick-polish` route.
 
 **Files modified:** `src/components/wizard/PurposeRewriteMode.tsx`, `src/components/wizard/QuickSetupWizard.tsx`, `src/components/wizard/WizardStep.tsx`, `src/components/StartHubModal.tsx`, `src/features/quickPolish/toneMapping.ts`, and `src/components/copy-maker/CopyMakerTab/CopyMakerTab.tsx`.
+
+---
+
+## Wizard "Improve existing copy" — Extract Copy Button Removed (2026-08-07)
+
+**Feature:** The Quick Setup Wizard's "Improve existing copy" mode previously offered three URL-analysis buttons: **Analyze Context**, **Extract Copy**, and **Analyze Deep Crawl**. The middle button, Extract Copy, has been removed. The mode now has exactly two URL buttons, each doing one distinct job.
+
+**Why removed:** Extract Copy and Analyze Deep Crawl both extracted the page's copy and wrote it into the same "Paste your existing copy" field — they differed only in engine. Extract Copy called `analyzeUrl(..., 'fullCopy', ...)`, a standard fetch-and-parse path. Deep Crawl called `analyzeUrlWithFirecrawl(...)`, which handles JavaScript-rendered pages and returns richer content. Because Firecrawl is configured, its per-call cost is negligible, and Deep Crawl is strictly more capable, the weaker Extract Copy path had no remaining reason to exist. Analyze Context stays because it is a genuinely different job: it pre-fills the brief fields (what you're creating, audience, pain points, tone) rather than extracting copy.
+
+**Files modified:**
+- `src/components/wizard/WizardStep.tsx` — deleted the Extract Copy `<button>` block; narrowed the `urlAnalysisType` state union from `'context' | 'fullCopy' | 'deepCrawl' | null` to `'context' | 'deepCrawl' | null`; narrowed the `handleAnalyzeUrl` parameter type the same way; replaced the dead ternary `const mode = analysisType === 'context' ? 'context' : 'fullCopy'` (in the `else` branch of the deep-crawl check) with a plain `'context'` argument passed to `analyzeUrl`; updated the help text to describe the two remaining buttons instead of the removed one.
+- `src/components/copy-maker/CopyMakerTab/CopyMakerTab.tsx` — updated two comments that referenced "Extract Copy" when describing why `outputStructure` is preserved, so they now reference URL extraction generally. No logic changed; the underlying behavior still happens via Deep Crawl.
+
+**What was NOT touched:**
+- The `'fullCopy'` string passed *into* `analyzeUrlWithFirecrawl` (line ~365) is the Firecrawl service's own mode parameter, unrelated to the removed button, and Deep Crawl still needs it. It remains the only `'fullCopy'` string in the file.
+- The result-handling block at line ~386 (`if (analysisType === 'context') { ... } else { ... }`) is unchanged. Its `else` branch still serves Deep Crawl — running `htmlToText`, writing into `whatAreYouCreating`, setting `analyzedUrl`, and opening the structure-confirmation modal when `outputStructure` comes back.
+- The `analyzeUrl` import is still used (by the Context path); the `analyzeUrlWithFirecrawl` import is untouched. Neither import was removed.
+- "Make new copy" and "Purpose Rewrite" modes are unaffected.
+
+**Verification:** `grep -rn "'fullCopy'" src/components/wizard/WizardStep.tsx` returns exactly one hit — the argument passed to `analyzeUrlWithFirecrawl`. `npm run build` passes. The wizard's "Improve existing copy" mode shows exactly two URL buttons; Analyze Context still pre-fills the brief fields; Analyze Deep Crawl still pulls the page's copy into the field, shows the "Crawling..." loading state, and opens the structure-confirmation modal when the page returns an output structure. Invalid URLs still produce the "Invalid URL format" error before any request fires.
 
 ---
 

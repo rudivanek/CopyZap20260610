@@ -85,7 +85,7 @@ const WizardStep: React.FC<WizardStepProps> = ({
   // URL analysis state
   const [urlToAnalyze, setUrlToAnalyze] = useState('');
   const [isAnalyzingUrl, setIsAnalyzingUrl] = useState(false);
-  const [urlAnalysisType, setUrlAnalysisType] = useState<'context' | 'fullCopy' | 'deepCrawl' | null>(null);
+  const [urlAnalysisType, setUrlAnalysisType] = useState<'context' | 'deepCrawl' | null>(null);
   const [showUrlSection, setShowUrlSection] = useState(false);
 
   // Structure confirmation modal state
@@ -309,7 +309,7 @@ const WizardStep: React.FC<WizardStepProps> = ({
   };
 
   // URL Analysis Handlers
-  const handleAnalyzeUrl = async (analysisType: 'context' | 'fullCopy' | 'deepCrawl') => {
+  const handleAnalyzeUrl = async (analysisType: 'context' | 'deepCrawl') => {
     if (!urlToAnalyze.trim()) {
       toast.error('Please enter a URL to analyze');
       return;
@@ -368,14 +368,13 @@ const WizardStep: React.FC<WizardStepProps> = ({
           sessionId
         );
       } else {
-        // Use regular analysis
-        const mode = analysisType === 'context' ? 'context' : 'fullCopy';
+        // Use regular analysis (context mode)
         result = await analyzeUrl(
           finalUrl,
           currentUser.id,
           supabaseUrl,
           session.access_token,
-          mode,
+          'context',
           currentUser.email,
           selectedModel,
           sessionId
@@ -645,22 +644,6 @@ const WizardStep: React.FC<WizardStepProps> = ({
 
                 <button
                   type="button"
-                  onClick={() => handleAnalyzeUrl('fullCopy')}
-                  disabled={isAnalyzingUrl || !urlToAnalyze.trim()}
-                  className="px-3 py-2 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
-                >
-                  {isAnalyzingUrl && urlAnalysisType === 'fullCopy' ? (
-                    <span className="flex items-center justify-center gap-1">
-                      <Loader2 className="w-3 h-3 animate-spin" />
-                      Extracting...
-                    </span>
-                  ) : (
-                    'Extract Copy'
-                  )}
-                </button>
-
-                <button
-                  type="button"
                   onClick={() => handleAnalyzeUrl('deepCrawl')}
                   disabled={isAnalyzingUrl || !urlToAnalyze.trim()}
                   className="px-3 py-2 text-xs font-medium bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-600 text-gray-900 dark:text-gray-100 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-700 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
@@ -688,8 +671,8 @@ const WizardStep: React.FC<WizardStepProps> = ({
               )}
 
               <div className="text-xs text-gray-600 dark:text-gray-400 space-y-1">
-                <p><strong>Analyze Context:</strong> Pre-fill wizard fields</p>
-                <p><strong>Extract Copy:</strong> Get all copy from the page</p>
+                <p><strong>Analyze Context:</strong> Pre-fill wizard fields from the page</p>
+                <p><strong>Analyze Deep Crawl:</strong> Pull the page's full copy into the field below</p>
               </div>
             </div>
           )}
