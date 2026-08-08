@@ -108,7 +108,7 @@ const OutputFeatures: React.FC = () => {
             </div>
           </div>
 
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 border border-yellow-200 dark:border-yellow-800 mt-4">
+          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 border border-amber-200 dark:border-amber-800 mt-4">
             <p className="text-sm text-gray-700 dark:text-gray-300">
               <strong>Need a PDF?</strong> Export as HTML, open in your browser, and use File → Print → Save as PDF. This gives you full control over PDF formatting.
             </p>

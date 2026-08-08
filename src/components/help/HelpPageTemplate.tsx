@@ -103,7 +103,7 @@ const HelpPageTemplate: React.FC<HelpPageTemplateProps> = ({
       {proTips && proTips.length > 0 && (
         <div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-white mb-4 flex items-center">
-            <Lightbulb size={24} className="text-yellow-500 dark:text-yellow-400 mr-2" />
+            <Lightbulb size={24} className="text-amber-500 dark:text-amber-400 mr-2" />
             Pro Tips
           </h2>
           <ul className="space-y-2">

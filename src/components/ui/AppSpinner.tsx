@@ -54,7 +54,7 @@ const AppSpinner: React.FC<AppSpinnerProps> = ({
                     : typeof msg === 'string' && (msg.includes('❌') || msg.includes('Failed') || msg.includes('Error'))
                       ? 'text-red-600 dark:text-red-400'
                     : typeof msg === 'string' && (msg.includes('⚠') || msg.includes('🚨') || msg.includes('revision') || msg.includes('attempt'))
-                      ? 'text-yellow-600 dark:text-yellow-400'
+                      ? 'text-amber-600 dark:text-amber-400'
                     : typeof msg === 'string' && msg.includes('🔄')
                       ? 'text-blue-600 dark:text-blue-400'
                       : 'text-gray-700 dark:text-gray-300'

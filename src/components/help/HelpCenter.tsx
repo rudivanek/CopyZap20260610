@@ -41,7 +41,7 @@ const primaryCategories: Category[] = [
     icon: <Globe size={18} />,
     title: 'Improve existing copy',
     description: 'Rewrite, polish, or upgrade what you have.',
-    color: 'text-emerald-600 dark:text-emerald-400 bg-emerald-50 dark:bg-emerald-900/30',
+    color: 'text-green-600 dark:text-green-400 bg-green-50 dark:bg-green-900/30',
     seeAllPath: '/help/how-scoring-works',
     articles: [
       { title: 'Improve copy using a website URL', path: '/help/core-workflows', badge: 'Tutorial' },

@@ -359,7 +359,7 @@ const AdminBlogEditor: React.FC = () => {
                   Published
                 </span>
               ) : (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-200">
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-amber-100 text-amber-800 dark:bg-amber-900 dark:text-amber-200">
                   <EyeOff size={16} className="mr-1" />
                   Draft
                 </span>

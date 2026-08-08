@@ -82,7 +82,7 @@ const RealCaseWorkflowsIndex: React.FC = () => {
       case 'Beginner':
         return 'bg-green-100 dark:bg-green-900/30 text-green-800 dark:text-green-200';
       case 'Intermediate':
-        return 'bg-yellow-100 dark:bg-yellow-900/30 text-yellow-800 dark:text-yellow-200';
+        return 'bg-amber-100 dark:bg-amber-900/30 text-amber-800 dark:text-amber-200';
       case 'Advanced':
         return 'bg-red-100 dark:bg-red-900/30 text-red-800 dark:text-red-200';
       default:

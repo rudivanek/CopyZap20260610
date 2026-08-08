@@ -103,7 +103,7 @@ const ExportAndFileManagement: React.FC = () => {
 
         <section className="space-y-4">
           <h2 className="text-2xl font-semibold text-gray-900 dark:text-white">Best Practices</h2>
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-4 border border-yellow-200 dark:border-yellow-800">
+          <div className="bg-amber-50 dark:bg-amber-900/20 rounded-lg p-4 border border-amber-200 dark:border-amber-800">
             <ul className="space-y-2 text-gray-700 dark:text-gray-300">
               <li><strong>For quick sharing:</strong> Use Copy as Markdown to paste into Slack, Notion, or emails</li>
               <li><strong>For client presentations:</strong> Export as HTML and print to PDF from your browser</li>

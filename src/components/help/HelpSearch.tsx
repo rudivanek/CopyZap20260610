@@ -99,7 +99,7 @@ const HelpSearch: React.FC<HelpSearchProps> = ({
     const parts = text.split(new RegExp(`(${query})`, 'gi'));
     return parts.map((part, index) =>
       part.toLowerCase() === query.toLowerCase() ? (
-        <mark key={index} className="bg-yellow-200 dark:bg-yellow-600 text-black dark:text-white rounded px-1">
+        <mark key={index} className="bg-amber-200 dark:bg-amber-600 text-black dark:text-white rounded px-1">
           {part}
         </mark>
       ) : (

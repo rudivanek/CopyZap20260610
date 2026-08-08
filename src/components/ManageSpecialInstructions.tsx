@@ -259,7 +259,7 @@ const ManageSpecialInstructions: React.FC = () => {
               </button>
               <div>
                 <h1 className="text-3xl font-bold flex items-center">
-                  <Lightbulb size={32} className="text-yellow-500 mr-3" />
+                  <Lightbulb size={32} className="text-amber-500 mr-3" />
                   Manage Special Instructions Suggestions
                 </h1>
                 <p className="text-gray-600 dark:text-gray-400 mt-1">

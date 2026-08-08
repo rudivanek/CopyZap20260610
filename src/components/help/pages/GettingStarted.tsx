@@ -95,7 +95,7 @@ const GettingStarted: React.FC = () => {
       </ul>
 
       <h2>Quick Tips for Better Results</h2>
-      <div className="not-prose bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 mb-8">
+      <div className="not-prose bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-6 mb-8">
         <ol className="list-decimal ml-4 space-y-2 text-gray-700 dark:text-gray-300">
           <li><strong>Be specific in your Business Description.</strong> "We help companies" is vague. "We help B2B SaaS companies automate customer onboarding" is specific.</li>
           <li><strong>Fill only the fields you need.</strong> You don't need to fill every field — the required three fields are enough to get started. Add optional fields only when they improve results for your specific copy.</li>
