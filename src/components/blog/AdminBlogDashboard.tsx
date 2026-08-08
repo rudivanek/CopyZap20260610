@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { Plus, Edit, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Plus, CreditCard as Edit, Trash2, Eye, EyeOff } from 'lucide-react';
 import { BlogPost } from '../../types/blog';
 import { getAllBlogPostsAdmin, deleteBlogPost } from '../../services/blogService';
 import { useAuth } from '../../hooks/useAuth';

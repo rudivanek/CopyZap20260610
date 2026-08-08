@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Lightbulb, Plus, Edit, Trash2, RefreshCw, ArrowLeft, Shield, X, Save, Search, Check } from 'lucide-react';
+import { Lightbulb, Plus, CreditCard as Edit, Trash2, RefreshCw, ArrowLeft, Shield, X, Save, Search, Check } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { useAuth } from '../hooks/useAuth';
 import { useIsAdmin } from '../hooks/useIsAdmin';
