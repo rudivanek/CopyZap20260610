@@ -102,10 +102,7 @@ const FillFormCard: React.FC<FillFormCardProps> = ({ hasData, onClear, formSecti
             <button
               type="button"
               onClick={handleConfirm}
-              className="flex-1 font-medium rounded-lg py-2 px-3 text-sm transition-colors text-white"
-              style={{ backgroundColor: '#ff6b35' }}
-              onMouseEnter={e => (e.currentTarget.style.backgroundColor = '#e55a27')}
-              onMouseLeave={e => (e.currentTarget.style.backgroundColor = '#ff6b35')}
+              className="flex-1 font-medium rounded-lg py-2 px-3 text-sm transition-colors text-white bg-primary-500 hover:bg-primary-600"
             >
               Confirm
             </button>
@@ -2028,8 +2025,7 @@ try {
                       handleSetMode(lastForcedReason.previousMode);
                       toast.success(`Switched back to ${prevModeName} mode`);
                     }}
-                    className="px-3 py-1.5 text-xs font-medium text-white rounded transition-colors"
-                    style={{ backgroundColor: '#ff6b35' }}
+                    className="px-3 py-1.5 text-xs font-medium text-white rounded transition-colors bg-primary-500 hover:bg-primary-600"
                   >
                     Switch back to {lastForcedReason.previousMode === 'quick' ? 'Quick' : lastForcedReason.previousMode === 'standard' ? 'Standard' : 'Advanced'}
                   </button>
@@ -2152,8 +2148,7 @@ try {
               </button>
               <button
                 onClick={() => setShowRawOutputModal(false)}
-                className="px-4 py-2 text-white rounded-md transition-colors"
-                style={{ backgroundColor: '#ff6b35' }}
+                className="px-4 py-2 text-white rounded-md transition-colors bg-primary-500 hover:bg-primary-600"
               >
                 Close
               </button>
@@ -2645,7 +2640,7 @@ try {
                   placeholder="e.g., Copy Maker: Homepage Hero Section"
                   maxLength={100}
                   disabled={isSavingSession}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {saveSessionName.length}/100 characters
@@ -2663,7 +2658,7 @@ try {
                   maxLength={500}
                   disabled={isSavingSession}
                   rows={3}
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-gray-400 disabled:opacity-50 resize-none"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg px-4 py-2 text-gray-900 dark:text-white focus:outline-none focus:ring-2 focus:ring-primary-500 disabled:opacity-50 resize-none"
                 />
                 <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
                   {saveSessionDescription.length}/500 characters
@@ -2681,8 +2676,7 @@ try {
                 <button
                   onClick={handleSaveSession}
                   disabled={isSavingSession || !saveSessionName.trim()}
-                  className="flex-1 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-medium py-2.5 rounded-lg transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
-                  style={{ backgroundColor: '#ff6b35' }}
+                  className="flex-1 bg-primary-500 hover:bg-primary-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-medium py-2.5 rounded-lg transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {isSavingSession ? (
                     <>

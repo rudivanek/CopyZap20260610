@@ -151,7 +151,7 @@ const HelpSearch: React.FC<HelpSearchProps> = ({
           onFocus={() => searchQuery && setShowResults(true)}
           placeholder={placeholder}
           aria-label="Search Help Center"
-          className={`w-full ${compact ? 'px-3 py-2 pl-9 text-sm' : 'px-4 py-3 pl-12'} bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:focus:ring-blue-400 transition`}
+          className={`w-full ${compact ? 'px-3 py-2 pl-9 text-sm' : 'px-4 py-3 pl-12'} bg-gray-100 dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-primary-400 transition`}
         />
         <Search className={`absolute ${compact ? 'left-3 top-2 h-4 w-4' : 'left-4 top-3.5 h-5 w-5'} text-gray-500 pointer-events-none`} />
       </div>

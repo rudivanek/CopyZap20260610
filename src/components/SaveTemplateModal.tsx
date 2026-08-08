@@ -261,10 +261,7 @@ const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
             {initialTemplateName && (
               <button
                 onClick={() => setShowUpdateConfirmation(true)}
-                className="text-white px-4 py-2 rounded-md text-sm font-medium flex items-center disabled:opacity-50"
-                style={{ backgroundColor: '#ff6b35' }}
-                onMouseEnter={(e) => !(!templateNameField.inputValue.trim() || isSaving) && (e.currentTarget.style.backgroundColor = '#e5602f')}
-                onMouseLeave={(e) => !(!templateNameField.inputValue.trim() || isSaving) && (e.currentTarget.style.backgroundColor = '#ff6b35')}
+                className="text-white px-4 py-2 rounded-md text-sm font-medium flex items-center disabled:opacity-50 bg-primary-500 hover:bg-primary-600"
                 disabled={!templateNameField.inputValue.trim() || isSaving}
               >
                 <Bookmark size={16} style={{ marginRight: '6px' }} />
@@ -273,10 +270,7 @@ const SaveTemplateModal: React.FC<SaveTemplateModalProps> = ({
             )}
             <button
               onClick={() => setShowSaveAsNewModal(true)}
-              className="text-white px-4 py-2 rounded-md text-sm flex items-center disabled:opacity-50"
-              style={{ backgroundColor: '#ff6b35' }}
-              onMouseEnter={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#e5602f')}
-              onMouseLeave={(e) => !isSaving && (e.currentTarget.style.backgroundColor = '#ff6b35')}
+              className="text-white px-4 py-2 rounded-md text-sm flex items-center disabled:opacity-50 bg-primary-500 hover:bg-primary-600"
               disabled={isSaving}
             >
               {isSaving ? (

@@ -84,7 +84,7 @@ const SocialShare: React.FC<SocialShareProps> = ({
         {/* Facebook Share Button */}
         <button
           onClick={() => handleShare('facebook')}
-          className="flex items-center justify-center w-8 h-8 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50"
+          className="flex items-center justify-center w-8 h-8 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50"
           title="Share on Facebook"
           aria-label="Share on Facebook"
         >
@@ -94,7 +94,7 @@ const SocialShare: React.FC<SocialShareProps> = ({
         {/* X (Twitter) Share Button */}
         <button
           onClick={() => handleShare('twitter')}
-          className="flex items-center justify-center w-8 h-8 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50"
+          className="flex items-center justify-center w-8 h-8 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50"
           title="Share on X (Twitter)"
           aria-label="Share on X (Twitter)"
         >
@@ -104,7 +104,7 @@ const SocialShare: React.FC<SocialShareProps> = ({
         {/* LinkedIn Share Button */}
         <button
           onClick={() => handleShare('linkedin')}
-          className="flex items-center justify-center w-8 h-8 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50"
+          className="flex items-center justify-center w-8 h-8 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50"
           title="Share on LinkedIn"
           aria-label="Share on LinkedIn"
         >
@@ -114,7 +114,7 @@ const SocialShare: React.FC<SocialShareProps> = ({
         {/* Copy URL Button */}
         <button
           onClick={handleCopyUrl}
-          className="flex items-center justify-center w-8 h-8 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-gray-400 focus:ring-opacity-50"
+          className="flex items-center justify-center w-8 h-8 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-700 dark:text-gray-300 rounded-md transition-all duration-200 hover:scale-105 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-opacity-50"
           title="Copy URL"
           aria-label="Copy URL to clipboard"
         >

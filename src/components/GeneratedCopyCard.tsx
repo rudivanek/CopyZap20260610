@@ -1517,7 +1517,7 @@ const GeneratedCopyCard: React.FC<GeneratedCopyCardProps> = ({
                     placeholder="Search suggestions..."
                     value={modifySearchQuery}
                     onChange={(e) => setModifySearchQuery(e.target.value)}
-                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-gray-400"
+                    className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg text-gray-900 dark:text-white bg-white dark:bg-gray-800 text-sm focus:outline-none focus:ring-2 focus:ring-primary-500"
                   />
                 </div>
               </div>

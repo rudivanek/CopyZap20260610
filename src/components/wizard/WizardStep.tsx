@@ -566,7 +566,7 @@ const WizardStep: React.FC<WizardStepProps> = ({
               value="create"
               checked={answers.mode === 'create'}
               onChange={() => updateAnswer('mode', 'create')}
-              className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+              className="w-4 h-4 text-blue-600 focus:ring-primary-500"
             />
             <span className="ml-2 text-sm text-gray-900 dark:text-gray-100">
               Make new copy
@@ -580,7 +580,7 @@ const WizardStep: React.FC<WizardStepProps> = ({
               value="improve"
               checked={answers.mode === 'improve'}
               onChange={() => updateAnswer('mode', 'improve')}
-              className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+              className="w-4 h-4 text-blue-600 focus:ring-primary-500"
             />
             <span className="ml-2 text-sm text-gray-900 dark:text-gray-100">
               Improve existing copy
@@ -594,7 +594,7 @@ const WizardStep: React.FC<WizardStepProps> = ({
               value="purposeRewrite"
               checked={answers.mode === 'purposeRewrite'}
               onChange={() => updateAnswer('mode', 'purposeRewrite')}
-              className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+              className="w-4 h-4 text-blue-600 focus:ring-primary-500"
             />
             <span className="ml-2 text-sm text-gray-900 dark:text-gray-100">
               Purpose Rewrite

@@ -58,7 +58,7 @@ const AiEngineModeToggle: React.FC<AiEngineModeToggleProps> = ({ aiEngineMode, o
                 value={value}
                 checked={aiEngineMode === value}
                 onChange={() => onModeChange(value)}
-                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-blue-500 dark:border-gray-600 dark:bg-gray-700"
+                className="w-4 h-4 text-blue-600 border-gray-300 focus:ring-2 focus:ring-primary-500 dark:border-gray-600 dark:bg-gray-700"
               />
               <Icon
                 size={16}

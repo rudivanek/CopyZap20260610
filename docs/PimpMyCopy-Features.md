@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.30
-Last Updated: 2026-08-08T23:35:00Z
+Last Updated: 2026-08-09T00:10:00Z
 
 ---
 
@@ -148,6 +148,27 @@ The marks are square bars (`w-1 h-5`), not round dots. The app's Tailwind config
 - Dark-mode and greyscale print-preview checks still need visual review in the running app. The intended result is a neutral sidebar and results panel where every remaining quality/status colour has an adjacent word or unmistakable signed direction.
 
 **Explicitly not changed:** Results card header backgrounds remain as identity and hierarchy cues; destructive red remains for destructive actions and error states; marketing pages and `CopyMakerSidebarLegacy.tsx` remain outside the pass; and the four guidance radius overrides remain outside the colour work.
+
+---
+
+## Restyle Step 3b — Corrections (2026-08-09)
+
+**Feature:** Three fixes to the initial 3b commit (`2f67cb0`): one live bug, one accessibility regression, and one consistency sweep that closes both. The root cause was the 3b spec's verification grep demanding zero blue/purple across all of `src/components/copy-maker` — wider than the five tasks it listed — which correctly pulled `CopyMakerTab.tsx` and `ResultsPanel.tsx` into scope but introduced the bug and the regression below.
+
+**Task 1 — Disabled button can never paint (live bug):** The Save Session button in `CopyMakerTab.tsx` was converted from a `bg-blue-500` class to an inline `style={{ backgroundColor: '#ff6b35' }}`. Inline styles beat Tailwind classes, so `disabled:bg-gray-300` never applied — the button stayed full orange while unclickable, looking enabled when it wasn't. The same conversion also stripped `hover:` states from the other two converted buttons. `#ff6b35` is already a token: `tailwind.config.js` defines `primary.500` as exactly that value. Six inline-orange sites were fixed (three added in `2f67cb0`, three pre-existing): `CopyMakerTab.tsx` lines ~106, ~2032, ~2156, ~2685; `SaveTemplateModal.tsx` lines ~265, ~277. In each, the `style={{ backgroundColor: '#ff6b35' }}` attribute and any JS `onMouseEnter`/`onMouseLeave` hover handlers were deleted, and `bg-primary-500 hover:bg-primary-600` added to the `className`. All existing `disabled:` classes were kept intact. After the fix, `grep -rn "backgroundColor: '#ff6b35'" src/` returns zero.
+
+**Task 2 — Focus rings are not decoration (accessibility):** Two inputs in `CopyMakerTab.tsx` had `focus:ring-blue-500` changed to `focus:ring-gray-400`, which is nearly invisible against a `gray-300` border — a keyboard user can't see where they are. It also created an inconsistency: eleven other focus rings across the app were still `focus:ring-blue-500`. All thirteen occurrences were converted to `focus:ring-primary-500`: `CopyMakerTab.tsx` ×2, `wizard/WizardStep.tsx` ×3, `CopySnap.tsx` ×2, `help/pages/Contact.tsx` ×3, `help/HelpSearch.tsx` ×1, `BrandVoiceModal.tsx` ×1, `AiEngineModeToggle.tsx` ×1. The paired `dark:focus:ring-blue-400` in `HelpSearch.tsx` and the `focus:border-blue-500` in `CopySnap.tsx` were converted the same way. This reaches into `help/` which previous passes excluded — that exclusion was about decorative colour on marketing surfaces; a focus ring is an accessibility affordance and an inconsistent indicator is worse than either choice applied uniformly. The `text-blue-600` on radio and checkbox inputs in `WizardStep.tsx` (~569/583/597) and `AiEngineModeToggle.tsx` (~61) was left alone — that's the control's own accent colour, a separate decision — but it is the last blue left in the app UI and will want the same treatment eventually. Five additional pre-existing `focus:ring-gray-400` sites outside the spec's 13 (`BetaThanks.tsx`, `GeneratedCopyCard.tsx`, `SocialShare.tsx`, `TemplateSuggestionModal.tsx`, `ui/SpecialInstructionsField.tsx`) were also converted to `focus:ring-primary-500` for the same consistency reason. After the fix, `grep -rn "focus:ring-blue-500\|focus:ring-gray-400" src/` returns zero (excluding `CopyMakerSidebarLegacy.tsx`).
+
+**Task 3 — ResultsPanel left as-is:** `ResultsPanel.tsx` lost the blue-vs-purple distinction between Batch and On-Demand analysis mode; both banners are grey now. That's correct — the banner text names the mode and the icons already differ (`Lock` vs `Brain`), so no information was lost. No change needed; listed so it isn't "fixed" later by someone reading the diff.
+
+**Verification:**
+- `grep -rn "backgroundColor: '#ff6b35'" src/` returns zero.
+- `grep -rn "focus:ring-blue-500\|focus:ring-gray-400" src/` returns zero (excluding `CopyMakerSidebarLegacy.tsx`).
+- The disabled Save Session button greys out (not orange) when the name field is empty — the specific regression being fixed.
+- Hover states work on all six converted buttons.
+- `npm run build` passes.
+- `npx tsc --noEmit -p tsconfig.app.json` returns 1326, same as `2f67cb0`.
+- Keyboard tab-through of the Save Session modal and the wizard still needs visual review in the running app to confirm the focus ring is clearly visible in both light and dark mode.
 
 ---
 

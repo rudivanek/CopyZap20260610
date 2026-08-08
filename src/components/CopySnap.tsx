@@ -1949,7 +1949,7 @@ Do NOT add markdown formatting, code blocks, or explanations. Just raw JSON. Rem
                   value={saveSessionName}
                   onChange={(e) => setSaveSessionName(e.target.value)}
                   placeholder="e.g., Copy Snap: Improve - Clearer"
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500"
                   disabled={isSavingSession}
                   maxLength={100}
                 />
@@ -1966,7 +1966,7 @@ Do NOT add markdown formatting, code blocks, or explanations. Just raw JSON. Rem
                   value={saveSessionDescription}
                   onChange={(e) => setSaveSessionDescription(e.target.value)}
                   placeholder="Add notes about this session..."
-                  className="w-full min-h-[100px] bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-blue-500 focus:border-blue-500 resize-y"
+                  className="w-full min-h-[100px] bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-primary-500 focus:border-primary-500 resize-y"
                   disabled={isSavingSession}
                   maxLength={500}
                 />
