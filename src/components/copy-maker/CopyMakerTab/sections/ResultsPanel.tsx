@@ -279,23 +279,19 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
 
         {/* Analysis Mode Indicator */}
         {analysisMode && (
-          <div className={`mb-4 p-3 rounded-lg border ${
-            analysisMode === 'batch'
-              ? 'bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
-              : 'bg-purple-50 dark:bg-purple-900/20 border-purple-200 dark:border-purple-800'
-          }`}>
+          <div className="mb-4 p-3 rounded-lg border bg-gray-50 dark:bg-gray-800/40 border-gray-200 dark:border-gray-700">
             <div className="flex items-center gap-2">
               {analysisMode === 'batch' ? (
                 <>
-                  <Lock className="w-4 h-4 text-blue-600 dark:text-blue-400" />
-                  <span className="font-semibold text-blue-700 dark:text-blue-300">
+                  <Lock className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">
                     Batch Analysis Mode Active
                   </span>
                 </>
               ) : (
                 <>
-                  <Brain className="w-4 h-4 text-purple-600 dark:text-purple-400" />
-                  <span className="font-semibold text-purple-700 dark:text-purple-300">
+                  <Brain className="w-4 h-4 text-gray-500 dark:text-gray-400" />
+                  <span className="font-semibold text-gray-700 dark:text-gray-300">
                     On-Demand Analysis Mode
                   </span>
                 </>

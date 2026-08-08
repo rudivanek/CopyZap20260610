@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowRight, Award } from 'lucide-react';
-import { getScoreTextClass, getScoreMarkClass } from '../../../utils/scoreColors';
+import { getScoreTextClass, getScoreMarkClass, deltaBadgeClass } from '../../../utils/scoreColors';
 import { AbsoluteScoreBreakdown } from '../../../types';
 import { getComparisonDelta } from '../../../utils/comparisonDelta';
 
@@ -67,19 +67,13 @@ interface SectionProps {
 }
 
 const Section: React.FC<SectionProps> = ({ label, children }) => (
-  <div className="border-t border-green-100 dark:border-green-900/30 pt-3 mt-3">
+  <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-3">
     <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
       {label}
     </span>
     <div className="mt-2">{children}</div>
   </div>
 );
-
-function deltaBadgeClass(positive: boolean): string {
-  return positive
-    ? 'text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-    : 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800';
-}
 
 export const WinnerHeroCard: React.FC<WinnerHeroCardProps> = ({
   winnerRow,
@@ -117,13 +111,13 @@ export const WinnerHeroCard: React.FC<WinnerHeroCardProps> = ({
   return (
     <div
       id="results-winner"
-      className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 overflow-hidden shadow-sm border-l-4 border-l-green-600"
+      className="rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-950 overflow-hidden shadow-sm border-l-4 border-l-status-good"
     >
       <div className="px-5 pt-4 pb-5">
         {/* Label row */}
         <div className="flex items-center gap-1.5 mb-3">
-          <Award className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
-          <span className="text-xs font-bold text-green-600 uppercase tracking-widest">
+          <Award className="w-3.5 h-3.5 text-status-good flex-shrink-0" />
+          <span className="text-xs font-bold text-status-good uppercase tracking-widest">
             Best Performing Version
           </span>
         </div>
@@ -166,7 +160,7 @@ export const WinnerHeroCard: React.FC<WinnerHeroCardProps> = ({
             <ul className="space-y-1.5">
               {quickWhyBullets.map((bullet, idx) => (
                 <li key={idx} className="flex items-start gap-2">
-                  <span className="text-green-600 mt-0.5 flex-shrink-0">•</span>
+                  <span className="text-status-good mt-0.5 flex-shrink-0">•</span>
                   <span className="text-sm text-gray-700 dark:text-gray-300 leading-snug">{bullet}</span>
                 </li>
               ))}
@@ -208,7 +202,7 @@ export const WinnerHeroCard: React.FC<WinnerHeroCardProps> = ({
             <ul className="space-y-1.5">
               {comparisonBullets.map((item, idx) => (
                 <li key={idx} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                  <span className="text-green-600 flex-shrink-0">•</span>
+                  <span className="text-status-good flex-shrink-0">•</span>
                   {item.version ? (
                     <span>
                       <span className="font-semibold">vs {item.version}</span> — {item.benefit}
@@ -242,7 +236,7 @@ export const WinnerHeroCard: React.FC<WinnerHeroCardProps> = ({
             <ol className="space-y-1.5">
               {actions.map((step, idx) => (
                 <li key={idx} className="flex items-start gap-2">
-                  <ArrowRight className="w-3.5 h-3.5 text-green-600 flex-shrink-0 mt-0.5" />
+                  <ArrowRight className="w-3.5 h-3.5 text-status-good flex-shrink-0 mt-0.5" />
                   <span className="text-sm text-gray-700 dark:text-gray-300 leading-snug">{step}</span>
                 </li>
               ))}

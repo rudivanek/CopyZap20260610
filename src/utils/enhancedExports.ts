@@ -1741,12 +1741,10 @@ export const generateBestVersionAnalysisHtml = (
     if (shouldShowBadge && decisionBadge) {
       const badgeStyles = getBadgeStyles(decisionBadge.type);
       // Parse style classes into inline styles (simplified mapping)
-      let badgeBg = '#f3f4f6', badgeText = '#6b7280', badgeBorder = '#e5e7eb';
-      if (badgeStyles.includes('bg-blue-50')) { badgeBg = '#eff6ff'; badgeText = '#1e40af'; badgeBorder = '#bfdbfe'; }
-      if (badgeStyles.includes('bg-purple-50')) { badgeBg = '#faf5ff'; badgeText = '#7e22ce'; badgeBorder = '#e9d5ff'; }
-      if (badgeStyles.includes('bg-green-50')) { badgeBg = '#f0fdf4'; badgeText = '#15803d'; badgeBorder = '#bbf7d0'; }
-      if (badgeStyles.includes('bg-amber-50')) { badgeBg = '#fffbeb'; badgeText = '#b45309'; badgeBorder = '#fde68a'; }
-      if (badgeStyles.includes('bg-red-50')) { badgeBg = '#fef2f2'; badgeText = '#b91c1c'; badgeBorder = '#fecaca'; }
+      let badgeBg = '#f9fafb', badgeText = '#6b7280', badgeBorder = '#e5e7eb';
+      if (badgeStyles.includes('bg-status-good')) { badgeBg = '#f0fdf4'; badgeText = '#0ca30c'; badgeBorder = '#bbf7d0'; }
+      // bg-purple-50 and bg-red-50 branches are dead — getBadgeStyles never returns either.
+      // Left in place rather than guessing at their history; remove in the dead-code batch.
 
       const escapedBadgeLabel = String(decisionBadge.label).replace(/</g, '&lt;').replace(/>/g, '&gt;');
       html += '<span style="font-size:11px;font-weight:600;padding:4px 8px;border-radius:4px;white-space:nowrap;background:' + badgeBg + ';color:' + badgeText + ';border:1px solid ' + badgeBorder + ';">' + escapedBadgeLabel + '</span>\n';
@@ -1763,14 +1761,14 @@ export const generateBestVersionAnalysisHtml = (
     if (comprehensiveScores) {
       html += '<div style="display:flex;align-items:center;gap:4px;margin-top:4px;flex-wrap:wrap;">\n';
 
-      // Conversion & Trust chips — muted with an em dash when the heuristic matched nothing
+      // Conversion & Trust chips — neutral; both are qualified heuristics, not live measurements.
       if (comprehensiveScores.hasSignal) {
-        html += '<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;">\n';
-        html += '<span style="color:#3b82f6;font-weight:400;">Conversion</span> <span style="font-weight:600;">' + comprehensiveScores.conversion + '<span style="color:#60a5fa;font-weight:400;">/100</span></span>\n';
+        html += '<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:#f9fafb;color:#374151;border:1px solid #e5e7eb;">\n';
+        html += '<span style="color:#6b7280;font-weight:400;">Conversion</span> <span style="font-weight:600;">' + comprehensiveScores.conversion + '<span style="color:#9ca3af;font-weight:400;">/100</span></span>\n';
         html += '</span>\n';
 
-        html += '<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:#faf5ff;color:#7e22ce;border:1px solid #e9d5ff;">\n';
-        html += '<span style="color:#9333ea;font-weight:400;">Trust</span> <span style="font-weight:600;">' + comprehensiveScores.trust + '<span style="color:#a855f7;font-weight:400;">/100</span></span>\n';
+        html += '<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:#f9fafb;color:#374151;border:1px solid #e5e7eb;">\n';
+        html += '<span style="color:#6b7280;font-weight:400;">Trust</span> <span style="font-weight:600;">' + comprehensiveScores.trust + '<span style="color:#9ca3af;font-weight:400;">/100</span></span>\n';
         html += '</span>\n';
       } else {
         html += '<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:#f9fafb;color:#9ca3af;border:1px solid #e5e7eb;">\n';
@@ -1784,10 +1782,10 @@ export const generateBestVersionAnalysisHtml = (
 
       // Risk chip (color varies by level)
       const riskColors = comprehensiveScores.risk === 'High'
-        ? { bg: '#fffbeb', text: '#b45309', border: '#fde68a', labelColor: '#d97706' }
+        ? { bg: '#fef9c3', text: '#fab219', border: '#fde68a', labelColor: '#fab219' }
         : comprehensiveScores.risk === 'Medium'
-        ? { bg: '#f8fafc', text: '#475569', border: '#e2e8f0', labelColor: '#64748b' }
-        : { bg: '#f0fdf4', text: '#15803d', border: '#bbf7d0', labelColor: '#16a34a' };
+        ? { bg: '#f9fafb', text: '#4b5563', border: '#e5e7eb', labelColor: '#6b7280' }
+        : { bg: '#f0fdf4', text: '#0ca30c', border: '#bbf7d0', labelColor: '#0ca30c' };
 
       html += '<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:' + riskColors.bg + ';color:' + riskColors.text + ';border:1px solid ' + riskColors.border + ';">\n';
       html += '<span style="color:' + riskColors.labelColor + ';font-weight:400;">Risk</span> <span style="font-weight:600;">' + comprehensiveScores.risk + '</span>\n';
@@ -1808,8 +1806,8 @@ export const generateBestVersionAnalysisHtml = (
     // Right side: Delta and final score
     html += '<div style="display:flex;align-items:center;gap:6px;flex-shrink:0;">\n';
     if (delta && !delta.neutral) {
-      const badgeColor = delta.positive ? '#15803d' : '#b45309';
-      const badgeBg = delta.positive ? '#f0fdf4' : '#fffbeb';
+      const badgeColor = delta.positive ? '#0ca30c' : '#fab219';
+      const badgeBg = delta.positive ? '#f0fdf4' : '#fef9c3';
       const badgeBorder = delta.positive ? '#bbf7d0' : '#fde68a';
       const escapedDeltaLabel = String(delta.label).replace(/</g, '&lt;').replace(/>/g, '&gt;');
       html += '<span style="font-size:10px;font-weight:600;color:' + badgeColor + ';background:' + badgeBg + ';border:1px solid ' + badgeBorder + ';padding:1px 7px;border-radius:99px;white-space:nowrap;">' + escapedDeltaLabel + '</span>\n';
@@ -1900,7 +1898,7 @@ export const generateAllVersionsBreakdownHtml = (
         const escapedErrorMsg = String(analysis!.errorMessage).replace(/</g, '&lt;').replace(/>/g, '&gt;');
         html += '<div style="margin-top:16px;padding:12px 16px;background:#fef2f2;border:1px solid #fecaca;border-radius:10px;font-size:13px;color:#dc2626;">' + escapedErrorMsg + '</div>\n';
       } else if (isLoading) {
-        html += '<div style="margin-top:16px;padding:12px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;font-size:13px;color:#1e40af;font-style:italic;">Analysis is currently being generated for this version...</div>\n';
+        html += '<div style="margin-top:16px;padding:12px 16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;font-size:13px;color:#6b7280;font-style:italic;">Analysis is currently being generated for this version...</div>\n';
       } else {
         html += '<div style="margin-top:16px;padding:12px 16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;font-size:13px;color:#6b7280;font-style:italic;">Narrative analysis was not generated for this version.</div>\n';
       }
@@ -2087,11 +2085,11 @@ export const generateAllVersionsBreakdownHtml = (
       }
       if (row.action) {
         const actionText = String(row.action).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        html += '<div style="display:flex;align-items:flex-start;gap:8px;padding:12px 16px;background:#eff6ff;border:1px solid #bfdbfe;border-radius:10px;">\n';
-        html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#2563eb" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px;"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>\n';
+        html += '<div style="display:flex;align-items:flex-start;gap:8px;padding:12px 16px;background:#f9fafb;border:1px solid #e5e7eb;border-radius:10px;">\n';
+        html += '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#6b7280" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0;margin-top:2px;"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>\n';
         html += '<div>\n';
-        html += '<span style="display:block;font-size:10px;font-weight:700;color:#1d4ed8;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:3px;">What to do</span>\n';
-        html += '<p style="font-size:14px;font-weight:500;color:#1e40af;line-height:1.6;margin:0;">' + actionText + '</p>\n';
+        html += '<span style="display:block;font-size:10px;font-weight:700;color:#6b7280;text-transform:uppercase;letter-spacing:0.07em;margin-bottom:3px;">What to do</span>\n';
+        html += '<p style="font-size:14px;font-weight:500;color:#374151;line-height:1.6;margin:0;">' + actionText + '</p>\n';
         html += '</div>\n</div>\n';
       }
       html += '</div>\n';

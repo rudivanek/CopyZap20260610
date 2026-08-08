@@ -128,15 +128,15 @@ export function getDecisionBadgeForVersion(
 export function getBadgeStyles(badgeType: DecisionBadge['type']): string {
   switch (badgeType) {
     case 'best-overall':
-      return 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border border-green-300 dark:border-green-700';
+      // The only badge that signals quality — uses the reserved status-good token.
+      return 'bg-status-good/10 dark:bg-status-good/20 text-status-good border border-status-good/30 dark:border-status-good/40';
     case 'conversion':
-      return 'bg-blue-50 dark:bg-blue-950/30 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800';
     case 'safest':
-      return 'bg-gray-50 dark:bg-gray-950/30 text-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-800';
     case 'balanced':
-      return 'bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800';
+      // Category badges, not quality signals — neutral grey.
+      return 'bg-gray-50 dark:bg-gray-800/40 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700';
     default:
-      return 'bg-gray-50 dark:bg-gray-950/30 text-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-800';
+      return 'bg-gray-50 dark:bg-gray-800/40 text-gray-700 dark:text-gray-400 border border-gray-200 dark:border-gray-700';
   }
 }
 

@@ -173,7 +173,7 @@ const ScoreComparisonModal: React.FC<ScoreComparisonModalProps> = ({
                   
                   {/* Restyled Improved Copy Score */} // Changed from bg-blue-50/30
                   {copyResult.restyledImprovedCopyScore && (
-                    <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 bg-blue-50/30 dark:bg-blue-900/20">
+                    <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 bg-gray-50/30 dark:bg-gray-800/40">
                       <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 font-medium">
                         {selectedPersona ? `${selectedPersona}'s Improved Copy` : 'Restyled Improved Copy'}
                       </td>
@@ -207,7 +207,7 @@ const ScoreComparisonModal: React.FC<ScoreComparisonModalProps> = ({
                   {copyResult.restyledAlternativeVersionScores && 
                    copyResult.restyledAlternativeVersionScores.length > 0 ? ( // Changed from bg-blue-50/30
                     copyResult.restyledAlternativeVersionScores.map((score, index) => (
-                      <tr key={`restyled-alt-score-${index}`} className="hover:bg-gray-50 dark:hover:bg-gray-800 bg-blue-50/30 dark:bg-blue-900/20">
+                      <tr key={`restyled-alt-score-${index}`} className="hover:bg-gray-50 dark:hover:bg-gray-800 bg-gray-50/30 dark:bg-gray-800/40">
                         <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 font-medium">
                           {`${index + 1}.) ${selectedPersona}'s Alternative Version`}
                         </td>
@@ -239,7 +239,7 @@ const ScoreComparisonModal: React.FC<ScoreComparisonModalProps> = ({
                   ) : (
                     // Legacy single restyled alternative copy score
                     copyResult.restyledAlternativeCopyScore && ( // Changed from bg-blue-50/30
-                      <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 bg-blue-50/30 dark:bg-blue-900/20">
+                      <tr className="hover:bg-gray-50 dark:hover:bg-gray-800 bg-gray-50/30 dark:bg-gray-800/40">
                         <td className="px-4 py-3 text-sm text-gray-700 dark:text-gray-300 font-medium">
                           {selectedPersona ? `${selectedPersona}'s Alternative Copy` : 'Restyled Alternative Copy'}
                         </td>

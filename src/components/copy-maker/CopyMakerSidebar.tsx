@@ -424,9 +424,9 @@ interface ZoneTheme {
   border: string;
 }
 
-const SESSION_ZONE: ZoneTheme = { accent: '#8457d1', bg: '#f6f2fd', border: '#e5d9f8' };
-const VERSION_ZONE: ZoneTheme = { accent: '#2f6fd6', bg: '#f0f5fd', border: '#dbe6f9' };
-const ADMIN_ZONE: ZoneTheme = { accent: '#c2703d', bg: '#fdf3ec', border: '#f3ddc7' };
+const SESSION_ZONE: ZoneTheme = { accent: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' };
+const VERSION_ZONE: ZoneTheme = { accent: '#6b7280', bg: '#f9fafb', border: '#e5e7eb' };
+const ADMIN_ZONE: ZoneTheme   = { accent: '#ff6b35', bg: '#fff4ed', border: '#ffe4d5' };
 
 function ZoneHeader({ label, theme }: { label: string; theme: ZoneTheme }) {
   return (

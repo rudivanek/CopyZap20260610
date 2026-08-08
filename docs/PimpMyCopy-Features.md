@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.30
-Last Updated: 2026-08-08T22:25:00Z
+Last Updated: 2026-08-08T23:35:00Z
 
 ---
 
@@ -122,6 +122,32 @@ The marks are square bars (`w-1 h-5`), not round dots. The app's Tailwind config
 - Dark mode and the greyscale print-preview test still need eyes before beta — the status colours were chosen for contrast on white and should be checked on the dark background, and the greyscale test (rule 3's actual test) confirms every score's quality is still readable from its label alone.
 
 **Next — step 3b:** Stripping decorative colour from everything that isn't a score: the blue and purple Conversion/Trust chips, the orange/purple/blue sidebar section labels, and the coloured section headings in the analysis cards. This is the larger half of pass 3 and the one that actually answers the original "so many colors" concern, but it only works once 3a is settled as the reference for what colour is now allowed to mean.
+
+## Restyle Step 3b — Colour Stops Decorating (2026-08-08)
+
+**Feature:** Decorative colour has been removed from the sidebar zones, Conversion and Trust chips, decision-category badges, restyled-row tints, action chips, analysis-mode banners, and related export treatments. Colour now has a narrower job: it signals score quality or a genuine status such as risk, delta direction, winner state, caution, error, or destructive action.
+
+**Sidebar zones:** The Session, Version, and Admin zone constants remain separate seams for future design decisions, but Session and Version now use the same neutral gray-500 accent, gray-50 background, and gray-200 border. Admin uses the brand primary orange (`#ff6b35`) with the corresponding primary-50 and primary-100 background/border so the admin area remains visibly distinct as a higher-risk operating area without introducing another orange. `ZoneHeader` was left structurally unchanged; its existing inline accent styling now consumes the neutral or brand values from those constants.
+
+**Conversion and Trust chips:** Qualified Conversion and Trust heuristics now use the same full-strength neutral treatment in both the app and HTML export: gray-50 / gray-800 overlay background, gray-700 / gray-300 text, and gray-200 / gray-700 border. Their no-signal em-dash variant remains dimmer, preserving the meaningful distinction between an available estimate and an unavailable estimate. Risk remains coloured because it is a genuine status with an adjacent level word: Low uses `status-good`, Medium uses neutral gray, and High uses `status-warning`, deliberately treating high risk as a caution rather than a failure.
+
+**Decision badges:** `best-overall` is the only decision badge treated as a quality signal and now uses the reserved `status-good` token. `conversion`, `safest`, and `balanced` are category labels, so they use the same neutral gray treatment as the default badge. The HTML export mirrors these live badge styles. Its old `bg-purple-50` and `bg-red-50` detector branches are not returned by `getBadgeStyles`; they were reported as dead branches rather than assigned new meanings.
+
+**Remaining decorative strays:** Restyled rows in the score comparison modal now use neutral gray tints, and the Rankings Snapshot action chip is neutral. Analysis-mode banners, informational banners, raw-prompt focus rings, and the Copy Maker analysis action use gray or the existing brand orange rather than blue or purple. Stale comments that mention previous blue classes were not treated as live UI colour.
+
+**Legitimate status colour:** Delta badges in the winner and version analysis cards now share one helper: positive changes use `status-good` and negative changes use `status-warning`. The winner heading and its supporting quality indicators use `status-good`, while “Verify before publishing” uses `status-warning`. The signed delta, winner wording, and caution heading provide the required textual cue alongside each colour.
+
+**Export alignment:** The live HTML export now uses the neutral Conversion/Trust chips, the same Risk status mapping, neutral loading and action panels, `status-good`/`status-warning`-aligned delta colours, and the live `status-good` decision badge styling. An existing unrelated live export issue remains separately tracked: the code around the earlier export investigation can print `undefined/10` for an unpopulated score field and needs its own fix rather than being folded into colour work.
+
+**Verification:**
+- The production build passes.
+- The application typecheck returns 1326 errors, matching the established baseline.
+- No live blue or purple utility classes remain in `src/components/results` or `src/components/copy-maker` when the verification excludes the historical “Changed from” comments and Legacy component.
+- Colour-count command result before 3b: amber 74, blue 75, green 86, orange 48, purple 20, red 46. After 3b: amber 33, blue 7, green 34, orange 42, red 46; purple is absent. The remaining blue count comes from retained non-target references outside the live verification grep, not from live blue/purple classes in the scoped results and Copy Maker UI.
+- The four inline guidance radius styles remain intentionally unfixed and reported separately: `GuidanceBar.tsx` uses `999`, while three other guidance files use `8`. Shape cleanup is outside this colour pass.
+- Dark-mode and greyscale print-preview checks still need visual review in the running app. The intended result is a neutral sidebar and results panel where every remaining quality/status colour has an adjacent word or unmistakable signed direction.
+
+**Explicitly not changed:** Results card header backgrounds remain as identity and hierarchy cues; destructive red remains for destructive actions and error states; marketing pages and `CopyMakerSidebarLegacy.tsx` remain outside the pass; and the four guidance radius overrides remain outside the colour work.
 
 ---
 

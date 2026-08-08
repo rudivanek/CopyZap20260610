@@ -3,7 +3,7 @@ import {
   Award, CheckCircle, AlertTriangle, Target,
   RefreshCw, Eye, Clock, Trophy, ChevronDown, ChevronUp
 } from 'lucide-react';
-import { getScoreTextClass, getScoreMarkClass } from '../../../utils/scoreColors';
+import { getScoreTextClass, getScoreMarkClass, deltaBadgeClass } from '../../../utils/scoreColors';
 import { VersionDeepAnalysis, AbsoluteScoreBreakdown } from '../../../types';
 import { formatDeltaFromParts, getComparisonDelta } from '../../../utils/comparisonDelta';
 import { SubScoreChips } from '../SubScoreChips';
@@ -59,7 +59,7 @@ interface SectionProps {
 
 const Section: React.FC<SectionProps> = ({ label, children, isWinner = false }) => (
   <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-3">
-    <span className={`text-xs font-bold uppercase tracking-widest ${isWinner ? 'text-green-600' : 'text-gray-400 dark:text-gray-600'}`}>
+    <span className={`text-xs font-bold uppercase tracking-widest ${isWinner ? 'text-status-good' : 'text-gray-400 dark:text-gray-600'}`}>
       {label}
     </span>
     <div className="mt-2.5">{children}</div>
@@ -101,11 +101,6 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
   const showDelta = !isBaseline && deltaPoints != null && deltaPercent != null;
   const delta = showDelta ? formatDeltaFromParts(deltaPoints!, deltaPercent!) : null;
 
-  const deltaBadgeClass = (positive: boolean) =>
-    positive
-      ? 'text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-      : 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800';
-
   const isWinner = row.isWinner && !isBaseline;
 
   const cardClass = isBaseline
@@ -116,7 +111,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
   const cardLeftBorderStyle = isBaseline
     ? {}
     : isWinner
-    ? { borderLeftWidth: '3px', borderLeftColor: '#22c55e', borderLeftStyle: 'solid' as const }
+    ? { borderLeftWidth: '3px', borderLeftColor: '#0ca30c', borderLeftStyle: 'solid' as const }
     : { borderLeftWidth: '1.5px', borderLeftColor: '#86efac', borderLeftStyle: 'solid' as const };
 
   const summaryLine = isWinner
@@ -146,7 +141,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
           <div className="flex-1 min-w-0">
             <div className="flex items-center gap-2 flex-wrap">
               {isWinner && (
-                <Award className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
+                <Award className="w-3.5 h-3.5 text-status-good flex-shrink-0" />
               )}
               <span className={`text-sm ${isWinner ? 'font-extrabold text-gray-900 dark:text-white' : isBaseline ? 'font-semibold text-gray-500 dark:text-gray-400' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
                 {isBaseline ? row.optionLabel : (
@@ -275,7 +270,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
                   <ul className="space-y-1.5">
                     {winnerBreakdown.whatItDoesBetter.map((advantage, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
-                        <CheckCircle className="w-3.5 h-3.5 text-green-600 mt-0.5 flex-shrink-0" />
+                        <CheckCircle className="w-3.5 h-3.5 text-status-good mt-0.5 flex-shrink-0" />
                         <span className="leading-relaxed">{advantage}</span>
                       </li>
                     ))}
@@ -323,13 +318,13 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
 
               {/* Verification Flags */}
               {row.verificationFlags && row.verificationFlags.length > 0 && (
-                <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-900/40">
-                  <div className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200 mb-2">
+                <div className="mt-3 p-3 bg-status-warning/10 dark:bg-status-warning/20 rounded-lg border border-status-warning/30 dark:border-status-warning/40">
+                  <div className="text-xs font-bold uppercase tracking-wider text-status-warning dark:text-status-warning mb-2">
                     Verify before publishing
                   </div>
                   <ul className="space-y-1.5">
                     {row.verificationFlags.map((flag, idx) => (
-                      <li key={idx} className="flex items-start gap-2 text-xs text-amber-800 dark:text-amber-300">
+                      <li key={idx} className="flex items-start gap-2 text-xs text-status-warning dark:text-status-warning">
                         <span className="flex-shrink-0 mt-0.5">•</span>
                         <span className="leading-snug">{flag}</span>
                       </li>
@@ -345,13 +340,13 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
                     {analysis.keyStrengths && analysis.keyStrengths.length > 0 && (
                       <div>
                         <div className="flex items-center gap-1.5 mb-2">
-                          <CheckCircle className="w-3 h-3 text-green-600 dark:text-green-400" />
+                          <CheckCircle className="w-3 h-3 text-status-good dark:text-status-good" />
                           <span className="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider">Key Strengths</span>
                         </div>
                         <ul className="space-y-1.5" id={`breakdown-${row.versionId}-output`}>
                           {analysis.keyStrengths.map((s, idx) => (
                             <li key={idx} className="text-sm text-gray-700 dark:text-gray-300 leading-snug flex items-start gap-1.5">
-                              <span className="text-green-500 mt-0.5 flex-shrink-0">•</span>
+                              <span className="text-status-good mt-0.5 flex-shrink-0">•</span>
                               {s}
                             </li>
                           ))}
@@ -368,7 +363,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
                       return (
                         <div>
                           <div className="flex items-center gap-1.5 mb-2">
-                            <AlertTriangle className="w-3 h-3 text-green-600 dark:text-green-500" />
+                            <AlertTriangle className="w-3 h-3 text-gray-400 dark:text-gray-600" />
                             <span className="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider">Suggested Improvements</span>
                             {totalDeltaPoints > 0 && (
                               <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 ml-auto">
@@ -384,10 +379,10 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
 
                               return (
                                 <li key={idx} className="text-sm text-gray-700 dark:text-gray-300 leading-snug flex items-start gap-2">
-                                  <span className="text-green-500 mt-0.5 flex-shrink-0">•</span>
+                                  <span className="text-gray-400 dark:text-gray-600 mt-0.5 flex-shrink-0">•</span>
                                   <span className="flex-1">{text}</span>
                                   {pointsDelta && pointsDelta > 0 && (
-                                    <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 flex-shrink-0 whitespace-nowrap">
+                                    <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700 flex-shrink-0 whitespace-nowrap">
                                       +{pointsDelta} pts
                                     </span>
                                   )}
@@ -406,7 +401,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
               {analysis.strategicRecommendation && (
                 <Section label="Strategic Recommendation" isWinner={isWinner}>
                   <div className="flex items-start gap-2">
-                    <Target className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <Target className="w-4 h-4 text-status-good mt-0.5 flex-shrink-0" />
                     <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                       {analysis.strategicRecommendation}
                     </p>
@@ -435,7 +430,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
               {isWinner && winnerFactors && (
                 <Section label="Decision Factors" isWinner={true}>
                   <div className="flex items-start gap-2">
-                    <Trophy className="w-4 h-4 text-green-600 mt-0.5 flex-shrink-0" />
+                    <Trophy className="w-4 h-4 text-status-good mt-0.5 flex-shrink-0" />
                     <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">
                       {winnerFactors.adjustmentImpact !== 0 && (
                         <>{winnerFactors.adjustmentImpact > 0 ? '+' : ''}{winnerFactors.adjustmentImpact} AI refinement</>
@@ -460,7 +455,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
                   <ul className="space-y-1.5">
                     {winnerBreakdown.tradeoffs.map((tradeoff, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">
-                        <AlertTriangle className="w-3.5 h-3.5 text-amber-500 mt-0.5 flex-shrink-0" />
+                        <AlertTriangle className="w-3.5 h-3.5 text-status-warning mt-0.5 flex-shrink-0" />
                         <span className="leading-relaxed">{tradeoff}</span>
                       </li>
                     ))}

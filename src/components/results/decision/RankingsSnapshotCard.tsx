@@ -6,6 +6,7 @@ import { getDecisionBadgeForVersion, getBadgeStyles, DecisionBadge } from '../..
 import { SubScoreChips } from '../SubScoreChips';
 import { formatLocalDateTime } from '../../../utils/dateFormatting';
 import { AbsoluteScoreBreakdown } from '../../../types';
+import { deltaBadgeClass } from '../../../utils/scoreColors';
 
 function getAbsoluteScoreColor(total: number): string {
   if (total <= 65) return '#dc2626';
@@ -150,7 +151,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
               onClick={() => setShowAbsolute(prev => !prev)}
               className={`text-xs font-semibold px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
                 showAbsolute
-                  ? 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
+                  ? 'text-gray-700 dark:text-gray-300 bg-gray-100 dark:bg-gray-800 border-gray-300 dark:border-gray-600'
                   : 'text-gray-400 dark:text-gray-600 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:text-gray-600 dark:hover:text-gray-400'
               }`}
             >
@@ -169,11 +170,11 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
 
           const delta = isBaseline ? null : getComparisonDelta(row.finalScore, baselineScore);
 
-          const deltaBadgeClass = delta
+          const deltaBadgeClasses = delta
             ? delta.positive
-              ? 'text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
+              ? deltaBadgeClass(delta.positive)
               : delta.negative
-              ? 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'
+              ? deltaBadgeClass(false)
               : 'text-gray-500 dark:text-gray-500 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700'
             : '';
 
@@ -184,8 +185,8 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
 
           const absDeltaClass = absDelta
             ? absDelta.positive
-              ? 'text-green-700 dark:text-green-400 bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800'
-              : 'text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800'
+              ? deltaBadgeClass(absDelta.positive)
+              : deltaBadgeClass(false)
             : '';
 
           const subScores = row.contentText ? calculateMultiScoreDisplay(row.contentText) : null;
@@ -200,7 +201,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
               key={row.versionId}
               className={[
                 'flex items-start gap-3 py-3 transition-colors',
-                row.isWinner ? 'border-l-2 border-l-green-600 pl-3 pr-4' : 'px-4',
+                row.isWinner ? 'border-l-2 border-l-status-good pl-3 pr-4' : 'px-4',
               ].join(' ')}
             >
               {/* Rank number */}
@@ -280,7 +281,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
               <div className="flex items-center gap-2 flex-shrink-0">
                 {delta && !delta.neutral && (
                   <span
-                    className={`text-xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${deltaBadgeClass}`}
+                    className={`text-xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${deltaBadgeClasses}`}
                   >
                     {delta.label}
                   </span>

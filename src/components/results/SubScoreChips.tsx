@@ -81,15 +81,17 @@ export const SubScoreChips: React.FC<SubScoreChipsProps> = ({
   return (
     <div className="flex flex-col gap-2">
       <div className="inline-flex items-center gap-1.5 flex-wrap">
-      {/* Conversion - Blue tone, or muted when no signal */}
+      {/* Conversion — neutral; the heuristic is qualified, so colouring it like a
+          live measurement would be misleading. Full-strength neutral, brighter
+          than the muted no-signal variant below. */}
       {hasSignal ? (
         <span
-          className={`${baseChipClass} bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-900`}
+          className={`${baseChipClass} bg-gray-50 dark:bg-gray-800/40 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700`}
         >
-          <span className="font-normal text-blue-600 dark:text-blue-500">Conversion</span>
+          <span className="font-normal text-gray-500 dark:text-gray-400">Conversion</span>
           <span className="font-semibold tabular-nums">
             {conversion}
-            <span className="font-normal text-blue-400 dark:text-blue-600">/100</span>
+            <span className="font-normal text-gray-400 dark:text-gray-500">/100</span>
           </span>
         </span>
       ) : (
@@ -99,15 +101,15 @@ export const SubScoreChips: React.FC<SubScoreChipsProps> = ({
         </span>
       )}
 
-      {/* Trust - Purple tone, or muted when no signal */}
+      {/* Trust — neutral, same rationale as Conversion. */}
       {hasSignal ? (
         <span
-          className={`${baseChipClass} bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 border border-purple-100 dark:border-purple-900`}
+          className={`${baseChipClass} bg-gray-50 dark:bg-gray-800/40 text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700`}
         >
-          <span className="font-normal text-purple-600 dark:text-purple-500">Trust</span>
+          <span className="font-normal text-gray-500 dark:text-gray-400">Trust</span>
           <span className="font-semibold tabular-nums">
             {trust}
-            <span className="font-normal text-purple-400 dark:text-purple-600">/100</span>
+            <span className="font-normal text-gray-400 dark:text-gray-500">/100</span>
           </span>
         </span>
       ) : (
@@ -117,23 +119,18 @@ export const SubScoreChips: React.FC<SubScoreChipsProps> = ({
         </span>
       )}
 
-      {/* Risk - Neutral/warning tone based on level (always live) */}
+      {/* Risk — genuine status signal with three levels. Low → status-good,
+          Medium → neutral, High → status-warning (a caution, not a failure). */}
       <span
         className={`${baseChipClass} ${
           risk === 'High'
-            ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-900'
+            ? 'bg-status-warning/10 dark:bg-status-warning/20 text-status-warning border border-status-warning/30 dark:border-status-warning/40'
             : risk === 'Medium'
-            ? 'bg-gray-50 dark:bg-gray-950/30 text-gray-600 dark:text-gray-400 border border-gray-100 dark:border-gray-900'
-            : 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border border-green-100 dark:border-green-900'
+            ? 'bg-gray-50 dark:bg-gray-800/40 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700'
+            : 'bg-status-good/10 dark:bg-status-good/20 text-status-good border border-status-good/30 dark:border-status-good/40'
         }`}
       >
-        <span className={`font-normal ${
-          risk === 'High'
-            ? 'text-amber-600 dark:text-amber-500'
-            : risk === 'Medium'
-            ? 'text-gray-500 dark:text-gray-500'
-            : 'text-green-600 dark:text-green-500'
-        }`}>
+        <span className="font-normal">
           Risk
         </span>
         <span className="font-semibold">{risk}</span>
@@ -153,13 +150,13 @@ export const SubScoreChips: React.FC<SubScoreChipsProps> = ({
           {hasSignal ? (
             <>
               <div>
-                <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">Conversion:</span>
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Conversion:</span>
                 <p className="text-xs text-gray-700 dark:text-gray-300 mt-0.5 leading-relaxed">
                   {getConversionExplanation(conversion)}
                 </p>
               </div>
               <div>
-                <span className="text-xs font-semibold text-purple-700 dark:text-purple-400">Trust:</span>
+                <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Trust:</span>
                 <p className="text-xs text-gray-700 dark:text-gray-300 mt-0.5 leading-relaxed">
                   {getTrustExplanation(trust)}
                 </p>

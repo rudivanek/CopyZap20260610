@@ -61,6 +61,14 @@ export function getScoreMarkClass(score: number | undefined): string {
   return getScoreBgClass(score);
 }
 
+// Shared delta badge styling — positive deltas map to status-good, negative to
+// status-warning. One helper so the two cards that render deltas stay in sync.
+export function deltaBadgeClass(positive: boolean): string {
+  return positive
+    ? 'text-status-good bg-status-good/10 border border-status-good/30'
+    : 'text-status-warning bg-status-warning/10 border border-status-warning/30';
+}
+
 export function getScoreLabel(score: number | undefined): string {
   if (!score || score === 0) {
     return '';
