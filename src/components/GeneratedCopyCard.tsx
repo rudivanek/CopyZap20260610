@@ -992,6 +992,15 @@ const GeneratedCopyCard: React.FC<GeneratedCopyCardProps> = ({
                 <span className={`text-xs ${card.type === GeneratedContentItemType.GeoOptimized ? 'text-gray-500 dark:text-gray-400' : 'text-white'}`}>↳ derived from above</span>
               )}
             </h2>
+            {card.sourceNote && (
+              <p className={`text-[11px] mt-1 leading-snug ${
+                card.type === GeneratedContentItemType.GeoOptimized
+                  ? 'text-gray-500 dark:text-gray-400'
+                  : 'text-white/75'
+              }`}>
+                {card.sourceNote}
+              </p>
+            )}
             {card.blendInstructions && (
               <div className={`text-xs mt-0.5 italic ${card.type === GeneratedContentItemType.GeoOptimized ? 'text-gray-500 dark:text-gray-400' : 'text-white'}`}>
                 Special Instructions: {card.blendInstructions}

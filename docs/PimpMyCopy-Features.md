@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.24
-Last Updated: 2026-08-08T17:14:22Z
+Version: 1.25
+Last Updated: 2026-08-08T17:20:00Z
 
 ---
 
@@ -6892,3 +6892,27 @@ The wizard's mode selector previously offered three options: "Make new copy" (`c
 **Verification:** `grep -c "Analyzed by AI" src/` returns 0 hits. `grep -c "Combine versions" src/components/copy-maker/CopyMakerSidebar.tsx` returns 2 (comment + label). `grep -c "Blend Best Version" src/components/copy-maker/CopyMakerSidebar.tsx` returns 0. `grep -c "Generate Best Elements Summary" src/components/copy-maker/CopyMakerTab/sections/ResultsPanel.tsx` returns 0. `grep -c "Build this version" src/components/results/BestElementsCard.tsx` returns 1. `grep -c "Blend Best Version" src/components/copy-maker/CopyMakerSidebarLegacy.tsx` returns 3 (untouched). `npm run build` passes; `npx tsc --noEmit -p tsconfig.app.json` shows only pre-existing errors in the touched files (unused imports, `ComparisonResult | null` narrowing) — none introduced by this change.
 
 **Honest caveat:** Build passes and wiring is type-correct, but I could not open the sidebar in a browser to visually confirm the dropdown opens, both options trigger the correct path, the Best Elements card appears in the results area after the compile option runs, and "Build this version" produces the combined output. The final functional check in the editor is yours to run.
+
+---
+
+## Keep the Best Parts — One-Click Assembly and Provenance Footnote (2026-08-08)
+
+**Feature:** The sidebar option **Keep the best parts as they are** now completes the entire best-elements flow in one action. A click first analyzes the strongest element for each dimension, then immediately assembles those elements into a new output card. The intermediate Best Elements Summary panel and its separate confirmation button no longer appear anywhere in the results area.
+
+**Combined flow (`src/components/copy-maker/CopyMakerTab/CopyMakerTab.tsx`):** `handleGenerateBestElements` still requires a comparison and at least two eligible versions, calls `generateBestElements`, and stores the returned `bestElementsResult` in `formState.copyResult`. It then passes that result directly into `handleCompileBestElements(result)` rather than reading it back from form state, avoiding the stale-state problem caused by asynchronous state updates. The compile step calls `compileBestElements`, creates the `Compiled: Best Elements` output card, generates its absolute score, appends it to the generated versions, scrolls to the new card, and opens the existing regenerate-analysis prompt when comparison data exists. The user sees one progress sequence — "Analyzing best elements across all versions…" followed by "Assembling into a new version…" — and one final success toast.
+
+**Provenance footnote:** Each compiled card receives an optional `sourceNote` on `GeneratedContentItem`, assembled from the analysis elements as `Assembled from: <version name> (<dimension>), …`. `GeneratedCopyCard` renders this as muted text beneath the title in both header layouts.
+
+**Panel removal:** `src/components/results/BestElementsCard.tsx` was deleted. `ResultsPanel.tsx` no longer imports or renders the panel. The floating navigation no longer links to the deleted summary anchor, and the parent no longer passes the removed `hasBestElements` prop.
+
+**Files modified:** `src/components/copy-maker/CopyMakerTab/CopyMakerTab.tsx`, `src/components/copy-maker/CopyMakerTab/sections/ResultsPanel.tsx`, `src/components/GeneratedCopyCard.tsx`, `src/components/FloatingOutputNavigation.tsx`, `src/types/index.ts`, and `src/components/results/BestElementsCard.tsx` (deleted).
+
+---
+
+## Provenance Footnote Rendered in Full Header Layout (2026-08-08)
+
+**Feature:** The "Assembled from: …" provenance line now renders on compiled Best Elements cards in the full coloured header layout, not only the compact/indented branch. Previously the line was stored on every compiled card but was invisible in practice because top-level compiled cards use the full header, which did not reference `sourceNote`.
+
+**Fix (`src/components/GeneratedCopyCard.tsx`):** Added a `sourceNote` paragraph as a sibling directly after the `<h2>` title inside the `min-w-0` container of the full header branch. The note uses a softened variant of the title's color conditional: `text-white/75` on colored headers where the title is white, and `text-gray-500 dark:text-gray-400` on the GEO-optimized light header. The compact branch render is unchanged. Cards without `sourceNote` render no extra line in either branch.
+
+**Verification:** `npm run build` passes. `npx tsc --noEmit -p tsconfig.app.json 2>&1 | grep GeneratedCopyCard` shows no new errors beyond pre-existing ones.
