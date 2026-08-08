@@ -1397,6 +1397,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
   // Two-zone redesign: per-zone dropdown state. Legacy section-collapse state removed.
   const [saveOpen, setSaveOpen] = useState(false);
   const [reportsOpen, setReportsOpen] = useState(false);
+  const [combineOpen, setCombineOpen] = useState(false);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [rescoringCardIds, setRescoringCardIds] = useState<Set<string>>(new Set());
 
@@ -2157,15 +2158,39 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                 />
               )}
 
-              {/* 4. Blend Best Version */}
-              {onBlendVersions && (
-                <ZoneItem
-                  icon={GitMerge}
-                  label={isBlending ? 'Blending…' : 'Blend Best Version'}
-                  onClick={() => onBlendVersions()}
-                  disabled={!comparisonResult || isBlending}
-                  title={!comparisonResult ? 'Score your copies first' : 'Blend the best-performing versions into one'}
-                />
+              {/* 4. Combine versions — dropdown (blend rewrite + best-elements compile) */}
+              {(onBlendVersions || onGenerateBestElements) && (
+                <>
+                  <ZoneItem
+                    icon={GitMerge}
+                    label={isBlending ? 'Blending…' : isGeneratingBestElements ? 'Compiling…' : 'Combine versions'}
+                    onClick={() => setCombineOpen(o => !o)}
+                    disabled={!comparisonResult || isBlending || isGeneratingBestElements}
+                    expanded={combineOpen}
+                    title={!comparisonResult ? 'Score your copies first' : 'Combine your versions into one'}
+                    trailing={<ChevronDown size={10} className={combineOpen ? 'rotate-180 transition-transform' : 'transition-transform'} />}
+                  />
+                  {combineOpen && (
+                    <InlineFlyout>
+                      {onBlendVersions && (
+                        <FlyoutOption
+                          label="Write a fresh version"
+                          onClick={() => onBlendVersions()}
+                          disabled={isBlending}
+                          title="The AI rewrites all versions into one. Wording may change."
+                        />
+                      )}
+                      {onGenerateBestElements && (
+                        <FlyoutOption
+                          label="Keep the best parts as they are"
+                          onClick={onGenerateBestElements}
+                          disabled={sortedGeneratedVersions.length < 2 || isGeneratingBestElements}
+                          title="Takes the strongest section from each version, word for word."
+                        />
+                      )}
+                    </InlineFlyout>
+                  )}
+                </>
               )}
 
               {/* 5. Reports — side panel (regular + admin items) */}

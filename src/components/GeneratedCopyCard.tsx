@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Copy, Check, Wand2, Sparkles, BookCheck, Globe, Code, MapPin, CreditCard as Edit, Lightbulb, Search, Trash2, BookOpen, Loader2, ChevronDown, ChevronRight, Zap } from 'lucide-react';
+import { Copy, Check, Sparkles, BookCheck, Globe, Code, MapPin, CreditCard as Edit, Lightbulb, Search, Trash2, BookOpen, Loader2, ChevronDown, ChevronRight, Zap } from 'lucide-react';
 import { GeneratedContentItem, GeneratedContentItemType, FormState, StructuredCopyOutput, MAX_BOOST_ITERATIONS, MAX_BOOST_SCORE_THRESHOLD } from '../types';
 import { stripMarkdown } from '../utils/markdownUtils';
 import { computeWordCountAndReadingLevel } from '../utils/multiScoreDisplay';
@@ -40,8 +40,6 @@ interface GeneratedCopyCardProps {
   onDelete?: () => void;
   targetWordCount?: number;
   onSaveAsBrandVoice?: (content: string) => void;
-  onBlendVersions?: (grokAnalysisContent: string) => void;
-  isBlending?: boolean;
   onUpdateCard?: (cardId: string, updates: Partial<GeneratedContentItem>) => void;
   allCards?: GeneratedContentItem[];
   comparisonResult?: any;
@@ -66,8 +64,6 @@ const GeneratedCopyCard: React.FC<GeneratedCopyCardProps> = ({
   onDelete,
   targetWordCount,
   onSaveAsBrandVoice,
-  onBlendVersions,
-  isBlending,
   onUpdateCard,
   allCards = [],
   comparisonResult,
@@ -1118,34 +1114,6 @@ const GeneratedCopyCard: React.FC<GeneratedCopyCardProps> = ({
                           <h4 className="text-sm font-semibold text-gray-700 dark:text-gray-300">
                             AI Analysis Summary{isAdmin && card.analysisModel ? ` (${card.analysisModel === 'gpt-4o' ? 'GPT-4o' : 'DeepSeek'})` : ''}:
                           </h4>
-                          {onBlendVersions && (
-                            <Button
-                              onClick={() => onBlendVersions(contentDetails.originalText || contentDetails.text)}
-                              disabled={isBlending}
-                              className="flex items-center gap-2 bg-gray-900 dark:bg-gray-50 text-white dark:text-gray-900 border-2 border-gray-900 dark:border-gray-50 hover:bg-gray-800 dark:hover:bg-gray-200"
-                              size="sm"
-                            >
-                              {isBlending ? (
-                                <>
-                                  <svg className="w-4 h-4 animate-spin" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
-                                    <defs>
-                                      <linearGradient id="spinnerGradientGCC" x1="0%" y1="0%" x2="100%" y2="100%">
-                                        <stop offset="0%" stopColor="#ff6b35" />
-                                        <stop offset="100%" stopColor="#ffa07a" />
-                                      </linearGradient>
-                                    </defs>
-                                    <circle cx="25" cy="25" r="20" fill="none" stroke="url(#spinnerGradientGCC)" strokeWidth="5" strokeLinecap="round" strokeDasharray="90, 150" />
-                                  </svg>
-                                  Blending...
-                                </>
-                              ) : (
-                                <>
-                                  <Wand2 className="w-4 h-4" />
-                                  Blend Versions
-                                </>
-                              )}
-                            </Button>
-                          )}
                         </div>
                         <ComparisonTable
                           content={contentDetails.originalText || contentDetails.text}

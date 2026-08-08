@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.23
-Last Updated: 2026-08-07T20:10:00Z
+Version: 1.24
+Last Updated: 2026-08-08T00:00:00Z
 
 ---
 
@@ -6860,3 +6860,35 @@ The wizard's mode selector previously offered three options: "Make new copy" (`c
 - `grep -rn "QuickPolishMode\|QuickPolishConfig\|'polish'" src/` returns no hits in the wizard or Start Hub. Hits inside `src/features/quickPolish/` are expected and untouched.
 - `npx tsc --noEmit` passes.
 - `npm run build` passes.
+
+---
+
+## Combine Versions — Merged Blend + Best Elements (2026-08-08)
+
+**Feature:** Consolidated two overlapping "combine your versions" features — **Blend Best Version** (sidebar, rewrite path) and **Compile Best Elements** (results-area trigger, verbatim-stitch path) — into one sidebar dropdown with two clearly-worded options, and removed a third fabricated-data entry point entirely. The Best Elements breakdown card stays in the results area as a preview of what the compile path produces.
+
+**Why:** Both features legitimately differ — Blend rewrites all versions into fresh wording; Best Elements stitches the strongest section from each version word-for-word — but nothing communicated that. The labels were synonyms, the triggers lived in different parts of the UI so they didn't read as alternatives, and the difference a user actually cares about (*does my wording survive?*) was invisible. A third "Blend" button on the AI Analysis Summary card compounded the confusion and ran on invented comparison data.
+
+**Task 1 — Sidebar dropdown (`src/components/copy-maker/CopyMakerSidebar.tsx`):** Replaced the standalone "Blend Best Version" `ZoneItem` with a `ZoneItem` + `InlineFlyout` dropdown matching the existing Save/Score/Copy pattern. Added `combineOpen` state alongside `saveOpen`/`scoreOpen`/`reportsOpen`.
+
+- **Parent item:** label `Combine versions`, keeps the `GitMerge` icon. Disabled when `!comparisonResult` (same gating as before) with title "Score your copies first" when disabled, otherwise "Combine your versions into one". Shows `Blending…` or `Compiling…` as the label while either operation runs.
+- **Option 1 — "Write a fresh version"** → calls `onBlendVersions()` with **no argument** (the real-comparison-data path). Hover: "The AI rewrites all versions into one. Wording may change."
+- **Option 2 — "Keep the best parts as they are"** → calls `onGenerateBestElements()`. Gated on `sortedGeneratedVersions.length >= 2` (the same condition the results-area button used). Hover: "Takes the strongest section from each version, word for word."
+
+**Task 2 — Results-area trigger removed (`src/components/copy-maker/CopyMakerTab/sections/ResultsPanel.tsx`):** Deleted the standalone purple "Generate Best Elements Summary" button block (button + helper paragraph). The breakdown card display block is kept exactly as-is — it renders only when `bestElementsResult` exists, so once the sidebar option runs, the card appears here as before. `onGenerateBestElements`/`isGeneratingBestElements` props remain declared on `ResultsPanel` because the sidebar still threads them through; only the per-file button usage is gone.
+
+**Task 3 — Compile button relabel (`src/components/results/BestElementsCard.tsx`):** Changed the confirm-step button from "Compile Best Elements → New Output" to "Build this version", with "Building…" for the in-progress state. The card heading "Best Elements Summary" and subtitle "What to take from each version" are unchanged.
+
+**Task 4 — Fabricated comparison data removed (`src/components/copy-maker/CopyMakerTab/CopyMakerTab.tsx`):** `handleBlendVersions` previously, when called with an `analysisContent` argument, built a `mockComparisonResult` with `score: 80`, `overallScore: 80`, fake `pros: ['Analyzed by AI', 'Selected for blending']`, and a placeholder `metrics` block (`tone: 'Professional'`, `readability: 'High'`, etc.) for every version — all passed to the blend API as if real. The constructed object now omits `score`/`overallScore` entirely, drops the fake `pros` and `metrics` block, and keeps only fields genuinely derived from the analysis text (`versionTitle`, `bestUsedFor`, `reasoning`, `strategicRecommendation`). The real `comparisonResult` path (no argument) is unchanged and was always honest.
+
+**Task 4 follow-through (`src/services/api/blendedCopy.ts`):** Made `score` optional on `NormalizedDetail` (it was previously required), changed the sort to `(b.score ?? 0) - (a.score ?? 0)` so missing scores don't throw, and made the per-version prompt string conditionally include the score (`detail.score !== undefined ? \` (Score: ${detail.score}/100)\` : ''`) rather than printing `undefined`. This lets the analysis-text path send less information rather than confidently wrong information.
+
+**Task 5 — Third entry point removed (`src/components/GeneratedCopyCard.tsx`):** Deleted the "Blend" button from the AI Analysis Summary card header, along with its `isBlending` spinner branch. This button called `onBlendVersions(contentDetails.originalText || contentDetails.text)` — the argument-passing form that triggered the fabricated-data path — and was the worst-informed of the three doors. With the sidebar now offering one clear door to both combine actions, this third door worked against the consolidation. The `onBlendVersions`/`isBlending` props were unused after the removal, so they were removed from the component's interface and destructuring, and `ResultsPanel.tsx` stopped passing them to this component. (`ResultsPanel` still keeps `onBlendVersions`/`isBlending` in its own props because the sidebar uses them.) The `Wand2` import was removed from `GeneratedCopyCard` since nothing else in the file used it.
+
+**Files modified:** `src/components/copy-maker/CopyMakerSidebar.tsx`, `src/components/copy-maker/CopyMakerTab/sections/ResultsPanel.tsx`, `src/components/results/BestElementsCard.tsx`, `src/components/copy-maker/CopyMakerTab/CopyMakerTab.tsx`, `src/services/api/blendedCopy.ts`, `src/components/GeneratedCopyCard.tsx`.
+
+**Not touched:** `src/components/copy-maker/CopyMakerSidebarLegacy.tsx` — the pre-redesign fallback keeps its old Blend entry, as the duplication this fix addresses came from the flattening edit in the main sidebar only.
+
+**Verification:** `grep -c "Analyzed by AI" src/` returns 0 hits. `grep -c "Combine versions" src/components/copy-maker/CopyMakerSidebar.tsx` returns 2 (comment + label). `grep -c "Blend Best Version" src/components/copy-maker/CopyMakerSidebar.tsx` returns 0. `grep -c "Generate Best Elements Summary" src/components/copy-maker/CopyMakerTab/sections/ResultsPanel.tsx` returns 0. `grep -c "Build this version" src/components/results/BestElementsCard.tsx` returns 1. `grep -c "Blend Best Version" src/components/copy-maker/CopyMakerSidebarLegacy.tsx` returns 3 (untouched). `npm run build` passes; `npx tsc --noEmit -p tsconfig.app.json` shows only pre-existing errors in the touched files (unused imports, `ComparisonResult | null` narrowing) — none introduced by this change.
+
+**Honest caveat:** Build passes and wiring is type-correct, but I could not open the sidebar in a browser to visually confirm the dropdown opens, both options trigger the correct path, the Best Elements card appears in the results area after the compile option runs, and "Build this version" produces the combined output. The final functional check in the editor is yours to run.

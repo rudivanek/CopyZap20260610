@@ -13,7 +13,7 @@ export interface BlendedCopyResult {
 interface NormalizedDetail {
   versionId?: string;
   versionTitle: string;
-  score: number;
+  score?: number;
   pros: string[];
   cons: string[];
   bestUsedFor?: string;
@@ -60,7 +60,7 @@ export async function generateBlendedCopy(
   const normalizedDetails = normalizeComparisonDetails(comparisonResult, versions);
 
   const topVersions = [...normalizedDetails]
-    .sort((a, b) => b.score - a.score)
+    .sort((a, b) => (b.score ?? 0) - (a.score ?? 0))
     .slice(0, 3)
     .map(detail => {
       const version = (detail.versionId ? versions.find(v => v.id === detail.versionId) : undefined)
@@ -92,7 +92,7 @@ export async function generateBlendedCopy(
     const versionContentString = contentToText(version!.content);
 
     return `
-**${detail.versionTitle}** (Score: ${detail.score}/100)
+**${detail.versionTitle}**${detail.score !== undefined ? ` (Score: ${detail.score}/100)` : ''}
 
 Content:
 ${versionContentString}

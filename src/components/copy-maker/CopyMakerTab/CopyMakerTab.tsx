@@ -1604,47 +1604,37 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
       return;
     }
 
-    // If called from Analysis card, create a comparison result from the analysis
+    // If called from the Analysis card with raw analysis text, derive a minimal comparison
+    // structure from it WITHOUT inventing scores or metrics. Only pass through fields that
+    // are genuinely grounded in the analysis text; omit numeric scores entirely so the model
+    // isn't "guided" by placeholder values.
     if (analysisContent) {
-      // Find the Analysis card (it has comparedContent)
       const analysisCard = formState.copyResult.generatedVersions.find(
         item => item.comparedContent !== undefined
       );
 
       if (analysisCard && analysisCard.comparedContent) {
-        // Create a comparison result from the analysis for blending
-        // Note: analysisCard.content is markdown text, not structured JSON,
-        // so we create a simple structure with the compared items
-        const mockComparisonResult = {
-          comparisonDetails: analysisCard.comparedContent.items.map((item: any, idx: number) => ({
+        const derivedComparisonResult = {
+          comparisonDetails: analysisCard.comparedContent.items.map((item: any) => ({
             versionTitle: item.label,
-            score: 80, // Default score
-            pros: ['Analyzed by AI', 'Selected for blending'],
+            // Intentionally omit score/overallScore — no real score exists for this path.
+            pros: [],
             cons: [],
-            bestUsedFor: 'General purpose marketing',
-            metrics: {
-              tone: 'Professional',
-              readability: 'High',
-              persuasion: 'High',
-              emotionalAppeal: 'Medium',
-              differentiation: 'High',
-              conversionPotential: 'High'
-            }
+            bestUsedFor: 'General purpose marketing'
+            // Intentionally omit metrics — fabricated metrics mislead the model.
           })),
           strategicRecommendation: `Blend based on AI analysis insights. The analysis provided:\n${analysisContent.substring(0, 400)}...`,
           bestForMarketing: analysisCard.comparedContent.items[0]?.label || 'Version 1',
           bestForClarity: analysisCard.comparedContent.items[0]?.label || 'Version 1',
           bestForSimplicity: analysisCard.comparedContent.items[0]?.label || 'Version 1',
           bestVersionTitle: analysisCard.comparedContent.items[0]?.label || 'Version 1',
-          overallScore: 80,
           reasoning: 'Based on AI analysis',
-          strengths: ['Analyzed by AI'],
           improvements: [],
           bestVersionIndex: 0
         };
 
         // Store for blend API only - don't set comparisonResult to avoid showing ComparisonCard
-        setBlendComparisonData(mockComparisonResult);
+        setBlendComparisonData(derivedComparisonResult);
       } else {
         toast.error('Could not find Analysis data');
         return;

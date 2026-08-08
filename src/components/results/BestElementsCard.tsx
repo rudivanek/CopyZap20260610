@@ -127,7 +127,7 @@ export const BestElementsCard: React.FC<BestElementsCardProps> = ({
                 className="inline-flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-bold bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white transition-colors shadow-sm disabled:cursor-not-allowed"
               >
                 <Wand2 className={`w-3.5 h-3.5 ${isCompiling ? 'animate-pulse' : ''}`} />
-                {isCompiling ? 'Compiling…' : 'Compile Best Elements → New Output'}
+                {isCompiling ? 'Building…' : 'Build this version'}
               </button>
               <p className="text-[10px] text-gray-400 dark:text-gray-600 mt-1.5 leading-snug">
                 Assembles the 6 best elements into one cohesive final version and adds it as a new output card.

@@ -406,8 +406,6 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
                             onDelete={() => onDelete(card)}
                             targetWordCount={targetWordCount}
                             onSaveAsBrandVoice={onSaveAsBrandVoice}
-                            onBlendVersions={onBlendVersions}
-                            isBlending={isBlending}
                             onUpdateCard={onUpdateCard}
                             allCards={sortedGeneratedVersions}
                             comparisonResult={comparisonResult}
@@ -447,23 +445,7 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
 
           <div className="performance-table-wrapper" style={{ display: 'block', height: 'auto', overflow: 'visible' }}>
             {/* Best Elements Summary — cross-version analysis (needs comparison + 2+ versions).
-                Trigger moved here from the sidebar (Task 5). Display + Compile already lived here. */}
-            {comparisonResult && sortedGeneratedVersions.length >= 2 && onGenerateBestElements && !bestElementsResult && (
-              <div className="mb-6">
-                <button
-                  type="button"
-                  onClick={onGenerateBestElements}
-                  disabled={isGeneratingBestElements}
-                  className="inline-flex items-center gap-2 px-3 py-2 rounded-md text-xs font-medium text-purple-700 dark:text-purple-300 bg-purple-50 dark:bg-purple-900/20 border border-purple-200 dark:border-purple-800 hover:bg-purple-100 dark:hover:bg-purple-900/40 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-                >
-                  <Sparkles size={12} className={isGeneratingBestElements ? 'animate-pulse' : ''} />
-                  {isGeneratingBestElements ? 'Analyzing…' : 'Generate Best Elements Summary'}
-                </button>
-                <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-1">
-                  Identifies the strongest section from each compared version — reflects all versions, not just one.
-                </p>
-              </div>
-            )}
+                Trigger moved to the sidebar (Task 5). Display + Compile already lived here. */}
             {bestElementsResult && (
               <div className="mb-6">
                 <BestElementsCard
