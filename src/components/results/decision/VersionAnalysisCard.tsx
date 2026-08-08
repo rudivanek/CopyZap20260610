@@ -193,7 +193,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
             <div className="flex flex-col items-end gap-1">
               <span className="text-xs font-bold text-gray-300 dark:text-gray-700 uppercase tracking-widest">Session</span>
               <span className="flex items-center gap-1.5">
-                <span className={`w-2 h-2 ${getScoreMarkClass(row.finalScore)}`} style={{ borderRadius: '9999px' }} aria-hidden="true" />
+                <span className={`w-1 h-5 ${getScoreMarkClass(row.finalScore)}`} aria-hidden="true" />
                 <span className={`text-xl font-black tabular-nums leading-none ${getScoreTextClass(row.finalScore)}`}>
                   {row.finalScore != null ? row.finalScore : '—'}
                 </span>

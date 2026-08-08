@@ -14,7 +14,7 @@ export interface ScoreColorClasses {
 export function getScoreColorClasses(score: number | undefined): ScoreColorClasses {
   if (!score || score === 0) {
     return {
-      text: 'text-gray-900 dark:text-gray-100',
+      text: 'text-gray-500 dark:text-gray-400',
       bg: 'bg-gray-400 dark:bg-gray-500',
       border: 'border-gray-300 dark:border-gray-600'
     };

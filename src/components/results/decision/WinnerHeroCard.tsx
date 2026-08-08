@@ -145,7 +145,7 @@ export const WinnerHeroCard: React.FC<WinnerHeroCardProps> = ({
           <div className="flex flex-col items-end gap-1 flex-shrink-0">
             <span className="text-xs font-bold text-gray-300 dark:text-gray-700 uppercase tracking-widest">Session</span>
             <span className="flex items-center gap-1.5">
-              <span className={`w-2 h-2 ${getScoreMarkClass(winnerRow.finalScore)}`} style={{ borderRadius: '9999px' }} aria-hidden="true" />
+              <span className={`w-1 h-5 ${getScoreMarkClass(winnerRow.finalScore)}`} aria-hidden="true" />
               <span className={`text-2xl font-black tabular-nums leading-none ${getScoreTextClass(winnerRow.finalScore)}`}>
                 {winnerRow.finalScore}
               </span>
