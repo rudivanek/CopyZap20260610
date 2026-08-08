@@ -61,7 +61,7 @@ const PromptEvaluation: React.FC<PromptEvaluationProps> = ({ evaluation, isLoadi
       
       {evaluation.tips && evaluation.tips.length > 0 && (
         <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
-          <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">Improvement Tips</p>
+          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">Improvement Tips</p>
           <ul className="space-y-3">
             {evaluation.tips.map((tip, index) => (
               <li key={index} className="flex items-start">

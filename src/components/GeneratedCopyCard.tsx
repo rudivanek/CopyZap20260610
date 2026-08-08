@@ -946,9 +946,9 @@ const GeneratedCopyCard: React.FC<GeneratedCopyCardProps> = ({
         {/* ── Header bar ────────────────────────────────────────── */}
         {indentationLevel === 1 ? (
           <div className="py-1 px-2">
-            <p className="text-[10px] text-gray-400 dark:text-gray-500">{card.sourceDisplayName}</p>
+            <p className="text-xs text-gray-400 dark:text-gray-500">{card.sourceDisplayName}</p>
             {card.sourceNote && (
-              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">{card.sourceNote}</p>
+              <p className="text-xs text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">{card.sourceNote}</p>
             )}
           </div>
         ) : (
@@ -993,7 +993,7 @@ const GeneratedCopyCard: React.FC<GeneratedCopyCardProps> = ({
               )}
             </h2>
             {card.sourceNote && (
-              <p className={`text-[11px] mt-1 leading-snug ${
+              <p className={`text-xs mt-1 leading-snug ${
                 card.type === GeneratedContentItemType.GeoOptimized
                   ? 'text-gray-500 dark:text-gray-400'
                   : 'text-white/75'
@@ -1170,14 +1170,14 @@ const GeneratedCopyCard: React.FC<GeneratedCopyCardProps> = ({
               Content Quality Score
             </h3>
             <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">
-              {cardScore.overall}<span className="text-[10px] font-normal text-gray-400 dark:text-gray-500 ml-0.5">/100</span>
+              {cardScore.overall}<span className="text-xs font-normal text-gray-400 dark:text-gray-500 ml-0.5">/100</span>
             </span>
           </div>
 
           {/* Why it's improved */}
           {cardScore.improvementExplanation && (
             <div className="mb-4 border-b border-gray-100 dark:border-gray-700 pb-4">
-              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Why it's improved</p>
+              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Why it's improved</p>
               <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-900 p-3 rounded-md border border-gray-100 dark:border-gray-700">
                 {cardScore.improvementExplanation}
               </p>
@@ -1186,7 +1186,7 @@ const GeneratedCopyCard: React.FC<GeneratedCopyCardProps> = ({
 
           {/* Score Breakdown */}
           <div className="space-y-3">
-            <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Score Breakdown</p>
+            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Score Breakdown</p>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div className="bg-gray-50 dark:bg-gray-900 rounded-lg p-3">
@@ -1247,7 +1247,7 @@ const GeneratedCopyCard: React.FC<GeneratedCopyCardProps> = ({
           {/* Optimization Suggestions */}
           {cardScore.overall < 95 && cardScore.suggestions && cardScore.suggestions.length > 0 && (
             <div className="p-3 bg-gray-50 dark:bg-gray-900/20 rounded border border-gray-200 dark:border-gray-800">
-              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Optimization Suggestions</p>
+              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Optimization Suggestions</p>
               <ul className="space-y-1">
                 {cardScore.suggestions.map((suggestion, index) => (
                   <li key={index} className="flex">
@@ -1271,9 +1271,9 @@ const GeneratedCopyCard: React.FC<GeneratedCopyCardProps> = ({
               GEO Score
             </h3>
             <span className="text-sm font-bold text-gray-900 dark:text-white tabular-nums">
-              {cardGeoScore.overall}<span className="text-[10px] font-normal text-gray-400 dark:text-gray-500 ml-0.5">/100</span>
+              {cardGeoScore.overall}<span className="text-xs font-normal text-gray-400 dark:text-gray-500 ml-0.5">/100</span>
               {cardGeoScore.overall > 0 && (
-                <span className="text-[10px] font-normal text-gray-400 dark:text-gray-500 ml-1">
+                <span className="text-xs font-normal text-gray-400 dark:text-gray-500 ml-1">
                   — {getScoreLabel(cardGeoScore.overall)}
                 </span>
               )}
@@ -1283,7 +1283,7 @@ const GeneratedCopyCard: React.FC<GeneratedCopyCardProps> = ({
           {/* GEO Score Breakdown */}
           {cardGeoScore.breakdown && cardGeoScore.breakdown.length > 0 && (
             <div className="mb-3 space-y-2">
-              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Score Breakdown</p>
+              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Score Breakdown</p>
               {cardGeoScore.breakdown.map((item, index) => (
                 <div key={index} className="flex items-center justify-between p-2 bg-gray-50 dark:bg-gray-900 rounded border border-gray-200 dark:border-gray-700">
                   <div className="flex-1">
@@ -1312,7 +1312,7 @@ const GeneratedCopyCard: React.FC<GeneratedCopyCardProps> = ({
           {/* GEO Optimization Suggestions */}
           {cardGeoScore.overall < 80 && cardGeoScore.suggestions && cardGeoScore.suggestions.length > 0 && (
             <div className="p-3 bg-gray-50 dark:bg-gray-900/20 rounded border border-gray-200 dark:border-gray-800">
-              <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">GEO Optimization Suggestions</p>
+              <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">GEO Optimization Suggestions</p>
               <ul className="space-y-1">
                 {cardGeoScore.suggestions.map((suggestion, index) => (
                   <li key={index} className="flex">

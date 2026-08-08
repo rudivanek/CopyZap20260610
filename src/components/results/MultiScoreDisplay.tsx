@@ -49,10 +49,10 @@ export const MultiScoreDisplay: React.FC<MultiScoreDisplayProps> = ({
           title="Conversion Score: Potential to drive action"
         >
           <TrendingUp className="w-3 h-3 text-gray-600 dark:text-gray-400" />
-          <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300 tabular-nums">
+          <span className="text-xs font-medium text-gray-700 dark:text-gray-300 tabular-nums">
             {scores.conversion}
           </span>
-          <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400">
+          <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
             ({getScoreLabel(scores.conversion)})
           </span>
         </div>
@@ -63,10 +63,10 @@ export const MultiScoreDisplay: React.FC<MultiScoreDisplayProps> = ({
           title="Trust Score: Credibility and authenticity"
         >
           <Shield className="w-3 h-3 text-gray-600 dark:text-gray-400" />
-          <span className="text-[10px] font-medium text-gray-700 dark:text-gray-300 tabular-nums">
+          <span className="text-xs font-medium text-gray-700 dark:text-gray-300 tabular-nums">
             {scores.trust}
           </span>
-          <span className="text-[10px] font-normal text-gray-500 dark:text-gray-400">
+          <span className="text-xs font-normal text-gray-500 dark:text-gray-400">
             ({getScoreLabel(scores.trust)})
           </span>
         </div>
@@ -77,7 +77,7 @@ export const MultiScoreDisplay: React.FC<MultiScoreDisplayProps> = ({
           title={getRiskLevelLabel(scores.risk)}
         >
           <AlertTriangle className={`w-3 h-3 ${getRiskLevelColor(scores.risk)}`} />
-          <span className={`text-[10px] font-medium ${getRiskLevelColor(scores.risk)}`}>
+          <span className={`text-xs font-medium ${getRiskLevelColor(scores.risk)}`}>
             {getShortRiskLabel(scores.risk)}
           </span>
         </div>
@@ -87,7 +87,7 @@ export const MultiScoreDisplay: React.FC<MultiScoreDisplayProps> = ({
           <button
             type="button"
             onClick={() => setIsExplanationOpen(!isExplanationOpen)}
-            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-[10px] font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+            className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded text-xs font-medium text-gray-600 dark:text-gray-400 hover:text-gray-800 dark:hover:text-gray-200 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
             aria-label={isExplanationOpen ? 'Hide explanation' : 'Show why these scores'}
             title="Click to see why these scores"
           >
@@ -116,7 +116,7 @@ export const MultiScoreDisplay: React.FC<MultiScoreDisplayProps> = ({
               <div>
                 <div className="flex items-center gap-1.5 mb-1">
                   <TrendingUp className="w-3 h-3 text-gray-600 dark:text-gray-400" />
-                  <span className="font-medium text-[11px] text-gray-700 dark:text-gray-300">
+                  <span className="font-medium text-xs text-gray-700 dark:text-gray-300">
                     Conversion: {detailedScores.conversion.score} ({getScoreLabel(detailedScores.conversion.score)})
                   </span>
                 </div>
@@ -126,7 +126,7 @@ export const MultiScoreDisplay: React.FC<MultiScoreDisplayProps> = ({
                       <span className={reason.isPositive ? 'text-gray-700 dark:text-gray-300' : 'text-gray-500 dark:text-gray-500'}>
                         {reason.isPositive ? '+' : '−'}
                       </span>
-                      <span className="text-[11px] text-gray-600 dark:text-gray-400">{reason.text}</span>
+                      <span className="text-xs text-gray-600 dark:text-gray-400">{reason.text}</span>
                     </li>
                   ))}
                 </ul>
@@ -138,7 +138,7 @@ export const MultiScoreDisplay: React.FC<MultiScoreDisplayProps> = ({
               <div>
                 <div className="flex items-center gap-1.5 mb-1">
                   <Shield className="w-3 h-3 text-gray-600 dark:text-gray-400" />
-                  <span className="font-medium text-[11px] text-gray-700 dark:text-gray-300">
+                  <span className="font-medium text-xs text-gray-700 dark:text-gray-300">
                     Trust: {detailedScores.trust.score} ({getScoreLabel(detailedScores.trust.score)})
                   </span>
                 </div>
@@ -148,7 +148,7 @@ export const MultiScoreDisplay: React.FC<MultiScoreDisplayProps> = ({
                       <span className={reason.isPositive ? 'text-gray-700 dark:text-gray-300' : 'text-gray-500 dark:text-gray-500'}>
                         {reason.isPositive ? '+' : '−'}
                       </span>
-                      <span className="text-[11px] text-gray-600 dark:text-gray-400">{reason.text}</span>
+                      <span className="text-xs text-gray-600 dark:text-gray-400">{reason.text}</span>
                     </li>
                   ))}
                 </ul>
@@ -160,7 +160,7 @@ export const MultiScoreDisplay: React.FC<MultiScoreDisplayProps> = ({
               <div>
                 <div className="flex items-center gap-1.5 mb-1">
                   <AlertTriangle className="w-3 h-3 text-gray-600 dark:text-gray-400" />
-                  <span className="font-medium text-[11px] text-gray-700 dark:text-gray-300">
+                  <span className="font-medium text-xs text-gray-700 dark:text-gray-300">
                     Risk: {getShortRiskLabel(detailedScores.risk.level)}
                   </span>
                 </div>
@@ -168,7 +168,7 @@ export const MultiScoreDisplay: React.FC<MultiScoreDisplayProps> = ({
                   {detailedScores.risk.reasons.map((reason, idx) => (
                     <li key={idx} className="flex items-start gap-1.5">
                       <span className="text-gray-600 dark:text-gray-500">•</span>
-                      <span className="text-[11px] text-gray-600 dark:text-gray-400">{reason}</span>
+                      <span className="text-xs text-gray-600 dark:text-gray-400">{reason}</span>
                     </li>
                   ))}
                 </ul>
@@ -179,13 +179,13 @@ export const MultiScoreDisplay: React.FC<MultiScoreDisplayProps> = ({
             {detailedScores.conversion.reasons.length === 0 &&
              detailedScores.trust.reasons.length === 0 &&
              detailedScores.risk.reasons.length === 0 && (
-              <p className="text-[11px] text-gray-500 dark:text-gray-500 italic">
+              <p className="text-xs text-gray-500 dark:text-gray-500 italic">
                 No strong display signals detected
               </p>
             )}
           </div>
 
-          <p className="text-[10px] text-gray-500 dark:text-gray-500 italic mt-2.5 pt-2 border-t border-gray-200 dark:border-gray-800">
+          <p className="text-xs text-gray-500 dark:text-gray-500 italic mt-2.5 pt-2 border-t border-gray-200 dark:border-gray-800">
             Display-only signals • Do not affect ranking
           </p>
         </div>

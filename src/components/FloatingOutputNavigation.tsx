@@ -35,7 +35,7 @@ const FloatingOutputNavigation: React.FC<FloatingOutputNavigationProps> = ({
           {/* Go to Top */}
           <button
             onClick={scrollToTop}
-            className="flex-shrink-0 px-2 py-1 text-[11px] font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+            className="flex-shrink-0 px-2 py-1 text-xs font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
             title="Go to Top"
           >
             <ChevronUp className="h-3 w-3 inline mr-1" />
@@ -55,7 +55,7 @@ const FloatingOutputNavigation: React.FC<FloatingOutputNavigationProps> = ({
                   <button
                     key={item.id}
                     onClick={() => scrollToElement(`output-${item.id}`)}
-                    className="flex-shrink-0 px-2 py-1 text-[11px] font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors truncate max-w-[200px]"
+                    className="flex-shrink-0 px-2 py-1 text-xs font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors truncate max-w-[200px]"
                     title={item.sourceDisplayName || `Output ${index + 1}`}
                   >
                     {isComparison && <Table className="h-3 w-3 inline mr-1" />}
@@ -75,7 +75,7 @@ const FloatingOutputNavigation: React.FC<FloatingOutputNavigationProps> = ({
                         comparisonEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }
                     }}
-                    className="flex-shrink-0 px-2 py-1 text-[11px] font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                    className="flex-shrink-0 px-2 py-1 text-xs font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
                     title="Go to Comparison"
                   >
                     <Award className="h-3 w-3 inline mr-1" />
@@ -91,7 +91,7 @@ const FloatingOutputNavigation: React.FC<FloatingOutputNavigationProps> = ({
           {/* Go to Bottom */}
           <button
             onClick={scrollToBottom}
-            className="flex-shrink-0 px-2 py-1 text-[11px] font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+            className="flex-shrink-0 px-2 py-1 text-xs font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
             title="Go to Bottom"
           >
             <ChevronDown className="h-3 w-3 inline mr-1" />

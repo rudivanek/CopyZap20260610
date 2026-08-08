@@ -377,7 +377,7 @@ function SectionHeader({
     <button
       type="button"
       onClick={onToggle}
-      className="w-full flex items-center justify-between px-2.5 py-1 text-[9px] font-normal uppercase tracking-widest text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
+      className="w-full flex items-center justify-between px-2.5 py-1 text-xs font-normal uppercase tracking-widest text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300 transition-colors"
     >
       <span>{label}</span>
       {open ? <ChevronDown size={10} /> : <ChevronRight size={10} />}
@@ -404,7 +404,7 @@ function SidebarBtn({
       onClick={onClick}
       disabled={disabled}
       title={title}
-      className={`w-full flex items-center gap-1.5 px-2 py-0.5 rounded text-[9px] font-normal transition-colors text-left
+      className={`w-full flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-normal transition-colors text-left
         ${active
           ? 'bg-gray-200 dark:bg-gray-700 text-gray-900 dark:text-gray-100 border border-gray-300 dark:border-gray-600'
           : 'text-gray-400 dark:text-gray-500 hover:bg-gray-200 dark:hover:bg-gray-800 hover:text-gray-600 dark:hover:text-gray-300'
@@ -2013,7 +2013,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
       />
       {/* Header — fixed, does not scroll */}
       <div className="flex-shrink-0 flex items-center justify-between px-2.5 py-1.5 border-b border-gray-100 dark:border-gray-800 bg-gray-100 dark:bg-black z-10">
-        <span className="text-[9px] font-normal uppercase tracking-widest text-gray-400 dark:text-gray-500">
+        <span className="text-xs font-normal uppercase tracking-widest text-gray-400 dark:text-gray-500">
           Actions
         </span>
         <button
@@ -2032,7 +2032,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         {/* ── Navigate section (unchanged) ─────────────────────────── */}
         <div className="border-b border-gray-200 dark:border-gray-700 pb-2">
           <div className="px-2.5 pt-2 pb-1">
-            <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: '#f97316' }}>
+            <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#f97316' }}>
               Navigate
             </span>
           </div>
@@ -2058,7 +2058,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                         navigate(path);
                       }
                     }}
-                    className="w-full flex items-center gap-2 py-1.5 px-2 rounded text-[10px] font-medium transition-colors text-left"
+                    className="w-full flex items-center gap-2 py-1.5 px-2 rounded text-xs font-medium transition-colors text-left"
                     style={isActive ? {
                       borderLeft: '2px solid #f97316',
                       paddingLeft: '6px',
@@ -2232,7 +2232,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                     >
                       {confirmDeleteId === card.id ? (
                         <div className="flex items-center justify-between w-full px-2 py-1">
-                          <span className="text-[9px] text-red-500">Delete this output?</span>
+                          <span className="text-xs text-red-500">Delete this output?</span>
                           <div className="flex gap-1">
                             <button
                               type="button"
@@ -2241,7 +2241,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                                 onDelete(card);
                                 setConfirmDeleteId(null);
                               }}
-                              className="text-[9px] px-1.5 py-0.5 rounded bg-red-500 text-white hover:bg-red-600"
+                              className="text-xs px-1.5 py-0.5 rounded bg-red-500 text-white hover:bg-red-600"
                             >
                               Delete
                             </button>
@@ -2251,7 +2251,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                                 e.stopPropagation();
                                 setConfirmDeleteId(null);
                               }}
-                              className="text-[9px] px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-300"
+                              className="text-xs px-1.5 py-0.5 rounded bg-gray-200 dark:bg-gray-700 text-gray-600 dark:text-gray-400 hover:bg-gray-300"
                             >
                               Cancel
                             </button>
@@ -2261,7 +2261,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                         <button
                           type="button"
                           onClick={() => toggleCardGroup(card.id)}
-                          className="w-full flex items-center justify-between px-2 py-1 text-[9px] font-medium transition-colors text-left"
+                          className="w-full flex items-center justify-between px-2 py-1 text-xs font-medium transition-colors text-left"
                           style={isActiveCard ? {
                             background: 'rgba(47,111,214,0.08)',
                             color: VERSION_ZONE.accent,
@@ -2277,7 +2277,7 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                           <span className="truncate pr-1">
                             {card.sourceDisplayName || card.type}
                             {card.score && (
-                              <span className="ml-1 text-[8px] font-normal text-gray-400 dark:text-gray-500">
+                              <span className="ml-1 text-xs font-normal text-gray-400 dark:text-gray-500">
                                 {card.score.overall}/100
                               </span>
                             )}

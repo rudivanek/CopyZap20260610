@@ -60,7 +60,7 @@ export const SubScoreChips: React.FC<SubScoreChipsProps> = ({
   showExplanation = false,
 }) => {
   const baseChipClass = compact
-    ? 'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-[11px] font-medium'
+    ? 'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium'
     : 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium';
 
   return (

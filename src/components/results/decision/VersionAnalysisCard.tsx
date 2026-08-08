@@ -58,7 +58,7 @@ interface SectionProps {
 
 const Section: React.FC<SectionProps> = ({ label, children, isWinner = false }) => (
   <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-3">
-    <span className={`text-[10px] font-bold uppercase tracking-widest ${isWinner ? 'text-green-600' : 'text-gray-400 dark:text-gray-600'}`}>
+    <span className={`text-xs font-bold uppercase tracking-widest ${isWinner ? 'text-green-600' : 'text-gray-400 dark:text-gray-600'}`}>
       {label}
     </span>
     <div className="mt-2.5">{children}</div>
@@ -156,12 +156,12 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
                 )}
               </span>
               {isBaseline && (
-                <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded-full flex-shrink-0">
+                <span className="text-xs font-semibold text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded-full flex-shrink-0">
                   Baseline
                 </span>
               )}
               {decisionBadge && !(decisionBadge.type === 'best-overall' && isWinner) && (
-                <span className={`text-[10px] font-semibold px-2 py-0.5 rounded whitespace-nowrap ${getBadgeStyles(decisionBadge.type)}`}>
+                <span className={`text-xs font-semibold px-2 py-0.5 rounded whitespace-nowrap ${getBadgeStyles(decisionBadge.type)}`}>
                   {decisionBadge.label}
                 </span>
               )}
@@ -189,16 +189,16 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
           {/* Right: session score only + chevron */}
           <div className="flex items-start gap-3 flex-shrink-0">
             <div className="flex flex-col items-end gap-1">
-              <span className="text-[9px] font-bold text-gray-300 dark:text-gray-700 uppercase tracking-widest">Session</span>
+              <span className="text-xs font-bold text-gray-300 dark:text-gray-700 uppercase tracking-widest">Session</span>
               <span className={`text-xl font-black tabular-nums leading-none ${getScoreTextClass(row.finalScore)}`}>
                 {row.finalScore != null ? row.finalScore : '—'}
               </span>
               {!isBaseline && delta && !delta.neutral ? (
-                <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums whitespace-nowrap ${deltaBadgeClass(delta.positive)}`}>
+                <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums whitespace-nowrap ${deltaBadgeClass(delta.positive)}`}>
                   {delta.label}
                 </span>
               ) : (
-                <span className="text-[10px] text-gray-300 dark:text-gray-700">—</span>
+                <span className="text-xs text-gray-300 dark:text-gray-700">—</span>
               )}
             </div>
 
@@ -284,31 +284,31 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
                   <div className="space-y-2.5">
                     {decisionLayer.recommendedLabel && (
                       <div className="flex items-start gap-2">
-                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider min-w-[72px] flex-shrink-0 pt-0.5">Recommended:</span>
+                        <span className="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider min-w-[72px] flex-shrink-0 pt-0.5">Recommended:</span>
                         <span className="text-xs text-gray-700 dark:text-gray-300 leading-snug font-medium">{decisionLayer.recommendedLabel}</span>
                       </div>
                     )}
                     {decisionLayer.recommendedUseCase && (
                       <div className="flex items-start gap-2">
-                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider min-w-[72px] flex-shrink-0 pt-0.5">Best for:</span>
+                        <span className="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider min-w-[72px] flex-shrink-0 pt-0.5">Best for:</span>
                         <span className="text-xs text-gray-700 dark:text-gray-300 leading-snug">{decisionLayer.recommendedUseCase}</span>
                       </div>
                     )}
                     {decisionLayer.publishRecommendation && (
                       <div className="flex items-start gap-2">
-                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider min-w-[72px] flex-shrink-0 pt-0.5">Use when:</span>
+                        <span className="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider min-w-[72px] flex-shrink-0 pt-0.5">Use when:</span>
                         <span className="text-xs text-gray-700 dark:text-gray-300 leading-snug">{decisionLayer.publishRecommendation}</span>
                       </div>
                     )}
                     {decisionLayer.alternativeChoiceNote && (
                       <div className="flex items-start gap-2">
-                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider min-w-[72px] flex-shrink-0 pt-0.5">Alternative:</span>
+                        <span className="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider min-w-[72px] flex-shrink-0 pt-0.5">Alternative:</span>
                         <span className="text-xs text-gray-700 dark:text-gray-300 leading-snug">{decisionLayer.alternativeChoiceNote}</span>
                       </div>
                     )}
                     {decisionLayer.nextImprovementAction && (
                       <div className="flex items-start gap-2">
-                        <span className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider min-w-[72px] flex-shrink-0 pt-0.5">Next step:</span>
+                        <span className="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider min-w-[72px] flex-shrink-0 pt-0.5">Next step:</span>
                         <span className="text-xs text-gray-700 dark:text-gray-300 leading-snug">{decisionLayer.nextImprovementAction}</span>
                       </div>
                     )}
@@ -319,7 +319,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
               {/* Verification Flags */}
               {row.verificationFlags && row.verificationFlags.length > 0 && (
                 <div className="mt-3 p-3 bg-amber-50 dark:bg-amber-950/30 rounded-lg border border-amber-200 dark:border-amber-900/40">
-                  <div className="text-[10px] font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200 mb-2">
+                  <div className="text-xs font-bold uppercase tracking-wider text-amber-900 dark:text-amber-200 mb-2">
                     Verify before publishing
                   </div>
                   <ul className="space-y-1.5">
@@ -341,7 +341,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
                       <div>
                         <div className="flex items-center gap-1.5 mb-2">
                           <CheckCircle className="w-3 h-3 text-green-600 dark:text-green-400" />
-                          <span className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider">Key Strengths</span>
+                          <span className="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider">Key Strengths</span>
                         </div>
                         <ul className="space-y-1.5" id={`breakdown-${row.versionId}-output`}>
                           {analysis.keyStrengths.map((s, idx) => (
@@ -364,9 +364,9 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
                         <div>
                           <div className="flex items-center gap-1.5 mb-2">
                             <AlertTriangle className="w-3 h-3 text-green-600 dark:text-green-500" />
-                            <span className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider">Suggested Improvements</span>
+                            <span className="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider">Suggested Improvements</span>
                             {totalDeltaPoints > 0 && (
-                              <span className="text-[10px] font-semibold text-gray-500 dark:text-gray-400 ml-auto">
+                              <span className="text-xs font-semibold text-gray-500 dark:text-gray-400 ml-auto">
                                 Potential +{totalDeltaPoints} pts (max {projectedScore})
                               </span>
                             )}
@@ -382,7 +382,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
                                   <span className="text-green-500 mt-0.5 flex-shrink-0">•</span>
                                   <span className="flex-1">{text}</span>
                                   {pointsDelta && pointsDelta > 0 && (
-                                    <span className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 flex-shrink-0 whitespace-nowrap">
+                                    <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-orange-100 dark:bg-orange-950/40 text-orange-700 dark:text-orange-400 border border-orange-200 dark:border-orange-800/50 flex-shrink-0 whitespace-nowrap">
                                       +{pointsDelta} pts
                                     </span>
                                   )}

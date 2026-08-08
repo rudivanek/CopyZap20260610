@@ -55,7 +55,7 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
           <div className="flex flex-col items-start">
             <span className="text-xs text-gray-400 dark:text-gray-500 font-medium">/100</span>
             {!isLoading && overall > 0 && (
-              <span className={`text-[10px] ${getScoreTextClass(overall)} opacity-75`}>
+              <span className={`text-xs ${getScoreTextClass(overall)} opacity-75`}>
                 {getScoreLabel(overall)}
               </span>
             )}
@@ -66,7 +66,7 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
       <div className="space-y-4">
         {(improvementExplanation || isLoading) && (
           <div className="mb-4 border-b border-gray-100 dark:border-gray-700 pb-4">
-            <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Why it's improved</p>
+            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Why it's improved</p>
             <p className="text-sm text-gray-600 dark:text-gray-400 bg-gray-50 dark:bg-gray-800/50 p-3 rounded-md border border-gray-100 dark:border-gray-800 leading-relaxed">
               {isLoading ? "Analyzing content improvements..." : improvementExplanation || "Analysis in progress..."}
             </p>
@@ -74,7 +74,7 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
         )}
 
         <div className="space-y-3">
-          <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Score Breakdown</p>
+          <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest">Score Breakdown</p>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
             <ScoreItem
@@ -119,7 +119,7 @@ const ScoreCard: React.FC<ScoreCardProps> = ({
 
         {overall < 95 && suggestions && suggestions.length > 0 && (
           <div className="p-3 bg-gray-50 dark:bg-gray-900/30 rounded-md border border-gray-100 dark:border-gray-700 mt-3">
-            <p className="text-[10px] font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Optimization Suggestions</p>
+            <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-2">Optimization Suggestions</p>
             <ul className="space-y-1">
               {suggestions.map((suggestion, index) => (
                 <li key={index} className="flex">

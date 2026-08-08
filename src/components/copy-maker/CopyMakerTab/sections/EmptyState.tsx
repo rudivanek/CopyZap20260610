@@ -23,7 +23,7 @@ const EmptyState: React.FC<EmptyStateProps> = ({ tab, hasOriginalCopy }) => {
 
   return (
     <div className="bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-xl px-6 py-8 text-center">
-      <p className="text-[11px] font-semibold uppercase tracking-widest text-gray-300 dark:text-gray-600 mb-2">
+      <p className="text-xs font-semibold uppercase tracking-widest text-gray-300 dark:text-gray-600 mb-2">
         {isImproveMode ? 'Improve mode' : 'Generate mode'}
       </p>
       <h3 className="text-sm font-semibold text-gray-700 dark:text-gray-300 mb-1">{headline}</h3>

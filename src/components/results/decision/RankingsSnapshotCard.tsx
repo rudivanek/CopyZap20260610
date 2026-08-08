@@ -66,12 +66,12 @@ const ScoreColumnLabel: React.FC<{ label: string; tip: string }> = ({ label, tip
       onMouseEnter={() => setShow(true)}
       onMouseLeave={() => setShow(false)}
     >
-      <span className="text-[9px] font-bold text-gray-300 dark:text-gray-700 uppercase tracking-widest">
+      <span className="text-xs font-bold text-gray-300 dark:text-gray-700 uppercase tracking-widest">
         {label}
       </span>
       <Info size={9} className="text-gray-200 dark:text-gray-800 flex-shrink-0" />
       {show && (
-        <span className="absolute bottom-full right-0 mb-1.5 z-50 w-44 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-[10px] leading-snug rounded px-2 py-1.5 shadow-lg pointer-events-none whitespace-normal text-center">
+        <span className="absolute bottom-full right-0 mb-1.5 z-50 w-44 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs leading-snug rounded px-2 py-1.5 shadow-lg pointer-events-none whitespace-normal text-center">
           {tip}
         </span>
       )}
@@ -128,7 +128,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
     >
       {/* Header */}
       <div className="px-4 py-2 border-b border-gray-100 dark:border-gray-800 flex items-center justify-between">
-        <span className="text-[10px] font-bold text-gray-300 dark:text-gray-700 uppercase tracking-widest">
+        <span className="text-xs font-bold text-gray-300 dark:text-gray-700 uppercase tracking-widest">
           Rankings
         </span>
         <div className="flex items-center gap-3">
@@ -147,7 +147,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
           {hasAnyAbsoluteScore && (
             <button
               onClick={() => setShowAbsolute(prev => !prev)}
-              className={`text-[9px] font-semibold px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
+              className={`text-xs font-semibold px-2 py-0.5 rounded-full border transition-colors cursor-pointer ${
                 showAbsolute
                   ? 'text-blue-700 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 border-blue-200 dark:border-blue-800'
                   : 'text-gray-400 dark:text-gray-600 bg-gray-50 dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:text-gray-600 dark:hover:text-gray-400'
@@ -203,7 +203,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
               ].join(' ')}
             >
               {/* Rank number */}
-              <span className="text-[10px] tabular-nums w-4 flex-shrink-0 text-gray-300 dark:text-gray-700 font-bold mt-0.5">
+              <span className="text-xs tabular-nums w-4 flex-shrink-0 text-gray-300 dark:text-gray-700 font-bold mt-0.5">
                 {idx + 1}
               </span>
 
@@ -220,13 +220,13 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                     {row.optionLabel}
                   </span>
                   {isBaseline && (
-                    <span className="text-[10px] font-semibold text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded-full whitespace-nowrap">
+                    <span className="text-xs font-semibold text-gray-400 dark:text-gray-600 bg-gray-100 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-2 py-0.5 rounded-full whitespace-nowrap">
                       Baseline
                     </span>
                   )}
                   {shouldShowBadge && decisionBadge && (
                     <span
-                      className={`text-[10px] font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${getBadgeStyles(
+                      className={`text-xs font-semibold px-2 py-0.5 rounded-full whitespace-nowrap ${getBadgeStyles(
                         decisionBadge.type
                       )}`}
                     >
@@ -235,7 +235,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                   )}
                 </div>
                 {row.evaluatedAt && (
-                  <div className="text-[10px] text-gray-400 dark:text-gray-600">
+                  <div className="text-xs text-gray-400 dark:text-gray-600">
                     {formatLocalDateTime(row.evaluatedAt)}
                   </div>
                 )}
@@ -256,7 +256,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                       <button
                         type="button"
                         onClick={e => { e.stopPropagation(); onRowClick(row.versionId); }}
-                        className="text-[10px] font-medium px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer"
+                        className="text-xs font-medium px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer"
                       >
                         Output
                       </button>
@@ -265,7 +265,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                       <button
                         type="button"
                         onClick={e => { e.stopPropagation(); onViewAnalysis(row.versionId); }}
-                        className="text-[10px] font-medium px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer"
+                        className="text-xs font-medium px-2 py-0.5 rounded-full border border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900 text-gray-500 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800 hover:border-gray-300 dark:hover:border-gray-600 transition-colors cursor-pointer"
                       >
                         Analysis
                       </button>
@@ -278,7 +278,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
               <div className="flex items-center gap-2 flex-shrink-0">
                 {delta && !delta.neutral && (
                   <span
-                    className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${deltaBadgeClass}`}
+                    className={`text-xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${deltaBadgeClass}`}
                   >
                     {delta.label}
                   </span>
@@ -298,7 +298,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                   <div className="flex items-center gap-1.5 ml-1">
                     {absDelta && (
                       <span
-                        className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${absDeltaClass}`}
+                        className={`text-xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${absDeltaClass}`}
                       >
                         {absDelta.label}
                       </span>
@@ -313,7 +313,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                         {row.absoluteScore.total}
                       </span>
                     ) : (
-                      <span className={`text-[11px] ${SCORE_COL_CLASS} text-gray-300 dark:text-gray-700 font-normal`}>
+                      <span className={`text-xs ${SCORE_COL_CLASS} text-gray-300 dark:text-gray-700 font-normal`}>
                         ...
                       </span>
                     )}

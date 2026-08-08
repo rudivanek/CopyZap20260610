@@ -374,7 +374,7 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
               <div className="flex items-center gap-2 min-w-0">
                 <Layers className="w-3.5 h-3.5 text-gray-400 dark:text-gray-500 flex-shrink-0" />
                 <div className="min-w-0">
-                  <h3 className="text-[10px] font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
+                  <h3 className="text-xs font-bold text-gray-400 dark:text-gray-500 uppercase tracking-widest">
                     Performance Comparison
                   </h3>
                   {hasBaseline && (
@@ -383,7 +383,7 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
                     </p>
                   )}
                 </div>
-                <span className="text-[10px] text-gray-400 dark:text-gray-600 font-normal flex-shrink-0">
+                <span className="text-xs text-gray-400 dark:text-gray-600 font-normal flex-shrink-0">
                   ({sortedRows.length})
                 </span>
               </div>

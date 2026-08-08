@@ -67,7 +67,7 @@ interface SectionProps {
 
 const Section: React.FC<SectionProps> = ({ label, children }) => (
   <div className="border-t border-green-100 dark:border-green-900/30 pt-3 mt-3">
-    <span className="text-[10px] font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
+    <span className="text-xs font-bold text-gray-500 dark:text-gray-400 uppercase tracking-widest">
       {label}
     </span>
     <div className="mt-2">{children}</div>
@@ -122,7 +122,7 @@ export const WinnerHeroCard: React.FC<WinnerHeroCardProps> = ({
         {/* Label row */}
         <div className="flex items-center gap-1.5 mb-3">
           <Award className="w-3.5 h-3.5 text-green-600 flex-shrink-0" />
-          <span className="text-[10px] font-bold text-green-600 uppercase tracking-widest">
+          <span className="text-xs font-bold text-green-600 uppercase tracking-widest">
             Best Performing Version
           </span>
         </div>
@@ -142,16 +142,16 @@ export const WinnerHeroCard: React.FC<WinnerHeroCardProps> = ({
 
           {/* Session score only */}
           <div className="flex flex-col items-end gap-1 flex-shrink-0">
-            <span className="text-[9px] font-bold text-gray-300 dark:text-gray-700 uppercase tracking-widest">Session</span>
+            <span className="text-xs font-bold text-gray-300 dark:text-gray-700 uppercase tracking-widest">Session</span>
             <span className={`text-2xl font-black tabular-nums leading-none ${getScoreTextClass(winnerRow.finalScore)}`}>
               {winnerRow.finalScore}
             </span>
             {sessionDelta && !sessionDelta.neutral ? (
-              <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-full tabular-nums whitespace-nowrap ${deltaBadgeClass(sessionDelta.positive)}`}>
+              <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums whitespace-nowrap ${deltaBadgeClass(sessionDelta.positive)}`}>
                 {sessionDelta.label}
               </span>
             ) : (
-              <span className="text-[10px] text-gray-300 dark:text-gray-700">—</span>
+              <span className="text-xs text-gray-300 dark:text-gray-700">—</span>
             )}
           </div>
         </div>
@@ -175,21 +175,21 @@ export const WinnerHeroCard: React.FC<WinnerHeroCardProps> = ({
           <Section label="Recommendation">
             <div className="space-y-2">
               <div>
-                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider mb-0.5">Use this if:</p>
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider mb-0.5">Use this if:</p>
                 <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                   {decisionLayer.recommendedUseCase}
                 </p>
               </div>
               {decisionLayer.alternativeChoiceNote && (
                 <div>
-                  <p className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider mb-0.5">Avoid if:</p>
+                  <p className="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider mb-0.5">Avoid if:</p>
                   <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                     {decisionLayer.alternativeChoiceNote}
                   </p>
                 </div>
               )}
               <div>
-                <p className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider mb-0.5">Next step:</p>
+                <p className="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase tracking-wider mb-0.5">Next step:</p>
                 <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
                   {decisionLayer.publishRecommendation}
                 </p>

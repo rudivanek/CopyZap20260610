@@ -167,7 +167,7 @@ const NavSidebar: React.FC = () => {
       style={{ width: 160 }}
     >
       <div className="px-2.5 pt-2 pb-1 border-b border-gray-100 dark:border-gray-800">
-        <span className="text-[9px] font-bold uppercase tracking-widest" style={{ color: '#f97316' }}>
+        <span className="text-xs font-bold uppercase tracking-widest" style={{ color: '#f97316' }}>
           Navigate
         </span>
       </div>
@@ -186,7 +186,7 @@ const NavSidebar: React.FC = () => {
                     navigate(path);
                   }
                 }}
-                className="w-full flex items-center gap-2 py-1.5 px-2 rounded text-[10px] font-medium transition-colors text-left"
+                className="w-full flex items-center gap-2 py-1.5 px-2 rounded text-xs font-medium transition-colors text-left"
                 style={isActive ? {
                   borderLeft: '2px solid #f97316',
                   paddingLeft: '6px',

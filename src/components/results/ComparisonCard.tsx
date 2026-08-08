@@ -326,7 +326,7 @@ const ComparisonCard: React.FC<ComparisonCardProps> = ({
                 return (
                   <div className="mb-3 pb-2">
                     <div className="flex items-center gap-2">
-                      <span className="text-[10px] text-gray-500 dark:text-gray-400 uppercase tracking-wider font-medium">Sub-scores:</span>
+                      <span className="text-xs text-gray-500 dark:text-gray-400 uppercase tracking-wider font-medium">Sub-scores:</span>
                       <SubScoreChips
                         conversion={subScores.conversion}
                         trust={subScores.trust}

@@ -20,8 +20,8 @@ interface AbsoluteScoreBadgeProps {
 const DimBar: React.FC<{ label: string; value: number; note: string }> = ({ label, value, note }) => (
   <div className="flex flex-col gap-0.5">
     <div className="flex items-center justify-between">
-      <span className="text-[10px] font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</span>
-      <span className="text-[10px] font-bold tabular-nums text-gray-700 dark:text-gray-300">{value}<span className="opacity-40">/25</span></span>
+      <span className="text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wide">{label}</span>
+      <span className="text-xs font-bold tabular-nums text-gray-700 dark:text-gray-300">{value}<span className="opacity-40">/25</span></span>
     </div>
     <div className="w-full h-1 bg-gray-100 dark:bg-gray-800 rounded-full overflow-hidden">
       <div
@@ -29,7 +29,7 @@ const DimBar: React.FC<{ label: string; value: number; note: string }> = ({ labe
         style={{ width: `${(value / 25) * 100}%` }}
       />
     </div>
-    {note && <p className="text-[10px] text-gray-400 dark:text-gray-500 leading-snug">{note}</p>}
+    {note && <p className="text-xs text-gray-400 dark:text-gray-500 leading-snug">{note}</p>}
   </div>
 );
 
@@ -42,7 +42,7 @@ const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, 
     >
       {children}
       {show && (
-        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 w-52 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-[10px] leading-snug rounded px-2 py-1.5 shadow-lg pointer-events-none whitespace-normal text-center">
+        <span className="absolute bottom-full left-1/2 -translate-x-1/2 mb-1.5 z-50 w-52 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs leading-snug rounded px-2 py-1.5 shadow-lg pointer-events-none whitespace-normal text-center">
           {text}
         </span>
       )}
@@ -57,7 +57,7 @@ export const AbsoluteScoreBadge: React.FC<AbsoluteScoreBadgeProps> = ({ score, c
   if (compact) {
     return (
       <Tooltip text="Evaluated in isolation — does not change as new versions are added">
-        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-semibold bg-white/10 border-white/20 text-white cursor-default">
+        <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold bg-white/10 border-white/20 text-white cursor-default">
           <span className="opacity-70 font-normal">Abs</span>
           <span style={{ color: absColor }}>{score.total}</span>
         </span>
@@ -86,7 +86,7 @@ export const AbsoluteScoreBadge: React.FC<AbsoluteScoreBadgeProps> = ({ score, c
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-gray-50 dark:hover:bg-gray-900/50 transition-colors"
       >
         <div className="flex items-center gap-2">
-          <span className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-widest">Absolute Score</span>
+          <span className="text-xs font-bold text-gray-400 dark:text-gray-600 uppercase tracking-widest">Absolute Score</span>
           <Tooltip text="Evaluated in isolation against a fixed rubric — does not change as new versions are added to your session. Scores may vary ±3-5 points between sessions due to AI evaluation variance. Focus on the dimension breakdown and notes rather than the exact number.">
             <Info size={11} className="text-gray-300 dark:text-gray-700" />
           </Tooltip>
@@ -119,7 +119,7 @@ export const DualScoreRow: React.FC<DualScoreRowProps> = ({ sessionScore, absolu
     <div className="flex items-center gap-2 flex-wrap">
       {hasSession && (
         <Tooltip text="Relative to other versions generated in this session">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/15 border border-white/25 text-[11px] font-semibold text-white cursor-default">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/15 border border-white/25 text-xs font-semibold text-white cursor-default">
             <span className="opacity-70 font-normal">Session</span>
             <span>{sessionScore}</span>
           </span>
@@ -127,7 +127,7 @@ export const DualScoreRow: React.FC<DualScoreRowProps> = ({ sessionScore, absolu
       )}
       {hasAbsolute && (
         <Tooltip text="Evaluated in isolation — does not change as new versions are added">
-          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 border border-white/20 text-[11px] font-semibold text-white cursor-default">
+          <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 border border-white/20 text-xs font-semibold text-white cursor-default">
             <span className="opacity-70 font-normal">Abs</span>
             <span style={{ color: getAbsoluteScoreColor(absoluteScore.total) }}>{absoluteScore.total}</span>
           </span>

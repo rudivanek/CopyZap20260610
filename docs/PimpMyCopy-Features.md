@@ -1,7 +1,62 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.27
-Last Updated: 2026-08-08T18:30:00Z
+Last Updated: 2026-08-08T19:45:00Z
+
+---
+
+## Restyle Step 2 — No Text Below 12px in the App UI (2026-08-08)
+
+**Feature:** Replaced every hardcoded sub-12px Tailwind text size in the app UI with `text-xs` (12px), establishing a single readability floor across the application. Nothing in the app UI renders smaller than 12px after this change.
+
+**Why:** The app previously rendered text at 8px, 9px, 10px, and 11px — four hardcoded pixel sizes below Tailwind's smallest step. There were 104 such occurrences (99 in the spec's in-scope list, plus 5 in two additional in-app components identified during the work), heavily concentrated in the results components, the Copy Maker sidebar, and the generated-copy card — exactly the area that reads as cluttered. 8px and 9px text is below any reasonable readability floor; much of that screen felt dense because much of it was set in type people had to squint at.
+
+**The change:** All four hardcoded sizes map to `text-xs`:
+
+| From | To |
+|---|---|
+| `text-[8px]` | `text-xs` |
+| `text-[9px]` | `text-xs` |
+| `text-[10px]` | `text-xs` |
+| `text-[11px]` | `text-xs` |
+
+Prefixed variants (`dark:text-[10px]`, `sm:text-[11px]`) and occurrences inside quoted class strings in template expressions were handled by the same substring replacement. The size token was matched anywhere in a class list.
+
+**Files modified (16 in-scope files):**
+- `src/components/results/decision/VersionAnalysisCard.tsx` (16 replacements)
+- `src/components/results/MultiScoreDisplay.tsx` (14)
+- `src/components/results/decision/RankingsSnapshotCard.tsx` (13)
+- `src/components/GeneratedCopyCard.tsx` (11)
+- `src/components/copy-maker/CopyMakerSidebar.tsx` (10)
+- `src/components/results/decision/WinnerHeroCard.tsx` (8)
+- `src/components/results/AbsoluteScoreBadge.tsx` (8)
+- `src/components/results/ScoreCard.tsx` (4)
+- `src/components/FloatingOutputNavigation.tsx` (4)
+- `src/components/results/ComprehensiveComparisonTable.tsx` (2)
+- `src/components/NavSidebar.tsx` (2)
+- `src/components/wizard/PurposeRewriteMode.tsx` (3)
+- `src/components/results/SubScoreChips.tsx` (1)
+- `src/components/results/PromptEvaluation.tsx` (1)
+- `src/components/results/ComparisonCard.tsx` (1)
+- `src/components/copy-maker/CopyMakerTab/sections/EmptyState.tsx` (1)
+
+Total: 99 replacements across these 16 files.
+
+**Explicitly out of scope — not touched:**
+- `src/components/copy-maker/CopyMakerSidebarLegacy.tsx` (12 occurrences). It is the rollback copy, due for deletion, and should remain a faithful snapshot of the pre-redesign sidebar. Changing it is churn on a file that's leaving.
+- Marketing and content pages — `components/blog/`, `components/pages/`, `components/help/`, `HomePage.tsx`, `VideosPage.tsx`, `PublicFooter.tsx`, `Privacy.tsx`, `NotFound.tsx`. These use large display type legitimately, and any small type there is a separate question. The whole marketing surface was left alone. (6 sub-12px occurrences remain across `HomePage.tsx`, `PublicFooter.tsx`, `VideosPage.tsx`, and `help/HelpCenter.tsx`.)
+- `text-xs` and above anywhere. This step only removed sub-12px sizes; collapsing the larger steps is a separate decision and was not part of this change.
+
+**Risk and where to look:** Making text larger cannot make it illegible — the only risk is layout overflow in places that assumed 8–10px type. The areas to check: score badges (`AbsoluteScoreBadge`, `SubScoreChips`, `MultiScoreDisplay`); comparison table cells (`ComprehensiveComparisonTable`); card header metadata (`GeneratedCopyCard` — the word-count line and the "Assembled from:" provenance line); sidebar items (`CopyMakerSidebar`, `NavSidebar`); and the three decision cards (`WinnerHeroCard`, `RankingsSnapshotCard`, `VersionAnalysisCard`). Where something genuinely doesn't fit, the layout should be fixed (let it wrap, widen the container, shorten the label, reduce padding) rather than reverting the type size.
+
+**Verification:**
+- `grep -rE "text-\[(8|9|10|11)px\]" src/ --include=*.tsx | grep -v CopyMakerSidebarLegacy` returns zero results.
+- `grep -c "text-\[10px\]" src/components/copy-maker/CopyMakerSidebarLegacy.tsx` still returns 12 — the legacy file is untouched.
+- Marketing pages are unchanged: no files under `components/blog/`, `components/pages/`, or `components/help/` were modified (the 3 occurrences in `help/HelpCenter.tsx` are out of scope and remain).
+- Only `text-[Npx]` → `text-xs` substitutions were made; no `text-xs` → `text-sm` or similar crept in.
+- `npm run build` passes.
+- `npx tsc --noEmit -p tsconfig.app.json` shows no new errors in any modified file (all pre-existing errors are in unrelated `src/utils/` files).
+- Visual check of the five overflow-risk areas is recommended before the change reaches beta testers, since a clipped score or truncated comparison column is the kind of thing a tester will report as a bug. The failure mode is cosmetic overflow, not broken functionality.
 
 ---
 
