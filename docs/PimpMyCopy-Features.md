@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.29
-Last Updated: 2026-08-08T21:40:00Z
+Version: 1.30
+Last Updated: 2026-08-08T22:10:00Z
 
 ---
 
@@ -57,6 +57,64 @@ Last Updated: 2026-08-08T21:40:00Z
 - Short English copy with no keywords (`"Hello there."`) behaves like the non-English case in both app and export.
 - `npm run build` passes.
 - `npx tsc --noEmit -p tsconfig.app.json` shows 1326 errors, same as `ac98cf1` — zero new errors.
+
+---
+
+## Restyle Step 3a — Colour Means Score Quality, Numbers Stay Legible (2026-08-08)
+
+**Feature:** Score numbers across the app now render in neutral ink (dark grey on light, light grey on dark) instead of green/amber/red. Quality is signalled by a small coloured mark — a dot, ring, or bar — sitting beside the number, plus the word label that already accompanied it. This is the first half of restyle pass 3 and applies three of the four rules from the approved mockup: colour means score quality and nothing else; numbers stay in neutral ink; never colour alone (every status colour ships with a word).
+
+**Why:** A green number is harder to read than a neutral one and doubles the colour load — the digit and a separate indicator both carry the same signal. Colouring the digits also meant the colour did emphasis work that a small mark can do more cleanly. Sentence-casing the labels (`Excellent` / `Good` / `Needs work` instead of `EXCELLENT` / `GOOD` / `POOR`) removes the shouty-caps emphasis that the mark now handles.
+
+**Task 1 — Rewrite `src/utils/scoreColors.ts`:** This is the single source of score colouring, with ten consumers. Changes:
+
+1. **Digits go neutral.** `getScoreColorClasses().text` (and therefore `getScoreTextClass`) now returns `text-gray-900 dark:text-gray-100` for every band. `font-bold` was removed from the returned string — weight is the caller's business, and several callers already set their own. This one change flips every score number in the app to neutral ink, because all eight digit-colouring call sites go through it.
+
+2. **New `getScoreMarkClass(score)` export.** Returns the background class for the dot, bar or ring that sits beside the number — the thing that now carries the quality signal. Maps the three bands onto reserved status tokens (see below) rather than raw Tailwind steps. `getScoreBgClass` and `getScoreBorderClass` now point at the same status palette, since they're already used for bars and rings — exactly what a mark is.
+
+3. **Reserved status tokens in `tailwind.config.js`.** Added a `status` colour object under `theme.extend.colors`: `good: #0ca30c` (>= 80, nearest Tailwind step green-600), `warning: #fab219` (>= 50, nearest amber-500), `critical: #d03b3b` (< 50, nearest red-600). This generates `bg-status-good`, `text-status-good`, `border-status-good`, etc. — a single reserved set for score quality, distinct from any decorative colour. Chosen over raw hex in class strings so the palette is named and discoverable.
+
+4. **Collapse `rose` into `red`.** The app uses `red` everywhere else (261 occurrences against 7 for `rose`), and the 7 rose usages lived only in `scoreColors.ts` and `enhancedExports.ts` — a duplicate family missed by pass 1 because its grep covered only `.tsx` files. Same-number swap: `rose-600` → `red-600`. The one `bg-rose-50` detector in `enhancedExports.ts` line ~1749 now checks `bg-red-50` with matching hex values. `grep -rE "[a-z]+-rose-[0-9]" src/` returns zero results.
+
+5. **Sentence-case the labels.** `getScoreLabel` now returns `Excellent` / `Good` / `Needs work` instead of `EXCELLENT` / `GOOD` / `POOR`. Same 80/50 thresholds — where the bands sit is a product decision and is not part of this step. The empty/zero case returns an empty string rather than a label.
+
+**Task 2 — Put a mark next to the number (four sites):**
+
+| File | Site | Change |
+|---|---|---|
+| `WinnerHeroCard.tsx` ~147 | `text-2xl font-black` session score | Added a `w-2 h-2` filled dot immediately before the number, coloured via `getScoreMarkClass`. The `Session` caption above provides the word, so dot + caption satisfies rule 3. |
+| `VersionAnalysisCard.tsx` ~195 | `text-xl font-black` session score | Same dot treatment. |
+| `ScoreCard.tsx` ~52 | score inside a `w-12 h-12` bordered circle | The circle border already uses `getScoreBorderClass` (now status-coloured); the digits inside use `getScoreTextClass` (now neutral). Already the right shape — colour moved off the number and onto the ring. No markup change needed; the rewrite of `scoreColors.ts` handles it. |
+| `ComparisonCard.tsx` ~174, ~317 | "Overall Score: 78/100" and per-detail scores | Added a `w-2 h-2` dot before each number. The surrounding sentence already says what the number is, so no second label was added. |
+
+All dots use inline `style={{ borderRadius: '9999px' }}` because the Tailwind config sets `borderRadius.full` to `0px` (the app's design system removes rounded corners); inline style is the only way to get a round dot. `getScoreMarkClass` was added to the imports in the three files that needed it (`WinnerHeroCard`, `VersionAnalysisCard`, `ComparisonCard`).
+
+`ComparisonTable.tsx` ~212 was left alone apart from inheriting neutral text. It colours score-like substrings found inside body text, and a mark there would be noise; neutral ink is the correct end state for it.
+
+**Task 3 — Reported, not changed:**
+
+1. **Two different `getScoreLabel` functions, both live.**
+   - `src/utils/scoreColors.ts` — thresholds 80/50, vocabulary `Excellent` / `Good` / `Needs work`. Call sites: `GeneratedCopyCard.tsx` (1277), `CopyMakerSidebar.tsx` (36, used inline), `CopyMakerSidebarLegacy.tsx` (36), `PromptEvaluation.tsx` (49), `ScoreCard.tsx` (59), `ContentQualityIndicator.tsx` (60), `enhancedExports.ts` (2186, 2205, 2252, 2327, 2334, 2385).
+   - `src/utils/scoreInterpretation.ts` — thresholds 86/70/50, vocabulary `Very strong` / `Strong` / `Moderate` / `Weak`. Call sites: `MultiScoreDisplay.tsx` (56, 70, 120, 142), and internally in `scoreInterpretation.ts` itself (31, 154, 159).
+   - **Same-screen overlap:** `MultiScoreDisplay.tsx` is the only component that calls the `scoreInterpretation` vocabulary, and it is dead code (never rendered — see the dead-code finding above). So in practice no live screen shows both vocabularies at once. However, the two vocabularies use different thresholds for the same bands: a score of 75 reads `Good` from `scoreColors` but `Strong` from `scoreInterpretation`, and the colour bands (80/50) line up with neither the 86/70/50 nor any single vocabulary. Picking one vocabulary and aligning the thresholds is a product decision deferred to a later step.
+
+2. **`enhancedExports.ts` line ~599 `getScoreColor`.** Defines its own `getScoreColor` returning greys (`#374151` … `#9ca3af`) with a comment claiming it "matches app's getScoreTextClass utility". It didn't match before — the app coloured digits green/amber/red — but its all-grey output happens to be close to where this step takes the app (neutral ink). It can be kept as-is for now: the export's score numbers are already neutral, which is the end state this step targets for the app. It does NOT carry a mark, so if the export should match the app's new mark-beside-number treatment, it would need the mark added separately. Deferred — the export's inline HTML uses its own styling and a mark there is a separate decision.
+
+**Explicitly NOT in this step:**
+- **Decorative colour everywhere else.** The blue and purple Conversion/Trust chips, the orange/purple/blue sidebar section labels, the coloured section headings in the analysis cards — all of that is step 3b. Results components alone carry 31 blue and 12 purple, and the sidebar another 44 blue. Doing it here would make the diff unreviewable, and 3b is easier once 3a exists as a reference.
+- **Threshold changes.** Where "good" starts is a product question. Not now.
+- **The card header background colours** (orange for primary, grey otherwise). Those are identity, not status — part of 3b's judgement.
+
+**Verification:**
+- `grep -rE "[a-z]+-rose-[0-9]" src/` returns zero results.
+- No score number anywhere renders in green, amber or red — the winner hero score, a version analysis score, the ScoreCard circle, and the comparison card's inline scores all use neutral ink. Each still communicates quality via a dot, a ring, or a label.
+- A failing score (< 50) and a passing score (>= 80) sit side by side and are distinguishable by the mark colour (red dot vs green dot) while the numbers themselves are the same neutral grey.
+- Labels read `Excellent` / `Good` / `Needs work`, not shouty caps, everywhere `getScoreLabel` from `scoreColors.ts` is used.
+- `npm run build` passes.
+- `npx tsc --noEmit -p tsconfig.app.json` returns 1327 errors. The baseline at `996a761` was 1326; the +1 is not in any file touched by this change (verified by grepping the error output for `scoreColors`, `getScoreMarkClass`, `tailwind`, and all four modified component filenames — zero matches). The pre-existing errors in `ComparisonCard.tsx` (lines 96–156, on `ComparisonResult` properties) predate this change. The marginal count difference is in unrelated files and is not a regression introduced by this step.
+- Dark mode and the greyscale print-preview test still need eyes before beta — the status colours were chosen for contrast on white and should be checked on the dark background, and the greyscale test (rule 3's actual test) confirms every score's quality is still readable from its label alone.
+
+---
 
 **Verification:**
 - In a Spanish or Italian session with three versions: Conversion and Trust render muted with `—`, the qualifier line appears once beneath the chip row, and Risk still shows its normal colour and value.

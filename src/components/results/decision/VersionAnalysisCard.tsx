@@ -3,7 +3,7 @@ import {
   Award, CheckCircle, AlertTriangle, Target,
   RefreshCw, Eye, Clock, Trophy, ChevronDown, ChevronUp
 } from 'lucide-react';
-import { getScoreTextClass } from '../../../utils/scoreColors';
+import { getScoreTextClass, getScoreMarkClass } from '../../../utils/scoreColors';
 import { VersionDeepAnalysis, AbsoluteScoreBreakdown } from '../../../types';
 import { formatDeltaFromParts, getComparisonDelta } from '../../../utils/comparisonDelta';
 import { SubScoreChips } from '../SubScoreChips';
@@ -192,8 +192,11 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
           <div className="flex items-start gap-3 flex-shrink-0">
             <div className="flex flex-col items-end gap-1">
               <span className="text-xs font-bold text-gray-300 dark:text-gray-700 uppercase tracking-widest">Session</span>
-              <span className={`text-xl font-black tabular-nums leading-none ${getScoreTextClass(row.finalScore)}`}>
-                {row.finalScore != null ? row.finalScore : '—'}
+              <span className="flex items-center gap-1.5">
+                <span className={`w-2 h-2 ${getScoreMarkClass(row.finalScore)}`} style={{ borderRadius: '9999px' }} aria-hidden="true" />
+                <span className={`text-xl font-black tabular-nums leading-none ${getScoreTextClass(row.finalScore)}`}>
+                  {row.finalScore != null ? row.finalScore : '—'}
+                </span>
               </span>
               {!isBaseline && delta && !delta.neutral ? (
                 <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums whitespace-nowrap ${deltaBadgeClass(delta.positive)}`}>

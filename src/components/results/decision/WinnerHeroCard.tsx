@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowRight, Award } from 'lucide-react';
-import { getScoreTextClass } from '../../../utils/scoreColors';
+import { getScoreTextClass, getScoreMarkClass } from '../../../utils/scoreColors';
 import { AbsoluteScoreBreakdown } from '../../../types';
 import { getComparisonDelta } from '../../../utils/comparisonDelta';
 
@@ -144,8 +144,11 @@ export const WinnerHeroCard: React.FC<WinnerHeroCardProps> = ({
           {/* Session score only */}
           <div className="flex flex-col items-end gap-1 flex-shrink-0">
             <span className="text-xs font-bold text-gray-300 dark:text-gray-700 uppercase tracking-widest">Session</span>
-            <span className={`text-2xl font-black tabular-nums leading-none ${getScoreTextClass(winnerRow.finalScore)}`}>
-              {winnerRow.finalScore}
+            <span className="flex items-center gap-1.5">
+              <span className={`w-2 h-2 ${getScoreMarkClass(winnerRow.finalScore)}`} style={{ borderRadius: '9999px' }} aria-hidden="true" />
+              <span className={`text-2xl font-black tabular-nums leading-none ${getScoreTextClass(winnerRow.finalScore)}`}>
+                {winnerRow.finalScore}
+              </span>
             </span>
             {sessionDelta && !sessionDelta.neutral ? (
               <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums whitespace-nowrap ${deltaBadgeClass(sessionDelta.positive)}`}>

@@ -35,6 +35,13 @@ export default {
         // Remove all other colors - only black, white, and gray
         black: '#000000',
         white: '#ffffff',
+        // Reserved status tokens — the only colours allowed to signal score quality.
+        // Used by score marks (dots, rings, bars) beside neutral-ink numbers.
+        status: {
+          good: '#0ca30c',      // >= 80 — nearest Tailwind step: green-600
+          warning: '#fab219',  // >= 50 — nearest Tailwind step: amber-500
+          critical: '#d03b3b', // < 50  — nearest Tailwind step: red-600
+        },
       },
       fontFamily: {
         sans: ['Geist', 'sans-serif'],

@@ -1746,7 +1746,7 @@ export const generateBestVersionAnalysisHtml = (
       if (badgeStyles.includes('bg-purple-50')) { badgeBg = '#faf5ff'; badgeText = '#7e22ce'; badgeBorder = '#e9d5ff'; }
       if (badgeStyles.includes('bg-green-50')) { badgeBg = '#f0fdf4'; badgeText = '#15803d'; badgeBorder = '#bbf7d0'; }
       if (badgeStyles.includes('bg-amber-50')) { badgeBg = '#fffbeb'; badgeText = '#b45309'; badgeBorder = '#fde68a'; }
-      if (badgeStyles.includes('bg-rose-50')) { badgeBg = '#fff1f2'; badgeText = '#be123c'; badgeBorder = '#fecdd3'; }
+      if (badgeStyles.includes('bg-red-50')) { badgeBg = '#fef2f2'; badgeText = '#b91c1c'; badgeBorder = '#fecaca'; }
 
       const escapedBadgeLabel = String(decisionBadge.label).replace(/</g, '&lt;').replace(/>/g, '&gt;');
       html += '<span style="font-size:11px;font-weight:600;padding:4px 8px;border-radius:4px;white-space:nowrap;background:' + badgeBg + ';color:' + badgeText + ';border:1px solid ' + badgeBorder + ';">' + escapedBadgeLabel + '</span>\n';

@@ -1,7 +1,7 @@
 import React from 'react';
 import { Award, TrendingUp, AlertCircle, CheckCircle, Target, Lightbulb, BarChart3, RefreshCw, RotateCcw, Clock } from 'lucide-react';
 import { ComparisonResult } from '../../services/api/comprehensiveScoring'; // phase 1 scoring cleanup: updated import path
-import { getScoreTextClass } from '../../utils/scoreColors';
+import { getScoreTextClass, getScoreMarkClass } from '../../utils/scoreColors';
 import { Button } from '../ui/button';
 import { GeneratedContentItem } from '../../types';
 import { SubScoreChips } from './SubScoreChips';
@@ -171,7 +171,7 @@ const ComparisonCard: React.FC<ComparisonCardProps> = ({
               {comparison.bestVersionTitle}
             </h4>
             <p className="text-sm text-gray-600 dark:text-gray-400">
-              Overall Score: <span className={`${getScoreTextClass(comparison.overallScore)} font-bold`}>{comparison.overallScore}/100</span>
+              Overall Score: <span className="inline-flex items-center gap-1.5"><span className={`w-2 h-2 ${getScoreMarkClass(comparison.overallScore)}`} style={{ borderRadius: '9999px' }} aria-hidden="true" /><span className={`${getScoreTextClass(comparison.overallScore)} font-bold`}>{comparison.overallScore}/100</span></span>
             </p>
           </div>
         </div>
@@ -314,8 +314,11 @@ const ComparisonCard: React.FC<ComparisonCardProps> = ({
                   )}
                 </div>
                 <div className="flex flex-col items-end gap-1">
-                  <span className={`text-sm font-bold ${getScoreTextClass(detail.score)}`}>
-                    {detail.score}/100
+                  <span className="inline-flex items-center gap-1.5">
+                    <span className={`w-2 h-2 ${getScoreMarkClass(detail.score)}`} style={{ borderRadius: '9999px' }} aria-hidden="true" />
+                    <span className={`text-sm font-bold ${getScoreTextClass(detail.score)}`}>
+                      {detail.score}/100
+                    </span>
                   </span>
                 </div>
               </div>
