@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.28
-Last Updated: 2026-08-08T21:15:00Z
+Version: 1.29
+Last Updated: 2026-08-08T21:40:00Z
 
 ---
 
@@ -40,6 +40,23 @@ Last Updated: 2026-08-08T21:15:00Z
 3. **Decision badges suppressed when the heuristic didn't engage.** `src/utils/decisionBadges.ts` derives "Best for Conversion", "Low Risk" and "Well Balanced" from these same sub-scores. With `conversion = trust = 50`: "Best for Conversion" (requires `>= 70`) is structurally unreachable; "Low Risk" (requires `trust >= 55`) is structurally unreachable; "Well Balanced" (smallest `|conversion - trust|`) is awarded to every version because every delta is 0 — which matches the observed screen where Generated Copy 2 and Original Copy both carried "Well Balanced" and no version carried a conversion or risk badge. `VersionWithScores.subScores` in `decisionBadges.ts` gained `hasSignal?: boolean`; when `hasSignal === false` the three sub-score-derived badge blocks are skipped entirely. "Best Overall" is kept in all cases — it's derived from `finalScore`, which is now purely the LLM comparative score and is language-independent. `ComprehensiveComparisonTable.tsx` (~line 270) now includes `hasSignal: subScores.hasSignal` in the object passed to `getDecisionBadgeForVersion`. Net effect for non-English sessions: the winner shows "Best Overall", the other versions show no badge instead of a meaningless "Well Balanced". Showing nothing is the honest output — there is genuinely nothing to say.
 
 **Dead-code finding — `MultiScoreDisplay.tsx` is never rendered:** A repo-wide search for `<MultiScoreDisplay` returns zero hits; every match on that name is the *utility* module `src/utils/multiScoreDisplay.ts`, a different file. The component (`src/components/results/MultiScoreDisplay.tsx`, 210 lines) is dead code. It is also the sole consumer of `calculateMultiScoreDisplayDetailed` and its family — `estimateConversionDisplayScoreDetailed`, `estimateTrustDisplayScoreDetailed`, `estimateRiskDisplayLevelDetailed`, and `calculateMultiScoreDisplayDetailed` — so once the component goes, those functions in `src/utils/multiScoreDisplay.ts` become unreachable (roughly lines 414–810, ~400 lines of the 1211-line file). Deletion is deferred to the dead-code batch (Start Hub mode picker, `controlExecuted`, FAQ Schema, `toneLevel` slider, duplicate prefills, dead export functions) so the removal happens in one reviewable commit. This task only confirms the finding.
+
+**Follow-up — export-side sub-score disclosure (2026-08-08):** The HTML export renders the same Conversion/Trust chips as the app, and had the same two defects: it printed the raw `50/100` numbers in full blue/purple colour for non-English copy, and the `subScores` object it built for decision-badge computation dropped `hasSignal`. Two edits in `src/utils/enhancedExports.ts`:
+
+1. **Line ~1688 — pass `hasSignal` through to the badge logic.** The `subScores` object built for `getDecisionBadgeForVersion` now includes `hasSignal: subScores.hasSignal`, so the badge suppression added in the previous follow-up takes effect in exports too. Without this, a Spanish export's badge row would still award "Well Balanced" to every version.
+
+2. **Lines ~1764–1783 — wrap the Conversion and Trust chips in the same `hasSignal` condition the app uses.** When `comprehensiveScores.hasSignal` is true the chips render exactly as before (blue Conversion, purple Trust, real numbers, `/100` suffix). When it's false they render muted — grey background, grey text, em dash in place of the number — matching the in-app `SubScoreChips` muted state. The Risk chip immediately below is unchanged: it's pattern-based (numeric claims, percentages, caps) and works across languages, so it stays live and keeps its colour in both cases.
+
+3. **Qualifier sentence added once beneath the chip row when `!comprehensiveScores.hasSignal`.** An exported document has no hover tooltip to fall back on, so the `title` attribute the app relies on in compact rows is useless here. The export now prints the same qualifier sentence ("Conversion and Trust are estimated from English-language cues and aren't available for this copy.") as a small grey `<p>` directly beneath the chip row — once per version row, visible in the body of the report. This mirrors the app's expanded-panel behaviour, where the qualifier appears once where someone has actively asked why.
+
+**Call-site audit:** `calculateMultiScoreDisplay` is called in exactly two places in `enhancedExports.ts` — line ~1681 (feeding the `subScores` object for badges) and line ~1719 (feeding the chip row). Both are now handled. A grep for `comprehensiveScores.conversion` / `comprehensiveScores.trust` / `subScores.conversion` / `subScores.trust` confirms the only print sites are the chip block wrapped in edit 2 and the badge object updated in edit 1; no other part of the export prints these numbers.
+
+**Verification:**
+- A Spanish or Italian export: Conversion and Trust chips render muted with `—`, the qualifier sentence appears once beneath the chip row, Risk keeps its colour and value, and no version carries "Well Balanced", "Best for Conversion" or "Low Risk". The winner still shows "Best Overall".
+- An English export with ordinary marketing copy: byte-identical to before — coloured chips, real numbers, no qualifier, badges as before. The `hasSignal` branch is the only one taken, so the HTML string is unchanged.
+- Short English copy with no keywords (`"Hello there."`) behaves like the non-English case in both app and export.
+- `npm run build` passes.
+- `npx tsc --noEmit -p tsconfig.app.json` shows 1326 errors, same as `ac98cf1` — zero new errors.
 
 **Verification:**
 - In a Spanish or Italian session with three versions: Conversion and Trust render muted with `—`, the qualifier line appears once beneath the chip row, and Risk still shows its normal colour and value.

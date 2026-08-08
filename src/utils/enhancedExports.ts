@@ -1685,7 +1685,8 @@ export const generateBestVersionAnalysisHtml = (
       subScores: subScores ? {
         conversion: subScores.conversion,
         trust: subScores.trust,
-        risk: subScores.risk
+        risk: subScores.risk,
+        hasSignal: subScores.hasSignal
       } : undefined
     };
   });
@@ -1762,15 +1763,24 @@ export const generateBestVersionAnalysisHtml = (
     if (comprehensiveScores) {
       html += '<div style="display:flex;align-items:center;gap:4px;margin-top:4px;flex-wrap:wrap;">\n';
 
-      // Conversion chip (blue)
-      html += '<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;">\n';
-      html += '<span style="color:#3b82f6;font-weight:400;">Conversion</span> <span style="font-weight:600;">' + comprehensiveScores.conversion + '<span style="color:#60a5fa;font-weight:400;">/100</span></span>\n';
-      html += '</span>\n';
+      // Conversion & Trust chips — muted with an em dash when the heuristic matched nothing
+      if (comprehensiveScores.hasSignal) {
+        html += '<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:#eff6ff;color:#1e40af;border:1px solid #bfdbfe;">\n';
+        html += '<span style="color:#3b82f6;font-weight:400;">Conversion</span> <span style="font-weight:600;">' + comprehensiveScores.conversion + '<span style="color:#60a5fa;font-weight:400;">/100</span></span>\n';
+        html += '</span>\n';
 
-      // Trust chip (purple)
-      html += '<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:#faf5ff;color:#7e22ce;border:1px solid #e9d5ff;">\n';
-      html += '<span style="color:#9333ea;font-weight:400;">Trust</span> <span style="font-weight:600;">' + comprehensiveScores.trust + '<span style="color:#a855f7;font-weight:400;">/100</span></span>\n';
-      html += '</span>\n';
+        html += '<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:#faf5ff;color:#7e22ce;border:1px solid #e9d5ff;">\n';
+        html += '<span style="color:#9333ea;font-weight:400;">Trust</span> <span style="font-weight:600;">' + comprehensiveScores.trust + '<span style="color:#a855f7;font-weight:400;">/100</span></span>\n';
+        html += '</span>\n';
+      } else {
+        html += '<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:#f9fafb;color:#9ca3af;border:1px solid #e5e7eb;">\n';
+        html += '<span style="font-weight:400;">Conversion</span> <span style="font-weight:600;">&mdash;</span>\n';
+        html += '</span>\n';
+
+        html += '<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:#f9fafb;color:#9ca3af;border:1px solid #e5e7eb;">\n';
+        html += '<span style="font-weight:400;">Trust</span> <span style="font-weight:600;">&mdash;</span>\n';
+        html += '</span>\n';
+      }
 
       // Risk chip (color varies by level)
       const riskColors = comprehensiveScores.risk === 'High'
@@ -1782,6 +1792,13 @@ export const generateBestVersionAnalysisHtml = (
       html += '<span style="display:inline-flex;align-items:center;gap:2px;padding:1px 6px;border-radius:4px;font-size:10px;font-weight:500;background:' + riskColors.bg + ';color:' + riskColors.text + ';border:1px solid ' + riskColors.border + ';">\n';
       html += '<span style="color:' + riskColors.labelColor + ';font-weight:400;">Risk</span> <span style="font-weight:600;">' + comprehensiveScores.risk + '</span>\n';
       html += '</span>\n';
+
+      // Qualifier sentence once beneath the chip row when the heuristic matched nothing.
+      // An exported document has no hover tooltip to fall back on, so the explanation
+      // must be visible in the body of the report.
+      if (!comprehensiveScores.hasSignal) {
+        html += '<p style="margin:6px 0 0 0;font-size:11px;color:#9ca3af;line-height:1.5;">Conversion and Trust are estimated from English-language cues and aren&rsquo;t available for this copy.</p>\n';
+      }
 
       html += '</div>\n';
     }
