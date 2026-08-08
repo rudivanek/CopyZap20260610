@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.25
-Last Updated: 2026-08-08T17:20:00Z
+Version: 1.26
+Last Updated: 2026-08-08T18:05:00Z
 
 ---
 
@@ -6916,3 +6916,19 @@ The wizard's mode selector previously offered three options: "Make new copy" (`c
 **Fix (`src/components/GeneratedCopyCard.tsx`):** Added a `sourceNote` paragraph as a sibling directly after the `<h2>` title inside the `min-w-0` container of the full header branch. The note uses a softened variant of the title's color conditional: `text-white/75` on colored headers where the title is white, and `text-gray-500 dark:text-gray-400` on the GEO-optimized light header. The compact branch render is unchanged. Cards without `sourceNote` render no extra line in either branch.
 
 **Verification:** `npm run build` passes. `npx tsc --noEmit -p tsconfig.app.json 2>&1 | grep GeneratedCopyCard` shows no new errors beyond pre-existing ones.
+
+---
+
+## URL-Extracted Copy Preserves Formatting as Markdown (2026-08-08)
+
+**Feature:** When the Quick Setup Wizard's **Improve existing copy → Analyze URL → Analyze Deep Crawl** path extracts page copy, the result now lands in the "Paste your existing copy" field as Markdown instead of flattened plain text. The Original Copy card in Copy Maker now renders real headings, bold/italic emphasis, bullet and numbered lists, and clickable links — visually comparable in structure to the generated versions rather than a wall of undifferentiated paragraphs.
+
+**Root cause:** `src/components/wizard/WizardStep.tsx` ran the extracted HTML through `htmlToText` (`src/utils/htmlToText.ts`), which by design strips every tag to bare text surrounded by blank lines — the heading level, emphasis and list markers are all lost. The rendering layer (`src/components/ui/FormattedContent.tsx`) already converts Markdown to HTML for string content via `markdownToHtml`, so the card was capable of rendering a structured original; it was simply being handed text with the structure removed.
+
+**Fix — new converter (`src/utils/htmlToMarkdown.ts`):** Added `htmlToMarkdown(html: string): string`, modeled on `htmlToText.ts` (same early-return-when-no-tags guard, entity decoding, and whitespace-collapsing steps) but mapping tags to Markdown syntax: `<h1>`–`<h6>` → `# `–`###### `; `<strong>`/`<b>` → `**text**`; `<em>`/`<i>` → `*text*`; `<li>` in `<ol>` → sequentially-numbered `1. ` items; remaining `<li>` → `- item`; `<a href="x">text</a>` → `[text](x)`; `<p>` → text + blank line; `<br>` → newline; other tags stripped to inner text. Blank lines are preserved before and after each heading and list block so `markdownToHtml` recognises them. `htmlToText.ts` is left untouched; its `containsHtml` export is still imported by the wizard.
+
+**Fix — call site (`src/components/wizard/WizardStep.tsx`):** Imported `htmlToMarkdown` and replaced the `htmlToText(result.data.structuredCopy)` call with `htmlToMarkdown(result.data.structuredCopy)`. This is the only call site changed; the path serves Deep Crawl and any other extraction writing into `whatAreYouCreating`. The now-unused `htmlToText` import was dropped from this file (the `containsHtml` import remains).
+
+**Word-count check (Task 3):** The Original Copy card header computes its word count from `contentDetails.text`, which for string content is `stripMarkdown(stringContent)` (`src/components/GeneratedCopyCard.tsx` line ~356). `stripMarkdown` (`src/utils/markdownUtils.ts`) already strips `#`/`##` headers, `**bold**`, `*italic*`, list markers (`-`/`*`/`+`), and `[text](url)` link syntax before counting. So `# Introducción` counts as one word ("Introducción") and `**bold**` counts as one word ("bold") matching its unformatted form. The extracted copy's word count will not jump relative to a clean generated version — the "Target / Perfect" comparison stays meaningful. No change to the word-count helper was needed.
+
+**Verification:** `npm run build` passes. `npx tsc --noEmit -p tsconfig.app.json 2>&1 | grep htmlToMarkdown` returns no errors (the new file is clean); `grep WizardStep` shows only pre-existing errors (unused imports and union-type property access on `result.data`) that predate this change. Manual browser verification of the wizard flow is recommended to confirm the rendered card visually.

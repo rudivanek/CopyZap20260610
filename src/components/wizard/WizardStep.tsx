@@ -14,7 +14,8 @@ import SuggestionButton from '../ui/SuggestionButton';
 import { analyzeUrl } from '../../services/api/urlAnalysis';
 import { analyzeUrlWithFirecrawl } from '../../services/api/urlAnalysisFirecrawl';
 import StructureConfirmationModal from './StructureConfirmationModal';
-import { htmlToText, containsHtml } from '../../utils/htmlToText';
+import { containsHtml } from '../../utils/htmlToText';
+import { htmlToMarkdown } from '../../utils/htmlToMarkdown';
 
 interface Suggestion {
   id: string;
@@ -411,9 +412,9 @@ const WizardStep: React.FC<WizardStepProps> = ({
       } else {
         // Extract copy mode - put the copy in the whatAreYouCreating field
         if (result.data.structuredCopy) {
-          // Convert HTML to plain text for better readability
-          const plainText = htmlToText(result.data.structuredCopy);
-          updateAnswer('whatAreYouCreating', plainText);
+          // Convert HTML to Markdown so the Original Copy card renders real headings, bold, lists and links
+          const markdownText = htmlToMarkdown(result.data.structuredCopy);
+          updateAnswer('whatAreYouCreating', markdownText);
         }
         if (result.data.targetAudience) {
           updateAnswer('targetAudience', result.data.targetAudience);
