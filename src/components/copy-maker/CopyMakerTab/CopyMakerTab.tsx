@@ -724,10 +724,11 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
       return;
     }
     setIsGeneratingBestElements(true);
-    addProgressMessage('Analyzing best elements across all versions...');
+    addProgressMessage('Analyzing best elements across all versions…');
     try {
       const { generateBestElements } = await import('../../../services/api/bestElements');
       const result = await generateBestElements(versions, comparisonResult, currentUser, formState.sessionId);
+      // Store the result in form state — still needed for the compiled card's provenance line.
       setFormState(prev => ({
         ...prev,
         copyResult: {
@@ -735,13 +736,10 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
           bestElementsResult: result,
         }
       }));
-      addProgressMessage('Best Elements Summary ready!');
-      toast.success('Best Elements Summary generated!');
-      playSuccessSound();
-      setTimeout(() => {
-        const el = document.getElementById('best-elements-summary');
-        if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-      }, 300);
+      addProgressMessage('Assembling into a new version…');
+      // Chain straight into the compile step, passing the result directly so we don't
+      // read stale form state (setFormState is async and the value won't be there yet).
+      await handleCompileBestElements(result);
     } catch (error: any) {
       console.error('Error generating best elements:', error);
       toast.error('Failed to generate Best Elements Summary. Please try again.');
@@ -750,16 +748,14 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
     }
   };
 
-  const handleCompileBestElements = async () => {
+  const handleCompileBestElements = async (bestElements?: import('../../../services/api/bestElements').BestElementsResult) => {
     if (!currentUser || !formState) return;
-    const bestElementsResult = formState.copyResult?.bestElementsResult;
+    const bestElementsResult = bestElements ?? formState.copyResult?.bestElementsResult;
     if (!bestElementsResult?.elements?.length) {
       toast.error('Generate Best Elements Summary first.');
       return;
     }
     const versions = (formState.copyResult?.generatedVersions || []).filter(v => !v.comparedContent);
-    setIsGeneratingBestElements(true);
-    addProgressMessage('Compiling best elements into a new version...');
     try {
       const { compileBestElements } = await import('../../../services/api/bestElements');
       const { generateAbsoluteScore } = await import('../../../services/api/absoluteScoring');
@@ -774,12 +770,18 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
         formState.sessionId
       );
 
+      // Build a human-readable provenance line from the per-element source versions.
+      const sourceNote = `Assembled from: ${bestElementsResult.elements
+        .map(el => `${el.versionName} (${el.dimension})`)
+        .join(', ')}`;
+
       const newItem: GeneratedContentItem = {
         id: uuidv4(),
         type: GeneratedContentItemType.Alternative,
         content: compiledContent,
         generatedAt: new Date().toISOString(),
         sourceDisplayName: 'Compiled: Best Elements',
+        sourceNote,
         analysisMode: 'on_demand',
       };
 
@@ -804,6 +806,7 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
 
       addProgressMessage('Compiled version created!');
       toast.success('Compiled: Best Elements added as a new output!');
+      playSuccessSound();
 
       setTimeout(() => {
         const el = document.getElementById(`output-${newItem.id}`);
@@ -817,8 +820,6 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
     } catch (error: any) {
       console.error('Error compiling best elements:', error);
       toast.error(`Failed to compile: ${error.message}`);
-    } finally {
-      setIsGeneratingBestElements(false);
     }
   };
 
@@ -2337,11 +2338,6 @@ try {
               modalInitialContext={modalInitialContext}
               onSetModalInitialContext={setModalInitialContext}
               onScoringContextConfirm={handleScoringContextConfirm}
-              bestElementsResult={formState.copyResult?.bestElementsResult}
-              onCompileBestElements={handleCompileBestElements}
-              isCompiling={isGeneratingBestElements}
-              onGenerateBestElements={handleGenerateBestElements}
-              isGeneratingBestElements={isGeneratingBestElements}
             />
           ) : (
             <EmptyState
@@ -2357,7 +2353,6 @@ try {
       <FloatingOutputNavigation
         generatedVersions={formState.copyResult?.generatedVersions ?? []}
         hasComparison={!!comparisonResult}
-        hasBestElements={!!formState.copyResult?.bestElementsResult}
       />
 
       {/* Progress Modal */}

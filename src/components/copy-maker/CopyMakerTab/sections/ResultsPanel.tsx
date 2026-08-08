@@ -5,7 +5,6 @@ import ComparisonWarningModal from '../../../ComparisonWarningModal';
 import ScoringContextModal from '../modals/ScoringContextModal';
 import NextStepSuggestion from '../../guidance/NextStepSuggestion';
 import UpgradeHint from '../../guidance/UpgradeHint';
-import { BestElementsCard } from '../../../results/BestElementsCard';
 import { GeneratedContentItem, GeneratedContentItemType, FormState, User, VersionDeepAnalysis, ComparisonDeepAnalysisMeta, ScoringContext, AbsoluteScoreBreakdown } from '../../../../types';
 import { ComparisonResult } from '../../../../services/api/comprehensiveScoring';
 import { Button } from '../../../ui/button';
@@ -47,11 +46,6 @@ interface ResultsPanelProps {
   modalInitialContext?: ScoringContext | undefined;
   onSetModalInitialContext?: (context: ScoringContext | undefined) => void;
   onScoringContextConfirm?: (ctx: ScoringContext) => void;
-  bestElementsResult?: import('../../../../services/api/bestElements').BestElementsResult;
-  onCompileBestElements?: () => void;
-  isCompiling?: boolean;
-  onGenerateBestElements?: () => void;
-  isGeneratingBestElements?: boolean;
 }
 
 const ResultsPanel: React.FC<ResultsPanelProps> = ({
@@ -89,11 +83,6 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
   modalInitialContext: externalModalInitialContext,
   onSetModalInitialContext,
   onScoringContextConfirm,
-  bestElementsResult,
-  onCompileBestElements,
-  isCompiling,
-  onGenerateBestElements,
-  isGeneratingBestElements,
 }) => {
   const [showWarningModal, setShowWarningModal] = useState(false);
   // Use external state if provided, otherwise use local state
@@ -444,21 +433,6 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
           )}
 
           <div className="performance-table-wrapper" style={{ display: 'block', height: 'auto', overflow: 'visible' }}>
-            {/* Best Elements Summary — cross-version analysis (needs comparison + 2+ versions).
-                Trigger moved to the sidebar (Task 5). Display + Compile already lived here. */}
-            {bestElementsResult && (
-              <div className="mb-6">
-                <BestElementsCard
-                  result={bestElementsResult}
-                  onJumpToVersion={(versionId) => {
-                    const el = document.getElementById(`output-${versionId}`);
-                    el?.scrollIntoView({ behavior: 'smooth', block: 'start' });
-                  }}
-                  onCompile={onCompileBestElements}
-                  isCompiling={isCompiling}
-                />
-              </div>
-            )}
             {comparisonResult && (
               <ComprehensiveComparisonTable
                 comparison={comparisonResult}

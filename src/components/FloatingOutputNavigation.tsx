@@ -1,17 +1,15 @@
 import React from 'react';
-import { ChevronUp, ChevronDown, Award, Table, Sparkles } from 'lucide-react';
+import { ChevronUp, ChevronDown, Award, Table } from 'lucide-react';
 import { GeneratedContentItem, GeneratedContentItemType } from '../types';
 
 interface FloatingOutputNavigationProps {
   generatedVersions: GeneratedContentItem[];
   hasComparison: boolean;
-  hasBestElements?: boolean;
 }
 
 const FloatingOutputNavigation: React.FC<FloatingOutputNavigationProps> = ({
   generatedVersions,
   hasComparison,
-  hasBestElements,
 }) => {
   const scrollToElement = (elementId: string) => {
     const element = document.getElementById(elementId);
@@ -82,21 +80,6 @@ const FloatingOutputNavigation: React.FC<FloatingOutputNavigationProps> = ({
                   >
                     <Award className="h-3 w-3 inline mr-1" />
                     Comparison
-                  </button>
-                </>
-              )}
-
-              {/* Go to Best Elements Summary */}
-              {hasBestElements && (
-                <>
-                  <div className="h-4 w-px bg-gray-400 dark:bg-gray-600 flex-shrink-0"></div>
-                  <button
-                    onClick={() => scrollToElement('best-elements-summary')}
-                    className="flex-shrink-0 px-2 py-1 text-[11px] font-medium text-purple-700 dark:text-purple-400 hover:bg-purple-100 dark:hover:bg-purple-900/30 rounded transition-colors"
-                    title="Go to Best Elements Summary"
-                  >
-                    <Sparkles className="h-3 w-3 inline mr-1" />
-                    Best Elements
                   </button>
                 </>
               )}

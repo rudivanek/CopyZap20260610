@@ -273,6 +273,7 @@ export interface GeneratedContentItem {
   sourceType?: GeneratedContentItemType; // Type of the source content item
   sourceIndex?: number; // Index of the source content item if it was part of a collection (e.g., alternativeVersions[index])
   sourceDisplayName?: string; // A user-friendly name for the source (e.g., "Standard Version", "Alternative Version 2")
+  sourceNote?: string; // Human-readable footnote about where the content came from (e.g., provenance for compiled versions)
 
   generatedAt: string; // Timestamp of when this item was generated
 

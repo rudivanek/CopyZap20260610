@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.24
-Last Updated: 2026-08-08T00:00:00Z
+Last Updated: 2026-08-08T17:14:22Z
 
 ---
 
@@ -6865,7 +6865,7 @@ The wizard's mode selector previously offered three options: "Make new copy" (`c
 
 ## Combine Versions — Merged Blend + Best Elements (2026-08-08)
 
-**Feature:** Consolidated two overlapping "combine your versions" features — **Blend Best Version** (sidebar, rewrite path) and **Compile Best Elements** (results-area trigger, verbatim-stitch path) — into one sidebar dropdown with two clearly-worded options, and removed a third fabricated-data entry point entirely. The Best Elements breakdown card stays in the results area as a preview of what the compile path produces.
+**Feature:** Consolidated two overlapping "combine your versions" features — **Blend Best Version** (sidebar, rewrite path) and **Compile Best Elements** (sidebar, verbatim-stitch path) — into one sidebar dropdown with two clearly-worded options, and removed a third fabricated-data entry point entirely. The best-elements action now generates and compiles in one click; the former breakdown card has been removed.
 
 **Why:** Both features legitimately differ — Blend rewrites all versions into fresh wording; Best Elements stitches the strongest section from each version word-for-word — but nothing communicated that. The labels were synonyms, the triggers lived in different parts of the UI so they didn't read as alternatives, and the difference a user actually cares about (*does my wording survive?*) was invisible. A third "Blend" button on the AI Analysis Summary card compounded the confusion and ran on invented comparison data.
 
@@ -6875,9 +6875,9 @@ The wizard's mode selector previously offered three options: "Make new copy" (`c
 - **Option 1 — "Write a fresh version"** → calls `onBlendVersions()` with **no argument** (the real-comparison-data path). Hover: "The AI rewrites all versions into one. Wording may change."
 - **Option 2 — "Keep the best parts as they are"** → calls `onGenerateBestElements()`. Gated on `sortedGeneratedVersions.length >= 2` (the same condition the results-area button used). Hover: "Takes the strongest section from each version, word for word."
 
-**Task 2 — Results-area trigger removed (`src/components/copy-maker/CopyMakerTab/sections/ResultsPanel.tsx`):** Deleted the standalone purple "Generate Best Elements Summary" button block (button + helper paragraph). The breakdown card display block is kept exactly as-is — it renders only when `bestElementsResult` exists, so once the sidebar option runs, the card appears here as before. `onGenerateBestElements`/`isGeneratingBestElements` props remain declared on `ResultsPanel` because the sidebar still threads them through; only the per-file button usage is gone.
+**Task 2 — Results-area panel removed (`src/components/copy-maker/CopyMakerTab/sections/ResultsPanel.tsx`):** Removed the standalone best-elements breakdown panel, its import, and all compile/generate prop pass-throughs. The results area no longer renders a Best Elements Summary before or after the action. `bestElementsResult` remains stored on `CopyResult` for provenance and as the record of what the compiled output used.
 
-**Task 3 — Compile button relabel (`src/components/results/BestElementsCard.tsx`):** Changed the confirm-step button from "Compile Best Elements → New Output" to "Build this version", with "Building…" for the in-progress state. The card heading "Best Elements Summary" and subtitle "What to take from each version" are unchanged.
+**Task 3 — Compile button removed (`src/components/results/BestElementsCard.tsx`):** Deleted the former breakdown card, including its preview, rationale, jump links, assembly note, and "Build this version" confirmation step. The sidebar action now performs both phases directly.
 
 **Task 4 — Fabricated comparison data removed (`src/components/copy-maker/CopyMakerTab/CopyMakerTab.tsx`):** `handleBlendVersions` previously, when called with an `analysisContent` argument, built a `mockComparisonResult` with `score: 80`, `overallScore: 80`, fake `pros: ['Analyzed by AI', 'Selected for blending']`, and a placeholder `metrics` block (`tone: 'Professional'`, `readability: 'High'`, etc.) for every version — all passed to the blend API as if real. The constructed object now omits `score`/`overallScore` entirely, drops the fake `pros` and `metrics` block, and keeps only fields genuinely derived from the analysis text (`versionTitle`, `bestUsedFor`, `reasoning`, `strategicRecommendation`). The real `comparisonResult` path (no argument) is unchanged and was always honest.
 

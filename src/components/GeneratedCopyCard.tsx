@@ -945,7 +945,12 @@ const GeneratedCopyCard: React.FC<GeneratedCopyCardProps> = ({
 
         {/* ── Header bar ────────────────────────────────────────── */}
         {indentationLevel === 1 ? (
-          <p className="text-[10px] text-gray-400 dark:text-gray-500 py-1 px-2">{card.sourceDisplayName}</p>
+          <div className="py-1 px-2">
+            <p className="text-[10px] text-gray-400 dark:text-gray-500">{card.sourceDisplayName}</p>
+            {card.sourceNote && (
+              <p className="text-[10px] text-gray-400 dark:text-gray-500 mt-0.5 leading-snug">{card.sourceNote}</p>
+            )}
+          </div>
         ) : (
         <div className={`flex items-start justify-between gap-4 px-5 py-4 rounded-t-xl ${
           card.type === GeneratedContentItemType.GeoOptimized
