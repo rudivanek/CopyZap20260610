@@ -9,6 +9,7 @@ interface SubScores {
   conversion: number;
   trust: number;
   risk: number;
+  hasSignal?: boolean;
 }
 
 interface VersionWithScores {
@@ -34,10 +35,12 @@ export function getDecisionBadgeForVersion(
 ): DecisionBadge | null {
   if (!version.subScores) return null;
 
-  const { conversion, trust, risk } = version.subScores;
+  const { conversion, trust, risk, hasSignal = true } = version.subScores;
   const qualifiedBadges: DecisionBadge[] = [];
 
   // 1. Best Overall - highest Final Score (Priority 1)
+  // Derived from finalScore (now the LLM comparative score), which is
+  // language-independent. Always eligible regardless of hasSignal.
   const highestScore = Math.max(...allVersions.map(v => v.finalScore));
   if (version.finalScore === highestScore) {
     qualifiedBadges.push({
@@ -46,6 +49,16 @@ export function getDecisionBadgeForVersion(
       priority: 1,
       icon: 'check'
     });
+  }
+
+  // The three sub-score-derived badges (Conversion, Low Risk, Well Balanced)
+  // rely on the English-keyword heuristics. When hasSignal is false the
+  // sub-scores are the untouched neutral baseline and carry no information,
+  // so these badges are suppressed — showing nothing is the honest output.
+  if (!hasSignal) {
+    if (qualifiedBadges.length === 0) return null;
+    qualifiedBadges.sort((a, b) => a.priority - b.priority);
+    return qualifiedBadges[0];
   }
 
   // 2. Strongest Conversion - highest Conversion score AND Conversion >= 70 (Priority 2)

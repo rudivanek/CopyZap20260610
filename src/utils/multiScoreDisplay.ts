@@ -367,11 +367,13 @@ export function getRiskLevelBg(level: RiskLevel): string {
  * Main function to calculate all display scores for a version
  */
 export function calculateMultiScoreDisplay(text: string): MultiScoreDisplay {
+  const conv = computeConversion(text);
+  const tr = computeTrust(text);
   return {
-    conversion: estimateConversionDisplayScore(text),
-    trust: estimateTrustDisplayScore(text),
+    conversion: conv.score,
+    trust: tr.score,
     risk: estimateRiskDisplayLevel(text),
-    hasSignal: countConversionSignals(text) + countTrustSignals(text) > 0
+    hasSignal: conv.signals + tr.signals > 0,
   };
 }
 

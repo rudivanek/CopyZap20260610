@@ -93,7 +93,7 @@ export const SubScoreChips: React.FC<SubScoreChipsProps> = ({
           </span>
         </span>
       ) : (
-        <span className={mutedConvClass}>
+        <span className={mutedConvClass} title={NO_SIGNAL_QUALIFIER}>
           <span className="font-normal">Conversion</span>
           <span className="font-semibold tabular-nums">&mdash;</span>
         </span>
@@ -111,7 +111,7 @@ export const SubScoreChips: React.FC<SubScoreChipsProps> = ({
           </span>
         </span>
       ) : (
-        <span className={mutedTrustClass}>
+        <span className={mutedTrustClass} title={NO_SIGNAL_QUALIFIER}>
           <span className="font-normal">Trust</span>
           <span className="font-semibold tabular-nums">&mdash;</span>
         </span>
@@ -140,8 +140,8 @@ export const SubScoreChips: React.FC<SubScoreChipsProps> = ({
       </span>
       </div>
 
-      {/* Qualifier line when the heuristic matched nothing */}
-      {!hasSignal && (
+      {/* Qualifier line when the heuristic matched nothing (expanded panel only) */}
+      {!hasSignal && !compact && (
         <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
           {NO_SIGNAL_QUALIFIER}
         </p>

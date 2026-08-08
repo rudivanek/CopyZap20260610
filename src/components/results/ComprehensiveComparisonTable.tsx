@@ -270,7 +270,8 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
         subScores: subScores ? {
           conversion: subScores.conversion,
           trust: subScores.trust,
-          risk: subScores.risk
+          risk: subScores.risk,
+          hasSignal: subScores.hasSignal
         } : undefined
       };
     });
