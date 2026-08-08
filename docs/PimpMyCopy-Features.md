@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.26
-Last Updated: 2026-08-08T18:05:00Z
+Version: 1.27
+Last Updated: 2026-08-08T18:30:00Z
 
 ---
 
@@ -6932,3 +6932,32 @@ The wizard's mode selector previously offered three options: "Make new copy" (`c
 **Word-count check (Task 3):** The Original Copy card header computes its word count from `contentDetails.text`, which for string content is `stripMarkdown(stringContent)` (`src/components/GeneratedCopyCard.tsx` line ~356). `stripMarkdown` (`src/utils/markdownUtils.ts`) already strips `#`/`##` headers, `**bold**`, `*italic*`, list markers (`-`/`*`/`+`), and `[text](url)` link syntax before counting. So `# Introducción` counts as one word ("Introducción") and `**bold**` counts as one word ("bold") matching its unformatted form. The extracted copy's word count will not jump relative to a clean generated version — the "Target / Perfect" comparison stays meaningful. No change to the word-count helper was needed.
 
 **Verification:** `npm run build` passes. `npx tsc --noEmit -p tsconfig.app.json 2>&1 | grep htmlToMarkdown` returns no errors (the new file is clean); `grep WizardStep` shows only pre-existing errors (unused imports and union-type property access on `result.data`) that predate this change. Manual browser verification of the wizard flow is recommended to confirm the rendered card visually.
+
+---
+
+## Colour Family Consolidation — Step 1 (2026-08-08)
+
+**Feature:** Collapsed three duplicate Tailwind colour families into their canonical counterparts so each visual meaning uses one token. This is a mechanical, same-shade swap — no design decisions, no layout changes.
+
+**The three swaps:**
+
+| From | To | Occurrences |
+|---|---|---|
+| `emerald-N` | `green-N` | 64 |
+| `slate-N` | `gray-N` | 14 |
+| `yellow-N` | `amber-N` | 158 |
+
+Total: 236 replacements across 36 files under `src/`. Every shade in use (50–950) exists in the target family, so it was a straight same-number swap — `emerald-400` → `green-400`, `yellow-800` → `amber-800`, etc. No shades were re-picked. `gray` is overridden with custom values in `tailwind.config.js`, so `slate-N` → `gray-N` lands on the project's own grey scale (intended). `green` and `amber` use Tailwind defaults.
+
+**The trap — `slate` is a substring of `translate`:** A naive find-and-replace of `slate` → `gray` would mangle `-translate-y-1` into `-tranGRAY-y-1`, breaking every transform and animation in the app. The swap was performed with a Python script matching only the full utility-class pattern — `(variants:)*(bg|text|border|ring|from|to|via|divide|placeholder|decoration|outline|shadow|accent|caret|fill|stroke)-(emerald|slate|yellow)-[0-9]{2,3}` — so the family token is matched as a complete class component, anywhere in a class list (including inside quoted string literals in template expressions). Variant prefixes (`dark:`, `hover:`, `group-hover:`, `md:`, etc.) were preserved.
+
+**Scope:** Everything under `src/` except `src/components/copy-maker/CopyMakerSidebarLegacy.tsx` (the rollback copy, due for deletion — swapping colours there is churn on a file that's leaving). The legacy file contained no `emerald`/`slate`/`yellow` classes, so excluding it was a clean no-op. `tailwind.config.js` was not modified — no colour definitions added or removed in this step. Colour families outside the three listed (`orange`, `blue`, `purple`, `red`) were left untouched; deciding their fate is step 3's job.
+
+**Visual impact:** `emerald` → `green` and `slate` → `gray` are near-invisible (the pairs are very close). `yellow` → `amber` is visible — amber is warmer and more orange. 158 occurrences shifted slightly. This is expected and acceptable: step 3 replaces these with a validated status colour, and amber is closer to that target (`#fab219`), so this direction means less churn later.
+
+**Verification:**
+- The grep `grep -rhoE "(bg|text|border|ring|from|to|via|divide|placeholder|decoration|outline|shadow|accent|caret|fill|stroke)-(emerald|slate|yellow)-[0-9]{2,3}" src/` (excluding the legacy file) returns zero results.
+- `grep -rn "tranG\|tranGRAY\|tranGray" src/` returns zero hits — no `translate` identifier or class was altered.
+- `npm run build` passes.
+- `npx tsc --noEmit -p tsconfig.app.json` shows no new errors (all errors present are pre-existing and unrelated to the colour swap — none reference the swapped files' colour classes).
+- Spot-check recommended: score badges, the comparison table, and any toast/alert that used yellow — most likely candidates for a light-on-light readability issue where the two families differed in lightness. Check both light and dark mode (the `dark:` variants were swapped too).

@@ -86,8 +86,8 @@ const DashboardAndHistory: React.FC = () => {
       <h3>What Gets Saved Here</h3>
       <p>Only outputs you <strong>explicitly save</strong> appear in the Saved Outputs tab. Automatic saves do NOT happen—you must click the "Save" button on an output card in Copy Maker.</p>
 
-      <div className="not-prose bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 my-6">
-        <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-100 mb-2">⚠️ Important</p>
+      <div className="not-prose bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4 my-6">
+        <p className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-2">⚠️ Important</p>
         <p className="text-gray-700 dark:text-gray-300">If you generate copy but don't click "Save," it will NOT appear in Saved Outputs. Always save important outputs before closing Copy Maker.</p>
       </div>
 

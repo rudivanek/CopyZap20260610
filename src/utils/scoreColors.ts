@@ -15,9 +15,9 @@ export function getScoreColorClasses(score: number | undefined): ScoreColorClass
 
   if (score >= 80) {
     return {
-      text: 'text-emerald-600 dark:text-emerald-400 font-bold',
-      bg: 'bg-emerald-600 dark:bg-emerald-500',
-      border: 'border-emerald-500 dark:border-emerald-400'
+      text: 'text-green-600 dark:text-green-400 font-bold',
+      bg: 'bg-green-600 dark:bg-green-500',
+      border: 'border-green-500 dark:border-green-400'
     };
   }
 

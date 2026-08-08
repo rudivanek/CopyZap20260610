@@ -143,7 +143,7 @@ const CopyOutput: React.FC<CopyOutputProps> = ({
     } else if (Math.abs(difference) <= 50) { // Changed from text-blue-600
       textColor = 'text-gray-700 dark:text-gray-300'; // Good
       message = `${Math.abs(difference)} words ${difference > 0 ? 'over' : 'under'}`;
-    } else if (percentDifference <= 20) { // Changed from text-yellow-600
+    } else if (percentDifference <= 20) { // Changed from text-amber-600
       textColor = 'text-gray-500 dark:text-gray-400'; // Acceptable
       message = `${Math.abs(difference)} words ${difference > 0 ? 'over' : 'under'}`;
     } else { // Changed from text-red-600
@@ -200,7 +200,7 @@ const CopyOutput: React.FC<CopyOutputProps> = ({
                 <>
                   <span className="text-gray-400 dark:text-gray-600">|</span>
                   <span 
-                    className={`${ // Changed from text-green-600, text-blue-600, text-yellow-600, text-red-600
+                    className={`${ // Changed from text-green-600, text-blue-600, text-amber-600, text-red-600
                       contentDetails.wordCountAccuracy >= 90
                         ? 'text-gray-600 dark:text-gray-400'
                         : contentDetails.wordCountAccuracy >= 75

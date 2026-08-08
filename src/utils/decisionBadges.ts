@@ -115,11 +115,11 @@ export function getDecisionBadgeForVersion(
 export function getBadgeStyles(badgeType: DecisionBadge['type']): string {
   switch (badgeType) {
     case 'best-overall':
-      return 'bg-emerald-100 dark:bg-emerald-900/40 text-emerald-800 dark:text-emerald-300 border border-emerald-300 dark:border-emerald-700';
+      return 'bg-green-100 dark:bg-green-900/40 text-green-800 dark:text-green-300 border border-green-300 dark:border-green-700';
     case 'conversion':
       return 'bg-blue-50 dark:bg-blue-950/30 text-blue-800 dark:text-blue-300 border border-blue-200 dark:border-blue-800';
     case 'safest':
-      return 'bg-slate-50 dark:bg-slate-950/30 text-slate-800 dark:text-slate-300 border border-slate-200 dark:border-slate-800';
+      return 'bg-gray-50 dark:bg-gray-950/30 text-gray-800 dark:text-gray-300 border border-gray-200 dark:border-gray-800';
     case 'balanced':
       return 'bg-amber-50 dark:bg-amber-950/30 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800';
     default:

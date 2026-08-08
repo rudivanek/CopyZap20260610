@@ -28,7 +28,7 @@ const CharacterCounter: React.FC<CharacterCounterProps> = ({
     if (targetMinLength !== undefined && targetMaxLength !== undefined) {
       if (currentLength >= targetMinLength && currentLength <= targetMaxLength) { // Changed from text-green-500
         return 'text-gray-600 dark:text-gray-400';
-      } else if (currentLength >= targetMinLength * 0.8 && currentLength <= maxLength) { // Changed from text-yellow-500
+      } else if (currentLength >= targetMinLength * 0.8 && currentLength <= maxLength) { // Changed from text-amber-500
         return 'text-gray-500 dark:text-gray-400';
       } else { // Changed from text-red-500
         return 'text-gray-600 dark:text-gray-500';
@@ -40,7 +40,7 @@ const CharacterCounter: React.FC<CharacterCounterProps> = ({
     
     if (percentOfMax <= 70) { // Changed from text-green-500
       return 'text-gray-600 dark:text-gray-400';
-    } else if (percentOfMax <= 90) { // Changed from text-yellow-500
+    } else if (percentOfMax <= 90) { // Changed from text-amber-500
       return 'text-gray-500 dark:text-gray-400';
     } else { // Changed from text-red-500
       return 'text-gray-600 dark:text-gray-500';

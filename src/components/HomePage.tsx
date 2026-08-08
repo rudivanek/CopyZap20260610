@@ -43,7 +43,7 @@ const ScoreBadge: React.FC<{ score: number; winner?: boolean }> = ({ score, winn
   <span
     className={`inline-flex items-center justify-center w-10 h-10 rounded-full text-sm font-bold tabular-nums
       ${winner
-        ? 'bg-emerald-100 text-emerald-700 ring-2 ring-emerald-400'
+        ? 'bg-green-100 text-green-700 ring-2 ring-green-400'
         : score >= 70
         ? 'bg-gray-100 text-gray-700'
         : 'bg-red-50 text-red-600'
@@ -60,7 +60,7 @@ const HeroVisual: React.FC = () => (
         <div className="flex gap-1.5">
           <span className="w-3 h-3 rounded-full bg-red-400" />
           <span className="w-3 h-3 rounded-full bg-amber-400" />
-          <span className="w-3 h-3 rounded-full bg-emerald-400" />
+          <span className="w-3 h-3 rounded-full bg-green-400" />
         </div>
         <span className="text-xs text-gray-500 font-medium ml-2">Comparison — 3 versions evaluated</span>
       </div>
@@ -75,7 +75,7 @@ const HeroVisual: React.FC = () => (
             key={v.label}
             className={`rounded-xl p-3.5 border transition-all
               ${v.winner
-                ? 'border-emerald-300 bg-emerald-50/60'
+                ? 'border-green-300 bg-green-50/60'
                 : 'border-gray-100 bg-gray-50/60'
               }`}
           >
@@ -83,11 +83,11 @@ const HeroVisual: React.FC = () => (
               <div className="flex items-center gap-2.5">
                 <ScoreBadge score={v.score} winner={v.winner} />
                 <div>
-                  <p className={`text-sm font-semibold ${v.winner ? 'text-emerald-800' : 'text-gray-800'}`}>
+                  <p className={`text-sm font-semibold ${v.winner ? 'text-green-800' : 'text-gray-800'}`}>
                     {v.label}
                   </p>
                   {v.winner && (
-                    <span className="inline-flex items-center gap-1 text-xs text-emerald-600 font-medium mt-0.5">
+                    <span className="inline-flex items-center gap-1 text-xs text-green-600 font-medium mt-0.5">
                       <Trophy size={10} />
                       Recommended for publish
                     </span>
@@ -104,8 +104,8 @@ const HeroVisual: React.FC = () => (
               </div>
             </div>
             {v.winner && (
-              <div className="mt-2.5 pt-2.5 border-t border-emerald-200">
-                <p className="text-xs text-emerald-700 leading-relaxed">
+              <div className="mt-2.5 pt-2.5 border-t border-green-200">
+                <p className="text-xs text-green-700 leading-relaxed">
                   <span className="font-semibold">Why it wins:</span> Highest trust signal density, stronger call-to-action clarity, and direct benefit framing in the first sentence — absent in A and B.
                 </p>
               </div>
@@ -215,7 +215,7 @@ const Hero: React.FC = () => (
               'Publish with evidence, not instinct'
             ].map((item) => (
               <motion.li key={item} variants={fadeUp} className="flex items-center gap-3 text-gray-700">
-                <CheckCircle size={17} className="text-emerald-500 shrink-0" />
+                <CheckCircle size={17} className="text-green-500 shrink-0" />
                 <span className="text-base font-medium">{item}</span>
               </motion.li>
             ))}
@@ -302,8 +302,8 @@ const WhyToolsFail: React.FC = () => (
 
         <motion.div variants={stagger} className="space-y-8 mb-14">
           <motion.div variants={fadeUp} className="flex gap-5">
-            <div className="mt-1 w-8 h-8 rounded-full bg-emerald-100 flex items-center justify-center shrink-0">
-              <CheckCircle size={16} className="text-emerald-600" />
+            <div className="mt-1 w-8 h-8 rounded-full bg-green-100 flex items-center justify-center shrink-0">
+              <CheckCircle size={16} className="text-green-600" />
             </div>
             <div>
               <p className="font-sans text-[1.125rem] sm:text-[1.1875rem] font-semibold text-gray-900 mb-2">What they do well</p>

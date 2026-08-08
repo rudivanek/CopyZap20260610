@@ -15,8 +15,8 @@ const CoreWorkflows: React.FC = () => {
       </div>
 
       <div className="not-prose grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-700 dark:text-emerald-400 mb-2">Use this when:</p>
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-green-700 dark:text-green-400 mb-2">Use this when:</p>
           <ul className="list-disc ml-5 text-sm text-gray-700 dark:text-gray-300 space-y-1">
             <li>You need to create, improve, or compare copy</li>
             <li>You want consistent brand voice across content</li>
@@ -119,8 +119,8 @@ const CoreWorkflows: React.FC = () => {
         </ol>
       </div>
 
-      <div className="not-prose bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
-        <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-100 mb-2">Common Mistake</p>
+      <div className="not-prose bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6">
+        <p className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-2">Common Mistake</p>
         <p className="text-gray-700 dark:text-gray-300">Don't paste copy and expect magic without guidance. Tell the AI <em>what</em> to improve using the Special Instructions field.</p>
       </div>
 

@@ -39,8 +39,8 @@ const TroubleshootingFAQs: React.FC = () => {
 
       <p>New users often enable every toggle thinking it improves results. It doesn't.</p>
 
-      <div className="not-prose bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-6">
-        <p className="font-bold text-yellow-900 dark:text-yellow-100 mb-2">⚠️ What Happens:</p>
+      <div className="not-prose bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-6">
+        <p className="font-bold text-amber-900 dark:text-amber-100 mb-2">⚠️ What Happens:</p>
         <ul className="list-disc ml-6 text-gray-700 dark:text-gray-300 space-y-1">
           <li><strong>Generate SEO Metadata:</strong> Adds extra processing time (use only when you need SEO elements)</li>
           <li><strong>Generate Scores:</strong> Adds extra API call (use sparingly for evaluation, not every generation)</li>

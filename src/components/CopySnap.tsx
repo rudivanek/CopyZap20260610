@@ -1244,7 +1244,7 @@ Do NOT add markdown formatting, code blocks, or explanations. Just raw JSON. Rem
       <div className="bg-white dark:bg-black border-b border-gray-200 dark:border-gray-800 sticky top-0 z-10">
         <div className="px-4 py-3 max-w-4xl mx-auto text-center">
           <h1 className="text-lg font-semibold text-gray-900 dark:text-white flex items-center justify-center gap-2">
-            <Zap size={20} className="text-yellow-500" />
+            <Zap size={20} className="text-amber-500" />
             Copy Snap
           </h1>
           <p className="text-xs text-gray-500 dark:text-gray-400">Improve, answer, or ask — without the fluff."</p>
@@ -1273,7 +1273,7 @@ Do NOT add markdown formatting, code blocks, or explanations. Just raw JSON. Rem
             value={input}
             onChange={(e) => setInput(e.target.value)}
             placeholder="Paste a tweet, message, or idea…"
-            className="w-full min-h-[160px] bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 resize-y"
+            className="w-full min-h-[160px] bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-gray-100 text-base focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-y"
             style={{ lineHeight: '1.5' }}
             maxLength={maxChars}
           />
@@ -1503,7 +1503,7 @@ Do NOT add markdown formatting, code blocks, or explanations. Just raw JSON. Rem
             value={specialInstructions}
             onChange={(e) => setSpecialInstructions(e.target.value)}
             placeholder="Add any specific requirements or preferences..."
-            className="w-full min-h-[80px] bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 resize-y"
+            className="w-full min-h-[80px] bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-y"
             style={{ lineHeight: '1.5' }}
           />
         </div>
@@ -1515,7 +1515,7 @@ Do NOT add markdown formatting, code blocks, or explanations. Just raw JSON. Rem
               type="checkbox"
               checked={humanTone}
               onChange={(e) => setHumanTone(e.target.checked)}
-              className="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-yellow-500 focus:ring-2 focus:ring-yellow-500 focus:ring-offset-0 cursor-pointer"
+              className="w-5 h-5 rounded border-gray-300 dark:border-gray-600 text-amber-500 focus:ring-2 focus:ring-amber-500 focus:ring-offset-0 cursor-pointer"
             />
             <div>
               <span className="text-sm font-medium text-gray-700 dark:text-gray-300">Human tone</span>
@@ -1690,7 +1690,7 @@ Do NOT add markdown formatting, code blocks, or explanations. Just raw JSON. Rem
                       setSaveDescription(descParts.join(' • '));
                       setShowSaveModal(true);
                     }}
-                    className="flex items-center gap-2 text-sm text-yellow-600 dark:text-yellow-500 hover:text-yellow-700 dark:hover:text-yellow-400 transition-colors font-medium"
+                    className="flex items-center gap-2 text-sm text-amber-600 dark:text-amber-500 hover:text-amber-700 dark:hover:text-amber-400 transition-colors font-medium"
                   >
                     <Save size={14} />
                     Save Output
@@ -1713,7 +1713,7 @@ Do NOT add markdown formatting, code blocks, or explanations. Just raw JSON. Rem
               value={modifyInstruction}
               onChange={(e) => setModifyInstruction(e.target.value)}
               placeholder='e.g., "make it more casual" or "shorten to 100 words"'
-              className="w-full min-h-[80px] bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 resize-y"
+              className="w-full min-h-[80px] bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-y"
               style={{ lineHeight: '1.5' }}
               disabled={isModifying}
             />
@@ -1782,7 +1782,7 @@ Do NOT add markdown formatting, code blocks, or explanations. Just raw JSON. Rem
           <button
             onClick={handleGenerate}
             disabled={!canGenerate}
-            className="w-full bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-semibold text-base py-4 rounded-lg transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
+            className="w-full bg-amber-500 hover:bg-amber-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-semibold text-base py-4 rounded-lg transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2 shadow-lg"
             style={{ minHeight: '44px' }}
           >
             {isGenerating ? (
@@ -1861,7 +1861,7 @@ Do NOT add markdown formatting, code blocks, or explanations. Just raw JSON. Rem
                   value={saveTitle}
                   onChange={(e) => setSaveTitle(e.target.value)}
                   placeholder="e.g., Twitter post improvement"
-                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500"
+                  className="w-full bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500"
                   disabled={isSaving}
                   maxLength={100}
                 />
@@ -1878,7 +1878,7 @@ Do NOT add markdown formatting, code blocks, or explanations. Just raw JSON. Rem
                   value={saveDescription}
                   onChange={(e) => setSaveDescription(e.target.value)}
                   placeholder="Add notes about this output..."
-                  className="w-full min-h-[100px] bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-yellow-500 focus:border-yellow-500 resize-y"
+                  className="w-full min-h-[100px] bg-gray-50 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 rounded-lg p-3 text-gray-900 dark:text-gray-100 text-sm focus:ring-2 focus:ring-amber-500 focus:border-amber-500 resize-y"
                   disabled={isSaving}
                   maxLength={500}
                 />
@@ -1898,7 +1898,7 @@ Do NOT add markdown formatting, code blocks, or explanations. Just raw JSON. Rem
                 <button
                   onClick={handleSaveOutput}
                   disabled={isSaving || !saveTitle.trim()}
-                  className="flex-1 bg-yellow-500 hover:bg-yellow-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-medium py-2.5 rounded-lg transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
+                  className="flex-1 bg-amber-500 hover:bg-amber-600 disabled:bg-gray-300 dark:disabled:bg-gray-700 text-white font-medium py-2.5 rounded-lg transition-colors disabled:cursor-not-allowed flex items-center justify-center gap-2"
                 >
                   {isSaving ? (
                     <>

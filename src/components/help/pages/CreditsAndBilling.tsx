@@ -22,7 +22,7 @@ const CreditsAndBilling: React.FC = () => {
         <li><strong>Number of variants:</strong> Generating 5 variants consumes more credits than generating 1</li>
       </ul>
 
-      <p className="bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 my-6">
+      <p className="bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-4 my-6">
         <strong>Note:</strong> Credits are your account balance. Every AI operation consumes credits based on the model used and the length of your content. You only need to track your credit balance — everything else is handled automatically.
       </p>
 
@@ -35,7 +35,7 @@ const CreditsAndBilling: React.FC = () => {
         <li><strong>Color indicators:</strong>
           <ul>
             <li><span className="text-green-600 dark:text-green-400 font-semibold">Green:</span> Healthy balance (&gt;1000 credits)</li>
-            <li><span className="text-yellow-600 dark:text-yellow-400 font-semibold">Yellow:</span> Low balance (100-1000 credits)</li>
+            <li><span className="text-amber-600 dark:text-amber-400 font-semibold">Yellow:</span> Low balance (100-1000 credits)</li>
             <li><span className="text-red-600 dark:text-red-400 font-semibold">Red:</span> Very low or depleted (&lt;100 credits)</li>
           </ul>
         </li>
@@ -63,7 +63,7 @@ const CreditsAndBilling: React.FC = () => {
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1"><strong>Typical cost:</strong> 40-250 credits per alternative</p>
         </div>
 
-        <div className="border-l-4 border-yellow-600 pl-4">
+        <div className="border-l-4 border-amber-600 pl-4">
           <h3 className="text-lg font-bold mb-2">Voice Style Application</h3>
           <p className="text-gray-700 dark:text-gray-300">Applying voice styles (Humanize, Alex Hormozi, Steve Jobs, etc.) to outputs.</p>
           <p className="text-sm text-gray-600 dark:text-gray-400 mt-1"><strong>Typical cost:</strong> 30-200 credits per style application</p>

@@ -94,16 +94,16 @@ export const SubScoreChips: React.FC<SubScoreChipsProps> = ({
           risk === 'High'
             ? 'bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 border border-amber-100 dark:border-amber-900'
             : risk === 'Medium'
-            ? 'bg-slate-50 dark:bg-slate-950/30 text-slate-600 dark:text-slate-400 border border-slate-100 dark:border-slate-900'
-            : 'bg-emerald-50 dark:bg-emerald-950/30 text-emerald-700 dark:text-emerald-400 border border-emerald-100 dark:border-emerald-900'
+            ? 'bg-gray-50 dark:bg-gray-950/30 text-gray-600 dark:text-gray-400 border border-gray-100 dark:border-gray-900'
+            : 'bg-green-50 dark:bg-green-950/30 text-green-700 dark:text-green-400 border border-green-100 dark:border-green-900'
         }`}
       >
         <span className={`font-normal ${
           risk === 'High'
             ? 'text-amber-600 dark:text-amber-500'
             : risk === 'Medium'
-            ? 'text-slate-500 dark:text-slate-500'
-            : 'text-emerald-600 dark:text-emerald-500'
+            ? 'text-gray-500 dark:text-gray-500'
+            : 'text-green-600 dark:text-green-500'
         }`}>
           Risk
         </span>

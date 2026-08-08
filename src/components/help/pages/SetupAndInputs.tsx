@@ -16,8 +16,8 @@ const SetupAndInputs: React.FC = () => {
       </div>
 
       <div className="not-prose grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-700 dark:text-emerald-400 mb-2">Use this when:</p>
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-green-700 dark:text-green-400 mb-2">Use this when:</p>
           <ul className="list-disc ml-5 text-sm text-gray-700 dark:text-gray-300 space-y-1">
             <li>Setting up your first project or customer</li>
             <li>Defining brand voice for consistency</li>
@@ -131,7 +131,7 @@ const SetupAndInputs: React.FC = () => {
           <h3 className="text-xl font-bold text-gray-900 dark:text-white">Step 1: Customer Management (Foundation)</h3>
         </div>
 
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-4 mb-4">
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-4 mb-4">
           <p className="text-gray-900 dark:text-white font-semibold mb-1">Important</p>
           <p className="text-gray-700 dark:text-gray-300 text-sm">
             Before creating brand voices, you must first create a <strong>Customer</strong>. Each brand voice is tied to a specific customer/client.

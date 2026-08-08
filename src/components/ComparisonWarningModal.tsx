@@ -24,7 +24,7 @@ const ComparisonWarningModal: React.FC<ComparisonWarningModalProps> = ({
       <div className="bg-white dark:bg-gray-900 rounded-lg border border-gray-300 dark:border-gray-700 max-w-lg w-full">
         <div className="flex items-center justify-between p-6 border-b border-gray-300 dark:border-gray-800">
           <div className="flex items-center gap-3">
-            <AlertTriangle className="w-6 h-6 text-yellow-600 dark:text-yellow-400" />
+            <AlertTriangle className="w-6 h-6 text-amber-600 dark:text-amber-400" />
             <h3 className="text-xl font-semibold text-gray-900 dark:text-white">
               Large Number of Outputs
             </h3>
@@ -59,7 +59,7 @@ const ComparisonWarningModal: React.FC<ComparisonWarningModalProps> = ({
               onClose();
               onProceed();
             }}
-            className="bg-yellow-600 hover:bg-yellow-700 dark:bg-yellow-500 dark:hover:bg-yellow-600 text-white"
+            className="bg-amber-600 hover:bg-amber-700 dark:bg-amber-500 dark:hover:bg-amber-600 text-white"
           >
             Proceed Anyway
           </Button>

@@ -15,8 +15,8 @@ const HowScoringWorks: React.FC = () => {
       </div>
 
       <div className="not-prose grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-700 dark:text-emerald-400 mb-2">Use this when:</p>
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-green-700 dark:text-green-400 mb-2">Use this when:</p>
           <ul className="list-disc ml-5 text-sm text-gray-700 dark:text-gray-300 space-y-1">
             <li>You want to evaluate copy quality</li>
             <li>Choosing between multiple versions</li>
@@ -74,7 +74,7 @@ const HowScoringWorks: React.FC = () => {
         <li><strong>Compare:</strong> Compare multiple versions side-by-side</li>
       </ul>
 
-      <div className="not-prose bg-yellow-50 dark:bg-yellow-900/20 rounded-lg p-3 border border-yellow-200 dark:border-yellow-800 mb-8 mt-4">
+      <div className="not-prose bg-amber-50 dark:bg-amber-900/20 rounded-lg p-3 border border-amber-200 dark:border-amber-800 mb-8 mt-4">
         <p className="text-sm text-gray-700 dark:text-gray-300">
           <strong>Pro Tip:</strong> Always review and refine generated content before using it. The AI provides a strong starting point, but your expertise and judgment are essential for final quality.
         </p>

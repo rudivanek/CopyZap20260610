@@ -1062,7 +1062,7 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
 
                 <Link
                   to="/manage-special-instructions"
-                  className="bg-yellow-600 hover:bg-yellow-500 text-white px-4 py-2 rounded-lg text-sm flex items-center transition-colors shadow-md hover:shadow-lg"
+                  className="bg-amber-600 hover:bg-amber-500 text-white px-4 py-2 rounded-lg text-sm flex items-center transition-colors shadow-md hover:shadow-lg"
                   title="Manage Special Instructions"
                 >
                   <Lightbulb size={16} />
@@ -1222,7 +1222,7 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                       creditsBalance.creditsRemaining > creditsBalance.creditsAllowed * 0.2
                         ? 'text-green-600 dark:text-green-400'
                         : creditsBalance.creditsRemaining > 0
-                        ? 'text-yellow-600 dark:text-yellow-400'
+                        ? 'text-amber-600 dark:text-amber-400'
                         : 'text-red-600 dark:text-red-400'
                     }`}>
                       {creditsBalance.creditsRemaining.toLocaleString()}
@@ -1698,13 +1698,13 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                               e.stopPropagation();
                               handleToggleFavorite(output.id || '', output.is_favorite || false);
                             }}
-                            className="text-gray-400 hover:text-yellow-500 transition-colors p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
+                            className="text-gray-400 hover:text-amber-500 transition-colors p-1 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800"
                             title={output.is_favorite ? 'Remove from favorites' : 'Add to favorites'}
                           >
                             <Star
                               size={20}
                               fill={output.is_favorite ? 'currentColor' : 'none'}
-                              className={output.is_favorite ? 'text-yellow-500' : ''}
+                              className={output.is_favorite ? 'text-amber-500' : ''}
                             />
                           </button>
                         </td>

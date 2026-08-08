@@ -30,8 +30,8 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ onClose }) => {
 
   const levelColor = (level: string) => {
     if (level === 'error') return 'text-red-400';
-    if (level === 'warn') return 'text-yellow-400';
-    return 'text-emerald-400';
+    if (level === 'warn') return 'text-amber-400';
+    return 'text-green-400';
   };
 
   const formattedText = logs
@@ -72,8 +72,8 @@ export const DebugInfoModal: React.FC<DebugInfoModalProps> = ({ onClose }) => {
             >
               {copied ? (
                 <>
-                  <Check className="w-3.5 h-3.5 text-emerald-400" />
-                  <span className="text-emerald-400">Copied!</span>
+                  <Check className="w-3.5 h-3.5 text-green-400" />
+                  <span className="text-green-400">Copied!</span>
                 </>
               ) : (
                 <>

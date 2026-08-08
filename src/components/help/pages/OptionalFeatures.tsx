@@ -86,9 +86,9 @@ const OptionalFeatures: React.FC = () => {
           </div>
         </section>
 
-        <div className="mt-8 p-6 bg-yellow-50 dark:bg-yellow-900/20 rounded-lg border border-yellow-200 dark:border-yellow-800">
-          <h3 className="text-xl font-semibold text-yellow-900 dark:text-yellow-100 mb-3">Tip</h3>
-          <p className="text-yellow-800 dark:text-yellow-200">
+        <div className="mt-8 p-6 bg-amber-50 dark:bg-amber-900/20 rounded-lg border border-amber-200 dark:border-amber-800">
+          <h3 className="text-xl font-semibold text-amber-900 dark:text-amber-100 mb-3">Tip</h3>
+          <p className="text-amber-800 dark:text-amber-200">
             Start with a few optional features and gradually add more as you become familiar with them. Not every feature is needed for every project.
           </p>
         </div>

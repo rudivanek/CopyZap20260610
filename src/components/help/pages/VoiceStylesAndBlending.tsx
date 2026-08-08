@@ -14,8 +14,8 @@ const VoiceStylesAndBlending: React.FC = () => {
       </div>
 
       <div className="not-prose grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
-        <div className="bg-emerald-50 dark:bg-emerald-900/20 border border-emerald-200 dark:border-emerald-800 rounded-lg p-4">
-          <p className="text-xs font-semibold uppercase tracking-widest text-emerald-700 dark:text-emerald-400 mb-2">Use this when:</p>
+        <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-4">
+          <p className="text-xs font-semibold uppercase tracking-widest text-green-700 dark:text-green-400 mb-2">Use this when:</p>
           <ul className="list-disc ml-5 text-sm text-gray-700 dark:text-gray-300 space-y-1">
             <li>Your copy is correct but feels flat or generic</li>
             <li>You want a distinctive, recognizable voice</li>
@@ -70,8 +70,8 @@ const VoiceStylesAndBlending: React.FC = () => {
       <h2>Blending with Special Instructions</h2>
       <p>When blending multiple versions, you can add optional special instructions (e.g., "Make it shorter and punchier", "Focus on benefits for enterprise customers", "Add humor") to steer how the blend combines the source versions.</p>
 
-      <div className="not-prose bg-yellow-50 dark:bg-yellow-950 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6 mb-8">
-        <p className="text-sm font-semibold text-yellow-900 dark:text-yellow-100 mb-2">Pro Tips</p>
+      <div className="not-prose bg-amber-50 dark:bg-amber-950 border border-amber-200 dark:border-amber-800 rounded-lg p-6 mb-8">
+        <p className="text-sm font-semibold text-amber-900 dark:text-amber-100 mb-2">Pro Tips</p>
         <ul className="list-disc ml-5 text-gray-700 dark:text-gray-300 space-y-1">
           <li>Apply one style at a time and compare against the original using scoring</li>
           <li>Strong personas (Hormozi, Halbert) transform copy aggressively — best for ads and sales pages, not corporate pages</li>

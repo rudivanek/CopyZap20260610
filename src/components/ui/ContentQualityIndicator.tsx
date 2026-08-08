@@ -28,21 +28,21 @@ const ContentQualityIndicator: React.FC<ContentQualityIndicatorProps> = ({
   // Determine color based on score
   const getScoreColor = (value: number) => {
     if (value >= 90) return 'text-gray-600 dark:text-gray-400'; // Changed from text-green-600
-    if (value >= 70) return 'text-gray-500 dark:text-gray-400'; // Changed from text-yellow-600
+    if (value >= 70) return 'text-gray-500 dark:text-gray-400'; // Changed from text-amber-600
     return 'text-gray-600 dark:text-gray-500'; // Changed from text-red-600
   };
 
   // Determine background color based on score
   const getBgColor = (value: number) => {
     if (value >= 90) return 'bg-gray-600'; // Changed from bg-green-500
-    if (value >= 70) return 'bg-gray-500'; // Changed from bg-yellow-500
+    if (value >= 70) return 'bg-gray-500'; // Changed from bg-amber-500
     return 'bg-gray-600'; // Changed from bg-red-500
   };
 
   // Determine badge background color
   const getBadgeBgColor = (value: number) => {
     if (value >= 90) return 'bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-800'; // Changed from bg-green-100, text-green-800, border-green-200
-    if (value >= 70) return 'bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-800'; // Changed from bg-yellow-100, text-yellow-800, border-yellow-200
+    if (value >= 70) return 'bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-800'; // Changed from bg-amber-100, text-amber-800, border-amber-200
     return 'bg-gray-100 dark:bg-gray-900/30 text-gray-800 dark:text-gray-300 border-gray-200 dark:border-gray-800'; // Changed from bg-red-100, text-red-800, border-red-200
   };
 

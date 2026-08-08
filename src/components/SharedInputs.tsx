@@ -640,7 +640,7 @@ const SharedInputs: React.FC<SharedInputsProps> = ({
                 <div className="text-xs text-gray-600 dark:text-gray-400">
                   Structure total: {totalStructureWordCount} words
                   {formData.prioritizeWordCount && totalStructureWordCount !== parseInt(customWordCountField.inputValue) && (
-                    <span className="ml-1 text-yellow-600 dark:text-yellow-400">
+                    <span className="ml-1 text-amber-600 dark:text-amber-400">
                       {formData.prioritizeWordCount && totalStructureWordCount > parseInt(customWordCountField.inputValue)
                         ? ' (will use structure total)'
                         : formData.prioritizeWordCount ? ' (will use custom total)' : ''}
@@ -829,7 +829,7 @@ const SharedInputs: React.FC<SharedInputsProps> = ({
                 {formData.wordCount === 'Custom' &&
                  formData.customWordCount &&
                  Math.abs(totalStructureWordCount - formData.customWordCount) > formData.customWordCount * 0.1 && (
-                  <div className="text-xs text-yellow-600 dark:text-yellow-400">
+                  <div className="text-xs text-amber-600 dark:text-amber-400">
                     {formData.prioritizeWordCount
                       ? "Structure word counts will take priority with strict adherence enabled."
                       : "Differs from custom word count"}

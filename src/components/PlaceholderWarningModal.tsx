@@ -21,7 +21,7 @@ const PlaceholderWarningModal: React.FC<PlaceholderWarningModalProps> = ({
       <div className="bg-white dark:bg-gray-900 rounded-lg shadow-2xl max-w-md w-full border border-gray-200 dark:border-gray-800">
         <div className="flex items-center justify-between p-5 border-b border-gray-200 dark:border-gray-800">
           <div className="flex items-center gap-3">
-            <AlertTriangle className="text-yellow-500" size={24} />
+            <AlertTriangle className="text-amber-500" size={24} />
             <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
               Placeholder Text Detected
             </h3>
@@ -40,11 +40,11 @@ const PlaceholderWarningModal: React.FC<PlaceholderWarningModalProps> = ({
           </p>
 
           {examples.length > 0 && (
-            <div className="bg-yellow-50 dark:bg-yellow-950/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4 mb-4">
-              <p className="text-xs font-semibold text-yellow-900 dark:text-yellow-100 mb-2">
+            <div className="bg-amber-50 dark:bg-amber-950/20 border border-amber-200 dark:border-amber-800 rounded-lg p-4 mb-4">
+              <p className="text-xs font-semibold text-amber-900 dark:text-amber-100 mb-2">
                 Examples found:
               </p>
-              <ul className="text-xs text-yellow-800 dark:text-yellow-200 space-y-1">
+              <ul className="text-xs text-amber-800 dark:text-amber-200 space-y-1">
                 {examples.map((example, index) => (
                   <li key={index} className="font-mono">• {example}</li>
                 ))}

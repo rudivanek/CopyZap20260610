@@ -71,7 +71,7 @@ const BrandVoiceSystem: React.FC = () => {
           </h2>
         </div>
 
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-4 mb-6">
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-4 mb-6">
           <p className="text-gray-900 dark:text-white font-semibold mb-1">⚠️ Important</p>
           <p className="text-gray-700 dark:text-gray-300 text-sm">
             Before creating brand voices, you must first create a <strong>Customer</strong>. Each brand voice is tied to a specific customer/client.
@@ -351,7 +351,7 @@ const BrandVoiceSystem: React.FC = () => {
             </ul>
           </div>
 
-          <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded p-4">
+          <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded p-4">
             <p className="font-semibold text-gray-900 dark:text-white mb-2">📝 Notes</p>
             <ul className="space-y-1 text-sm text-gray-700 dark:text-gray-300">
               <li>• This feature uses the same AI extraction method as "Paste Copy," but automated</li>
@@ -726,7 +726,7 @@ updated_at            timestamptz`}
           Quick Troubleshooting
         </h2>
 
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-6">
+        <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-6">
           <h3 className="font-semibold text-gray-900 dark:text-white mb-4">Common Issues & Solutions</h3>
           <div className="space-y-4 text-sm text-gray-700 dark:text-gray-300">
             <div>
