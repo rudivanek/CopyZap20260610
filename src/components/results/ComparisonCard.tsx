@@ -332,6 +332,7 @@ const ComparisonCard: React.FC<ComparisonCardProps> = ({
                         trust={subScores.trust}
                         risk={subScores.risk}
                         compact={true}
+                        hasSignal={subScores.hasSignal}
                       />
                     </div>
                   </div>

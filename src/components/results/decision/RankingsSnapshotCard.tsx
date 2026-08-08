@@ -99,6 +99,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
               conversion: subScores.conversion,
               trust: subScores.trust,
               risk: subScores.risk,
+              hasSignal: subScores.hasSignal,
             }
           : undefined,
       };
@@ -246,6 +247,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                       trust={subScores.trust}
                       risk={subScores.risk}
                       compact={true}
+                      hasSignal={subScores.hasSignal}
                     />
                   </div>
                 )}

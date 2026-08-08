@@ -5,9 +5,18 @@
  * with subtle color coding for better scannability.
  *
  * IMPORTANT: This is pure UI - does NOT affect scoring logic or calculations.
+ *
+ * When `hasSignal` is false, Conversion and Trust are the untouched neutral
+ * baseline (the heuristics matched nothing — true for non-English copy and for
+ * very short English copy). In that case both chips render muted with an em
+ * dash instead of a number, and a qualifier line explains why. Risk is
+ * pattern-based and stays live regardless.
  */
 
 import React from 'react';
+
+const NO_SIGNAL_QUALIFIER =
+  'Conversion and Trust are estimated from English-language cues and aren\u2019t available for this copy.';
 
 interface SubScoreChipsProps {
   conversion: number;
@@ -15,6 +24,7 @@ interface SubScoreChipsProps {
   risk: string;
   compact?: boolean;
   showExplanation?: boolean;
+  hasSignal?: boolean;
 }
 
 // Helper functions to generate human-readable explanations
@@ -58,37 +68,56 @@ export const SubScoreChips: React.FC<SubScoreChipsProps> = ({
   risk,
   compact = false,
   showExplanation = false,
+  hasSignal = true,
 }) => {
   const baseChipClass = compact
     ? 'inline-flex items-center gap-1 px-1.5 py-0.5 rounded text-xs font-medium'
     : 'inline-flex items-center gap-1 px-2 py-0.5 rounded text-xs font-medium';
 
+  // Muted treatment for Conversion/Trust when the heuristic matched nothing.
+  const mutedConvClass = `${baseChipClass} bg-gray-50 dark:bg-gray-800/40 text-gray-400 dark:text-gray-500 border border-gray-200 dark:border-gray-700`;
+  const mutedTrustClass = mutedConvClass;
+
   return (
     <div className="flex flex-col gap-2">
       <div className="inline-flex items-center gap-1.5 flex-wrap">
-      {/* Conversion - Blue tone */}
-      <span
-        className={`${baseChipClass} bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-900`}
-      >
-        <span className="font-normal text-blue-600 dark:text-blue-500">Conversion</span>
-        <span className="font-semibold tabular-nums">
-          {conversion}
-          <span className="font-normal text-blue-400 dark:text-blue-600">/100</span>
+      {/* Conversion - Blue tone, or muted when no signal */}
+      {hasSignal ? (
+        <span
+          className={`${baseChipClass} bg-blue-50 dark:bg-blue-950/30 text-blue-700 dark:text-blue-400 border border-blue-100 dark:border-blue-900`}
+        >
+          <span className="font-normal text-blue-600 dark:text-blue-500">Conversion</span>
+          <span className="font-semibold tabular-nums">
+            {conversion}
+            <span className="font-normal text-blue-400 dark:text-blue-600">/100</span>
+          </span>
         </span>
-      </span>
-
-      {/* Trust - Purple tone */}
-      <span
-        className={`${baseChipClass} bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 border border-purple-100 dark:border-purple-900`}
-      >
-        <span className="font-normal text-purple-600 dark:text-purple-500">Trust</span>
-        <span className="font-semibold tabular-nums">
-          {trust}
-          <span className="font-normal text-purple-400 dark:text-purple-600">/100</span>
+      ) : (
+        <span className={mutedConvClass}>
+          <span className="font-normal">Conversion</span>
+          <span className="font-semibold tabular-nums">&mdash;</span>
         </span>
-      </span>
+      )}
 
-      {/* Risk - Neutral/warning tone based on level */}
+      {/* Trust - Purple tone, or muted when no signal */}
+      {hasSignal ? (
+        <span
+          className={`${baseChipClass} bg-purple-50 dark:bg-purple-950/30 text-purple-700 dark:text-purple-400 border border-purple-100 dark:border-purple-900`}
+        >
+          <span className="font-normal text-purple-600 dark:text-purple-500">Trust</span>
+          <span className="font-semibold tabular-nums">
+            {trust}
+            <span className="font-normal text-purple-400 dark:text-purple-600">/100</span>
+          </span>
+        </span>
+      ) : (
+        <span className={mutedTrustClass}>
+          <span className="font-normal">Trust</span>
+          <span className="font-semibold tabular-nums">&mdash;</span>
+        </span>
+      )}
+
+      {/* Risk - Neutral/warning tone based on level (always live) */}
       <span
         className={`${baseChipClass} ${
           risk === 'High'
@@ -111,21 +140,39 @@ export const SubScoreChips: React.FC<SubScoreChipsProps> = ({
       </span>
       </div>
 
+      {/* Qualifier line when the heuristic matched nothing */}
+      {!hasSignal && (
+        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
+          {NO_SIGNAL_QUALIFIER}
+        </p>
+      )}
+
       {/* Explanation panel */}
       {showExplanation && (
         <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2 animate-fadeIn">
-          <div>
-            <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">Conversion:</span>
-            <p className="text-xs text-gray-700 dark:text-gray-300 mt-0.5 leading-relaxed">
-              {getConversionExplanation(conversion)}
-            </p>
-          </div>
-          <div>
-            <span className="text-xs font-semibold text-purple-700 dark:text-purple-400">Trust:</span>
-            <p className="text-xs text-gray-700 dark:text-gray-300 mt-0.5 leading-relaxed">
-              {getTrustExplanation(trust)}
-            </p>
-          </div>
+          {hasSignal ? (
+            <>
+              <div>
+                <span className="text-xs font-semibold text-blue-700 dark:text-blue-400">Conversion:</span>
+                <p className="text-xs text-gray-700 dark:text-gray-300 mt-0.5 leading-relaxed">
+                  {getConversionExplanation(conversion)}
+                </p>
+              </div>
+              <div>
+                <span className="text-xs font-semibold text-purple-700 dark:text-purple-400">Trust:</span>
+                <p className="text-xs text-gray-700 dark:text-gray-300 mt-0.5 leading-relaxed">
+                  {getTrustExplanation(trust)}
+                </p>
+              </div>
+            </>
+          ) : (
+            <div>
+              <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Conversion &amp; Trust:</span>
+              <p className="text-xs text-gray-700 dark:text-gray-300 mt-0.5 leading-relaxed">
+                {NO_SIGNAL_QUALIFIER}
+              </p>
+            </div>
+          )}
           <div>
             <span className="text-xs font-semibold text-gray-700 dark:text-gray-300">Risk:</span>
             <p className="text-xs text-gray-700 dark:text-gray-300 mt-0.5 leading-relaxed">

@@ -1,7 +1,45 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.27
-Last Updated: 2026-08-08T19:45:00Z
+Last Updated: 2026-08-08T20:30:00Z
+
+---
+
+## Conversion and Trust Sub-scores — English-Only Heuristic Fix (2026-08-08)
+
+**Feature:** Fixed a bug where the Conversion and Trust sub-score chips displayed identical 50/100 values with word-for-word identical explanations for every version in any non-English session, while the session's actual scores differed meaningfully. The chips now render muted with an em dash and a plain-language qualifier when the heuristic matched nothing, and the ranking no longer blends those constants into the final score.
+
+**The bug:** `src/utils/multiScoreDisplay.ts` derives Conversion and Trust by matching English keyword lists (`'get'`, `'start'`, `'proven'`, `'tested'`, etc.). Both estimator functions start at `let score = 50` and only move when a keyword matches. Non-English copy matches nothing, so the score stays at the untouched baseline — 50 for every version, with identical canned explanation text. CopyZap ships a language selector with Spanish, French, German, Italian and more as a headline feature, so for every one of those languages these two chips carried zero information. A beta tester seeing three identical rows reasonably concludes the scoring is fake.
+
+**Why it's worse than a display bug:** `src/services/api/comparativeScoring.ts` blended these constants into the ranking score — `finalScore = item.score * 0.8 + multiScores.conversion * 0.1 + multiScores.trust * 0.1`. For non-English copy, 20% of the final score was a fixed 50 for every version, pulling all versions toward the same value and silently compressing the spread the LLM actually produced. The "Abs" badges were not affected — `src/services/api/absoluteScoring.ts` is LLM-only and never touches these heuristics.
+
+**Decision taken:** The chips stay visible for non-English copy, with a qualifier that says plainly what they are. Hiding them would make the panel change shape by language. Detection is not by language code but by whether the heuristic actually engaged: if no keyword matched, the score is the untouched baseline and is meaningless — true for short English copy too, not just other languages.
+
+**Task 1 — Report whether the heuristic engaged (`src/utils/multiScoreDisplay.ts`):** Added a signal counter to both estimator functions. Both already counted matches internally (`ctaCount`, `actionCount`, `urgencyCount`, `businessCount`, `hasPercentages`, `hasNumbers`, `vagueCount` for conversion; `proofCount`, `testimonialCount`, `clarityCount`, `professionalCount`, `hypeCount`, `aggressiveCount`, `extremeCount` for trust). The shared counting was factored into two internal helpers — `computeConversion(text)` and `computeTrust(text)` — each returning `{ score, signals }`. The four exported functions are thin wrappers: `estimateConversionDisplayScore` and `estimateTrustDisplayScore` return `.score` (signatures unchanged, so `comprehensiveScoring.ts` consumers keep compiling); `countConversionSignals` and `countTrustSignals` are new siblings returning `.signals`. The `MultiScoreDisplay` interface gained an additive `hasSignal: boolean` field (`countConversionSignals(text) + countTrustSignals(text) > 0`), so all ~12 existing call sites keep compiling. The file's header comment was rewritten: it previously claimed these would be "replaced with real scoring from the AI engine" in "Phase 2+" — that hasn't happened. The new comment states accurately: English-keyword heuristics, display-only, returns a neutral 50 baseline when no signal matches, and `hasSignal` reports which case you're in.
+
+**Task 2 — Stop the constants distorting the ranking (`src/services/api/comparativeScoring.ts`):** Dropped the sub-score blend entirely. `finalScore = item.score` — the LLM comparative score is the ranking signal. The surrounding `if (multiScores)` block and the comment explaining the 80/10/10 weighting were deleted. `multiScores` is still used below for `conversionScore` / `trustScore` / `riskLevel` on the returned row — only the `finalScore` blend goes. Expect scores to move: non-English sessions show a wider spread between versions; English sessions shift by a few points. Relative order should be unchanged or closer to the LLM's own ranking.
+
+**Task 3 — Show the qualifier (`src/components/results/SubScoreChips.tsx`):** Added an optional `hasSignal?: boolean` prop defaulting to `true`, so any call site that doesn't pass it behaves exactly as today. When `hasSignal` is false: Conversion and Trust chips render muted (grey background and grey text rather than blue and purple); show `—` in place of the number rather than `50/100`; a qualifier line appears once beneath the chip row — "Conversion and Trust are estimated from English-language cues and aren't available for this copy." — at `text-xs` (the 12px floor applies). In the expanded explanation panel, the `getConversionExplanation` / `getTrustExplanation` output is replaced with the same qualifier. Risk is unaffected — `estimateRiskDisplayLevel` works by detecting numeric claims, percentages and caps (patterns, not English words), so it stays live and keeps its colour in both cases.
+
+**Task 4 — Pass the flag through:** Four call sites forward `hasSignal`:
+- `src/components/results/decision/VersionAnalysisCard.tsx` (~179 compact, ~417 expanded) — both pass `hasSignal={subScores.hasSignal}` / `hasSignal={scores.hasSignal}`.
+- `src/components/results/decision/RankingsSnapshotCard.tsx` (~244) — passes `hasSignal={subScores.hasSignal}`; the derived object at ~97–101 that copies `conversion` / `trust` / `risk` out of the result now also copies `hasSignal`, or it would be lost before reaching the chips.
+- `src/components/results/ComparisonCard.tsx` (~330) — passes `hasSignal={subScores.hasSignal}`.
+- The inline `subScores?` prop type on `VersionAnalysisCard` and `WinnerHeroCard` gained `hasSignal?: boolean` so the forwarded value type-checks.
+
+**Reported, not changed — two more direct-render sites:** `src/components/results/MultiScoreDisplay.tsx` (~line 39) calls `calculateMultiScoreDisplay` and renders the conversion and trust numbers directly in inline badges (e.g. `50 (Average)`) without using `SubScoreChips`, so it has no muted state — for non-English copy it will continue to display `50 (Average)` looking like a real measurement. The expanded "Why?" panel shows empty reason lists (triggering the "No strong display signals detected" fallback). `src/components/results/ComprehensiveComparisonTable.tsx` (~line 266) calls `calculateMultiScoreDisplay` to build a `subScores` object used only for decision badge computation — the numbers don't render as a table column, but the badges are computed from a constant `50/50` for every version, which could make "best conversion" badge logic pick arbitrarily. Both should get the same muted/qualifier treatment in a follow-up; `MultiScoreDisplay.tsx` is the more visible problem.
+
+**Explicitly NOT changed in this task:** `computeFinalScore` in `src/services/api/comprehensiveScoring.ts` (~line 723) has the same defect much more heavily weighted — `baseScoreCore = 0.5 * conversionScore + 0.3 * trustScore + 0.2 * (100 - riskPenalty); baseFinalScore = baseScoreCore * 0.9 + tieBreaker`. For non-English copy that resolves to a constant `baseScoreCore` of 60 for every version, so 90% of that path's score is identical across versions and all differentiation comes from the 10% tie-breaker plus a bounded ±10 LLM adjustment. It was NOT changed because reweighting it moves every score in the app and breaks comparability with already-saved sessions; it needs its own decision and before/after measurement. The useful next step is to run the current formula against a few saved non-English sessions and report the actual spread between versions — the numbers, not an opinion.
+
+**Verification:**
+- In a Spanish or Italian session with three versions: Conversion and Trust render muted with `—`, the qualifier line appears once beneath the chip row, and Risk still shows its normal colour and value.
+- In an English session with ordinary marketing copy: chips are unchanged — blue Conversion, purple Trust, real numbers, no qualifier.
+- Very short English copy with no keywords (e.g. `"Hello there."`) also shows the muted state.
+- Expanding a version's analysis shows the qualifier in the explanation panel rather than the canned "Value is present but lacks compelling urgency…" text.
+- Ranking order in a non-English session matches the order the LLM comparative score produced; scores differ from before (wider spread).
+- No call site of `estimateConversionDisplayScore` / `estimateTrustDisplayScore` changed behaviour — `comprehensiveScoring.ts` lines ~731 and ~2221 still get the same numbers.
+- `npm run build` passes.
+- `npx tsc --noEmit -p tsconfig.app.json` shows 1326 errors both before and after — zero new errors. All pre-existing errors in modified files are on unrelated `ComparisonResult` properties (lines 96–156 of `ComparisonCard.tsx`) and predate this change.
 
 ---
 

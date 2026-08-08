@@ -1,16 +1,16 @@
 /**
- * MULTI-SCORE DISPLAY UTILITIES - PHASE 1
+ * MULTI-SCORE DISPLAY UTILITIES
  *
- * IMPORTANT: These are UI-ONLY display scores for explanatory purposes.
- * They do NOT affect:
- * - Current ranking logic
- * - Winner selection
- * - Final score calculation
- * - Comparison algorithms
- * - Any stored data
+ * English-keyword heuristics that derive display-only Conversion and Trust
+ * scores from text content. They match English words ("get", "proven", etc.),
+ * so non-English copy matches nothing and the score stays at the neutral 50
+ * baseline. `hasSignal` (on the MultiScoreDisplay result) reports whether
+ * either heuristic actually matched anything — false means the numbers are
+ * the untouched baseline and carry no information about the text.
  *
- * These are temporary heuristics that derive display-only scores from text content.
- * In Phase 2+, these will be replaced with real scoring from the AI engine.
+ * These are display-only. They do NOT affect ranking, winner selection, or
+ * any stored data. Risk is pattern-based (numbers, percentages, caps) and
+ * works across languages.
  */
 
 /**
@@ -22,6 +22,7 @@ export interface MultiScoreDisplay {
   conversion: number;  // 0-100
   trust: number;       // 0-100
   risk: RiskLevel;     // Low/Medium/High
+  hasSignal: boolean;  // false when neither heuristic matched anything
 }
 
 /**
@@ -58,8 +59,8 @@ export interface MultiScoreDisplayDetailed {
  * - Purely descriptive text
  * - Lack of direction
  */
-export function estimateConversionDisplayScore(text: string): number {
-  if (!text || text.trim().length === 0) return 50; // Neutral baseline
+function computeConversion(text: string): { score: number; signals: number } {
+  if (!text || text.trim().length === 0) return { score: 50, signals: 0 };
 
   const textLower = text.toLowerCase();
   let score = 50; // Start at neutral
@@ -120,7 +121,16 @@ export function estimateConversionDisplayScore(text: string): number {
   }
 
   // Clamp between 0-100
-  return Math.max(0, Math.min(100, Math.round(score)));
+  const signals = ctaCount + actionCount + urgencyCount + businessCount + (hasPercentages ? 1 : 0) + (hasNumbers ? 1 : 0) + vagueCount;
+  return { score: Math.max(0, Math.min(100, Math.round(score))), signals };
+}
+
+export function estimateConversionDisplayScore(text: string): number {
+  return computeConversion(text).score;
+}
+
+export function countConversionSignals(text: string): number {
+  return computeConversion(text).signals;
 }
 
 /**
@@ -138,8 +148,8 @@ export function estimateConversionDisplayScore(text: string): number {
  * - Hype-heavy language
  * - Extreme unsupported claims
  */
-export function estimateTrustDisplayScore(text: string): number {
-  if (!text || text.trim().length === 0) return 50; // Neutral baseline
+function computeTrust(text: string): { score: number; signals: number } {
+  if (!text || text.trim().length === 0) return { score: 50, signals: 0 };
 
   const textLower = text.toLowerCase();
   let score = 50; // Start at neutral
@@ -214,7 +224,16 @@ export function estimateTrustDisplayScore(text: string): number {
   }
 
   // Clamp between 0-100
-  return Math.max(0, Math.min(100, Math.round(score)));
+  const signals = proofCount + testimonialCount + clarityCount + professionalCount + hypeCount + aggressiveCount + extremeCount;
+  return { score: Math.max(0, Math.min(100, Math.round(score))), signals };
+}
+
+export function estimateTrustDisplayScore(text: string): number {
+  return computeTrust(text).score;
+}
+
+export function countTrustSignals(text: string): number {
+  return computeTrust(text).signals;
 }
 
 /**
@@ -351,7 +370,8 @@ export function calculateMultiScoreDisplay(text: string): MultiScoreDisplay {
   return {
     conversion: estimateConversionDisplayScore(text),
     trust: estimateTrustDisplayScore(text),
-    risk: estimateRiskDisplayLevel(text)
+    risk: estimateRiskDisplayLevel(text),
+    hasSignal: countConversionSignals(text) + countTrustSignals(text) > 0
   };
 }
 

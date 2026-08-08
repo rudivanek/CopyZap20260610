@@ -14,6 +14,7 @@ interface WinnerRow {
     conversion: number;
     trust: number;
     risk: number;
+    hasSignal?: boolean;
   };
   absoluteScore?: AbsoluteScoreBreakdown;
 }

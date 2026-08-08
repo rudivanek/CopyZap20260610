@@ -707,17 +707,11 @@ export function mapToComparisonResult(
     // Use calculateMultiScoreDisplay to get actual Conversion and Trust scores
     const multiScores = contentText ? calculateMultiScoreDisplay(contentText) : null;
 
-    // If we have real sub-scores, blend them with the comparative rank score.
-    // LLM weight 80%, heuristic sub-scores 10% each — LLM is the primary signal; heuristics
-    // are unreliable for structured/blended content and should not drag down a strong LLM ranking.
-    let finalScore = item.score;
-    if (multiScores) {
-      finalScore = Math.round(
-        item.score * 0.8 +
-        multiScores.conversion * 0.1 +
-        multiScores.trust * 0.1
-      );
-    }
+    // The LLM comparative score is the ranking signal. Conversion and Trust are
+    // English-keyword heuristics that return a constant 50 for non-English copy,
+    // so blending them into the ranking silently compresses the spread the LLM
+    // produced. Keep them on the row as display-only sub-scores (below).
+    const finalScore = item.score;
 
     return {
       versionId: item.versionId,

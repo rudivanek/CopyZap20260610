@@ -24,6 +24,7 @@ interface ScoringRow {
     conversion: number;
     trust: number;
     risk: number;
+    hasSignal?: boolean;
   };
   verificationFlags?: string[];
 }
@@ -181,6 +182,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
                   trust={subScores.trust}
                   risk={subScores.risk}
                   compact={true}
+                  hasSignal={subScores.hasSignal}
                 />
               </div>
             )}
@@ -420,6 +422,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
                       risk={scores.risk}
                       compact={false}
                       showExplanation={true}
+                      hasSignal={scores.hasSignal}
                     />
                   </Section>
                 );
