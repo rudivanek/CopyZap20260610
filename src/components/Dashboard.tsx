@@ -868,6 +868,9 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
       // Search in the extracted product/service name
       if (output.product_service_name?.toLowerCase().includes(searchLower)) return true;
 
+      // Search in the extracted customer name
+      if (output.customer_name?.toLowerCase().includes(searchLower)) return true;
+
       return false;
     });
   }, [savedOutputsSearchText]);
@@ -1330,6 +1333,7 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                     <tr>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Customer</th>
+                      <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Product/Service</th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Type</th>
                       <th className="px-3 py-2 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Created</th>
                       <th className="px-3 py-2 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Actions</th>
@@ -1355,6 +1359,9 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                         </td>
                         <td className="px-2 py-1 text-sm text-gray-900 dark:text-white">
                           {session.customer?.name || 'No customer'}
+                        </td>
+                        <td className="px-2 py-1 text-sm text-gray-900 dark:text-white">
+                          {session.input_data?.productServiceName || '—'}
                         </td>
                         <td className="px-2 py-1 text-sm text-gray-500 dark:text-gray-400">
                           <div>{session.output_type || session.input_data?.tab || 'Copy'}</div>
@@ -1627,17 +1634,7 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                       ))}
                   </select>
                   <button
-                    onClick={() => setSavedOutputsFilter('all')}
-                    className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
-                      savedOutputsFilter === 'all'
-                        ? 'bg-gray-600 text-white'
-                        : 'bg-gray-100 dark:bg-gray-800 text-gray-700 dark:text-gray-300 hover:bg-gray-200 dark:hover:bg-gray-700'
-                    }`}
-                  >
-                    All ({savedOutputs.length})
-                  </button>
-                  <button
-                    onClick={() => setSavedOutputsFilter('favorites')}
+                    onClick={() => setSavedOutputsFilter(savedOutputsFilter === 'favorites' ? 'all' : 'favorites')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors flex items-center ${
                       savedOutputsFilter === 'favorites'
                         ? 'bg-gray-600 text-white'
@@ -1764,6 +1761,7 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                         <Star size={16} className="mx-auto" />
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Customer</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Product/Service</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Configuration</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Content Details</th>
@@ -1808,6 +1806,9 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                               ))}
                             </div>
                           )}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">
+                          {output.customer_name || 'No customer'}
                         </td>
                         <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">
                           {output.product_service_name || '—'}

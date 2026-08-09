@@ -1,7 +1,34 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.30
-Last Updated: 2026-08-09T01:10:00Z
+Version: 1.31
+Last Updated: 2026-08-09T20:30:00Z
+
+---
+
+## Dashboard — Matching Columns on Both Lists, Favorites as a Toggle (2026-08-09)
+
+**Feature:** The Dashboard's two lists — Copy Sessions and Saved Outputs — now show the same two facts about each row (which customer, which product/service) in the same left-to-right order, so either list reads the same way. The redundant "All" toggle button on Saved Outputs was removed; the Favorites button is now a true toggle and is the only way back from a favourites-only view via the header.
+
+**Why:** The two tables previously disclosed different facts. Sessions showed Customer but not Product/Service; Saved Outputs showed Product/Service (added in the prior change) but not Customer, even though it could already filter by customer — so a filtered list gave no per-row confirmation of what it was showing. Searching the Saved Outputs list also ignored the newly-visible Product/Service field. And the header had two controls both labelled "All" doing different things (the All toggle vs. the customer dropdown's "All customers" default), with the All toggle as the only escape hatch from Favorites — a one-way door if removed naively.
+
+**Task 1 — Product/Service column on Sessions:** Added a `Product/Service` column header and cell to the Sessions table, positioned between Customer and Type — mirroring where it sits in Saved Outputs. No query change: `getUserCopySessions` selects `'*, customer:customer_id(name)'`, so `input_data` is already fully loaded on every session row; the value is `session.input_data?.productServiceName`. A JSON extraction in the sessions query was deliberately NOT added — it would be redundant since the blob is already in hand. Sessions with no product name show `—` (a dash, not "No customer" wording, since a missing product is a smaller gap than a missing customer). Of 31 sessions in production, 26 have a product name and 5 don't, so the `—` fallback is load-bearing.
+
+**Task 2 — Customer column on Saved Outputs:** Added a `Customer` column header and cell to the Saved Outputs table, between Description and Product/Service, so both tables read Description → Customer → Product/Service. No query change — the prior change already extracts `customer_name` into `SavedOutputMeta` via `input_data->>customerName`. Saved outputs with no customer show "No customer" (not a dash), matching the wording already used in the Sessions table and the filter dropdown — consistent vocabulary over brevity, since 510 of 621 saved outputs have no customer and that's exactly why it's worth showing. `customer_name` was added to `filterSavedOutputsBySearch` alongside the fields it already matches, so a visible column the search ignores doesn't become the same trap the product-name column had before.
+
+**Task 3 — Remove the "All" toggle button; Favorites becomes a toggle:** Deleted the grey "All (n)" button from the Saved Outputs header. The customer dropdown beside it already carries an "All customers" default. The Favorites button's `onClick` now flips state both ways: `setSavedOutputsFilter(savedOutputsFilter === 'favorites' ? 'all' : 'favorites')`. The existing active/inactive styling (driven off `savedOutputsFilter === 'favorites'`) and the star fill behaviour are unchanged, so the button already looks pressed when active and now behaves as a toggle. The empty-state "View All Outputs" button calling `setSavedOutputsFilter('all')` was kept — it's the escape hatch when a favourites filter matches nothing, and becomes more important once the header All button is gone. The filter itself (`savedOutputsFilter === 'all' || output.is_favorite`) needed no change. The Sessions list's controls were left alone.
+
+**Verification:**
+- Sessions table reads: Description, Customer, Product/Service, Type, Created, Actions.
+- Saved Outputs table reads: ★, Description, Customer, Product/Service, Configuration, Content Details, Saved, Actions.
+- Sessions with no product name show `—`; about 5 of 31 in production.
+- Saved outputs with no customer show "No customer"; the majority (510 of 621).
+- Searching a customer name in the Saved Outputs search box finds matching rows.
+- Click Favorites, then click it again — the full list comes back. This is the specific thing Task 3 could have broken.
+- With Favorites active and a customer selected that has no favourites, the empty state appears and "View All Outputs" recovers.
+- The customer dropdown still filters correctly on both tabs; the two filters remain independent.
+- Saved Outputs now has eight columns; at narrow viewports (~1280px) it gains horizontal scroll, which is acceptable — nothing in the app UI goes below 12px, and the table was already wider than the viewport before this change.
+- `npm run build` passes.
+- `npx tsc --noEmit -p tsconfig.app.json` returns 1323, the same count as `10f3494`. The `-p` form is required; plain `npx tsc --noEmit` checks zero files in this repo.
 
 ---
 
