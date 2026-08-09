@@ -1,5 +1,5 @@
 import React from 'react';
-import { ChevronUp, ChevronDown, Award, Table } from 'lucide-react';
+import { ChevronUp, ChevronDown, Award, Table, Zap } from 'lucide-react';
 import { GeneratedContentItem, GeneratedContentItemType } from '../types';
 
 interface FloatingOutputNavigationProps {
@@ -42,6 +42,16 @@ const FloatingOutputNavigation: React.FC<FloatingOutputNavigationProps> = ({
             Top
           </button>
 
+          {/* Go to Make Copy */}
+          <button
+            onClick={() => scrollToElement('make-copy-button')}
+            className="flex-shrink-0 px-2 py-1 text-xs font-medium text-primary-600 dark:text-primary-400 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+            title="Go to Make Copy"
+          >
+            <Zap className="h-3 w-3 inline mr-1" />
+            Make Copy
+          </button>
+
           {hasOutputs && (
             <>
               <div className="h-4 w-px bg-gray-400 dark:bg-gray-600 flex-shrink-0"></div>
@@ -75,7 +85,7 @@ const FloatingOutputNavigation: React.FC<FloatingOutputNavigationProps> = ({
                         comparisonEl.scrollIntoView({ behavior: 'smooth', block: 'start' });
                       }
                     }}
-                    className="flex-shrink-0 px-2 py-1 text-xs font-normal text-gray-900 dark:text-gray-100 hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
+                    className="flex-shrink-0 px-2 py-1 text-xs font-normal text-status-good hover:bg-gray-200 dark:hover:bg-gray-700 rounded transition-colors"
                     title="Go to Comparison"
                   >
                     <Award className="h-3 w-3 inline mr-1" />

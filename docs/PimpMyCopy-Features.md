@@ -1,7 +1,29 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.31
-Last Updated: 2026-08-09T20:30:00Z
+Version: 1.32
+Last Updated: 2026-08-09T21:00:00Z
+
+---
+
+## Floating Nav — "Make Copy" Jump and Green Comparison (2026-08-09)
+
+**Feature:** The fixed bottom nav bar in Copy Maker (`src/components/FloatingOutputNavigation.tsx`) gained a new **Make Copy** item directly after **Top**, which scrolls to the orange Make Copy button. The **Comparison** item changed text colour to green. The bar now reads: Top | Make Copy | Original Copy | … | Comparison | Bottom.
+
+**Task 1 — Make Copy item:** `src/components/GenerateButton.tsx` already rendered a `data-generate-button` attribute on its `<button>` that nothing read — an unused hook waiting for exactly this. Rather than introduce a second identifier, the same element gained `id="make-copy-button"` alongside the existing attribute (left in place; removing it is a separate cleanup). The nav bar's existing `scrollToElement` helper is `getElementById`-based and no-ops on a missing element, so the new item reuses it: `onClick={() => scrollToElement('make-copy-button')}`. The button is rendered **unconditionally**, outside the `{hasOutputs && ...}` block, because it's most useful *before* anything has been generated — when the rest of the bar is just Top and Bottom. Markup uses `text-primary-600 dark:text-primary-400` (the token from `tailwind.config.js`, not a hardcoded hex — the app just spent three passes removing inline hex), `font-medium` to mark it as the only action item in a bar of destinations, and the `Zap` icon (already the icon on the Make Copy button itself, imported from `lucide-react` alongside the existing `ChevronUp, ChevronDown, Award, Table`).
+
+**Task 2 — Comparison in green:** The Comparison button (inside the `{hasComparison && ...}` block, with the `Award` icon scrolling to `comprehensive-analysis`) changed text colour to `text-status-good` — the reserved green token defined in `tailwind.config.js` and used by every other green in the app post-restyle. Icon, label, title, and hover unchanged. The mapped output links above compute `isComparison` from `item.sourceDisplayName?.toLowerCase().includes('comparison')` and render a `Table` icon — that's a generated card whose name happens to contain the word, not this nav destination, and was left alone.
+
+**Known choice, not a blocker:** Orange is the brand accent and green means "good score" elsewhere in the app post-restyle. This bar borrows both for navigation. A nav bar isn't a scoring surface, so it's a deliberate exception — but it does mean green says two different things on one screen when the comparison panel is open. Recorded as a known choice rather than drift discovered later.
+
+**Verification:**
+- The bar reads: Top | Make Copy | Original Copy | … | Comparison | Bottom, with Make Copy orange and Comparison green.
+- Clicking Make Copy scrolls to the orange Make Copy button via `getElementById`; the helper uses `block: 'center'`, so it lands mid-viewport, not just off the top or hidden behind the fixed bar.
+- Make Copy appears before any copy has been generated, when the rest of the bar is just Top and Bottom.
+- Comparison still scrolls to the analysis panel.
+- `grep -n "#ff6b35\|#0ca30c" src/components/FloatingOutputNavigation.tsx` returns nothing — no hardcoded hex added.
+- `npm run build` passes.
+- `npx tsc --noEmit -p tsconfig.app.json` returns 1323, the same count as `10f3494`. The `-p` form is required; plain `npx tsc --noEmit` checks zero files in this repo.
+- Not verified in-browser: dark-mode legibility of `primary-600`/`primary-400` against `dark:bg-gray-800` (step to `primary-500` if 600 looks muddy), and narrow-viewport (~1280px) wrapping with three+ generated versions — the bar is `flex-wrap`, but the extra item needs eyes to confirm nothing pushes off-screen.
 
 ---
 

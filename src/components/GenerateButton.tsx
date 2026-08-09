@@ -11,6 +11,7 @@ const GenerateButton: React.FC<GenerateButtonProps> = ({ onClick, isLoading, isD
   return (
     <button
       type="button"
+      id="make-copy-button"
       data-generate-button
       className="w-full text-white font-medium border border-gray-300 dark:border-gray-700 text-base px-5 py-3.5 transition-colors disabled:opacity-70 disabled:cursor-not-allowed flex items-center justify-center"
       style={{
