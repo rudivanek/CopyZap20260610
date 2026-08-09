@@ -259,6 +259,14 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
     }));
   }, [sortedRows, winnerRow, versionContentMap, absoluteScoreMap]);
 
+  const subScoresUsable = useMemo(() => {
+    const texts = sortedRows
+      .map(r => versionContentMap?.[r.versionId])
+      .filter(Boolean) as string[];
+    if (texts.length === 0) return false;
+    return texts.every(t => calculateMultiScoreDisplay(t).hasSignal);
+  }, [sortedRows, versionContentMap]);
+
   // PHASE 1.4B: Calculate decision badges for all versions (display-only)
   const decisionBadges = useMemo(() => {
     const versionsWithScores = sortedRows.map(row => {
@@ -271,7 +279,9 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
           conversion: subScores.conversion,
           trust: subScores.trust,
           risk: subScores.risk,
-          hasSignal: subScores.hasSignal
+          // Use the session-wide flag so badge suppression is consistent with
+          // what the chips show: if any version can't be read, all dash.
+          hasSignal: subScoresUsable
         } : undefined
       };
     });
@@ -283,7 +293,7 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
     });
 
     return badgeMap;
-  }, [sortedRows, versionContentMap]);
+  }, [sortedRows, versionContentMap, subScoresUsable]);
 
   return (
     <div id="comprehensive-analysis" className="relative">
@@ -437,6 +447,7 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
                   baselineScore={baselineRow?.finalScore ?? null}
                   onRowClick={onVersionClick}
                   onViewAnalysis={handleJumpToAnalysisTop}
+                  subScoresUsable={subScoresUsable}
                 />
               </div>
             )}
@@ -517,8 +528,7 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
                 winnerFactors={winnerFactors}
                 winnerBreakdown={winnerBreakdown}
                 decisionLayer={decisionLayer}
-                absoluteScore={absoluteScoreMap?.[row.versionId]}
-                baselineAbsTotal={baselineAbsTotal}
+                subScoresUsable={subScoresUsable}
               />
             );
           })}

@@ -1051,8 +1051,8 @@ const GeneratedCopyCard: React.FC<GeneratedCopyCardProps> = ({
           {/* Right: dual score badges */}
           <div className="flex-shrink-0 self-start mt-0.5">
             <DualScoreRow
-              sessionScore={cardFinalScore}
-              absoluteScore={card.absoluteScore}
+              sessionScore={comparisonRow?.finalScore ?? cardFinalScore}
+              absoluteScore={null}
             />
           </div>
 

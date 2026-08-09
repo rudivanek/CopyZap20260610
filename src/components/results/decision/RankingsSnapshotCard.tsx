@@ -39,6 +39,7 @@ interface RankingsSnapshotCardProps {
   latestEvaluatedAt?: number | null;
   onRowClick?: (versionId: string) => void;
   onViewAnalysis?: (versionId: string) => void;
+  subScoresUsable?: boolean;
 }
 
 function getAbsoluteDelta(
@@ -86,6 +87,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
   baselineScore,
   onRowClick,
   onViewAnalysis,
+  subScoresUsable = true,
 }) => {
   const [showAbsolute, setShowAbsolute] = useState(false);
 
@@ -113,7 +115,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
     });
 
     return badgeMap;
-  }, [rows]);
+  }, [rows, subScoresUsable]);
 
   const baselineRow =
     rows.find(r => r.versionId === baselineVersionId) ??
@@ -248,7 +250,7 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                       trust={subScores.trust}
                       risk={subScores.risk}
                       compact={true}
-                      hasSignal={subScores.hasSignal}
+                      hasSignal={subScoresUsable}
                     />
                   </div>
                 )}

@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.30
-Last Updated: 2026-08-09T00:10:00Z
+Last Updated: 2026-08-09T00:20:00Z
 
 ---
 
@@ -169,6 +169,30 @@ The marks are square bars (`w-1 h-5`), not round dots. The app's Tailwind config
 - `npm run build` passes.
 - `npx tsc --noEmit -p tsconfig.app.json` returns 1326, same as `2f67cb0`.
 - Keyboard tab-through of the Save Session modal and the wizard still needs visual review in the running app to confirm the focus ring is clearly visible in both light and dark mode.
+
+---
+
+## Comparison Score Headers, Uniform Sub-score Availability, and Neutral Analysis Labels (2026-08-09)
+
+**Feature:** Corrected the comparison results presentation so each generated card shows the same comparison score used by the ranking and analysis views, winner analysis labels remain neutral, the English-only qualifier appears only in the expanded explanation panel, and Conversion/Trust availability is decided once for the entire comparison.
+
+**Task 1 — Card headers use the comparison score:** `GeneratedCopyCard.tsx` already resolves the matching comparison row for each generated version. Its header now passes `comparisonRow?.finalScore ?? cardFinalScore` as the session score to `DualScoreRow` and passes `absoluteScore={null}`. This removes the misleading `Abs` badge from the card header while preserving the fallback session score for cards that have not yet been compared. `AbsoluteScoreBadge.tsx` and its expandable absolute-score panel are unchanged, so the isolation-based score remains available in its dedicated panel. A follow-up report remains open: `getAbsoluteScoreColor` still uses four hardcoded hex colours (`#dc2626`, `#d97706`, `#16a34a`, and `#1d4ed8`) and applies the colour directly to the digits. It needs a separate neutral-ink-plus-mark treatment, including a product decision for the fourth blue band, and was deliberately not changed in this task.
+
+**Task 2 — Winner analysis labels are neutral:** `VersionAnalysisCard.tsx` no longer changes section-label colour based on `isWinner`. `SUB-SCORES`, `KEY STRENGTHS`, `SUGGESTED IMPROVEMENTS`, `STRATEGIC RECOMMENDATION`, and every other section heading use `text-gray-400 dark:text-gray-600` for every version. The winner continues to be identified by its winner badge, rank, score, icon, and winner-specific content; those signals are unaffected.
+
+**Task 3 — One qualifier sentence:** `SubScoreChips.tsx` no longer renders the standalone no-signal qualifier above the explanation panel. The muted Conversion and Trust chips and their title tooltips remain unchanged for compact rows. In the expanded explanation panel, the existing qualifier remains in the `!hasSignal` branch alongside the Risk explanation, so the sentence is shown once in the place where the user asked for more detail.
+
+**Task 4 — One sub-score decision per comparison:** `ComprehensiveComparisonTable.tsx` computes `subScoresUsable` once from every available version's content using `every(t => calculateMultiScoreDisplay(t).hasSignal)`. The same session-wide flag is passed to every compact and expanded `SubScoreChips` instance in `RankingsSnapshotCard` and `VersionAnalysisCard`. It is also supplied to every decision-badge calculation, so Conversion, Low Risk, and Well Balanced badges are suppressed consistently when any version lacks usable heuristic signal. A mixed comparison therefore shows dashes for all versions rather than comparing real numbers with neutral baselines.
+
+**Verification:**
+- The header score is sourced from the matching comparison row, with the pre-comparison fallback retained, and the header no longer renders an `Abs` badge.
+- The absolute score component and expandable absolute-score panel remain intact.
+- Winner and non-winner analysis section labels use the same neutral grey treatment.
+- The no-signal qualifier is retained only in the expanded explanation panel.
+- The session-wide `every` decision is shared by both analysis-card chip locations, ranking chips, and decision badges.
+- `npm run build` passes.
+- The existing `getAbsoluteScoreColor` hardcoded palette is reported for a separate restyle decision and was not modified here.
+- Browser verification with a real generated session is still required to visually confirm identical header/comparison numbers in both English and Spanish cases.
 
 ---
 

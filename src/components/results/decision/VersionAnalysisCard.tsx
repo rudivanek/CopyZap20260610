@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { getScoreTextClass, getScoreMarkClass, deltaBadgeClass } from '../../../utils/scoreColors';
 import { VersionDeepAnalysis, AbsoluteScoreBreakdown } from '../../../types';
-import { formatDeltaFromParts, getComparisonDelta } from '../../../utils/comparisonDelta';
+import { formatDeltaFromParts } from '../../../utils/comparisonDelta';
 import { SubScoreChips } from '../SubScoreChips';
 import { calculateMultiScoreDisplay } from '../../../utils/multiScoreDisplay';
 import { DecisionBadge, getBadgeStyles, getBestOverallExplanation, getWinnerSummary } from '../../../utils/decisionBadges';
@@ -47,19 +47,17 @@ interface VersionAnalysisCardProps {
   winnerFactors?: WinnerFactors;
   winnerBreakdown?: WinnerBreakdown;
   decisionLayer?: DecisionLayer;
-  absoluteScore?: AbsoluteScoreBreakdown;
-  baselineAbsTotal?: number | null;
+  subScoresUsable?: boolean;
 }
 
 interface SectionProps {
   label: string;
   children: React.ReactNode;
-  isWinner?: boolean;
 }
 
-const Section: React.FC<SectionProps> = ({ label, children, isWinner = false }) => (
+const Section: React.FC<SectionProps> = ({ label, children }) => (
   <div className="border-t border-gray-100 dark:border-gray-800 pt-3 mt-3">
-    <span className={`text-xs font-bold uppercase tracking-widest ${isWinner ? 'text-status-good' : 'text-gray-400 dark:text-gray-600'}`}>
+    <span className="text-xs font-bold uppercase tracking-widest text-gray-400 dark:text-gray-600">
       {label}
     </span>
     <div className="mt-2.5">{children}</div>
@@ -84,8 +82,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
   winnerFactors,
   winnerBreakdown,
   decisionLayer,
-  absoluteScore,
-  baselineAbsTotal,
+  subScoresUsable = true,
 }) => {
   const isMissing = !analysis;
   const hasError = !!analysis?.errorMessage;
@@ -177,7 +174,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
                   trust={subScores.trust}
                   risk={subScores.risk}
                   compact={true}
-                  hasSignal={subScores.hasSignal}
+                  hasSignal={subScoresUsable}
                 />
               </div>
             )}
@@ -266,7 +263,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
             <>
               {/* Why This Wins */}
               {isWinner && winnerBreakdown && winnerBreakdown.whatItDoesBetter && winnerBreakdown.whatItDoesBetter.length > 0 && (
-                <Section label="Why This Wins" isWinner={true}>
+                <Section label="Why This Wins">
                   <ul className="space-y-1.5">
                     {winnerBreakdown.whatItDoesBetter.map((advantage, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm text-gray-700 dark:text-gray-300">
@@ -280,7 +277,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
 
               {/* Recommendation */}
               {isWinner && decisionLayer && (
-                <Section label="Recommendation" isWinner={true}>
+                <Section label="Recommendation">
                   <div className="space-y-2.5">
                     {decisionLayer.recommendedLabel && (
                       <div className="flex items-start gap-2">
@@ -335,7 +332,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
 
               {/* Key Strengths & Improvements */}
               {((analysis.keyStrengths && analysis.keyStrengths.length > 0) || (analysis.suggestedImprovements && analysis.suggestedImprovements.length > 0)) && (
-                <Section label="Key Strengths & Improvements" isWinner={isWinner}>
+                <Section label="Key Strengths & Improvements">
                   <div className="space-y-4">
                     {analysis.keyStrengths && analysis.keyStrengths.length > 0 && (
                       <div>
@@ -399,7 +396,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
 
               {/* Strategic Recommendation */}
               {analysis.strategicRecommendation && (
-                <Section label="Strategic Recommendation" isWinner={isWinner}>
+                <Section label="Strategic Recommendation">
                   <div className="flex items-start gap-2">
                     <Target className="w-4 h-4 text-status-good mt-0.5 flex-shrink-0" />
                     <p className="text-sm text-gray-700 dark:text-gray-300 leading-relaxed">
@@ -413,14 +410,14 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
               {contentText && contentText.trim().length > 0 && (() => {
                 const scores = calculateMultiScoreDisplay(contentText);
                 return (
-                  <Section label="Sub-scores" isWinner={isWinner}>
+                  <Section label="Sub-scores">
                     <SubScoreChips
                       conversion={scores.conversion}
                       trust={scores.trust}
                       risk={scores.risk}
                       compact={false}
                       showExplanation={true}
-                      hasSignal={scores.hasSignal}
+                      hasSignal={subScoresUsable}
                     />
                   </Section>
                 );
@@ -428,7 +425,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
 
               {/* Winner Factors */}
               {isWinner && winnerFactors && (
-                <Section label="Decision Factors" isWinner={true}>
+                <Section label="Decision Factors">
                   <div className="flex items-start gap-2">
                     <Trophy className="w-4 h-4 text-status-good mt-0.5 flex-shrink-0" />
                     <p className="text-xs text-gray-500 dark:text-gray-400 leading-snug">
@@ -451,7 +448,7 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
 
               {/* Minor Considerations */}
               {isWinner && winnerBreakdown?.tradeoffs && winnerBreakdown.tradeoffs.length > 0 && (
-                <Section label="Minor Considerations" isWinner={false}>
+                <Section label="Minor Considerations">
                   <ul className="space-y-1.5">
                     {winnerBreakdown.tradeoffs.map((tradeoff, idx) => (
                       <li key={idx} className="flex items-start gap-2 text-sm text-gray-600 dark:text-gray-400">

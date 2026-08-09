@@ -137,13 +137,6 @@ export const SubScoreChips: React.FC<SubScoreChipsProps> = ({
       </span>
       </div>
 
-      {/* Qualifier line when the heuristic matched nothing (expanded panel only) */}
-      {!hasSignal && !compact && (
-        <p className="text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-          {NO_SIGNAL_QUALIFIER}
-        </p>
-      )}
-
       {/* Explanation panel */}
       {showExplanation && (
         <div className="bg-gray-50 dark:bg-gray-900/50 border border-gray-200 dark:border-gray-700 rounded-lg p-3 space-y-2 animate-fadeIn">
