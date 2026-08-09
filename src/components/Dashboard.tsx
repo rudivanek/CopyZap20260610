@@ -170,6 +170,8 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
   // Saved outputs filter state
   const [savedOutputsFilter, setSavedOutputsFilter] = useState<'all' | 'favorites'>('all');
   const [savedOutputsSearchText, setSavedOutputsSearchText] = useState<string>('');
+  const [selectedSavedCustomer, setSelectedSavedCustomer] = useState<string>('all');
+  const [selectedSessionCustomer, setSelectedSessionCustomer] = useState<string>('all');
 
   // CSV export function for credits usage - fetches ALL matching records
   const exportCreditsUsageToCSV = useCallback(async () => {
@@ -843,8 +845,7 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
   }, [SUPABASE_ENABLED, savedOutputs]);
 
   // Filter saved outputs by search text
-  // NOTE: Only searches metadata fields (title, description, tags) since we use SavedOutputMeta
-  // input_data/output_data are NOT loaded in list view for performance
+  // NOTE: Only searches metadata fields and extracted scalar values since full input_data/output_data are not loaded in list view
   const filterSavedOutputsBySearch = useCallback((outputs: SavedOutputMeta[]) => {
     if (!savedOutputsSearchText.trim()) {
       return outputs;
@@ -863,6 +864,9 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
       if (output.tags && output.tags.length > 0) {
         if (output.tags.some(tag => tag.toLowerCase().includes(searchLower))) return true;
       }
+
+      // Search in the extracted product/service name
+      if (output.product_service_name?.toLowerCase().includes(searchLower)) return true;
 
       return false;
     });
@@ -1257,8 +1261,28 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
         {activeTab === 'sessions' && (
           <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-800 rounded-lg">
             <div className="p-6 border-b border-gray-300 dark:border-gray-800">
-              <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Copy Sessions</h2>
-              <p className="text-gray-600 dark:text-gray-400 mt-1">Your saved copy generation sessions</p>
+              <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+                <div>
+                  <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Copy Sessions</h2>
+                  <p className="text-gray-600 dark:text-gray-400 mt-1">Your saved copy generation sessions</p>
+                </div>
+                <select
+                  value={selectedSessionCustomer}
+                  onChange={(e) => setSelectedSessionCustomer(e.target.value)}
+                  aria-label="Filter sessions by customer"
+                  className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 px-3 py-2"
+                >
+                  <option value="all">All customers ({copySessions.length})</option>
+                  <option value="none">No customer ({copySessions.filter(session => !session.customer?.name).length})</option>
+                  {Array.from(new Set(copySessions.map(session => session.customer?.name).filter((name): name is string => Boolean(name))))
+                    .sort((a, b) => a.localeCompare(b))
+                    .map(name => (
+                      <option key={name} value={name}>
+                        {name} ({copySessions.filter(session => session.customer?.name === name).length})
+                      </option>
+                    ))}
+                </select>
+              </div>
             </div>
             
             {copySessions.length === 0 ? (
@@ -1276,7 +1300,30 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                   Create Copy
                 </Link>
               </div>
-            ) : (
+            ) : (() => {
+              const filteredSessions = copySessions.filter(session => {
+                const customerName = session.customer?.name || '';
+                return selectedSessionCustomer === 'all'
+                  || (selectedSessionCustomer === 'none' ? !customerName : customerName === selectedSessionCustomer);
+              });
+
+              if (filteredSessions.length === 0) {
+                return (
+                  <div className="p-8 text-center">
+                    <Search size={48} className="text-gray-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No sessions for this customer</h3>
+                    <p className="text-gray-600 dark:text-gray-400 mb-4">Choose another customer or view all sessions.</p>
+                    <button
+                      onClick={() => setSelectedSessionCustomer('all')}
+                      className="bg-gray-600 hover:bg-white0 text-white px-4 py-2 rounded-lg inline-flex items-center"
+                    >
+                      View All Sessions
+                    </button>
+                  </div>
+                );
+              }
+
+              return (
               <div className="overflow-x-auto"> {/* Removed token usage related content */}
                 <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                   <thead className="bg-white dark:bg-gray-800">
@@ -1289,7 +1336,7 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                     </tr>
                   </thead>
                   <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
-                    {copySessions.map((session) => (
+                    {filteredSessions.map((session) => (
                       <tr key={session.id} className="hover:bg-white dark:hover:bg-gray-800">
                         <td className="px-2 py-1">
                           <div className="text-sm font-medium text-gray-900 dark:text-white">
@@ -1355,7 +1402,8 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                   </div>
                 )}
               </div>
-            )}
+              );
+            })()}
           </div>
         )}
 
@@ -1561,7 +1609,23 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                 </div>
 
                 {/* Filter Controls */}
-                <div className="flex items-center space-x-2">
+                <div className="flex flex-wrap items-center justify-end gap-2">
+                  <select
+                    value={selectedSavedCustomer}
+                    onChange={(e) => setSelectedSavedCustomer(e.target.value)}
+                    aria-label="Filter saved outputs by customer"
+                    className="bg-white dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 px-3 py-2"
+                  >
+                    <option value="all">All customers ({savedOutputs.length})</option>
+                    <option value="none">No customer ({savedOutputs.filter(output => !output.customer_name).length})</option>
+                    {Array.from(new Set(savedOutputs.map(output => output.customer_name).filter((name): name is string => Boolean(name))))
+                      .sort((a, b) => a.localeCompare(b))
+                      .map(name => (
+                        <option key={name} value={name}>
+                          {name} ({savedOutputs.filter(output => output.customer_name === name).length})
+                        </option>
+                      ))}
+                  </select>
                   <button
                     onClick={() => setSavedOutputsFilter('all')}
                     className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
@@ -1626,12 +1690,29 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
               </div>
             ) : (() => {
                 const searchFiltered = filterSavedOutputsBySearch(savedOutputs);
-                const finalFiltered = searchFiltered.filter(output => savedOutputsFilter === 'all' || output.is_favorite);
+                const customerFiltered = searchFiltered.filter(output => {
+                  const customerName = output.customer_name || '';
+                  return selectedSavedCustomer === 'all'
+                    || (selectedSavedCustomer === 'none' ? !customerName : customerName === selectedSavedCustomer);
+                });
+                const finalFiltered = customerFiltered.filter(output => savedOutputsFilter === 'all' || output.is_favorite);
 
                 if (finalFiltered.length === 0) {
                   return (
                     <div className="p-8 text-center">
-                      {savedOutputsSearchText ? (
+                      {selectedSavedCustomer !== 'all' ? (
+                        <>
+                          <Search size={48} className="text-gray-400 mx-auto mb-4" />
+                          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No outputs for this customer</h3>
+                          <p className="text-gray-600 dark:text-gray-400 mb-4">No saved outputs match the selected customer and current filters.</p>
+                          <button
+                            onClick={() => setSelectedSavedCustomer('all')}
+                            className="bg-gray-600 hover:bg-white0 text-white px-4 py-2 rounded-lg inline-flex items-center"
+                          >
+                            View All Customers
+                          </button>
+                        </>
+                      ) : savedOutputsSearchText ? (
                         <>
                           <Search size={48} className="text-gray-400 mx-auto mb-4" />
                           <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">No matching outputs</h3>
@@ -1683,6 +1764,7 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                         <Star size={16} className="mx-auto" />
                       </th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Description</th>
+                      <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Product/Service</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Configuration</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Content Details</th>
                       <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">Saved</th>
@@ -1726,6 +1808,9 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                               ))}
                             </div>
                           )}
+                        </td>
+                        <td className="px-4 py-2 text-sm text-gray-900 dark:text-white">
+                          {output.product_service_name || '—'}
                         </td>
                         <td className="px-4 py-2 text-sm text-gray-500 dark:text-gray-400">
                           <div className="space-y-1">

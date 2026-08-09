@@ -571,6 +571,7 @@ export interface Template {
  * SavedOutputMeta: Lightweight metadata for list views
  * - Used by getUserSavedOutputs() for Dashboard listings
  * - EXCLUDES heavy fields: input_data, output_data
+ * - Includes only the scalar product_service_name and customer_name values extracted from input_data
  * - Typical size: 1-3KB per record
  * - Safe to load 50-100 records at once
  */
@@ -585,6 +586,8 @@ export interface SavedOutputMeta {
   created_at: string;
   updated_at?: string;
   is_favorite: boolean;
+  product_service_name?: string | null;
+  customer_name?: string | null;
 }
 
 /**

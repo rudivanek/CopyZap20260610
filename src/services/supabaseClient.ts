@@ -1217,6 +1217,7 @@ const debugSavedOutputsWarn = (...args: any[]): void => {
  * - Returns SavedOutputMeta[] - metadata ONLY (no input_data/output_data)
  * - Selected fields: id, user_id, title, description, tags, session_id, saved_mode, created_at, updated_at, is_favorite
  * - EXCLUDES: input_data (50-100KB), output_data (500KB-2MB)
+ * - Selects only metadata plus product_service_name and customer_name scalar values extracted from input_data
  * - Typical payload: ~2KB per record (vs 500KB+ with full data)
  * - Safe to load 50-100 records at once
  *
@@ -1238,7 +1239,7 @@ export const getUserSavedOutputsMeta = async (
     let query = supabase
       .from('pmc_saved_outputs')
       // STRICT: Select ONLY metadata fields (NO input_data, NO output_data)
-      .select('id, user_id, title, description, tags, session_id, saved_mode, created_at, updated_at, is_favorite, last_accessed_at')
+      .select('id, user_id, title, description, tags, session_id, saved_mode, created_at, updated_at, is_favorite, last_accessed_at, product_service_name:input_data->>productServiceName, customer_name:input_data->>customerName')
       .eq('user_id', userId);
 
     if (cursor) {
