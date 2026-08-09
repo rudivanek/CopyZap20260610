@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.30
-Last Updated: 2026-08-09T00:20:00Z
+Last Updated: 2026-08-09T00:35:00Z
 
 ---
 
@@ -205,6 +205,35 @@ The marks are square bars (`w-1 h-5`), not round dots. The app's Tailwind config
 - No call site of `estimateConversionDisplayScore` / `estimateTrustDisplayScore` changed behaviour — `comprehensiveScoring.ts` lines ~731 and ~2221 still get the same numbers.
 - `npm run build` passes.
 - `npx tsc --noEmit -p tsconfig.app.json` shows 1326 errors both before and after — zero new errors. All pre-existing errors in modified files are on unrelated `ComparisonResult` properties (lines 96–156 of `ComparisonCard.tsx`) and predate this change.
+
+---
+
+## Absolute Score Restyle — Three Bands, Neutral Digits, Coloured Mark (2026-08-09)
+
+**Feature:** The Absolute score display — the last score in the app still colouring its own digits — now matches the neutral-ink-plus-mark treatment used by every other score. The fourth (blue) colour band is gone, replaced by a word. Two duplicate copies of the colour rule were collapsed into one shared helper in `scoreColors.ts`.
+
+**Why:** `getAbsoluteScoreColor` was the only score display left doing its own thing. It had four colour bands where the rest of the app has three, coloured the digits directly instead of using a mark, and was written as raw hex — which is why it survived all three restyle passes untouched: no class-based search can see it. The blue band was someone trying to say "not merely good — exceptional," but it didn't land: 89 rendered blue while 84 rendered green, so two scores five points apart read as different categories, and blue conventionally signals *information*, not quality.
+
+**Correction to the prior spec:** The previous task's documentation stated the Absolute score "is still shown in its own expandable panel." That's wrong — `<AbsoluteScoreBadge` is never rendered anywhere. Only `DualScoreRow`, exported from the same file, is used. So there are exactly two live displays of the Absolute score: `DualScoreRow`'s `Abs` badge in the generated-card header (which the prior task removed by passing `absoluteScore={null}`), and `RankingsSnapshotCard.tsx` behind the **Show Absolute** toggle in the rankings. Once the card-header badge went, the rankings toggle became the only place the Absolute score appears — that's the one this task fixes.
+
+**Task 1 — Collapse two copies into one:** `getAbsoluteScoreColor` was defined twice, identically: in `src/components/results/AbsoluteScoreBadge.tsx` line ~5 and `src/components/results/decision/RankingsSnapshotCard.tsx` line ~11. Two copies of one colour rule is how the app accumulated nine colour families. Both local copies were deleted, and a single helper was added to `src/utils/scoreColors.ts` alongside the other score helpers, imported in both places.
+
+**Task 2 — Three bands, not four:** The blue band was collapsed into green — anything above 75 is simply good. The function returns the Tailwind class (`bg-status-good` and friends), not a hex string, so it matches how `getScoreMarkClass` already works and stays visible to future searches. It was renamed `getAbsoluteScoreMarkClass` to match the existing naming. The thresholds were left at 65 / 75 / 85 — they don't match the 80 / 50 split used by `scoreColors.ts`, so a 70 counts as "warning" here and "good" there. That's a real inconsistency but a product judgement about the scoring, not a styling question — reported here, not changed.
+
+**Task 3 — Neutral digits, coloured mark, and a word for the top band:** At `RankingsSnapshotCard.tsx` the score was rendered with `style={{ color: ... }}` on the number itself. It now matches the session score's treatment elsewhere in that same card: the number renders in neutral ink (`text-gray-900 dark:text-gray-100`), a `w-1 h-5` bar in the band colour sits immediately to its left (square, no border radius), and the inline `style` attribute is deleted entirely. For the "exceptional" sense the blue band was reaching for, a small neutral-grey label reading `Excellent` (text-xs, grey) appears beside scores above 85 — it earns attention by being the only row that has it, not by being a different hue. A `getAbsoluteScoreLabel(total)` helper returns `'Excellent'` for scores above 85 and `''` for everything else, so the call site is a single conditional render with room to fill in other bands later if labels help there too.
+
+**Task 4 — Dead-code finding reported, not deleted:** `AbsoluteScoreBadge` (the component at line ~53, plus its `DimBar` helper and the whole expandable-breakdown panel) has zero render sites. Only `DualScoreRow` from that file is used. It is NOT deleted here. It is added to the dead-code batch, which now stands at: `MultiScoreDisplay.tsx`, `ComparisonCard.tsx`, `AbsoluteScoreBadge` (the component, not the file — `DualScoreRow` lives in it and stays), `CopyMakerSidebarLegacy.tsx`, and the six older items (Start Hub mode picker, `controlExecuted`, FAQ Schema, `toneLevel` slider, duplicate prefills, dead export functions). The component plus its `DimBar` helper and the expandable-breakdown panel account for roughly 90 lines that become unreachable once the file is split so `DualScoreRow` can stand alone.
+
+**Verification:**
+- `grep -rn "getAbsoluteScoreColor" src/` shows the function defined once, in `scoreColors.ts`, under its new name `getAbsoluteScoreMarkClass`.
+- `grep -rn "#dc2626\|#d97706\|#16a34a\|#1d4ed8" src/components/results/` returns zero.
+- With **Show Absolute** on in the rankings: numbers are plain black, each with a small square coloured bar to its left. No coloured digits anywhere.
+- A score above 85 shows `Excellent` in grey beside it; scores below 85 show no label. No score renders blue.
+- Two scores either side of 85 — say 84 and 89 — now sit in the same colour band, differing only by that label.
+- The bar matches the visual treatment of the session-score bar in the same card.
+- `npm run build` passes.
+- `npx tsc --noEmit -p tsconfig.app.json` returns 1619, one fewer than the 1620 baseline from the prior task (the unused `absColor` variable is gone). No new errors were introduced.
+- Dark-mode and the 84/89 side-by-side case still need eyes in the running app to confirm the bar is visible on the dark background and the two scores read as the same band.
 
 ---
 

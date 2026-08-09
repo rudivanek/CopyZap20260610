@@ -1,13 +1,7 @@
 import React, { useState } from 'react';
 import { Info } from 'lucide-react';
 import { AbsoluteScoreBreakdown } from '../../types';
-
-function getAbsoluteScoreColor(total: number): string {
-  if (total <= 65) return '#dc2626';
-  if (total <= 75) return '#d97706';
-  if (total <= 85) return '#16a34a';
-  return '#1d4ed8';
-}
+import { getAbsoluteScoreMarkClass } from '../../utils/scoreColors';
 
 interface AbsoluteScoreBadgeProps {
   score: AbsoluteScoreBreakdown;
@@ -52,14 +46,15 @@ const Tooltip: React.FC<{ text: string; children: React.ReactNode }> = ({ text, 
 
 export const AbsoluteScoreBadge: React.FC<AbsoluteScoreBadgeProps> = ({ score, compact = false, alwaysOpen = false }) => {
   const [expanded, setExpanded] = useState(false);
-  const absColor = getAbsoluteScoreColor(score.total);
+  const absMarkClass = getAbsoluteScoreMarkClass(score.total);
 
   if (compact) {
     return (
       <Tooltip text="Evaluated in isolation — does not change as new versions are added">
         <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-xs font-semibold bg-white/10 border-white/20 text-white cursor-default">
           <span className="opacity-70 font-normal">Abs</span>
-          <span style={{ color: absColor }}>{score.total}</span>
+          <span className="text-gray-900 dark:text-gray-100">{score.total}</span>
+          <span aria-hidden="true" className={`w-1 h-3.5 rounded-sm ${absMarkClass}`} />
         </span>
       </Tooltip>
     );
@@ -91,7 +86,8 @@ export const AbsoluteScoreBadge: React.FC<AbsoluteScoreBadgeProps> = ({ score, c
             <Info size={11} className="text-gray-300 dark:text-gray-700" />
           </Tooltip>
         </div>
-        <span className="text-lg font-black tabular-nums" style={{ color: absColor }}>{score.total}<span className="text-xs font-normal text-gray-400 ml-0.5">/100</span></span>
+        <span className="text-gray-900 dark:text-gray-100">{score.total}<span className="text-xs font-normal text-gray-400 ml-0.5">/100</span></span>
+        <span aria-hidden="true" className={`w-1 h-4 rounded-sm ${absMarkClass}`} />
       </button>
 
       {expanded && (
@@ -129,7 +125,8 @@ export const DualScoreRow: React.FC<DualScoreRowProps> = ({ sessionScore, absolu
         <Tooltip text="Evaluated in isolation — does not change as new versions are added">
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/10 border border-white/20 text-xs font-semibold text-white cursor-default">
             <span className="opacity-70 font-normal">Abs</span>
-            <span style={{ color: getAbsoluteScoreColor(absoluteScore.total) }}>{absoluteScore.total}</span>
+            <span className="text-gray-900 dark:text-gray-100">{absoluteScore.total}</span>
+            <span aria-hidden="true" className={`w-1 h-3.5 rounded-sm ${getAbsoluteScoreMarkClass(absoluteScore.total)}`} />
           </span>
         </Tooltip>
       )}

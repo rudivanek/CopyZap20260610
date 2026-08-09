@@ -6,14 +6,7 @@ import { getDecisionBadgeForVersion, getBadgeStyles, DecisionBadge } from '../..
 import { SubScoreChips } from '../SubScoreChips';
 import { formatLocalDateTime } from '../../../utils/dateFormatting';
 import { AbsoluteScoreBreakdown } from '../../../types';
-import { deltaBadgeClass } from '../../../utils/scoreColors';
-
-function getAbsoluteScoreColor(total: number): string {
-  if (total <= 65) return '#dc2626';
-  if (total <= 75) return '#d97706';
-  if (total <= 85) return '#16a34a';
-  return '#1d4ed8';
-}
+import { deltaBadgeClass, getAbsoluteScoreMarkClass, getAbsoluteScoreLabel } from '../../../utils/scoreColors';
 
 interface RankRow {
   versionId: string;
@@ -309,14 +302,24 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                       </span>
                     )}
                     {row.absoluteScore ? (
-                      <span
-                        className={`text-sm ${SCORE_COL_CLASS} ${
-                          row.isWinner ? 'font-bold' : 'font-semibold'
-                        }`}
-                        style={{ color: getAbsoluteScoreColor(row.absoluteScore.total) }}
-                      >
-                        {row.absoluteScore.total}
-                      </span>
+                      <div className="flex items-center gap-1.5">
+                        <span
+                          aria-hidden="true"
+                          className={`w-1 h-5 flex-shrink-0 ${getAbsoluteScoreMarkClass(row.absoluteScore.total)}`}
+                        />
+                        <span
+                          className={`text-sm ${SCORE_COL_CLASS} text-gray-900 dark:text-gray-100 ${
+                            row.isWinner ? 'font-bold' : 'font-semibold'
+                          }`}
+                        >
+                          {row.absoluteScore.total}
+                        </span>
+                        {getAbsoluteScoreLabel(row.absoluteScore.total) && (
+                          <span className="text-xs text-gray-400 dark:text-gray-600 font-medium">
+                            {getAbsoluteScoreLabel(row.absoluteScore.total)}
+                          </span>
+                        )}
+                      </div>
                     ) : (
                       <span className={`text-xs ${SCORE_COL_CLASS} text-gray-300 dark:text-gray-700 font-normal`}>
                         ...

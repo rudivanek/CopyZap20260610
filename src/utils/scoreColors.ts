@@ -69,6 +69,22 @@ export function deltaBadgeClass(positive: boolean): string {
     : 'text-status-warning bg-status-warning/10 border border-status-warning/30';
 }
 
+// Absolute score is evaluated in isolation against a fixed rubric, so its
+// bands (65 / 75) differ from the session-score bands (80 / 50) above. That
+// mismatch is a product decision about two separate scoring systems, not a
+// styling choice — left intentionally inconsistent here.
+export function getAbsoluteScoreMarkClass(total: number): string {
+  if (total <= 65) return 'bg-status-critical';
+  if (total <= 75) return 'bg-status-warning';
+  return 'bg-status-good';
+}
+
+// The top band (> 85) earns a word, not a colour. Returns '' for everything
+// else so the call site is a single conditional render.
+export function getAbsoluteScoreLabel(total: number): string {
+  return total > 85 ? 'Excellent' : '';
+}
+
 export function getScoreLabel(score: number | undefined): string {
   if (!score || score === 0) {
     return '';
