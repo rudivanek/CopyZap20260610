@@ -496,7 +496,6 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
             const delta = isRowBaseline ? null : getComparisonDelta(row.finalScore, baselineRow?.finalScore);
             const contentText = versionContentMap?.[row.versionId] || '';
             const decisionBadge = decisionBadges.get(row.versionId);
-            const baselineAbsTotal = baselineRow ? (absoluteScoreMap?.[baselineRow.versionId]?.total ?? null) : null;
 
             const isWinner = row.versionId === comparison.winnerVersionId;
             const winnerExplanation = isWinner ? comparison.winnerExplanation : undefined;

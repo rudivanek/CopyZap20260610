@@ -4,7 +4,7 @@ import {
   RefreshCw, Eye, Clock, Trophy, ChevronDown, ChevronUp
 } from 'lucide-react';
 import { getScoreTextClass, getScoreMarkClass, deltaBadgeClass } from '../../../utils/scoreColors';
-import { VersionDeepAnalysis, AbsoluteScoreBreakdown } from '../../../types';
+import { VersionDeepAnalysis } from '../../../types';
 import { formatDeltaFromParts } from '../../../utils/comparisonDelta';
 import { SubScoreChips } from '../SubScoreChips';
 import { calculateMultiScoreDisplay } from '../../../utils/multiScoreDisplay';

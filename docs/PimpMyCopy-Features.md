@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.30
-Last Updated: 2026-08-09T00:35:00Z
+Last Updated: 2026-08-09T01:10:00Z
 
 ---
 
@@ -234,6 +234,33 @@ The marks are square bars (`w-1 h-5`), not round dots. The app's Tailwind config
 - `npm run build` passes.
 - `npx tsc --noEmit -p tsconfig.app.json` returns 1619, one fewer than the 1620 baseline from the prior task (the unused `absColor` variable is gone). No new errors were introduced.
 - Dark-mode and the 84/89 side-by-side case still need eyes in the running app to confirm the bar is visible on the dark background and the two scores read as the same band.
+
+---
+
+## Restyle — Final Cleanup (2026-08-09)
+
+**Feature:** Three small no-behaviour-change items that close out the restyle work: a card-header label that no longer made sense, two dead symbols left behind by the last commit, and a typecheck count confirmed to drop by exactly two. Verified against `main` at `9283298`.
+
+**Task 1 — The card header badge says "Score", not "Session":** `src/components/results/AbsoluteScoreBadge.tsx` line ~119 changed the `<span>` label from `Session` to `Score`. The word "Session" only earned its place when it sat beside an `Abs` badge; now that `GeneratedCopyCard` passes `absoluteScore={null}` and only one badge renders, the contrast the label was drawing is invisible and the word just raises a question it doesn't answer. The comment on line ~102 was also updated — it previously claimed the inline pair "shows both Session Score and Absolute Score labels + values," which is no longer how it's used. It now describes the actual behaviour: it renders a score badge, and optionally an absolute badge, when each value is present. The tooltip text ("Relative to other versions generated in this session") was left as-is — it's now the only thing explaining what the number means, so it carries more weight than before, not less. The "SESSION" column header in the rankings panel was deliberately NOT changed: there the word is doing real work, contrasting with the Absolute column beside it. The card header and the rankings label the same number differently on purpose — only one of them has something to contrast against.
+
+**Task 2 — Two dead symbols:** Both were `TS6133` warnings introduced by the previous commit. `AbsoluteScoreBreakdown` was imported at line 7 of `src/components/results/decision/VersionAnalysisCard.tsx` but no longer used anywhere in the file — removed from the import (leaving `VersionDeepAnalysis`). `baselineAbsTotal` was declared at line ~499 of `src/components/results/ComprehensiveComparisonTable.tsx` but never read — the declaration was deleted. A separate `baselineAbsTotal` appears at line ~477 as an inline JSX prop on `WinnerHeroCard`; that's an independent expression, not the local, and was confirmed still in place. Both removals were checked against the rest of their files before deleting.
+
+**Task 3 — Error count drops to 1323:** Baseline at `9283298` was 1325. Removing the two dead symbols took it to **1323** — two fewer, no others moved. A pre-existing `TS6133` warning for `baselineAbsTotal` remains in `WinnerHeroCard.tsx` line 86 (a prop declared in the component but never used internally); it predates this task and is outside its scope.
+
+**Verification:**
+- The badge in each generated card's header reads **Score 88**, not **Session 88**.
+- Hovering it still shows the "Relative to other versions generated in this session" tooltip.
+- The rankings panel below still says **SESSION** above its column — unchanged.
+- The number in the card header still matches the number the comparison shows for that same version.
+- `npm run build` passes.
+- `npx tsc --noEmit -p tsconfig.app.json` returns **1323** (down from 1325). The `-p` form is required; plain `npx tsc --noEmit` checks zero files in this repo.
+
+**Open list after this lands (restyle closed):**
+- **Dead code, one batch:** `MultiScoreDisplay.tsx`, `ComparisonCard.tsx`, the `AbsoluteScoreBadge` component (not the file — `DualScoreRow` lives in it and stays), `CopyMakerSidebarLegacy.tsx`, plus six older items (Start Hub mode picker, `controlExecuted`, FAQ Schema, `toneLevel` slider, three duplicate prefills, two dead export functions).
+- **Live bugs:** `CopySnap.tsx` lines ~473 and ~710 reference an undeclared `selectedModel` (a real `ReferenceError`, admin-only). `CopyForm.tsx` line ~749 promises URL auto-fetch that doesn't exist. `enhancedExports.ts` line ~4704 prints `undefined/10`.
+- **Consistency leftovers:** `GenerateButton.tsx` drives hover through four inline `style.backgroundColor` assignments with hardcoded oranges and a third pressed state. Twelve `focus:ring-gray-500` inputs remain across Login, CreateAccount, ResetPassword, Dashboard, PrefillSelector, TemplatePickerModal and TemplateLoader. Four `borderRadius` inline styles in `src/components/copy-maker/guidance/` in an app whose config zeroes every radius.
+- **A decision, not a fix:** the Absolute score calls 75 "good" while the session score calls 80 "good". Two yardsticks for the same word. That's about the scoring model, not the styling.
+- **Docs:** `CLAUDE.md` still documents `npx tsc --noEmit`, which checks zero files in this repo. That wrong command is what let the `onBack` bug ship.
 
 ---
 

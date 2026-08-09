@@ -99,7 +99,7 @@ export const AbsoluteScoreBadge: React.FC<AbsoluteScoreBadgeProps> = ({ score, c
   );
 };
 
-/** Inline pair: shows both Session Score and Absolute Score labels + values */
+/** Inline pair: renders a Session score badge, and optionally an Absolute score badge, when each value is present. */
 interface DualScoreRowProps {
   sessionScore: number | null | undefined;
   absoluteScore: AbsoluteScoreBreakdown | null | undefined;
@@ -116,7 +116,7 @@ export const DualScoreRow: React.FC<DualScoreRowProps> = ({ sessionScore, absolu
       {hasSession && (
         <Tooltip text="Relative to other versions generated in this session">
           <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full bg-white/15 border border-white/25 text-xs font-semibold text-white cursor-default">
-            <span className="opacity-70 font-normal">Session</span>
+            <span className="opacity-70 font-normal">Score</span>
             <span>{sessionScore}</span>
           </span>
         </Tooltip>
