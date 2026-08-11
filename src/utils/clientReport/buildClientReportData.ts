@@ -218,6 +218,10 @@ export interface ClientReportData {
   previewPercent: number;
   findingsCountWord: string;
   roadmapCountWord: string;
+  // Raw counts — the renderer needs these (not just the spelled-out word) to
+  // pick grammatically-agreeing singular vs. plural phrasing via esCount().
+  findingsCount: number;
+  roadmapCount: number;
   winnerDisplayName: string;
   lastIndex: number;
   // True count of generated copy versions in the session (excludes baseline
@@ -264,6 +268,38 @@ const NUMBER_WORDS_CAP = [
 function numberWord(n: number, cap = false): string {
   const arr = cap ? NUMBER_WORDS_CAP : NUMBER_WORDS;
   return arr[n] ?? String(n);
+}
+
+// Spanish agreement helper. numberWord(1) yields the masculine cardinal "uno",
+// which is ungrammatical before the feminine noun "mejora" — that's what produced
+// "las uno mejoras" in shipped reports. A count of 1 also changes the article, the
+// noun, the verb and the participle ("Estas cinco mejoras ya están redactadas" →
+// "Esta mejora ya está redactada"), so callers pass both fully-written variants
+// rather than trying to patch a single word.
+export function esCount(n: number, singular: string, plural: string): string {
+  return n === 1 ? singular : plural;
+}
+
+// A deep analysis that failed returns a sentinel object (see versionDeepAnalysis.ts:
+// keyStrengths ['Unable to analyze'], suggestedImprovements ['Retry analysis']).
+// Those are operator-facing debug strings and must never reach a client report —
+// they shipped verbatim into the PhixWave report's "Por qué gana" / "Qué le falta"
+// blocks and its roadmap. Treat a failed analysis as absent so the report falls
+// back to its existing "Sin observaciones destacadas." empty state instead.
+const FAILED_ANALYSIS_SENTINELS = ['unable to analyze', 'retry analysis'];
+
+export function isFailedAnalysis(analysis: VersionDeepAnalysis | undefined): boolean {
+  if (!analysis) return false;
+  if (analysis.errorMessage) return true;
+  // Older cached analyses may predate errorMessage being persisted — match the
+  // sentinel text as a fallback so previously-stored failures are caught too.
+  const strengths = analysis.keyStrengths || [];
+  const improvements = (analysis.suggestedImprovements || []).map(i =>
+    typeof i === 'object' && i !== null ? (i as SuggestedImprovement).text : String(i),
+  );
+  const all = [...strengths, ...improvements].map(s => String(s || '').trim().toLowerCase());
+  if (!all.length) return false;
+  return all.every(s => FAILED_ANALYSIS_SENTINELS.includes(s));
 }
 
 function stripProtocol(url: string): string {
@@ -758,6 +794,11 @@ function shortProblemTitle(line: string): string {
 function roadmapFromAnalysis(
   analysis: VersionDeepAnalysis | undefined,
 ): { items: ClientReportRoadmapItem[]; projected: number | null } {
+  // A failed analysis carries only sentinel text ("Retry analysis") — emitting it
+  // as a roadmap item produced the "+2 Retry analysis. Retry analysis" row in
+  // the PhixWave report. Drop the roadmap entirely; renderRoadmap() omits the
+  // whole section when the list is empty.
+  if (isFailedAnalysis(analysis)) return { items: [], projected: null };
   if (!analysis?.suggestedImprovements?.length) return { items: [], projected: null };
   const items: ClientReportRoadmapItem[] = [];
   let projected: number | null = null;
@@ -958,18 +999,31 @@ export function buildClientReportData(
     // the winner previously got this treatment, A/C got a generic sentence.
     // Now all proposals list the cut section labels; if nothing was cut, fall
     // back to a complete sentence that still ties to the delivery.
+    // Improvement count drives the wording: 0 (e.g. the deep analysis failed, so
+    // the roadmap is empty) drops the clause entirely rather than claiming "las
+    // cero mejoras"; 1 needs feminine singular agreement, not the "las uno
+    // mejoras" that numberWord() alone produced.
+    const rmCount = roadmapItems.length;
+    const rmWord = numberWord(rmCount, false) || String(rmCount);
+    const improvementsClause = rmCount === 0
+      ? ''
+      : esCount(rmCount, 'la mejora ya aplicada', `las ${rmWord} mejoras ya aplicadas`);
     const paywallLine = isBaseline
       ? ''
       : (remainingLabels.length
-          ? `Te falta por ver: ${remainingLabels.join(', ')}. La versión completa incluye las ${numberWord(roadmapItems.length, false) || String(roadmapItems.length)} mejoras ya aplicadas.`
-          : `La versión completa de esta propuesta, con las ${numberWord(roadmapItems.length, false) || String(roadmapItems.length)} mejoras ya aplicadas, forma parte de la entrega.`);
+          ? `Te falta por ver: ${remainingLabels.join(', ')}. La versión completa${improvementsClause ? ` incluye ${improvementsClause}` : ' forma parte de la entrega'}.`
+          : `La versión completa de esta propuesta${improvementsClause ? `, con ${improvementsClause},` : ''} forma parte de la entrega.`);
 
     const strengthsHeading = isBaseline ? 'Lo que ya funciona' : (isWinner ? 'Por qué gana' : 'Fortalezas');
     const improvementsHeading = isBaseline
       ? 'Lo que le resta'
       : (isWinner ? `Qué le falta para llegar a ${potential}` : 'Límites');
 
-    const analysis = versionDeepAnalysis?.[card.id];
+    // Treat a failed analysis as absent so its sentinel strings ("Unable to
+    // analyze" / "Retry analysis") never render as strengths or limits — the
+    // section falls back to "Sin observaciones destacadas." instead.
+    const rawAnalysis = versionDeepAnalysis?.[card.id];
+    const analysis = isFailedAnalysis(rawAnalysis) ? undefined : rawAnalysis;
     const strengths = (analysis?.keyStrengths || analysis?.pros || [])
       .slice(0, 6)
       .map(s => stripMarkdown(s).trim())
@@ -1066,7 +1120,12 @@ export function buildClientReportData(
         winnerRow?.verificationFlags,
       ),
     );
-    const baselineImprovements = (versionDeepAnalysis?.[ORIGINAL_VERSION_ID]?.suggestedImprovements || []).map(i =>
+    // Skip a failed baseline analysis — otherwise "Retry analysis" becomes a
+    // client-facing "hallazgo prioritario".
+    const baselineAnalysis = versionDeepAnalysis?.[ORIGINAL_VERSION_ID];
+    const baselineImprovements = (
+      isFailedAnalysis(baselineAnalysis) ? [] : (baselineAnalysis?.suggestedImprovements || [])
+    ).map(i =>
       typeof i === 'object' && i !== null ? (i as SuggestedImprovement).text : String(i),
     );
     findings = buildFallbackFindings(winnerRisks, baselineImprovements);
@@ -1132,6 +1191,8 @@ export function buildClientReportData(
     previewPercent: CLIENT_REPORT_PREVIEW_PERCENT,
     findingsCountWord: numberWord(findings.length, true),
     roadmapCountWord: numberWord(roadmapItems.length, false),
+    findingsCount: findings.length,
+    roadmapCount: roadmapItems.length,
     winnerDisplayName,
     lastIndex: versions.length + 2,
     generatedProposalCount,

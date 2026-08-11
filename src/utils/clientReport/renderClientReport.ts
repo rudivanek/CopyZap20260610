@@ -1,4 +1,4 @@
-import { ClientReportData, ClientReportVersion, CTA_CONTACT_URL } from './buildClientReportData';
+import { ClientReportData, ClientReportVersion, CTA_CONTACT_URL, esCount } from './buildClientReportData';
 import { buildReportStyles, getGoogleFontLinkTag, DEFAULT_THEME_VARS } from '../exportReportTheme';
 import { getCachedReportTheme } from '../../services/supabaseClient';
 
@@ -95,9 +95,12 @@ ${siteLine}
       <div class="journey-foot">
         Reescribimos tu copy actual en <b>${escapeOnce(data.journey.proposalCount)} propuestas completas</b> y las evaluamos
         con el mismo criterio. La mejor sube <b>${escapeOnce(data.journey.winnerDeltaPoints)} puntos
-        (+${escapeOnce(data.journey.winnerDeltaPercent)}&nbsp;%)</b> sobre tu texto actual. Aplicando además las
-        ${escapeOnce(data.roadmapCountWord)} mejoras detalladas al final de este reporte, la proyección llega a
-        <b>${escapeOnce(data.journey.potential)}/100</b>.
+        (+${escapeOnce(data.journey.winnerDeltaPercent)}&nbsp;%)</b> sobre tu texto actual.${data.roadmapCount === 0 ? '' : ` Aplicando además ${escapeOnce(esCount(
+          data.roadmapCount,
+          'la mejora detallada',
+          `las ${data.roadmapCountWord} mejoras detalladas`,
+        ))} al final de este reporte, la proyección llega a
+        <b>${escapeOnce(data.journey.potential)}/100</b>.`}
       </div>
     </div>
   </div>
@@ -126,7 +129,11 @@ function renderFindings(data: ClientReportData): string {
   return `<section>
   <div class="wrap">
     <div class="eyebrow accent">Hallazgos prioritarios</div>
-    <h2>${escapeOnce(data.findingsCountWord)} puntos que cuestan conversión hoy</h2>
+    <h2>${escapeOnce(esCount(
+      data.findingsCount,
+      'Un punto que cuesta conversión hoy',
+      `${data.findingsCountWord} puntos que cuestan conversión hoy`,
+    ))}</h2>
     <p class="lede">Detectados automáticamente sobre el texto publicado en tu sitio, ordenados por impacto estimado.</p>
     <div class="findings">
 ${items}
@@ -389,18 +396,30 @@ function renderRoadmap(data: ClientReportData): string {
   return `<section>
   <div class="wrap">
     <div class="eyebrow accent">Hoja de ruta</div>
-    <h2>Las ${escapeOnce(data.roadmapCountWord)} mejoras que llevan la propuesta ganadora a ${escapeOnce(data.journey.potential)}</h2>
+    <h2>${escapeOnce(esCount(
+      data.roadmapCount,
+      'La mejora que lleva',
+      `Las ${data.roadmapCountWord} mejoras que llevan`,
+    ))} la propuesta ganadora a ${escapeOnce(data.journey.potential)}</h2>
     <p class="lede">Cada una con su impacto estimado sobre la puntuación de ${escapeOnce(data.winnerDisplayName)}.</p>
     <div class="road">
 ${items}
       <div class="road-total">
-        <div class="lb">Aplicando las ${escapeOnce(data.roadmapCountWord)} mejoras sobre la propuesta ganadora,
+        <div class="lb">Aplicando ${escapeOnce(esCount(
+          data.roadmapCount,
+          'la mejora',
+          `las ${data.roadmapCountWord} mejoras`,
+        ))} sobre la propuesta ganadora,
           <b>proyección estimada</b></div>
         <div class="vv tnum">${escapeOnce(data.journey.potential)}<small>/100</small></div>
       </div>
     </div>
     <div class="cta-mini">
-      <div class="t"><b>Estas ${escapeOnce(data.roadmapCountWord)} mejoras ya están redactadas.</b> Forman parte de la
+      <div class="t"><b>${escapeOnce(esCount(
+        data.roadmapCount,
+        'Esta mejora ya está redactada.',
+        `Estas ${data.roadmapCountWord} mejoras ya están redactadas.`,
+      ))}</b> ${escapeOnce(esCount(data.roadmapCount, 'Forma', 'Forman'))} parte de la
         versión completa del copy, lista para pasar a tu sitio sin trabajo adicional de escritura.</div>
       <a class="btn accent" href="${escapeOnce(CTA_CONTACT_URL)}" target="_blank" rel="noopener noreferrer">Ver la versión completa</a>
     </div>
@@ -415,8 +434,12 @@ function renderCta(data: ClientReportData): string {
       <div class="eyebrow accent" style="margin-bottom:16px">Siguiente paso</div>
       <h2>¿Lo dejamos listo para publicar?</h2>
       <p>Este reporte es gratuito y tuyo, lo uses con nosotros o no. Si quieres las
-         ${escapeOnce(data.journey.proposalCount)} propuestas completas —con las ${escapeOnce(data.roadmapCountWord)} mejoras ya aplicadas,
-         adaptadas a tu voz de marca y entregadas sección por sección para pasar directo a tu sitio— lo
+         ${escapeOnce(data.journey.proposalCount)} propuestas completas —${data.roadmapCount === 0 ? '' : `con ${escapeOnce(esCount(
+           data.roadmapCount,
+           'la mejora ya aplicada',
+           `las ${data.roadmapCountWord} mejoras ya aplicadas`,
+         ))},
+         `}adaptadas a tu voz de marca y entregadas sección por sección para pasar directo a tu sitio— lo
          resolvemos en una semana.</p>
       <div class="acts">
         <a class="btn accent" href="${escapeOnce(CTA_CONTACT_URL)}" target="_blank" rel="noopener noreferrer">Solicitar el copy completo</a>

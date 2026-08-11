@@ -1,7 +1,53 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.32
-Last Updated: 2026-08-11T00:00:00Z
+Version: 1.33
+Last Updated: 2026-08-11T01:00:00Z
+
+---
+
+## Client Report — Failed Deep Analysis No Longer Leaks Operator Text; Spanish Number Agreement Fixed (2026-08-11)
+
+**Feature:** Two related bugs in the Spanish-language client report (`src/utils/clientReport/`):
+
+1. **Failed deep analysis leaked operator debug text.** When a version's deep analysis errored, `src/services/api/versionDeepAnalysis.ts` returned a sentinel object with `keyStrengths: ['Unable to analyze']` and `suggestedImprovements: ['Retry analysis']`. The client report consumed it as if it were real data, so the winning proposal's "Por qué gana" / "Qué le falta" sections rendered those strings verbatim and the roadmap produced a "+2 Retry analysis. Retry analysis" row. A failed analysis is now treated as absent, so the report falls back to its existing "Sin observaciones destacadas." empty state.
+
+2. **Spanish number agreement broke at count 1 (and count 0).** `numberWord(1)` returns the masculine cardinal "uno", which is ungrammatical before the feminine noun "mejora" — reports shipped reading "las uno mejoras". A count of 1 also changes the article, noun, verb, and participle ("Estas cinco mejoras ya están redactadas" → "Esta mejora ya está redactada"). Count 0 became reachable once the failed-analysis fix emptied the roadmap, and would have read "las cero mejoras".
+
+**Edit 1 — `buildClientReportData.ts`: two new helpers after `numberWord()`.**
+- `esCount(n, singular, plural)`: returns the singular variant when `n === 1`, the plural otherwise. Callers pass both fully-written variants because count 1 changes more than one word.
+- `isFailedAnalysis(analysis)`: returns true when `analysis.errorMessage` is set, OR when every entry in `keyStrengths` + `suggestedImprovements` is one of the sentinel strings `['unable to analyze', 'retry analysis']` (lowercased). The `every()` check means a genuine analysis that happens to contain one unlucky phrase is not discarded — only an analysis consisting *entirely* of sentinel text. The sentinel-text fallback catches older cached analyses that predate `errorMessage` being persisted.
+
+**Edit 2 — `roadmapFromAnalysis()`:** A failed analysis now returns `{ items: [], projected: null }` before the existing empty-list guard, so `renderRoadmap()` omits the whole section.
+
+**Edit 3 — per-version strengths/limits:** `const analysis = versionDeepAnalysis?.[card.id]` became a two-liner that runs the raw analysis through `isFailedAnalysis()` and substitutes `undefined` on failure, so sentinel strings never render as strengths or limits.
+
+**Edit 4 — fallback findings path:** The baseline-improvements extraction now skips a failed baseline analysis, so "Retry analysis" cannot become a client-facing "hallazgo prioritario".
+
+**Edit 5 — `ClientReportData` interface:** Added `findingsCount: number` and `roadmapCount: number` alongside the existing spelled-out `findingsCountWord` / `roadmapCountWord`, so the renderer can pick grammatically-agreeing singular vs. plural phrasing.
+
+**Edit 6 — paywall line:** Rewritten so count 0 drops the improvements clause entirely (rather than "las cero mejoras"), and count 1 uses `esCount()` for feminine singular agreement.
+
+**Edit 7 — `renderClientReport.ts`:** Added `esCount` to the import from `buildClientReportData`.
+
+**Edit 8 — six phrasing sites in `renderClientReport.ts`:**
+- 8a (cover journey-foot): guarded with `data.roadmapCount === 0` to drop the clause; otherwise `esCount` picks "la mejora detallada" vs "las N mejoras detalladas".
+- 8b (findings heading): `esCount` picks "Un punto que cuesta conversión hoy" vs "N puntos que cuestan conversión hoy".
+- 8c (roadmap heading): `esCount` picks "La mejora que lleva" vs "Las N mejoras que llevan".
+- 8d (road-total): `esCount` picks "la mejora" vs "las N mejoras".
+- 8e (cta-mini): `esCount` picks "Esta mejora ya está redactada. Forma" vs "Estas N mejoras ya están redactadas. Forman".
+- 8f (final CTA): guarded with `data.roadmapCount === 0` to drop the "con ... mejoras ya aplicadas" clause; otherwise `esCount` for singular agreement.
+
+Sites 8b–8e live inside sections that already early-return when their list is empty (`renderFindings` / `renderRoadmap`), so they're unreachable at count 0 — only 8a and 8f need the explicit `roadmapCount === 0` guard.
+
+**Judgment calls:**
+- Count 0 is now reachable because suppressing a failed analysis empties the roadmap. The roadmap and findings sections self-omit when empty, so only the cover and final CTA needed guards; those drop the improvements clause entirely rather than asserting a count.
+- Sentinel-text fallback (not just `errorMessage`) catches analyses cached before `errorMessage` was persisted — the PhixWave report may be one of those. The `every()` check ensures a genuine analysis is never discarded for containing one unlucky phrase.
+- This does **not** re-run a failed analysis. It fails silently-but-cleanly (empty state instead of debug text). A visible operator warning before export, or automatic retry, is a separate change worth considering — a silently thinner report is easy to send without noticing.
+
+**Verification:**
+- `npx tsc --noEmit -p tsconfig.app.json` reports 1323 total errors, unchanged from baseline. The two clientReport files hold at 6 pre-existing unrelated errors (same errors, only line numbers shifted).
+- `npm run build` passes.
+- Runtime check (via tsx against the reference implementation): correct phrasing at n=1/2/5 across all six renderer sites, and 6/6 on failure-detection cases — including the important negative: an analysis with some real content plus one "Retry analysis" item is not discarded, so partial results survive.
 
 ---
 
