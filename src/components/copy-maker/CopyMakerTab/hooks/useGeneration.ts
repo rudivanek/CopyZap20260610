@@ -1440,7 +1440,15 @@ export function useGeneration(
       console.warn('[ensureVersionDeepAnalysis] bail: latestFormState is null', { versionId });
       return;
     }
-    if (latestFormState.copyResult?.versionDeepAnalysis?.[versionId]) {
+    // A cached FAILED analysis must not count as "already cached". This function
+    // is exactly what the "Retry analysis" / "Generate Analysis" buttons call,
+    // and those buttons only ever appear when the analysis failed or is missing —
+    // so bailing on a failed entry made the retry button silently do nothing.
+    // That is why a proposal whose analysis failed stayed empty in every
+    // subsequent export with no way for the operator to recover it.
+    // (runDeepAnalysisForAll has the same guard; both paths need it.)
+    const existingAnalysis = latestFormState.copyResult?.versionDeepAnalysis?.[versionId];
+    if (existingAnalysis && !existingAnalysis.errorMessage) {
       console.log('[ensureVersionDeepAnalysis] bail: already cached', { versionId });
       return;
     }
