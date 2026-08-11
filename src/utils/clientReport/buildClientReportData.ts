@@ -18,6 +18,15 @@ import { stripMarkdown } from '../markdownUtils';
 export const SUPPRESS_ZERO_VALUE_NUMERIC_FINDINGS = true;
 export const CLIENT_REPORT_PREVIEW_PERCENT = 25;
 
+// Ceiling for the projected score on the cover and in the roadmap. The projection
+// is winnerScore + the sum of AI-assigned roadmap points (1–5 each, default 2) —
+// an estimate, not a measurement. Capping at 100 let two shipped reports claim a
+// perfect 100/100 (Cuesta Campos and Sales Boost, both 89 + 11), which reads as a
+// sales claim rather than an analysis and sits awkwardly beside the ranking table
+// showing the winner at 89. Cap below 100 so the projection always reads as
+// "excellent, with room left" — the persuasive point is the delta, not perfection.
+export const MAX_PROJECTED_SCORE = 97;
+
 // Single destination for every CTA in the report (cover, paywall bands,
 // roadmap block, final CTA). Change this one constant to repoint them all.
 const CTA_CONTACT_URL = 'https://sharpen.studio/contacta-web/';
@@ -800,11 +809,13 @@ const QUOTE_PAIRS: Record<string, string> = { '“': '”', '‘': '’', '«': 
 const OPEN_BRACKETS = '([{';
 const CLOSE_BRACKETS = ')]}';
 
-// Return the substring of `text` up to the first delimiter matched by `matcher`
-// that sits at top level — outside every quotation and bracketed aside. Because
-// a split can only happen at depth 0 with no quote open, the returned fragment
-// is always delimiter-balanced by construction.
-function splitAtTopLevel(text: string, matcher: RegExp): string {
+// Index of the first delimiter matched by `matcher` that sits at top level —
+// outside every quotation and bracketed aside. Returns -1 when there is none.
+// Callers that need an offset must use this rather than the length of the
+// trimmed fragment below: trimming a leading space shifts the length by one and
+// silently clips the last character (it ate a closing parenthesis during
+// development).
+function indexOfTopLevel(text: string, matcher: RegExp): number {
   let depth = 0;
   let closingQuote: string | null = null;
   for (let i = 0; i < text.length; i++) {
@@ -817,9 +828,17 @@ function splitAtTopLevel(text: string, matcher: RegExp): string {
     if (QUOTE_PAIRS[ch]) { closingQuote = QUOTE_PAIRS[ch]; continue; }
     if (OPEN_BRACKETS.includes(ch)) { depth++; continue; }
     if (CLOSE_BRACKETS.includes(ch)) { depth = Math.max(0, depth - 1); continue; }
-    if (depth === 0 && matcher.test(text.slice(i))) return text.slice(0, i).trim();
+    if (depth === 0 && matcher.test(text.slice(i))) return i;
   }
-  return text.trim();
+  return -1;
+}
+
+// Return the substring of `text` up to the first top-level delimiter. Because a
+// split can only happen at depth 0 with no quote open, the returned fragment is
+// always delimiter-balanced by construction.
+function splitAtTopLevel(text: string, matcher: RegExp): string {
+  const i = indexOfTopLevel(text, matcher);
+  return (i === -1 ? text : text.slice(0, i)).trim();
 }
 
 // A title longer than this reads as a paragraph, not a heading, and — when the
@@ -859,6 +878,35 @@ function shortProblemTitle(line: string): string {
   return title || clean;
 }
 
+// Common Spanish abbreviations whose trailing period is NOT a sentence end.
+// "La sección del Dr. Jorge Lemus…" and "…escasez legítima (ej. cupos limitados)"
+// both got cut at these in shipped reports.
+const ABBREVIATIONS = [
+  'dr', 'dra', 'sr', 'sra', 'srta', 'lic', 'ing', 'mtro', 'mtra', 'prof',
+  'ej', 'p.ej', 'etc', 'vs', 'aprox', 'núm', 'num', 'no', 'pág', 'pag', 'ss', 'ee',
+];
+
+// Sentence end: a period/colon at top level that is not part of an abbreviation
+// and not a decimal point. Returns the leading sentence, always delimiter-balanced
+// because splitAtTopLevel only breaks outside quotes and brackets.
+function roadmapTitleFrom(text: string): string {
+  const clean = text.trim();
+  let cursor = 0;
+  // Walk forward: take the first top-level break that is a real sentence end.
+  for (let guard = 0; guard < 20; guard++) {
+    const rel = indexOfTopLevel(clean.slice(cursor), /^[.:]/);
+    if (rel === -1) break;                     // no further top-level break
+    const abs = cursor + rel;
+    const head = clean.slice(0, abs);
+    const lastWord = head.split(/[\s(¿¡"'—–-]+/).pop()?.toLowerCase() ?? '';
+    const isAbbrev = ABBREVIATIONS.includes(lastWord);
+    const isDecimal = /\d$/.test(head) && /\d/.test(clean.charAt(abs + 1));
+    if (!isAbbrev && !isDecimal) return head.trim();
+    cursor = abs + 1;                          // step past the false break
+  }
+  return clean.replace(/[.:]\s*$/, '').trim();
+}
+
 // ── Roadmap from deep analysis ───────────────────────────────────────────────
 
 function roadmapFromAnalysis(
@@ -874,22 +922,32 @@ function roadmapFromAnalysis(
   let projected: number | null = null;
   for (const imp of analysis.suggestedImprovements) {
     const obj = typeof imp === 'object' && imp !== null ? (imp as SuggestedImprovement) : { text: String(imp) };
-    const text = obj.text || '';
+    // Trim up front: the title is derived from the trimmed text, so the body
+    // slice below must index into the same string or it loses a character.
+    const text = (obj.text || '').trim();
     if (!text) continue;
     if (looksLikeZeroValueNumeric(text)) continue;
     const pts = Math.max(1, Math.min(5, obj.points_delta ?? 2));
     if (obj.projected_score != null) projected = obj.projected_score;
-    const title = text.split(/[.:]/)[0].trim() || text.trim();
-    const body = text.slice(title.length).replace(/^[:.]\s*/, '').trim() || text.trim();
+    // Split at the first sentence end that sits OUTSIDE quotes and brackets, and
+    // is not an abbreviation. Splitting blind on /[.:]/ (the previous behaviour)
+    // cut titles mid-quote ("El CTA final 'Tu cerebro puede regularse."), inside
+    // parentheses ("...escasez legítima (ej.") and at abbreviations ("La sección
+    // del Dr."). Same defect class as shortProblemTitle(), which was fixed
+    // separately — this builder had its own copy of the naive split.
+    const title = roadmapTitleFrom(text);
+    const body = text.slice(title.length).replace(/^[:.]\s*/, '').trim();
     // Store RAW markup — renderer sanitizes once. Add a period after the bold
-    // title so it doesn't run on into the body (issue #6).
+    // title so it doesn't run on into the body (issue #6). When the line has no
+    // usable break the title carries the whole sentence; emitting it again as the
+    // body printed it twice, so leave the body empty and let the renderer omit it.
     items.push({
       points: pts,
       titleHtml: `<strong>${title}.</strong>`,
-      bodyHtml: body,
+      bodyHtml: body === title ? '' : body,
     });
   }
-  return { items, projected: projected != null ? Math.min(100, projected) : null };
+  return { items, projected: projected != null ? Math.min(MAX_PROJECTED_SCORE, projected) : null };
 }
 
 // ── Company name & URL (spec 4.1, 4.2) ───────────────────────────────────────
@@ -963,7 +1021,7 @@ export function buildClientReportData(
   const winnerAnalysis = winnerVersionId ? versionDeepAnalysis?.[winnerVersionId] : undefined;
   const { items: roadmapItems, projected } = roadmapFromAnalysis(winnerAnalysis);
   const roadmapSum = roadmapItems.reduce((a, i) => a + i.points, 0);
-  const potential = projected != null ? projected : Math.min(100, winnerScore + roadmapSum);
+  const potential = projected != null ? projected : Math.min(MAX_PROJECTED_SCORE, winnerScore + roadmapSum);
 
   const winnerDeltaPoints = Math.max(0, Math.round(winnerScore - baselineScore));
   const winnerDeltaPercent = baselineScore > 0 ? Math.round((winnerDeltaPoints / baselineScore) * 100) : 0;
@@ -1027,7 +1085,11 @@ export function buildClientReportData(
     const isBaseline = card.id === ORIGINAL_VERSION_ID || card.type === GeneratedContentItemType.Original;
     const isWinner = card.id === winnerVersionId;
     const score = scoreMap.get(card.id) ?? card.score?.overall ?? 0;
-    const deltaPoints = isBaseline ? null : Math.max(0, Math.round(score - baselineScore));
+    // Do NOT clamp at 0. A proposal can score below the baseline (Spark Telecom's
+    // Propuesta E scored 54 against a baseline of 62) and clamping showed it as
+    // "+0 pts / +0 %" in a column headed "Mejora" — presenting a regression as
+    // neutral. Report the real signed delta so a worse proposal reads as worse.
+    const deltaPoints = isBaseline ? null : Math.round(score - baselineScore);
     const deltaPercent = isBaseline || baselineScore <= 0 ? null : Math.round((deltaPoints! / baselineScore) * 100);
     const plain = contentToPlainText(card.content);
     const wcrl = computeWordCountAndReadingLevel(plain);
