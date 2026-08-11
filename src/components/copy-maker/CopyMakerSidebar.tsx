@@ -1591,14 +1591,30 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      // A null narrative means the AI call failed and the report shipped
-      // degraded: no executive summary, findings derived from raw risk flags,
-      // proposals with no angle. That used to end in a green success toast, so
-      // incomplete reports went out to clients unnoticed. Say so explicitly.
+      // Two ways this report can ship degraded, both previously invisible behind
+      // a green success toast.
+      //  1. A null narrative — the AI call failed, so there is no executive
+      //     summary and the findings fall back to raw risk flags.
+      //  2. A proposal developed in full whose deep analysis failed — the report
+      //     suppresses the "Unable to analyze" sentinel, so its strengths/limits
+      //     panel renders as a bare "Sin observaciones destacadas."
+      // Name whichever happened instead of reporting success.
+      const incomplete = data.versions.filter(
+        v => v.isShownInFull && !v.isBaseline && !v.strengths.length && !v.improvements.length,
+      );
+      const problems: string[] = [];
       if (!narrative) {
+        problems.push('falta el resumen ejecutivo y los hallazgos son genéricos');
+      }
+      if (incomplete.length) {
+        problems.push(
+          `sin fortalezas ni límites en: ${incomplete.map(v => v.displayName).join(', ')}`,
+        );
+      }
+      if (problems.length) {
         toast(
-          'Reporte exportado SIN narrativa: falta el resumen ejecutivo y los hallazgos son genéricos. Vuelve a exportar para reintentar.',
-          { icon: '⚠️', duration: 10000 },
+          `Reporte exportado INCOMPLETO — ${problems.join('; ')}. Vuelve a exportar para reintentar.`,
+          { icon: '⚠️', duration: 12000 },
         );
       } else {
         toast.success('Reporte de copy exportado');
