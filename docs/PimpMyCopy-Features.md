@@ -1,7 +1,26 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.32
-Last Updated: 2026-08-09T21:00:00Z
+Last Updated: 2026-08-11T00:00:00Z
+
+---
+
+## Quick Setup Wizard — Clear Stale Client Brief Fields After URL Analysis (2026-08-11)
+
+**Feature:** Fixed a cross-client data leak in the Quick Setup Wizard. When a new URL was scraped and analyzed for a different client during the same session, fields omitted by that run's AI suggestion could retain values from the previous client. Those stale values were then merged into `formState` and included in exported HTML reports because the client report builder reads the brief fields directly without a per-analysis freshness check.
+
+**Affected fields:** The reset covers `keyMessage`, `desiredEmotion`, `callToAction`, `brandValues`, `keywords`, `keywordsExplicit`, `context`, `briefDescription`, `customerName`, `excludedTerms`, `preferredWritingStyle`, `selectedPersona`, and `section`. In modes other than `create`, it also clears `industryNiche`, `readerFunnelStage`, and `readerSophistication` when the current analysis did not provide them. This is broader than the originally confirmed Keywords leak because `jsonSuggestion` can legitimately omit any of these fields for a particular site.
+
+**Implementation:** Added `STALE_CLIENT_FIELD_DEFAULTS` and `clearStaleClientFields` near the top of `src/components/wizard/QuickSetupWizard.tsx`. Immediately after each of the four wizard data assembly points creates `ensuredData` from either `overriddenData` or `generatedData`, the helper runs only when `wizardState.answers.analyzedUrl` is present. Fields freshly supplied by the current URL analysis or explicit wizard answers remain untouched; fields omitted by the current run receive explicit blank defaults. `keywords` and `keywordsExplicit` are always reset because the suggestion call does not generate SEO keywords, so any carried value is stale.
+
+**Why the URL condition matters:** The reset is limited to URL-analysis runs so ordinary wizard flows that do not represent a newly analyzed site keep their existing behaviour. The helper mutates only the local `ensuredData` object before it is applied to the Copy Maker form, leaving unrelated wizard logic unchanged.
+
+**Verification:**
+- All four `ensuredData` assembly paths invoke the stale-field cleanup when a URL was analyzed.
+- A subsequent client's exported report cannot inherit omitted brief fields from the previous client's URL analysis.
+- The existing `data-generate-button` and other unrelated wizard behaviour remain unchanged.
+- `npx tsc --noEmit -p tsconfig.app.json` returns 1323, matching the pre-change count; no new type errors were introduced.
+- `npm run build` passes.
 
 ---
 
