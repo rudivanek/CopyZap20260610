@@ -103,9 +103,16 @@ async function runDeepAnalysisForAll(
   for (const version of versions) {
     const optionLabel = version.sourceDisplayName || version.type || 'Version';
 
-    // Check cache — skip if already analyzed
+    // Check cache — skip if already analyzed. A cached FAILED analysis is not a
+    // usable result: analyzeVersionDeep swallows its own errors and returns a
+    // sentinel object (keyStrengths ['Unable to analyze'], errorMessage set)
+    // rather than throwing, and the old `if (cachedAnalysis)` accepted that
+    // sentinel as a valid cache hit. A version that failed once therefore stayed
+    // broken for the life of the session and every export made from it — which is
+    // why the UI needs a manual "Retry analysis" button. Treat a failed entry as
+    // absent so it regenerates automatically.
     const cachedAnalysis = existingCache[version.id];
-    if (cachedAnalysis) {
+    if (cachedAnalysis && !cachedAnalysis.errorMessage) {
       versionAnalyses[version.id] = cachedAnalysis;
       continue;
     }
@@ -132,18 +139,39 @@ async function runDeepAnalysisForAll(
             : JSON.stringify(parentVersion.content))
         : undefined;
 
-      const analysis = await analyzeVersionDeep(
-        version.content,
-        optionLabel,
-        formState.model,
-        currentUser,
-        formState,
-        sessionId,
-        progressCallback,
-        currentScore,
-        parentScore,
-        parentCopyText
-      );
+      // One retry. A failed analysis is not visible to the operator — the client
+      // report suppresses the sentinel text, so the proposal ships with an empty
+      // "Sin observaciones destacadas." panel instead. The usual causes
+      // (transient network error, rate limit, malformed JSON) clear on a retry,
+      // so attempt twice before giving up.
+      const ATTEMPTS = 2;
+      let analysis: any = null;
+      for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+        analysis = await analyzeVersionDeep(
+          version.content,
+          optionLabel,
+          formState.model,
+          currentUser,
+          formState,
+          sessionId,
+          progressCallback,
+          currentScore,
+          parentScore,
+          parentCopyText
+        );
+        if (!analysis?.errorMessage) break;
+        if (attempt < ATTEMPTS) {
+          console.warn(
+            `[deepAnalysis] ⚠ "${optionLabel}" falló (intento ${attempt}/${ATTEMPTS}). Reintentando…`,
+            analysis.errorMessage,
+          );
+        } else {
+          console.error(
+            `[deepAnalysis] ✗ "${optionLabel}" falló tras ${ATTEMPTS} intentos. La propuesta se exportará sin fortalezas ni límites.`,
+            analysis.errorMessage,
+          );
+        }
+      }
 
       analysis.versionId = version.id;
       versionAnalyses[version.id] = analysis;
