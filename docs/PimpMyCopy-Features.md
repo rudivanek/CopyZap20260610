@@ -1,7 +1,46 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.33
-Last Updated: 2026-08-11T01:00:00Z
+Version: 1.34
+Last Updated: 2026-08-11T02:00:00Z
+
+---
+
+## Client Report — Retry Narrative, Balanced Titles, No Duplicate Bodies, Varied Fallback Categories, Degraded-Export Warning (2026-08-11)
+
+**Feature:** Four related bugs in the Spanish client report, all rooted in one failure mode — the narrative AI call returned `null` for the Cuestacampos and Sparktelecomm reports, which silently switched the report to its fallback path. That single failure removes the executive summary, switches findings to a fallback builder that produced broken titles, and — because the export still ended in a green success toast — let incomplete reports ship to clients unnoticed. Same "AI call failed, report shipped anyway" pattern as the earlier PhixWave bug.
+
+1. **Narrative AI call failed silently and shipped a degraded report.** `generateClientReportNarrative` made one attempt and returned `null` on any error or invalid JSON. The report still exported, but without the executive summary and with findings derived from raw risk flags. The usual causes (transient network error, rate limit, a response cut off mid-JSON) all clear on a retry.
+
+2. **Fallback titles were cut mid-quote and mid-parenthesis.** `shortProblemTitle` split blindly on the first comma, so a comma sitting *inside* a quotation or an aside became the split point. Real shipped strings reproduced byte-for-byte: `"Reformular el encabezado principal 'Asesoría legal integral"` (unbalanced quote) and `"...(ej. gestión automatizada de contratos"` (unbalanced parenthesis).
+
+3. **Fallback findings duplicated their body as the title.** When a risk/improvement line had no clause break, the derived title was the whole line — and the renderer then printed the same sentence again as the body. Seen in the Cuestacampos report.
+
+4. **All fallback findings carried the same category.** Every improvement was tagged `"Conversión"`, so all four findings in the Cuestacampos and Sparktelecomm reports read identically — itself a tell that the fallback had kicked in. The AI path is explicitly told to vary the category; the fallback should not look obviously different.
+
+5. **Degraded exports ended in a green success toast.** Both PhixWave and these two reports shipped because nothing told the operator the report was incomplete. A silent fallback is the class of bug worth closing, more than any individual formatting fix.
+
+**Edit 1 — `clientReportNarrative.ts`: retry once before degrading.** Replaced the single attempt with a two-attempt loop. On a thrown error or invalid JSON, the first attempt logs a warning (`⚠ … Reintentando…`) and continues; the second attempt logs the existing loud error and returns `null`. The retry is a single extra attempt — transient errors and truncated JSON clear on retry, and a persistent failure only costs one call. The loud-failure logging contract (spec 6 / pitfall 14) is preserved: the final-attempt error path is unchanged.
+
+**Edit 2 — `buildClientReportData.ts`: delimiter-aware title derivation.** Replaced `shortProblemTitle` with a depth- and quote-aware splitter. `splitAtTopLevel(text, matcher)` walks the string tracking open quotes (ASCII `'` `"` plus the Spanish pairs `“”` `‘’` `«»`) and bracket depth (`([{` / `)]}`); a split only happens at depth 0 with no quote open, so the returned fragment is delimiter-balanced by construction. The title pipeline: strip trailing `.`/`:`, take the first top-level clause at a `,:;` delimiter, drop a trailing parenthetical aside (only if the remainder still meets `TITLE_MIN = 24`), and — if still over `TITLE_SOFT_MAX = 100` — break again at a top-level connector (`y|e|o|u|para|porque|pero|sino|aunque|mientras|ya que|de modo que|por|con|según|mediante|sin`). Falls back to the whole clean line rather than ellipsis-truncating (spec 4.4 / pitfall 8 forbids the truncated body). Unbalanced input degrades to pass-through — no throw.
+
+**Edit 3a — `buildClientReportData.ts`: stop the title/body duplication.** Inside `buildFallbackFindings`'s `push` helper, when the derived title equals the body (modulo a trailing period), the body is set to empty. `renderFindings()` (edit 4) omits the `<p>` when the body is empty, so a finding with no clause break renders its title once, not twice.
+
+**Edit 3b — `buildClientReportData.ts`: vary fallback categories.** Improvements now cycle through `['Conversión', 'Claridad', 'Credibilidad', 'Estructura']` by index, the same way risks already vary. The AI path is explicitly told to vary the category ("Varía la categoría entre hallazgos"); the fallback no longer looks obviously different from a successful AI run.
+
+**Edit 4 — `renderClientReport.ts`: omit an empty finding body.** The finding `<p>` now renders only when `f.bodyHtml.trim()` is non-empty. A finding with a title but no body (the title/body duplication case) renders the heading alone, with no empty paragraph beneath it.
+
+**Edit 5 — warn the operator when the report ships degraded.** In both `CopyMakerSidebar.tsx` and `CopyMakerSidebarLegacy.tsx`, inside `handleExportHtmlPreview2`, the green `toast.success('Reporte de copy exportado')` is now conditional on `narrative` being non-null. When the narrative call returned `null`, the toast becomes a 10-second warning: "Reporte exportado SIN narrativa: falta el resumen ejecutivo y los hallazgos son genéricos. Vuelve a exportar para reintentar." The `narrative` variable was already in scope at that point in both files — no new plumbing. The catch-block error toast and the `finally` block are unchanged.
+
+**Judgment calls:**
+- One retry, not more. Transient errors and truncated JSON clear on a single retry; a persistent failure just costs one extra call before degrading. Exponential backoff would add latency to the common case for little gain.
+- Varying the fallback categories is a cosmetic fix, but it removes a tell that the fallback had kicked in — which is itself diagnostic information the operator loses. The retry-plus-warning combination is the real safety net; the category variation just makes the fallback less obviously different from a successful AI run.
+- The warning toast does not block the export. The operator can still send the degraded report if they choose; the change just makes that a conscious decision instead of an invisible one.
+- This does **not** add a visible operator warning *before* export, only after. A pre-export check would need to run the narrative call before rendering, which is a larger restructure. The post-export warning is the cheapest fix that closes the "shipped unnoticed" class of bug.
+
+**Verification:**
+- `npx tsc --noEmit -p tsconfig.app.json` reports 1323 total errors, unchanged from baseline. clientReport files hold at 6 pre-existing errors; CopyMakerSidebar files hold at 42 pre-existing errors. Only line numbers shifted.
+- `npm run build` passes.
+- The reference implementation was tested against the real shipped strings (Cuestacampos and Sparktelecomm): all six now produce balanced, heading-length titles. Edge cases (empty, unbalanced input, no delimiters) throw nothing and degrade to pass-through.
 
 ---
 

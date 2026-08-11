@@ -89,37 +89,62 @@ export async function generateClientReportNarrative(
 
   const userContent = USER_PROMPT_HEADER + inputMarkdown;
 
-  let raw: string;
-  try {
-    raw = await makeStreamingReportRequest(
-      getAdminClaudeModel(),
-      [
-        { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: userContent },
-      ],
-      0.3,
-      4000,
-      'client_report_narrative',
-      formState.sessionId,
-    );
-  } catch (err) {
-    // LOUD failure logging (spec 6 / pitfall 14) — never silently degrade.
-    console.error(
-      '[clientReport] ✗ La llamada de narrativa del reporte de cliente FALLÓ. Se generará el reporte sin narrativa (sin resumen ejecutivo, hallazgos desde los flags, propuestas sin ángulo, sin notas cara a cara).',
-      err,
-    );
-    return null;
-  }
+  // One retry. When this call fails the report still exports, but without the
+  // executive summary and with findings derived from raw risk flags — that is
+  // what produced the Cuestacampos and Sparktelecomm reports that shipped with
+  // no "Resumen ejecutivo" section. The usual causes (transient network error,
+  // rate limit, a response that got cut off mid-JSON) all clear on a retry, so
+  // attempting twice before degrading is worth the cost of one extra call.
+  const ATTEMPTS = 2;
+  for (let attempt = 1; attempt <= ATTEMPTS; attempt++) {
+    const isLastAttempt = attempt === ATTEMPTS;
+    let raw: string;
+    try {
+      raw = await makeStreamingReportRequest(
+        getAdminClaudeModel(),
+        [
+          { role: 'system', content: SYSTEM_PROMPT },
+          { role: 'user', content: userContent },
+        ],
+        0.3,
+        4000,
+        'client_report_narrative',
+        formState.sessionId,
+      );
+    } catch (err) {
+      // LOUD failure logging (spec 6 / pitfall 14) — never silently degrade.
+      if (!isLastAttempt) {
+        console.warn(
+          `[clientReport] ⚠ La llamada de narrativa falló (intento ${attempt}/${ATTEMPTS}). Reintentando…`,
+          err,
+        );
+        continue;
+      }
+      console.error(
+        '[clientReport] ✗ La llamada de narrativa del reporte de cliente FALLÓ. Se generará el reporte sin narrativa (sin resumen ejecutivo, hallazgos desde los flags, propuestas sin ángulo, sin notas cara a cara).',
+        err,
+      );
+      return null;
+    }
 
-  const parsed = safeParseNarrative(raw);
-  if (!parsed) {
+    const parsed = safeParseNarrative(raw);
+    if (parsed) return parsed;
+
+    if (!isLastAttempt) {
+      console.warn(
+        `[clientReport] ⚠ La narrativa devolvió JSON inválido (intento ${attempt}/${ATTEMPTS}). Reintentando… Respuesta cruda (primeros 500 caracteres):`,
+        raw?.slice(0, 500),
+      );
+      continue;
+    }
     console.error(
       '[clientReport] ✗ La llamada de narrativa devolvió JSON inválido. Se generará el reporte sin narrativa. Respuesta cruda (primeros 500 caracteres):',
       raw?.slice(0, 500),
     );
     return null;
   }
-  return parsed;
+
+  return null;
 }
 
 function safeParseNarrative(raw: string): ClientReportNarrative | null {

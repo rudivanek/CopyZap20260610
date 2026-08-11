@@ -123,8 +123,8 @@ function renderFindings(data: ClientReportData): string {
   if (!data.findings.length) return '';
   const items = data.findings.map(f => `      <div class="finding">
         <span class="tag">${escapeOnce(f.category)}</span>
-        <h4>${escapeOnce(f.title)}</h4>
-        <p>${sanitizeInlineHtml(f.bodyHtml)}</p>
+        <h4>${escapeOnce(f.title)}</h4>${f.bodyHtml.trim() ? `
+        <p>${sanitizeInlineHtml(f.bodyHtml)}</p>` : ''}
       </div>`).join('\n');
   return `<section>
   <div class="wrap">

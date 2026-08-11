@@ -763,8 +763,13 @@ function buildFallbackFindings(
     if (seenTitles.has(key)) return;
     if (looksLikeZeroValueNumeric(t + ' ' + bodyHtml)) return;
     seenTitles.add(key);
+    // When the line had no clause break, the derived title IS the whole line —
+    // rendering it again as the body prints the same sentence twice (seen in the
+    // Cuestacampos report). Drop the redundant body; renderFindings() omits the
+    // paragraph when it is empty.
+    const body = bodyHtml.replace(/[.:]\s*$/, '').trim() === t ? '' : bodyHtml;
     // Store RAW — renderer escapes once.
-    out.push({ category, title: t, bodyHtml });
+    out.push({ category, title: t, bodyHtml: body });
   }
 
   const riskCategories = ['Credibilidad', 'Prueba social', 'Lenguaje', 'SEO', 'Claridad', 'Estructura'];
@@ -773,20 +778,85 @@ function buildFallbackFindings(
     const title = shortProblemTitle(r);
     push(riskCategories[i % riskCategories.length], title, r);
   });
-  improvements.forEach(imp => {
+  // Vary the category the same way the risks do. Tagging every improvement
+  // "Conversión" is what made all four findings in the Cuestacampos and
+  // Sparktelecomm reports carry an identical label; the AI path is explicitly
+  // told to vary it ("Varía la categoría entre hallazgos") and the fallback
+  // should not look obviously different.
+  const improvementCategories = ['Conversión', 'Claridad', 'Credibilidad', 'Estructura'];
+  improvements.forEach((imp, i) => {
     const title = shortProblemTitle(imp);
-    push('Conversión', title, imp);
+    push(improvementCategories[i % improvementCategories.length], title, imp);
   });
   return out.slice(0, 4);
+}
+
+// Paired delimiters tracked when looking for a split point. Splitting blind on
+// the first comma is what produced titles cut mid-quote ("Reformular el
+// encabezado principal 'Asesoría legal integral") and mid-parenthesis
+// ("...(ej. gestión automatizada de contratos") in shipped reports — the comma
+// sat *inside* a quotation or an aside.
+const QUOTE_PAIRS: Record<string, string> = { '“': '”', '‘': '’', '«': '»' };
+const OPEN_BRACKETS = '([{';
+const CLOSE_BRACKETS = ')]}';
+
+// Return the substring of `text` up to the first delimiter matched by `matcher`
+// that sits at top level — outside every quotation and bracketed aside. Because
+// a split can only happen at depth 0 with no quote open, the returned fragment
+// is always delimiter-balanced by construction.
+function splitAtTopLevel(text: string, matcher: RegExp): string {
+  let depth = 0;
+  let closingQuote: string | null = null;
+  for (let i = 0; i < text.length; i++) {
+    const ch = text[i];
+    if (closingQuote) {
+      if (ch === closingQuote) closingQuote = null;
+      continue;
+    }
+    if (ch === "'" || ch === '"') { closingQuote = ch; continue; }
+    if (QUOTE_PAIRS[ch]) { closingQuote = QUOTE_PAIRS[ch]; continue; }
+    if (OPEN_BRACKETS.includes(ch)) { depth++; continue; }
+    if (CLOSE_BRACKETS.includes(ch)) { depth = Math.max(0, depth - 1); continue; }
+    if (depth === 0 && matcher.test(text.slice(i))) return text.slice(0, i).trim();
+  }
+  return text.trim();
+}
+
+// A title longer than this reads as a paragraph, not a heading, and — when the
+// line has no clause break at all — ends up identical to the body rendered right
+// beneath it.
+const TITLE_SOFT_MAX = 100;
+const CLAUSE_DELIMITER = /^[,:;]/;
+// Conjunctions and prepositions that introduce a complement, used as a
+// second-pass break so an over-long title can be shortened at a natural boundary
+// instead of ellipsis-truncating the body (spec 4.4 / pitfall 8 explicitly
+// forbids "el cuerpo truncado con puntos suspensivos").
+const CLAUSE_CONNECTOR = /^\s+(?:y|e|o|u|para|porque|pero|sino|aunque|mientras|ya que|de modo que|por|con|según|mediante|sin)\s/i;
+// Below this a fragment is too short to stand as a title on its own.
+const TITLE_MIN = 24;
+// A parenthetical aside at the very end of a title is explanatory detail that
+// belongs in the body, not the heading — dropping it is the cheapest way to pull
+// an over-long title back without cutting mid-phrase.
+const TRAILING_ASIDE = /\s*\([^()]*\)$/;
+
+function dropTrailingAside(title: string): string {
+  const stripped = title.replace(TRAILING_ASIDE, '').trim();
+  return stripped.length >= TITLE_MIN ? stripped : title;
 }
 
 // Derive a short, distinct problem-statement title from a risk/improvement line,
 // without resorting to truncating the body with an ellipsis (spec 4.4 / pitfall 8).
 function shortProblemTitle(line: string): string {
   const clean = line.replace(/[.:]\s*$/, '').trim();
-  // Take the first clause (up to a comma or colon) if it reads as a noun phrase.
-  const firstClause = clean.split(/[,:;]/)[0].trim();
-  return firstClause || clean;
+  if (!clean) return '';
+  // First clause, respecting quotes and asides.
+  let title = dropTrailingAside(splitAtTopLevel(clean, CLAUSE_DELIMITER));
+  // Still paragraph-length? Break at a top-level connector instead.
+  if (title.length > TITLE_SOFT_MAX) {
+    const shorter = dropTrailingAside(splitAtTopLevel(title, CLAUSE_CONNECTOR));
+    if (shorter.length >= TITLE_MIN) title = shorter;
+  }
+  return title || clean;
 }
 
 // ── Roadmap from deep analysis ───────────────────────────────────────────────

@@ -1591,7 +1591,18 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      toast.success('Reporte de copy exportado');
+      // A null narrative means the AI call failed and the report shipped
+      // degraded: no executive summary, findings derived from raw risk flags,
+      // proposals with no angle. That used to end in a green success toast, so
+      // incomplete reports went out to clients unnoticed. Say so explicitly.
+      if (!narrative) {
+        toast(
+          'Reporte exportado SIN narrativa: falta el resumen ejecutivo y los hallazgos son genéricos. Vuelve a exportar para reintentar.',
+          { icon: '⚠️', duration: 10000 },
+        );
+      } else {
+        toast.success('Reporte de copy exportado');
+      }
     } catch (err: any) {
       toast.error('No se pudo exportar el reporte: ' + (err?.message ?? 'error desconocido'));
     } finally {
