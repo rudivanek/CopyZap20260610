@@ -523,3 +523,4 @@ ${renderBreadcrumbNav(data)}
 </body>
 </html>`;
 }
+
