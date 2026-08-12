@@ -483,7 +483,12 @@ function splitSections(text: string): { label: string; text: string }[] {
         firstLine.endsWith(';');
       let label = '';
       let body = trimmed;
-      if (words.length > 0 && words.length <= 4 && firstLine.length > 0 && !endsWithPunct) {
+      // A heading must have something under it. A SINGLE short line is content,
+      // not a label — usually the headline, emitted as its own block. Consuming
+      // it left the section body empty, so headlineAndSub() returned '' and the
+      // report printed the placeholder "Tu titular actual".
+      const rest = lines.slice(1).join('\n').trim();
+      if (rest && words.length > 0 && words.length <= 4 && firstLine.length > 0 && !endsWithPunct) {
         // Normalize accents so "Introducción" matches the unaccented key
         // "introduccion". Without this, accented section names never resolve,
         // the label stays empty, and the marker line bleeds into the body text.
@@ -492,7 +497,7 @@ function splitSections(text: string): { label: string; text: string }[] {
         const mapped = SECTION_LABEL_MAP[norm];
         if (mapped) {
           label = mapped;
-          body = lines.slice(1).join('\n').trim();
+          body = rest;
         } else {
           // Treat any short first line without ending punctuation as a section
           // label even when it is not a recognised name (e.g. custom headings
@@ -501,7 +506,7 @@ function splitSections(text: string): { label: string; text: string }[] {
           // label, and the paywall band falls back to the generic sentence.
           // Title-case the heading as given so it reads as a label, not prose.
           label = titleCase(firstLine);
-          body = lines.slice(1).join('\n').trim();
+          body = rest;
         }
       }
       result.push({ label, text: body });

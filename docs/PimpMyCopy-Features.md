@@ -1,7 +1,24 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.34
-Last Updated: 2026-08-11T02:00:00Z
+Version: 1.35
+Last Updated: 2026-08-12T00:00:00Z
+
+---
+
+## Client Report — splitSections Stops Consuming a Single Short Line as a Heading (2026-08-12)
+
+**Feature:** Fixed a bug in `splitSections` (`src/utils/clientReport/buildClientReportData.ts`) where a single short line — typically the page headline — was consumed as a section label, leaving the section body empty. The empty body then propagated through `headlineAndSub()` returning `''`, and the report printed the placeholder "Tu titular actual" in place of the real headline.
+
+**The bug:** `splitSections` splits a block into `{ label, text }` pairs. When the first line of a block was short (≤ 4 words, no ending punctuation), the code treated it as a section heading and set `body = lines.slice(1).join('\n').trim()`. If the block was a single line — which is common for the headline, emitted as its own block after the `---` split — `lines.slice(1)` was empty, so `body` became `''`. The empty body meant `headlineAndSub()` returned an empty string, and the renderer fell back to the placeholder "Tu titular actual" instead of showing the real headline.
+
+**The fix:** A heading must have something under it. The block is now only treated as a labelled section when `rest = lines.slice(1).join('\n').trim()` is non-empty. A single short line with nothing after it is content (usually the headline), not a label — it falls through to be emitted as its own block. The `rest` value is computed once before the `if` and reused for both branches (the mapped-label branch and the custom-heading branch) instead of recomputing `lines.slice(1).join('\n').trim()` in each.
+
+**Judgment call:** The guard is `rest &&` on the existing `if`, not a separate early-return. A block that has a short first line plus a real body still gets its label mapped (or title-cased for custom headings) exactly as before; only the single-line case changes. The placeholder "Tu titular actual" is still the fallback when no headline is found at all — this fix just stops the parser from manufacturing that empty state by eating the only line it had.
+
+**Verification:**
+- `npm run build` passes.
+- A single short line as the only content of a block is no longer consumed as a label; it is emitted as its own block, so `headlineAndSub()` receives the real text instead of `''`.
+- A short first line followed by a body still resolves to a mapped or title-cased label with the body beneath it — the `rest` reuse produces identical output to the previous `lines.slice(1).join('\n').trim()` in both branches.
 
 ---
 
