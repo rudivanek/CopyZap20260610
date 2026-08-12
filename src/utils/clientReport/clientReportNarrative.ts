@@ -37,7 +37,6 @@ Devuelve EXCLUSIVAMENTE un objeto JSON con esta forma exacta (sin texto fuera de
   "findings": [
     { "category": "Credibilidad|Prueba social|Lenguaje|Conversión|Claridad|Estructura|SEO", "title": "Título sin punto final", "bodyHtml": "1–2 frases; cita el sitio con <q>...</q>" }
   ],
-  "headToHead": { "originalNote": "1–2 frases", "winnerNote": "1–2 frases" },
   "versionLabels": [
     { "versionId": "id de la versión", "displayName": "Propuesta A · Enfoque directo", "roleLine": "Afirmación primero, prueba inmediata después · 445 palabras" }
   ]
@@ -61,11 +60,7 @@ REGLAS DETALLADAS:
    - NUNCA acuses al sitio de mentir. Marcos correctos: "cifras sin fuente citada", "afirmación no verificable", "superlativo antes de la prueba". Frásalo como un problema observado, no como una instrucción.
    - Descarta cualquier hallazgo cuyo contenido numérico sea cero (patrones +0, 0 %, +0%, 0.0). No lo reemplaces; simplemente no lo incluyas. Si quedan menos de cuatro, entrega menos.
 
-5. headToHead:
-   - originalNote: 1–2 frases sobre por qué el titular actual rinde menos.
-   - winnerNote: 1–2 frases sobre por qué el titular propuesto funciona.
-
-6. versionLabels: una entrada por cada versión generada (NO la original). El versionId debe coincidir exactamente con el id de la versión tal como aparece en el material.
+5. versionLabels: una entrada por cada versión generada (NO la original). El versionId debe coincidir exactamente con el id de la versión tal como aparece en el material.
    - displayName: "Propuesta A · <ángulo>", "Propuesta B · <ángulo>", "Propuesta C · <ángulo>". El ángulo se deriva del texto real.
    - roleLine: una línea corta que describe el enfoque. NO incluyas el conteo de palabras; la app lo calcula y lo agrega. Escribe solo el enfoque (ej: "Afirmación primero, prueba inmediata después").
    - Si dos versiones son casi idénticas (>85% de solapamiento), la posterior se etiqueta como variante: "Propuesta C · Directo refinado", roleLine "Variante de la propuesta A con cierre reforzado".
@@ -192,10 +187,6 @@ function safeParseNarrative(raw: string): ClientReportNarrative | null {
       ? obj.executiveSummary.filter((p: any) => typeof p === 'string').slice(0, 3)
       : [],
     findings,
-    headToHead: {
-      originalNote: obj.headToHead?.originalNote ? String(obj.headToHead.originalNote) : '',
-      winnerNote: obj.headToHead?.winnerNote ? String(obj.headToHead.winnerNote) : '',
-    },
     versionLabels: Array.isArray(obj.versionLabels)
       ? obj.versionLabels
           .filter((v: any) => v && typeof v === 'object' && v.versionId)
