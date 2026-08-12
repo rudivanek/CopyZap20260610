@@ -52,6 +52,21 @@ function sanitizeInlineHtml(html: string | null | undefined): string {
   );
 }
 
+// A short, unpunctuated line is a HEADING, not copy: "Introducción", "Quiénes
+// somos", "Ofertas", "Habitaciones y Suites", "Lo que construimos juntos".
+//
+// Used at two levels. Between sections, such a line becomes the next section's
+// label. Inside a section — which is where they end up when the splitter finds
+// no structure at all and drops the whole proposal into one block — the same
+// line is rendered as a sub-heading instead of a body paragraph.
+function isHeadingOnly(text: string): boolean {
+  const t = String(text || '').trim();
+  if (!t || t.includes('\n')) return false;
+  const words = t.split(/\s+/).filter(Boolean);
+  if (words.length > 6) return false;
+  return !/[.!?;:,](\s|$)/.test(t);
+}
+
 function renderBreadcrumbNav(data: ClientReportData): string {
   const items: { href: string; label: string }[] = [
     { href: '#entrada', label: 'Inputs' },
@@ -264,13 +279,6 @@ function renderVersion(v: ClientReportVersion, data: ClientReportData): string {
   //
   // Attach each one to the section it introduces. Nothing is lost — the word
   // reappears as that section's label, which is what it was meant to be.
-  const isHeadingOnly = (text: string): boolean => {
-    const t = String(text || '').trim();
-    if (!t || t.includes('\n')) return false;
-    const words = t.split(/\s+/).filter(Boolean);
-    if (words.length > 6) return false;
-    return !/[.!?;:,](\s|$)/.test(t);
-  };
   const merged: ClientReportSectionSlice[] = [];
   for (const s of v.sections.filter(s => s.text && s.text.trim().length > 0)) {
     const prev = merged[merged.length - 1];
@@ -302,8 +310,32 @@ function renderVersion(v: ClientReportVersion, data: ClientReportData): string {
       // body and CTA fused together (seen in Agenciópolis and Sales Boost).
       // One <p> per paragraph keeps the structure the copy actually has.
       const paras = s.text.split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
-      const body = (paras.length ? paras : [s.text])
-        .map(x => `          <p>${escapeOnce(x)}</p>`).join('\n');
+      const list = paras.length ? paras : [s.text];
+      const body = list.map((para, i) => {
+        // Section labels only exist where the splitter found section
+        // boundaries. When it found none — Sales Boost arrives as a single
+        // block of 27 paragraphs — the site's own headings are still in there,
+        // as short unpunctuated lines between the paragraphs they introduce.
+        // Rendered as body copy they read as stray one-line paragraphs; marked
+        // as sub-headings they read as the structure the site actually has.
+        //
+        // Never the first paragraph of a hero block: that one is the headline,
+        // which is short and unpunctuated by nature and must keep its display
+        // type. Never the last paragraph either — a heading with nothing under
+        // it introduces nothing.
+        const isSub = i < list.length - 1 && !(s.isHero && i === 0) && isHeadingOnly(para);
+        // Single newlines INSIDE a paragraph are real line breaks: bullet
+        // lists and testimonial attributions arrive that way. HTML collapses
+        // them to spaces, which ran Sales Boost's four testimonials into their
+        // quotes and its metrics list into one line. Emit <br> instead.
+        const html = para
+          .split('\n')
+          .map(line => line.trim())
+          .filter(Boolean)
+          .map(escapeOnce)
+          .join('<br>');
+        return `          <p${isSub ? ' class="sub"' : ''}>${html}</p>`;
+      }).join('\n');
       return `        <div class="sec${cls ? ' ' + cls : ''}">
 ${lbl}${body}
         </div>`;
