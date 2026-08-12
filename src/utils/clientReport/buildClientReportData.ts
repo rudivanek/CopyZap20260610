@@ -232,6 +232,11 @@ export interface ClientReportData {
   unscoredProposalCount: number;
   // Cap applied to full version sections (mirrors MAX_PROPOSALS_SHOWN).
   maxProposalsShown: number;
+  // Every piece of copy the report is allowed to quote: the scraped baseline
+  // plus the generated proposals. Not rendered — the pre-export audit uses it
+  // to verify that each quotation and figure in the prose actually appears in
+  // the copy being described.
+  sourceText: string;
 }
 
 export interface ClientReportNarrative {
@@ -1297,6 +1302,7 @@ export function buildClientReportData(
     generatedProposalCount,
     unscoredProposalCount,
     maxProposalsShown: MAX_PROPOSALS_SHOWN,
+    sourceText: contentCards.map(c => contentToPlainText(c.content)).join('\n\n'),
   };
 }
 
