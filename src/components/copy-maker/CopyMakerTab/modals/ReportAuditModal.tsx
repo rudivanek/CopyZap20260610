@@ -54,13 +54,13 @@ const ReportAuditModal: React.FC<ReportAuditModalProps> = ({
               <AlertTriangle className="w-4 h-4 text-amber-500" />
             )}
             <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-              Auditoría del reporte
+              Report audit
             </h2>
           </div>
           <button
             onClick={onCancel}
             className="p-1 rounded-md text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
-            aria-label="Cerrar"
+            aria-label="Close"
           >
             <X className="w-4 h-4" />
           </button>
@@ -70,18 +70,18 @@ const ReportAuditModal: React.FC<ReportAuditModalProps> = ({
           <p className="text-sm text-gray-600 dark:text-gray-300 mb-4">
             {errors.length > 0 && (
               <span className="font-medium text-gray-900 dark:text-white">
-                Este reporte tiene {errors.length === 1 ? 'un problema serio' : `${errors.length} problemas serios`}.{' '}
+                This report has {errors.length === 1 ? 'a serious problem' : `${errors.length} serious problems`}.{' '}
               </span>
             )}
             {errors.length > 0
-              ? 'No debería enviarse a un cliente hasta resolverlo.'
-              : 'Nada impide enviarlo, pero conviene revisar estos puntos antes.'}
+              ? "It shouldn't go to a client until that's resolved."
+              : 'Nothing prevents sending it, but these points are worth a look first.'}
           </p>
 
           {errors.length > 0 && (
             <div className="mb-5">
               <h3 className="text-[11px] font-bold uppercase tracking-wider text-red-600 dark:text-red-400 mb-2">
-                {errors.length === 1 ? 'Problema serio' : 'Problemas serios'}
+                {errors.length === 1 ? 'Serious problem' : 'Serious problems'}
               </h3>
               <ul className="space-y-2">
                 {errors.map((issue, i) => (
@@ -100,7 +100,7 @@ const ReportAuditModal: React.FC<ReportAuditModalProps> = ({
           {warns.length > 0 && (
             <div>
               <h3 className="text-[11px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400 mb-2">
-                {warns.length === 1 ? 'Aviso' : `Avisos (${warns.length})`}
+                {warns.length === 1 ? 'Warning' : `Warnings (${warns.length})`}
               </h3>
               <ul className="space-y-2">
                 {warns.map((issue, i) => (
@@ -119,13 +119,13 @@ const ReportAuditModal: React.FC<ReportAuditModalProps> = ({
 
         <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200 dark:border-gray-700">
           <Button variant="outline" size="sm" onClick={onCancel}>
-            No exportar
+            Don't export
           </Button>
           {/* Wording, not styling, carries the warning: the operator owns the
               business and must always be able to force the export, but it
               should never be one indistinguishable click from a clean one. */}
           <Button variant="secondary" size="sm" onClick={onExportAnyway}>
-            {errors.length ? 'Exportar igualmente (incompleto)' : 'Exportar igualmente'}
+            {errors.length ? 'Export anyway (incomplete)' : 'Export anyway'}
           </Button>
         </div>
       </div>
