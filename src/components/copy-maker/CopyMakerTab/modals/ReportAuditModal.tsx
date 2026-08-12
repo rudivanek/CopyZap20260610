@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 import { AlertTriangle, AlertOctagon, X } from 'lucide-react';
 import { Button } from '../../../ui/button';
 import type { AuditIssue } from '../../../../utils/clientReport/auditReportData';
@@ -33,8 +34,12 @@ const ReportAuditModal: React.FC<ReportAuditModalProps> = ({
   const errors = issues.filter(i => i.severity === 'error');
   const warns = issues.filter(i => i.severity === 'warn');
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+  // Rendered through a portal to document.body. The sidebar creates its own
+  // stacking context, so a modal rendered inside it lets sidebar elements —
+  // the template search field, field-hint text — bleed through on top of the
+  // dialog. Every other overlay in this sidebar portals for the same reason.
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={onCancel} />
       <div
         role="dialog"
@@ -124,7 +129,8 @@ const ReportAuditModal: React.FC<ReportAuditModalProps> = ({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
