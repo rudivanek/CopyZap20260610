@@ -24,10 +24,10 @@ export interface ReportStep {
 }
 
 export const REPORT_STEPS: ReportStep[] = [
-  { id: 'narrative', label: 'Redactando el análisis con IA' },
-  { id: 'build', label: 'Construyendo el reporte' },
-  { id: 'audit', label: 'Auditando el resultado' },
-  { id: 'render', label: 'Generando el archivo' },
+  { id: 'narrative', label: 'Writing the analysis with AI' },
+  { id: 'build', label: 'Building the report' },
+  { id: 'audit', label: 'Auditing the result' },
+  { id: 'render', label: 'Generating the file' },
 ];
 
 interface ReportProgressModalProps {
@@ -64,7 +64,7 @@ const ReportProgressModal: React.FC<ReportProgressModalProps> = ({
         <div className="flex items-center gap-2 px-5 pt-5 pb-4 border-b border-gray-200 dark:border-gray-700">
           <FileText className="w-4 h-4 text-gray-500 dark:text-gray-400" />
           <h2 className="text-base font-semibold text-gray-900 dark:text-white">
-            Generando el reporte de copy
+            Generating the copy report
           </h2>
         </div>
 
@@ -99,14 +99,14 @@ const ReportProgressModal: React.FC<ReportProgressModalProps> = ({
           })}
 
           <p className="pt-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-            El análisis con IA es la parte lenta: puede tardar hasta un minuto.
-            No cierres esta pestaña.
+            The AI analysis is the slow part — it can take up to a minute.
+            Don't close this tab.
           </p>
         </div>
 
         <div className="flex justify-end gap-2 px-5 py-4 border-t border-gray-200 dark:border-gray-700">
           <Button variant="outline" size="sm" onClick={onCancel} disabled={isCancelling}>
-            {isCancelling ? 'Cancelando…' : 'Cancelar'}
+            {isCancelling ? 'Cancelling…' : 'Cancel'}
           </Button>
         </div>
       </div>
