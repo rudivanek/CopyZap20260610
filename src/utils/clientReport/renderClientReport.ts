@@ -12,6 +12,14 @@ function absoluteHref(url: string): string {
   return `https://${u}`;
 }
 
+// Render a delta with its own sign. deltaPoints is no longer clamped at 0, so a
+// proposal scoring below the baseline must read "-8 pts", not "+-8 pts" (the old
+// hardcoded "+" prefix) and not "+0 pts" (the old clamp).
+function signed(n: number | null | undefined): string {
+  if (n === null || n === undefined) return '';
+  return n > 0 ? `+${n}` : String(n);
+}
+
 // Escape ONCE, at render time only (spec 7). Values stored in the data model are raw.
 function escapeOnce(text: string | number | null | undefined): string {
   if (text === null || text === undefined) return '';
@@ -155,8 +163,8 @@ function renderToc(data: ClientReportData): string {
     const winTag = v.isWinner ? `<span class="win">★ Ganadora</span>` : '';
     const delta = v.isBaseline
       ? `<span class="delta tnum">línea base</span>`
-      : `<span class="delta tnum">+${escapeOnce(v.deltaPoints)} pts
-          <small>+${escapeOnce(v.deltaPercent)} % vs. actual</small></span>`;
+      : `<span class="delta tnum">${escapeOnce(signed(v.deltaPoints))} pts
+          <small>${escapeOnce(signed(v.deltaPercent))} % vs. actual</small></span>`;
     rows.push(`      <a href="#${escapeOnce(v.key)}" class="${cls}">
         <span class="idx">${escapeOnce(i + 2)}</span>
         <span class="name">${escapeOnce(v.displayName)}${winTag}</span>
@@ -297,7 +305,7 @@ ${lbl}          <p>${escapeOnce(s.text)}</p>
   const winTag = v.isWinner ? ` <span class="win">★ Ganadora</span>` : '';
   const gainBlock = v.isBaseline
     ? `<div class="gain tnum">línea base<small>punto de partida</small></div>`
-    : `<div class="gain tnum">+${escapeOnce(v.deltaPoints)} pts<small>+${escapeOnce(v.deltaPercent)} % vs. actual</small></div>`;
+    : `<div class="gain tnum">${escapeOnce(signed(v.deltaPoints))} pts<small>${escapeOnce(signed(v.deltaPercent))} % vs. actual</small></div>`;
   const paywall = v.isBaseline ? '' : `      <div class="paywall">
         <div class="pw-t"><b>Estás viendo el ${escapeOnce(v.keptPercent)}&nbsp;% de esta propuesta.</b>
           ${escapeOnce(v.paywallLine)}</div>
@@ -337,8 +345,8 @@ function renderRanking(data: ClientReportData): string {
     const cls = [v.isWinner ? 'is-win' : '', v.isBaseline ? 'base' : ''].filter(Boolean).join(' ');
     const dl = v.isBaseline
       ? `<div class="dl tnum">línea base</div>`
-      : `<div class="dl tnum">+${escapeOnce(v.deltaPoints)} pts
-          <small>+${escapeOnce(v.deltaPercent)} %</small></div>`;
+      : `<div class="dl tnum">${escapeOnce(signed(v.deltaPoints))} pts
+          <small>${escapeOnce(signed(v.deltaPercent))} %</small></div>`;
     return `      <div class="rank-row${cls ? ' ' + cls : ''}">
         <div class="pos tnum">${escapeOnce(i + 1)}</div>
         <div class="nm">${escapeOnce(v.displayName)}<small>${escapeOnce(v.rankSubline)}</small></div>
@@ -515,3 +523,4 @@ ${renderBreadcrumbNav(data)}
 </body>
 </html>`;
 }
+
