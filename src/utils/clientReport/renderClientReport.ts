@@ -96,19 +96,16 @@ ${siteLine}
           <div class="lbl"><b>Tu copy actual</b>línea base</div></div>
         <div class="stop now"><div class="num tnum">${escapeOnce(data.journey.winner)}<small>/100</small></div>
           <div class="lbl"><b>Mejor propuesta</b>reescritura completa</div></div>
-        <div class="stop goal"><div class="num tnum">${escapeOnce(data.journey.potential)}<small>/100</small></div>
-          <div class="lbl"><b>Potencial</b>con todas las mejoras</div></div>
       </div>
-      <div class="rail"><i class="a"></i><i class="b"></i><i class="c"></i></div>
+      <div class="rail"><i class="a"></i><i class="b"></i></div>
       <div class="journey-foot">
         Reescribimos tu copy actual en <b>${escapeOnce(data.journey.proposalCount)} propuestas completas</b> y las evaluamos
         con el mismo criterio. La mejor sube <b>${escapeOnce(data.journey.winnerDeltaPoints)} puntos
-        (+${escapeOnce(data.journey.winnerDeltaPercent)}&nbsp;%)</b> sobre tu texto actual.${data.roadmapCount === 0 ? '' : ` Aplicando además ${escapeOnce(esCount(
+        (+${escapeOnce(data.journey.winnerDeltaPercent)}&nbsp;%)</b> sobre tu texto actual.${data.roadmapCount === 0 ? '' : ` ${escapeOnce(esCount(
           data.roadmapCount,
-          'la mejora detallada',
-          `las ${data.roadmapCountWord} mejoras detalladas`,
-        ))} al final de este reporte, la proyección llega a
-        <b>${escapeOnce(data.journey.potential)}/100</b>.`}
+          'La mejora detallada al final de este reporte se aplica',
+          `Las ${data.roadmapCountWord} mejoras detalladas al final de este reporte se aplican`,
+        ))} sobre esa propuesta.`}
       </div>
     </div>
   </div>
@@ -186,38 +183,6 @@ function renderToc(data: ClientReportData): string {
     <nav class="toc">
 ${rows.join('\n')}
     </nav>
-  </div>
-</section>`;
-}
-
-function renderHeadToHead(data: ClientReportData): string {
-  const originalNote = data.headToHead.originalNote
-    ? `        <p class="vs-note">${sanitizeInlineHtml(data.headToHead.originalNote)}</p>`
-    : '';
-  const winnerNote = data.headToHead.winnerNote
-    ? `        <p class="vs-note">${sanitizeInlineHtml(data.headToHead.winnerNote)}</p>`
-    : '';
-  return `<section>
-  <div class="wrap">
-    <div class="eyebrow">Cara a cara</div>
-    <h2>Tu titular actual frente al propuesto</h2>
-    <p class="lede">El encabezado es el 80&nbsp;% de la decisión de quedarse o irse. Esta es la comparación directa.</p>
-    <div class="versus">
-      <div class="vs-col">
-        <div class="vs-head"><span class="who">Actual</span>
-          <span class="sc tnum">${escapeOnce(data.journey.baseline)}<small>/100</small></span></div>
-        <blockquote>${escapeOnce(data.headToHead.originalHeadline)}</blockquote>
-        <p class="sub">${escapeOnce(data.headToHead.originalSub)}</p>
-${originalNote}
-      </div>
-      <div class="vs-col win">
-        <div class="vs-head"><span class="who">${escapeOnce(data.winnerDisplayName)} · ganadora</span>
-          <span class="sc tnum">${escapeOnce(data.journey.winner)}<small>/100</small></span></div>
-        <blockquote>${escapeOnce(data.headToHead.winnerHeadline)}</blockquote>
-        <p class="sub">${escapeOnce(data.headToHead.winnerSub)}</p>
-${winnerNote}
-      </div>
-    </div>
   </div>
 </section>`;
 }
@@ -330,9 +295,9 @@ ${lbl}          <p>${escapeOnce(s.text)}</p>
           <div class="big tnum">${escapeOnce(v.score)}<small>/100</small></div>
         </div>
       </div>
-      <div class="v-body">
+${v.isBaseline ? '' : `      <div class="v-body">
 ${sectionsHtml}
-      </div>
+      </div>`}
 ${paywall}
 ${split}
     </div>
@@ -350,8 +315,6 @@ function renderRanking(data: ClientReportData): string {
     return `      <div class="rank-row${cls ? ' ' + cls : ''}">
         <div class="pos tnum">${escapeOnce(i + 1)}</div>
         <div class="nm">${escapeOnce(v.displayName)}<small>${escapeOnce(v.rankSubline)}</small></div>
-        <div class="cell tnum">${escapeOnce(v.editorialQuality)}<small>de 100</small></div>
-        <div class="cell tnum">${escapeOnce(v.conversionPotential)}<small>de 100</small></div>
         ${dl}
         <div class="tot tnum">${escapeOnce(v.score)}<small>/100</small></div>
       </div>`;
@@ -384,7 +347,6 @@ function renderRanking(data: ClientReportData): string {
        puntuación total.</p>
     <div class="rank">
       <div class="rank-row head"><div>#</div><div>Versión</div>
-        <div class="cell">Calidad editorial</div><div class="cell">Potencial de conversión</div>
         <div class="dl">Mejora</div><div class="tot">Total</div></div>
 ${rows}
     </div>
@@ -406,21 +368,12 @@ function renderRoadmap(data: ClientReportData): string {
     <div class="eyebrow accent">Hoja de ruta</div>
     <h2>${escapeOnce(esCount(
       data.roadmapCount,
-      'La mejora que lleva',
-      `Las ${data.roadmapCountWord} mejoras que llevan`,
-    ))} la propuesta ganadora a ${escapeOnce(data.journey.potential)}</h2>
+      'La mejora aplicada',
+      `Las ${data.roadmapCountWord} mejoras aplicadas`,
+    ))} sobre la propuesta ganadora</h2>
     <p class="lede">Cada una con su impacto estimado sobre la puntuación de ${escapeOnce(data.winnerDisplayName)}.</p>
     <div class="road">
 ${items}
-      <div class="road-total">
-        <div class="lb">Aplicando ${escapeOnce(esCount(
-          data.roadmapCount,
-          'la mejora',
-          `las ${data.roadmapCountWord} mejoras`,
-        ))} sobre la propuesta ganadora,
-          <b>proyección estimada</b></div>
-        <div class="vv tnum">${escapeOnce(data.journey.potential)}<small>/100</small></div>
-      </div>
     </div>
     <div class="cta-mini">
       <div class="t"><b>${escapeOnce(esCount(
@@ -505,8 +458,6 @@ ${renderFindings(data)}
 
 ${renderToc(data)}
 
-${renderHeadToHead(data)}
-
 ${renderBrief(data)}
 
 ${versionsHtml}
@@ -523,4 +474,3 @@ ${renderBreadcrumbNav(data)}
 </body>
 </html>`;
 }
-
