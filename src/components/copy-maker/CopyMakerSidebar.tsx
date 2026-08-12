@@ -51,6 +51,7 @@ import clientPrompt from '../../prompts/copyzap-client-prompt.md?raw';
 import { generateClientReportNarrative } from '../../utils/clientReport/clientReportNarrative';
 import { buildClientReportData, buildClientReportFilename } from '../../utils/clientReport/buildClientReportData';
 import { renderClientReport } from '../../utils/clientReport/renderClientReport';
+import { auditReportData, formatAuditIssues } from '../../utils/clientReport/auditReportData';
 
 // ─── Shared docx builder ──────────────────────────────────────────────────────
 
@@ -1580,6 +1581,32 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         comparisonDeepAnalysisMeta,
         narrative,
       );
+      // Pre-export audit. Every defect found in the August review shipped
+      // behind a green success toast: an AI sub-call failed, the pipeline
+      // continued, and a polished-looking report reached the client. The audit
+      // inspects the finished data and names what is wrong BEFORE the download.
+      //
+      // It only reads — it never fixes, omits or blocks. The operator decides.
+      // That keeps it incapable of breaking an export while we find out whether
+      // the checks are accurate.
+      const issues = auditReportData(data, data.sourceText);
+      if (issues.length) {
+        console.warn('[clientReport] auditoría previa', issues);
+        const errors = issues.filter(i => i.severity === 'error').length;
+        const proceed = window.confirm(
+          `La auditoría encontró ${issues.length} ${issues.length === 1 ? 'incidencia' : 'incidencias'} en este reporte.\n\n` +
+          `${formatAuditIssues(issues)}\n\n` +
+          (errors
+            ? 'Con problemas serios el reporte NO debería enviarse a un cliente.\n\n'
+            : '') +
+          '¿Exportar de todas formas?',
+        );
+        if (!proceed) {
+          toast('Exportación cancelada. Corrige lo indicado y vuelve a exportar.', { icon: '🛑', duration: 8000 });
+          return;
+        }
+      }
+
       const html = renderClientReport(data);
       const filename = buildClientReportFilename(data);
       const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
@@ -1591,29 +1618,9 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
-      // Two ways this report can ship degraded, both previously invisible behind
-      // a green success toast.
-      //  1. A null narrative — the AI call failed, so there is no executive
-      //     summary and the findings fall back to raw risk flags.
-      //  2. A proposal developed in full whose deep analysis failed — the report
-      //     suppresses the "Unable to analyze" sentinel, so its strengths/limits
-      //     panel renders as a bare "Sin observaciones destacadas."
-      // Name whichever happened instead of reporting success.
-      const incomplete = data.versions.filter(
-        v => v.isShownInFull && !v.isBaseline && !v.strengths.length && !v.improvements.length,
-      );
-      const problems: string[] = [];
-      if (!narrative) {
-        problems.push('falta el resumen ejecutivo y los hallazgos son genéricos');
-      }
-      if (incomplete.length) {
-        problems.push(
-          `sin fortalezas ni límites en: ${incomplete.map(v => v.displayName).join(', ')}`,
-        );
-      }
-      if (problems.length) {
+      if (issues.length) {
         toast(
-          `Reporte exportado INCOMPLETO — ${problems.join('; ')}. Vuelve a exportar para reintentar.`,
+          `Reporte exportado CON ${issues.length} ${issues.length === 1 ? 'incidencia' : 'incidencias'} — revísalo antes de enviarlo.`,
           { icon: '⚠️', duration: 12000 },
         );
       } else {
