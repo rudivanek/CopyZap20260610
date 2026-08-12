@@ -1,4 +1,4 @@
-import { ClientReportData, ClientReportVersion, CTA_CONTACT_URL, esCount } from './buildClientReportData';
+import { ClientReportData, ClientReportVersion, ClientReportSectionSlice, CTA_CONTACT_URL, esCount } from './buildClientReportData';
 import { buildReportStyles, getGoogleFontLinkTag, DEFAULT_THEME_VARS } from '../exportReportTheme';
 import { getCachedReportTheme } from '../../services/supabaseClient';
 
@@ -254,8 +254,42 @@ function renderVersion(v: ClientReportVersion, data: ClientReportData): string {
   // Drop sections whose body text is empty entirely (item: empty sections
   // rendered a label plus a blank <p></p>). The label alone adds nothing for
   // the reader and the empty paragraph is visible whitespace.
-  const sectionsHtml = v.sections
-    .filter(s => s.text && s.text.trim().length > 0)
+  //
+  // A section whose entire text is one short unpunctuated line is a HEADING,
+  // not copy: "Introducción", "Quiénes somos", "Ofertas", "Habitaciones y
+  // Suites". splitSections stopped consuming those as labels when a lone short
+  // line had to stay content (that fix is what recovered the headline for
+  // "Tu titular actual"), so they now arrive as their own section and render
+  // as a bare one-word paragraph in the middle of the client's copy.
+  //
+  // Attach each one to the section it introduces. Nothing is lost — the word
+  // reappears as that section's label, which is what it was meant to be.
+  const isHeadingOnly = (text: string): boolean => {
+    const t = String(text || '').trim();
+    if (!t || t.includes('\n')) return false;
+    const words = t.split(/\s+/).filter(Boolean);
+    if (words.length > 6) return false;
+    return !/[.!?;:,](\s|$)/.test(t);
+  };
+  const merged: ClientReportSectionSlice[] = [];
+  for (const s of v.sections.filter(s => s.text && s.text.trim().length > 0)) {
+    const prev = merged[merged.length - 1];
+    // A heading-only section directly before another section becomes its label
+    // — but never at the cost of an existing label, and never for the hero
+    // block, whose first line is the headline itself.
+    if (prev && !prev.label && !prev.isHero && isHeadingOnly(prev.text) && !s.label) {
+      merged[merged.length - 1] = { ...s, label: prev.text.trim(), isHero: prev.isHero };
+      continue;
+    }
+    merged.push(s);
+  }
+  // A heading-only section left at the end introduces nothing; drop it rather
+  // than ending the excerpt on a stray word.
+  while (merged.length && !merged[merged.length - 1].label && isHeadingOnly(merged[merged.length - 1].text)) {
+    merged.pop();
+  }
+
+  const sectionsHtml = merged
     .map(s => {
       const cls = [s.isHero ? 'hero' : '', s.isFaded ? 'fade' : ''].filter(Boolean).join(' ');
       // Omit sec-lbl entirely when no real label exists (item 7).
