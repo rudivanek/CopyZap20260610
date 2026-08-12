@@ -24,7 +24,7 @@ export interface AuditIssue {
   severity: AuditSeverity;
   /** Stable identifier, for filtering/telemetry later. */
   code: string;
-  /** Spanish, operator-facing. Names the specific proposal and what to do. */
+  /** Operator-facing, English. Names the specific proposal and what to do. */
   message: string;
 }
 
@@ -147,11 +147,11 @@ export function auditReportData(data: ClientReportData, sourceText: string): Aud
   // report with no summary and generic findings (August, PhixWave).
   if (!data.executiveSummary?.length) {
     add('error', 'no-summary',
-      'Falta el resumen ejecutivo. La llamada de narrativa falló — vuelve a exportar para reintentarla.');
+      'The executive summary is missing. The narrative call failed — export again to retry it.');
   }
 
   if (!data.findings?.length) {
-    add('error', 'no-findings', 'El reporte no tiene hallazgos prioritarios.');
+    add('error', 'no-findings', 'The report has no priority findings.');
   }
 
   const shown = (data.versions || []).filter(v => v.isShownInFull);
@@ -161,14 +161,14 @@ export function auditReportData(data: ClientReportData, sourceText: string): Aud
     // cached as if it were valid.
     if (!v.strengths?.length && !v.improvements?.length) {
       add('error', 'version-sin-analisis',
-        `${shortLabel(v)} no tiene fortalezas ni límites. Pulsa «Retry analysis» en esa propuesta y vuelve a exportar.`);
+        `${shortLabel(v)} has no strengths or limits. Click "Retry analysis" on that proposal and export again.`);
     }
 
     // 3 ── A version developed in full with no copy to show.
     const withText = (v.sections || []).filter(s => s.text && s.text.trim());
     if (!v.isBaseline && !withText.length) {
       add('error', 'version-sin-texto',
-        `${shortLabel(v)} se muestra como sección completa pero no tiene texto de copy.`);
+        `${shortLabel(v)} is shown as a full section but has no copy text.`);
     }
 
     // 4 ── Hero typography is capped at the first paragraph, but a hero block
@@ -179,7 +179,7 @@ export function auditReportData(data: ClientReportData, sourceText: string): Aud
       const paras = String(s.text || '').split(/\n\s*\n/).filter(p => p.trim());
       if (paras.length > 2) {
         add('warn', 'hero-largo',
-          `${shortLabel(v)}: el bloque de apertura tiene ${paras.length} párrafos — el separador no encontró estructura en este copy.`);
+          `${shortLabel(v)}: the opening block has ${paras.length} paragraphs — the splitter found no section structure in this copy.`);
       }
     }
 
@@ -189,7 +189,7 @@ export function auditReportData(data: ClientReportData, sourceText: string): Aud
       for (const p of String(s.text || '').split(/\n\s*\n/)) {
         if (p.trim().length > 700) {
           add('warn', 'parrafo-largo',
-            `${shortLabel(v)}: hay un párrafo de ${p.trim().length} caracteres — probablemente texto concatenado por el rastreador.`);
+            `${shortLabel(v)}: there is a ${p.trim().length}-character paragraph — most likely text concatenated by the crawler.`);
           break;
         }
       }
@@ -201,18 +201,18 @@ export function auditReportData(data: ClientReportData, sourceText: string): Aud
   const fw = headingCount(data.findingsCountWord || '');
   if (fw !== undefined && data.findings && fw !== data.findings.length) {
     add('error', 'conteo-hallazgos',
-      `El encabezado dice «${data.findingsCountWord}» pero hay ${data.findings.length} hallazgos.`);
+      `The heading says "${data.findingsCountWord}" but there are ${data.findings.length} findings.`);
   }
   const rw = headingCount(data.roadmapCountWord || '');
   if (rw !== undefined && data.roadmap && rw !== data.roadmap.length) {
     add('error', 'conteo-hoja-ruta',
-      `El encabezado dice «${data.roadmapCountWord}» pero hay ${data.roadmap.length} mejoras.`);
+      `The heading says "${data.roadmapCountWord}" but there are ${data.roadmap.length} improvements.`);
   }
 
   // 7 ── The pitch only works if the winner beats the baseline.
   if (data.journey && data.journey.winner <= data.journey.baseline) {
     add('error', 'ganadora-no-supera',
-      `La propuesta ganadora (${data.journey.winner}) no supera tu copy actual (${data.journey.baseline}).`);
+      `The winning proposal (${data.journey.winner}) does not beat the current copy (${data.journey.baseline}).`);
   }
 
   // 8 ── Quotes and figures must appear in the copy the report is describing.
@@ -252,7 +252,7 @@ export function auditReportData(data: ClientReportData, sourceText: string): Aud
           // sourceText holds the COMPLETE copy, not the paywalled excerpt —
           // this stays advisory. Promote to 'error' once it proves accurate.
           add('warn', 'cita-no-encontrada',
-            `Revisa esta cita, no aparece literal en el texto analizado: «${preview}»`);
+            `Check this quote — it does not appear verbatim in the analysed copy: "${preview}"`);
         }
       }
       for (const fig of extractFigures(stripTags(chunk))) {
@@ -260,7 +260,7 @@ export function auditReportData(data: ClientReportData, sourceText: string): Aud
         seenFigure.add(fig);
         if (!figureIsInSource(fig, source)) {
           add('warn', 'cifra-no-encontrada',
-            `Cifra citada que no aparece en el texto analizado: ${fig}`);
+            `Figure cited that does not appear in the analysed copy: ${fig}`);
         }
       }
     }
@@ -275,12 +275,12 @@ export function formatAuditIssues(issues: AuditIssue[]): string {
   const warns = issues.filter(i => i.severity === 'warn');
   const lines: string[] = [];
   if (errors.length) {
-    lines.push(`${errors.length} ${errors.length === 1 ? 'problema serio' : 'problemas serios'}:`);
+    lines.push(`${errors.length} ${errors.length === 1 ? 'serious problem' : 'serious problems'}:`);
     for (const e of errors) lines.push(`  • ${e.message}`);
   }
   if (warns.length) {
     if (lines.length) lines.push('');
-    lines.push(`${warns.length} ${warns.length === 1 ? 'aviso' : 'avisos'}:`);
+    lines.push(`${warns.length} ${warns.length === 1 ? 'warning' : 'warnings'}:`);
     for (const w of warns) lines.push(`  • ${w.message}`);
   }
   return lines.join('\n');
