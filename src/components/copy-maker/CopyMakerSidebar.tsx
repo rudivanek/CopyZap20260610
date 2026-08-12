@@ -51,7 +51,11 @@ import clientPrompt from '../../prompts/copyzap-client-prompt.md?raw';
 import { generateClientReportNarrative } from '../../utils/clientReport/clientReportNarrative';
 import { buildClientReportData, buildClientReportFilename } from '../../utils/clientReport/buildClientReportData';
 import { renderClientReport } from '../../utils/clientReport/renderClientReport';
-import { auditReportData, formatAuditIssues } from '../../utils/clientReport/auditReportData';
+import { auditReportData } from '../../utils/clientReport/auditReportData';
+import type { AuditIssue } from '../../utils/clientReport/auditReportData';
+import { playReportReadyTone } from '../../utils/clientReport/reportReadyTone';
+import ReportProgressModal, { REPORT_STEPS } from './CopyMakerTab/modals/ReportProgressModal';
+import ReportAuditModal from './CopyMakerTab/modals/ReportAuditModal';
 
 // ─── Shared docx builder ──────────────────────────────────────────────────────
 
@@ -1557,21 +1561,58 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
   };
 
   const [isGeneratingHtmlPreview2, setIsGeneratingHtmlPreview2] = useState(false);
+  // Report export UI state. The progress modal blocks the app while an AI call
+  // is in flight; the audit modal collects the operator's decision afterwards.
+  const [reportStep, setReportStep] = useState(0);
+  const [reportCancelling, setReportCancelling] = useState(false);
+  const [auditIssues, setAuditIssues] = useState<AuditIssue[]>([]);
+  const [auditOpen, setAuditOpen] = useState(false);
+  // Set when Cancel is pressed. An AI request already in flight cannot be
+  // recalled, so the flow checks this at each step boundary and stops before
+  // doing anything further — no file is written and no tone plays.
+  const reportCancelledRef = useRef(false);
+  // Resolves the promise the export flow awaits while the audit modal is open.
+  const auditDecisionRef = useRef<((proceed: boolean) => void) | null>(null);
 
   const canExportHtmlPreview2 = Boolean(
     comparisonResult?.rows?.length && generatedOutputCards.length,
   );
 
+  /** Resolved by the audit modal buttons. */
+  const askAuditDecision = (issues: AuditIssue[]) =>
+    new Promise<boolean>(resolve => {
+      auditDecisionRef.current = resolve;
+      setAuditIssues(issues);
+      setAuditOpen(true);
+    });
+
+  const closeAuditModal = (proceed: boolean) => {
+    setAuditOpen(false);
+    const resolve = auditDecisionRef.current;
+    auditDecisionRef.current = null;
+    resolve?.(proceed);
+  };
+
   const handleExportHtmlPreview2 = async () => {
-    if (!canExportHtmlPreview2) return;
+    if (!canExportHtmlPreview2 || isGeneratingHtmlPreview2) return;
+    reportCancelledRef.current = false;
+    setReportCancelling(false);
+    setReportStep(0);
     setIsGeneratingHtmlPreview2(true);
+    // Returns true when the operator cancelled, so each step can bail out.
+    const cancelled = () => reportCancelledRef.current;
     try {
+      // 1 ── narrative (the slow part: one AI call, up to ~60s)
       const narrative = await generateClientReportNarrative(
         formState,
         generatedOutputCards,
         comparisonResult,
         versionDeepAnalysis,
       );
+      if (cancelled()) return;
+
+      // 2 ── build
+      setReportStep(1);
       const data = buildClientReportData(
         formState,
         generatedOutputCards,
@@ -1581,32 +1622,33 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         comparisonDeepAnalysisMeta,
         narrative,
       );
-      // Pre-export audit. Every defect found in the August review shipped
-      // behind a green success toast: an AI sub-call failed, the pipeline
-      // continued, and a polished-looking report reached the client. The audit
-      // inspects the finished data and names what is wrong BEFORE the download.
+      if (cancelled()) return;
+
+      // 3 ── audit. Every defect found in the August review shipped behind a
+      // green success toast: an AI sub-call failed, the pipeline continued, and
+      // a polished-looking report reached the client. This inspects the
+      // finished data and names what is wrong BEFORE the download.
       //
       // It only reads — it never fixes, omits or blocks. The operator decides.
-      // That keeps it incapable of breaking an export while we find out whether
-      // the checks are accurate.
+      setReportStep(2);
       const issues = auditReportData(data, data.sourceText);
+      if (cancelled()) return;
+
       if (issues.length) {
         console.warn('[clientReport] auditoría previa', issues);
-        const errors = issues.filter(i => i.severity === 'error').length;
-        const proceed = window.confirm(
-          `La auditoría encontró ${issues.length} ${issues.length === 1 ? 'incidencia' : 'incidencias'} en este reporte.\n\n` +
-          `${formatAuditIssues(issues)}\n\n` +
-          (errors
-            ? 'Con problemas serios el reporte NO debería enviarse a un cliente.\n\n'
-            : '') +
-          '¿Exportar de todas formas?',
-        );
+        // Hide the progress modal while the decision is pending, otherwise two
+        // dialogs stack on top of each other.
+        setIsGeneratingHtmlPreview2(false);
+        const proceed = await askAuditDecision(issues);
         if (!proceed) {
           toast('Exportación cancelada. Corrige lo indicado y vuelve a exportar.', { icon: '🛑', duration: 8000 });
           return;
         }
+        setIsGeneratingHtmlPreview2(true);
       }
 
+      // 4 ── render + download
+      setReportStep(3);
       const html = renderClientReport(data);
       const filename = buildClientReportFilename(data);
       const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
@@ -1618,6 +1660,8 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
       link.click();
       document.body.removeChild(link);
       URL.revokeObjectURL(url);
+
+      playReportReadyTone();
       if (issues.length) {
         toast(
           `Reporte exportado CON ${issues.length} ${issues.length === 1 ? 'incidencia' : 'incidencias'} — revísalo antes de enviarlo.`,
@@ -1627,10 +1671,20 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         toast.success('Reporte de copy exportado');
       }
     } catch (err: any) {
-      toast.error('No se pudo exportar el reporte: ' + (err?.message ?? 'error desconocido'));
+      if (!reportCancelledRef.current) {
+        toast.error('No se pudo exportar el reporte: ' + (err?.message ?? 'error desconocido'));
+      }
     } finally {
       setIsGeneratingHtmlPreview2(false);
+      setReportCancelling(false);
+      setReportStep(0);
     }
+  };
+
+  const handleCancelReport = () => {
+    reportCancelledRef.current = true;
+    setReportCancelling(true);
+    toast('Cancelando… se detendrá en cuanto termine el paso en curso.', { icon: '🛑', duration: 6000 });
   };
 
   const handleExportLLMEval = () => {
@@ -2728,6 +2782,19 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
         </div>,
         document.body
       )}
+      <ReportProgressModal
+        isOpen={isGeneratingHtmlPreview2}
+        currentStep={reportStep}
+        isCancelling={reportCancelling}
+        onCancel={handleCancelReport}
+      />
+
+      <ReportAuditModal
+        isOpen={auditOpen}
+        issues={auditIssues}
+        onExportAnyway={() => closeAuditModal(true)}
+        onCancel={() => closeAuditModal(false)}
+      />
     </aside>
   );
 };
