@@ -163,6 +163,14 @@ code,pre{font-family:var(--mono)}
    scrape happens to be segmented. */
 .v-body .sec.hero p{font-size:var(--fs-body);line-height:1.7;color:var(--ink-soft);font-weight:var(--fw-body)}
 .v-body .sec.hero p:first-of-type{font-family:var(--serif);font-size:var(--fs-hero);line-height:1.35;color:var(--ink);font-weight:var(--fw-heading)}
+/* Sub-heading inside a block. When the splitter finds no section boundaries the
+   site's own headings survive as short unpunctuated lines between paragraphs;
+   the renderer marks those p.sub. Styled like .sec-lbl so a proposal the
+   splitter could not segment still reads with the same structure as one it
+   could. Declared AFTER the hero rules so it wins on equal specificity. */
+.v-body .sec p.sub{font-family:var(--sans);font-size:var(--fs-label);font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);line-height:1.4;margin:22px 0 8px}
+.v-body .sec p.sub:first-child{margin-top:0}
+.v-body .sec.hero p.sub{font-family:var(--sans);font-size:var(--fs-label);font-weight:700;line-height:1.4;color:var(--muted)}
 .v-body .sec ul{margin:0 0 10px;padding-left:22px;color:var(--ink-soft);font-size:15px;line-height:1.65}
 .v-body .sec li{margin-bottom:6px}
 .v-body .sec .md-h1{font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);margin:28px 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line-soft)}
