@@ -160,15 +160,6 @@ export interface ClientReportRoadmapItem {
   bodyHtml: string;
 }
 
-export interface ClientReportHeadToHead {
-  originalHeadline: string;
-  originalSub: string;
-  originalNote: string;
-  winnerHeadline: string;
-  winnerSub: string;
-  winnerNote: string;
-}
-
 export interface ClientReportBrief {
   audience: string;
   keyMessage: string;
@@ -220,7 +211,6 @@ export interface ClientReportData {
   executiveSummary: string[];
   findings: ClientReportFinding[];
   brief: ClientReportBrief;
-  headToHead: ClientReportHeadToHead;
   versions: ClientReportVersion[];
   versionsByScore: ClientReportVersion[];
   roadmap: ClientReportRoadmapItem[];
@@ -255,7 +245,6 @@ export interface ClientReportNarrative {
   };
   executiveSummary: string[];
   findings: ClientReportFinding[];
-  headToHead: { originalNote: string; winnerNote: string };
   versionLabels: Array<{
     versionId: string;
     displayName: string;
@@ -452,23 +441,6 @@ function contentToPlainTextWithMarkers(content: GeneratedContentItem['content'])
     if (block.trim()) parts.push(block.trim());
   }
   return parts.join('\n---\n');
-}
-
-// Headline and sub from the first kept section's TEXT (label already stripped
-// by splitSections), never from the label/headline field (spec, item 3).
-function headlineAndSub(content: GeneratedContentItem['content']): { headline: string; sub: string } {
-  const plain = contentToPlainTextWithMarkers(content);
-  const sections = splitSections(plain).filter(
-    s => s.label !== 'Pie' && s.label !== 'Testimonios',
-  );
-  if (!sections.length) return { headline: '', sub: '' };
-  const paras = sections[0].text.split('\n\n').map(p => p.trim()).filter(p => p);
-  const headline = paras[0] || '';
-  let sub = paras.slice(1, 3).join(' ').trim();
-  if (!sub && sections[1]) {
-    sub = sections[1].text.split('\n\n')[0].trim();
-  }
-  return { headline, sub };
 }
 
 // ── splitSections — NO regex in the splitting logic (spec 3.1) ────────────────
@@ -1157,7 +1129,7 @@ export function buildClientReportData(
     const strengthsHeading = isBaseline ? 'Lo que ya funciona' : (isWinner ? 'Por qué gana' : 'Fortalezas');
     const improvementsHeading = isBaseline
       ? 'Lo que le resta'
-      : (isWinner ? `Qué le falta para llegar a ${potential}` : 'Límites');
+      : (isWinner ? 'Qué le falta' : 'Límites');
 
     // Treat a failed analysis as absent so its sentinel strings ("Unable to
     // analyze" / "Retry analysis") never render as strengths or limits — the
@@ -1231,19 +1203,7 @@ export function buildClientReportData(
     v.isShownInFull = v.isBaseline || shownProposalKeys.has(v.key);
   }
 
-  const originalCard = contentCards.find(c => c.id === ORIGINAL_VERSION_ID || c.type === GeneratedContentItemType.Original);
   const winnerCard = contentCards.find(c => c.id === winnerVersionId);
-  const originalHs = headlineAndSub(originalCard?.content);
-  const winnerHs = headlineAndSub(winnerCard?.content);
-  const headToHead: ClientReportHeadToHead = {
-    originalHeadline: originalHs.headline || 'Tu titular actual',
-    originalSub: originalHs.sub,
-    originalNote: narrative?.headToHead?.originalNote || '',
-    winnerHeadline: winnerHs.headline || 'Titular propuesto',
-    winnerSub: winnerHs.sub,
-    winnerNote: narrative?.headToHead?.winnerNote || '',
-  };
-
   // Findings — AI narrative if present, else fallback from risk flags (spec 4.4, 6).
   let findings: ClientReportFinding[];
   if (narrative?.findings?.length) {
@@ -1324,7 +1284,6 @@ export function buildClientReportData(
     executiveSummary,
     findings,
     brief,
-    headToHead,
     versions,
     versionsByScore,
     roadmap: roadmapItems,
