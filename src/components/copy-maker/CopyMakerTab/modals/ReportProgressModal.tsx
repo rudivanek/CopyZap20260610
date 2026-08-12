@@ -1,4 +1,5 @@
 import React from 'react';
+import ReactDOM from 'react-dom';
 import { FileText, Check, Loader2 } from 'lucide-react';
 import { Button } from '../../../ui/button';
 
@@ -46,8 +47,12 @@ const ReportProgressModal: React.FC<ReportProgressModalProps> = ({
 }) => {
   if (!isOpen) return null;
 
-  return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+  // Rendered through a portal to document.body. The sidebar creates its own
+  // stacking context, so a modal rendered inside it lets sidebar elements —
+  // the template search field, field-hint text — bleed through on top of the
+  // dialog. Every other overlay in this sidebar portals for the same reason.
+  return ReactDOM.createPortal(
+    <div className="fixed inset-0 z-[300] flex items-center justify-center p-4">
       {/* No onClick: clicking away must not dismiss work in progress. */}
       <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" />
       <div
@@ -105,7 +110,8 @@ const ReportProgressModal: React.FC<ReportProgressModalProps> = ({
           </Button>
         </div>
       </div>
-    </div>
+    </div>,
+    document.body,
   );
 };
 
