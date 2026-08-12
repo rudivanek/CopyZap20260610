@@ -155,7 +155,14 @@ code,pre{font-family:var(--mono)}
 .v-body .sec-lbl{font-size:var(--fs-label);font-weight:700;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);margin-bottom:8px}
 .v-body .sec p{margin:0 0 10px;font-size:var(--fs-body);line-height:1.7;color:var(--ink-soft)}
 .v-body .sec p:last-child{margin-bottom:0}
-.v-body .sec.hero p{font-family:var(--serif);font-size:var(--fs-hero);line-height:1.35;color:var(--ink);font-weight:var(--fw-heading)}
+/* Hero typography applies to the FIRST paragraph only. The hero section is
+   whatever the splitter returned first, which for some sites is the entire
+   proposal — Sales Boost put 27 paragraphs there and every one of them
+   rendered as display type, so the whole proposal read as one huge headline.
+   Capping it at the first paragraph bounds the damage regardless of how the
+   scrape happens to be segmented. */
+.v-body .sec.hero p{font-size:var(--fs-body);line-height:1.7;color:var(--ink-soft);font-weight:var(--fw-body)}
+.v-body .sec.hero p:first-of-type{font-family:var(--serif);font-size:var(--fs-hero);line-height:1.35;color:var(--ink);font-weight:var(--fw-heading)}
 .v-body .sec ul{margin:0 0 10px;padding-left:22px;color:var(--ink-soft);font-size:15px;line-height:1.65}
 .v-body .sec li{margin-bottom:6px}
 .v-body .sec .md-h1{font-family:var(--serif);font-size:22px;font-weight:600;color:var(--ink);margin:28px 0 12px;padding-bottom:10px;border-bottom:1px solid var(--line-soft)}
