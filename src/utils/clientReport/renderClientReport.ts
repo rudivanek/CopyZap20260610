@@ -262,8 +262,16 @@ function renderVersion(v: ClientReportVersion, data: ClientReportData): string {
       const lbl = s.label
         ? `          <div class="sec-lbl">${escapeOnce(s.label)}</div>\n`
         : '';
+      // A scraped/generated section often carries several paragraphs separated
+      // by blank lines. Emitted as ONE <p>, HTML collapses those newlines into
+      // spaces and the block renders as a single run-on paragraph — headline,
+      // body and CTA fused together (seen in Agenciópolis and Sales Boost).
+      // One <p> per paragraph keeps the structure the copy actually has.
+      const paras = s.text.split(/\n\s*\n/).map(x => x.trim()).filter(Boolean);
+      const body = (paras.length ? paras : [s.text])
+        .map(x => `          <p>${escapeOnce(x)}</p>`).join('\n');
       return `        <div class="sec${cls ? ' ' + cls : ''}">
-${lbl}          <p>${escapeOnce(s.text)}</p>
+${lbl}${body}
         </div>`;
     }).join('\n');
 
