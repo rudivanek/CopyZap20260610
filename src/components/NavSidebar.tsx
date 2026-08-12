@@ -130,7 +130,9 @@ const NavSidebar: React.FC = () => {
 
   const loadRecentProjects = useCallback(async (): Promise<RecentItem[]> => {
     if (!currentUser?.id) return [];
-    const { data } = await getUserSavedOutputsMeta(currentUser.id, 5);
+    // Recent Projects shows 10. The metadata query excludes the heavy JSONB
+    // columns, so ten rows cost about the same as five.
+    const { data } = await getUserSavedOutputsMeta(currentUser.id, 10);
     if (!data) return [];
     return data.map((o: any) => ({
       id: o.id,
