@@ -1,7 +1,19 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.36
+Version: 1.37
 Last Updated: 2026-09-11T00:00:00Z
+
+---
+
+## Footer Version Label — Dropped "v." Prefix, Bumped to 49.1 (2026-09-11)
+
+**Feature:** The CopyZap version label in the public site footer (`src/components/PublicFooter.tsx`) changed from `v.49.0` to `49.1`, dropping the leading `v.` so the small caption reads as a bare build number. The change is scoped to the single `<span>` that carries the version text; the surrounding `CopyZap` label, the orange `#ff6b35` color, the `text-[8px] sm:text-[10px] font-normal ml-1` sizing classes, and the rest of the footer are untouched.
+
+**Why:** A version caption is a build identifier, not a product name; the `v.` prefix was visual noise next to the already-branded "CopyZap" wordmark. The bump to 49.1 reflects the export-theme and footer restyle work shipped in this session.
+
+**Verification:**
+- `npm run build` passes.
+- The footer reads `CopyZap 49.1` with the same size and color as before.
 
 ---
 
