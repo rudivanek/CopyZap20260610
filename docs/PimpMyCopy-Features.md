@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.38
-Last Updated: 2026-09-11T12:00:00Z
+Version: 1.39
+Last Updated: 2026-09-11T13:00:00Z
 
 ---
 
@@ -14,6 +14,41 @@ Last Updated: 2026-09-11T12:00:00Z
 **Verification:**
 - `npm run build` passes.
 - The footer reads `CopyZap 49.1` with the same size and color as before.
+
+---
+
+## Spanish Client Report — Missing CSS, 4-Column Ranking, Baseline Gain, Spanish Breadcrumb (2026-09-11)
+
+**Feature:** Fixed the Spanish client report export ("Export HTML (Preview) 2 — Spanish client report") so classes that previously had no CSS rules render with proper styling, the 4-column ranking table aligns its header with its body, the baseline "línea base" gain block no longer renders in green, and the fixed breadcrumb nav reads in Spanish instead of English. Scoped to `src/utils/clientReport/renderClientReport.ts` and `src/utils/exportReportTheme.ts` only. Same design rules: Inter only, black/white/gray, red/green only for indicators.
+
+**`exportReportTheme.ts` — new CSS rules added to BODY_STYLES:**
+- `.cover .site` — the client URL link on the cover now displays as an inline-block with a 14px top margin, 15px size, `var(--ink-soft)` color, and underline.
+- `.btn` / `.btn:hover` / `.btn.accent` / `.btn.accent:hover` — the CTA buttons (used in the paywall, roadmap, and final CTA) now render as inline-blocks with 12px/22px padding, 4px radius, 1px `var(--ink)` border, `var(--white)` background, `var(--ink)` text, 14px/600 weight, no underline, and nowrap. The accent variant inverts to `var(--ink)` background / `var(--white)` text; hover lifts to `var(--paper)` (base) or `#1F2937` (accent).
+- `.findings` — the prioritized-findings section now renders as a 2-column grid (1fr 1fr, 16px gap, 26px top margin).
+- `.finding` — each finding card now has a white background, 1px `var(--line)` border, 4px radius, and 22px/24px padding.
+- `.finding .tag` — the category tag renders as a 10px/700 uppercase chip with `.12em` letter-spacing, `var(--bad)` color, `var(--bad-soft)` background, 3px/8px padding, 2px radius, 10px bottom margin.
+- `.finding h4` / `.finding p` — finding title is 16px/1.35, finding body is 14.5px/1.6 in `var(--ink-soft)`.
+- `.v-body .sec.fade` / `.v-body .sec.fade:after` — faded sections now cap at 160px max-height with overflow hidden, and a 90px white-to-transparent gradient mask at the bottom.
+- `.paywall` / `.paywall .pw-t` / `.paywall .pw-t b` — the paywall bar now renders as a flex row (space-between, center, 20px gap, wrap) with 8px/28px margin, 20px/22px padding, `var(--paper)` background, 1px `var(--line)` border, 4px radius. The text block flexes to fill, min 240px, 14px/1.55 in `var(--ink-soft)`; bold text in `var(--ink)`.
+- `.cta-mini .t` — the roadmap CTA text block now flexes to fill, min 240px, 15px in `var(--ink-soft)`.
+- `.cta` / `.cta .acts` — the final CTA section now has a white background, 1px `var(--line)` border, 4px radius, 36px/34px padding. The actions row is a flex with 12px gap and wrap.
+- `.toc .delta` / `.toc .delta small` / `.toc a.base .delta` / `.toc .name em` — the table-of-contents delta column now renders at 13px/600 in `var(--gain)` (right-aligned, tabular-nums, nowrap); the small sub-text is 12px/400 in `var(--muted)` with a left border separator; the baseline row's delta is `var(--muted)` / 400 weight; the `<em>` inside a TOC name is normal style, 400 weight, `var(--muted)`.
+- `.rank.rank-4 .rank-row` — the 4-column client ranking table uses `34px 1fr 140px 90px` grid columns instead of the 6-column default.
+- `.v-scores .gain.base` — the baseline version's gain block in the version header now renders in `var(--muted)` at 400 weight instead of green.
+- Mobile `@media(max-width:760px)` additions: `.findings` collapses to 1 column; `.rank.rank-4 .rank-row` collapses to `28px 1fr 84px` with `.dl` in column 2 (left-aligned) and `.tot` in column 3 / row 1.
+
+**`renderClientReport.ts`:**
+1. **Ranking wrapper and header:** The ranking `<div class="rank">` now reads `<div class="rank rank-4">` so the 4-column grid override applies. The header row's cells now carry the same classes as the body cells (`pos`, `nm`, `dl`, `tot`) instead of bare `<div>`s, so they align with the body columns.
+2. **Baseline gain block:** The baseline version's gain block in `renderVersion` changed from `class="gain tnum"` to `class="gain base tnum"`, so the new `.v-scores .gain.base` rule renders it in muted gray instead of green.
+3. **Breadcrumb nav in Spanish:** "Jump to:" → "Ir a:", "Inputs" → "Entrada", "Rankings" → "Clasificación".
+
+**Files touched:** `src/utils/clientReport/renderClientReport.ts`, `src/utils/exportReportTheme.ts`.
+
+**Verification:**
+- `npm run build` passes.
+- The client report's findings grid, buttons, paywall, faded sections, CTA, TOC deltas, and 4-column ranking table now render with proper CSS instead of plain text.
+- The baseline "línea base" gain block renders in muted gray, not green.
+- The breadcrumb nav reads "Ir a: Entrada / ... / Clasificación".
 
 ---
 

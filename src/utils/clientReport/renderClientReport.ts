@@ -69,19 +69,19 @@ function isHeadingOnly(text: string): boolean {
 
 function renderBreadcrumbNav(data: ClientReportData): string {
   const items: { href: string; label: string }[] = [
-    { href: '#entrada', label: 'Inputs' },
+    { href: '#entrada', label: 'Entrada' },
   ];
   data.versions
     .filter(v => v.isBaseline || v.isShownInFull)
     .forEach(v => items.push({ href: `#${v.key}`, label: v.displayName || v.key }));
-  items.push({ href: '#ranking', label: 'Rankings' });
+  items.push({ href: '#ranking', label: 'Clasificación' });
 
   const links = items
     .map((item, i) => `${i > 0 ? '<span class="bc-sep">/</span>\n' : ''}<a href="${item.href}">${escapeOnce(item.label)}</a>`)
     .join('\n');
 
   return `<nav class="breadcrumb-nav no-print">
-<span class="bc-label">Jump to:</span>
+<span class="bc-label">Ir a:</span>
 ${links}
 </nav>`;
 }
@@ -343,7 +343,7 @@ ${lbl}${body}
 
   const winTag = v.isWinner ? ` <span class="win">★ Ganadora</span>` : '';
   const gainBlock = v.isBaseline
-    ? `<div class="gain tnum">línea base<small>punto de partida</small></div>`
+    ? `<div class="gain base tnum">línea base<small>punto de partida</small></div>`
     : `<div class="gain tnum">${escapeOnce(signed(v.deltaPoints))} pts<small>${escapeOnce(signed(v.deltaPercent))} % vs. actual</small></div>`;
   const paywall = v.isBaseline ? '' : `      <div class="paywall">
         <div class="pw-t"><b>Estás viendo el ${escapeOnce(v.keptPercent)}&nbsp;% de esta propuesta.</b>
@@ -419,8 +419,8 @@ function renderRanking(data: ClientReportData): string {
     <h2>Clasificación completa</h2>
     <p class="lede">Las ${escapeOnce(totalEvaluated)} propuestas y tu copy actual, evaluadas con el mismo criterio, ordenadas por
        puntuación total.</p>
-    <div class="rank">
-      <div class="rank-row head"><div>#</div><div>Versión</div>
+    <div class="rank rank-4">
+      <div class="rank-row head"><div class="pos">#</div><div class="nm">Versión</div>
         <div class="dl">Mejora</div><div class="tot">Total</div></div>
 ${rows}
     </div>
