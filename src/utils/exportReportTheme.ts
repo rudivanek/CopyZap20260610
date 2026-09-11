@@ -207,6 +207,8 @@ code,pre{font-family:var(--mono)}
 .rank-row{display:grid;grid-template-columns:34px 1fr 90px 90px 120px 90px;gap:14px;align-items:center;padding:18px 22px;border-bottom:1px solid var(--line-soft)}
 .rank-row:last-child{border-bottom:0}
 .rank-row.head{background:var(--paper);padding:12px 22px;font-size:var(--fs-label);font-weight:700;letter-spacing:.11em;text-transform:uppercase;color:var(--muted)}
+.rank-row.head .pos,.rank-row.head .tot,.rank-row.head .dl,.rank-row.head .cell{font-size:var(--fs-label);font-weight:700;color:var(--muted);letter-spacing:.11em}
+.rank-row.head .cell,.rank-row.head .dl,.rank-row.head .tot{text-align:right}
 .rank-row.is-win{background:var(--gain-soft)}
 .rank-row .pos{font-family:var(--serif);font-size:20px;color:var(--muted);font-variant-numeric:tabular-nums}
 .rank-row.is-win .pos{color:var(--gain)}
@@ -219,6 +221,7 @@ code,pre{font-family:var(--mono)}
 .rank-row .dl{font-size:14px;font-weight:600;color:var(--gain);text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}
 .rank-row .dl small{display:inline;font-size:12px;font-weight:400;color:var(--muted);margin-left:6px;padding-left:6px;border-left:1px solid var(--line)}
 .rank-row.base .dl{color:var(--muted);font-weight:400}
+.rank-row.base .dl small,.v-scores .gain.base small{border-left:0;margin-left:0;padding-left:0}
 .methodo{margin-top:16px;font-size:13px;color:var(--muted);line-height:1.6;max-width:74ch}
 .road{overflow:hidden;margin-top:28px;background:var(--white);border:1px solid var(--line);border-radius:4px}
 .road-item{display:flex;gap:20px;padding:22px 26px;border-bottom:1px solid var(--line-soft)}
