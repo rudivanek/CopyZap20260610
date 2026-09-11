@@ -1036,31 +1036,30 @@ export const generateFullHtmlExportForCard = (
 
   // GEO Score block
   if (card.geoScore) {
-    let geoScoreColor = '#dc2626';
-    if (card.geoScore.overall >= 80) geoScoreColor = '#16a34a';
-    else if (card.geoScore.overall >= 60) geoScoreColor = '#111827';
-    else if (card.geoScore.overall >= 50) geoScoreColor = '#d97706';
+    let geoScoreColor = 'var(--bad)';
+    if (card.geoScore.overall >= 80) geoScoreColor = 'var(--gain)';
+    else if (card.geoScore.overall >= 60) geoScoreColor = 'var(--ink)';
 
     html += '<div style="margin-bottom:32px;page-break-inside:avoid;">\n';
-    html += '<p style="font-size:11px;letter-spacing:0.08em;color:#6b7280;text-transform:uppercase;font-weight:600;margin:0 0 4px 0;">GEO SCORE</p>\n';
-    html += `<span style="font-size:32px;font-weight:900;color:${geoScoreColor};">${card.geoScore.overall} <span style="font-size:15px;font-weight:400;color:#9ca3af;">/ 100</span></span>\n`;
-    html += '<div style="border-top:1px solid #e5e7eb;margin:8px 0 16px;"></div>\n';
+    html += '<p style="font-size:11px;letter-spacing:0.08em;color:var(--muted);text-transform:uppercase;font-weight:600;margin:0 0 4px 0;">GEO SCORE</p>\n';
+    html += `<span style="font-size:32px;font-weight:900;color:${geoScoreColor};">${card.geoScore.overall} <span style="font-size:15px;font-weight:400;color:var(--muted);">/ 100</span></span>\n`;
+    html += '<div style="border-top:1px solid var(--line);margin:8px 0 16px;"></div>\n';
 
     if (card.geoScore.breakdown?.length) {
       html += '<table style="width:100%;border-collapse:collapse;font-size:13px;margin-bottom:16px;">\n';
-      html += '<thead><tr style="border-bottom:2px solid #111827;"><th style="text-align:left;padding:6px 8px;color:#6b7280;font-weight:600;">Criterion</th><th style="text-align:center;padding:6px 8px;color:#6b7280;font-weight:600;">Status</th><th style="text-align:right;padding:6px 8px;color:#6b7280;font-weight:600;">Score</th></tr></thead>\n';
+      html += '<thead><tr style="border-bottom:2px solid var(--ink);"><th style="text-align:left;padding:6px 8px;color:var(--muted);font-weight:600;">Criterion</th><th style="text-align:center;padding:6px 8px;color:var(--muted);font-weight:600;">Status</th><th style="text-align:right;padding:6px 8px;color:var(--muted);font-weight:600;">Score</th></tr></thead>\n';
       html += '<tbody>\n';
       card.geoScore.breakdown.forEach((item, i) => {
-        const rowBg = i % 2 === 0 ? '#ffffff' : '#f9fafb';
-        const statusIcon = item.detected ? `<span style="color:#16a34a;">&#10003;</span>` : `<span style="color:#dc2626;">&#10007;</span>`;
-        html += `<tr style="background:${rowBg};border-bottom:1px solid #e5e7eb;"><td style="padding:8px;color:#374151;">${item.criterion}<br><span style="font-size:11px;color:#9ca3af;">${item.explanation}</span></td><td style="padding:8px;text-align:center;">${statusIcon}</td><td style="padding:8px;text-align:right;font-weight:600;color:#111827;">${item.score}</td></tr>\n`;
+        const rowBg = i % 2 === 0 ? 'var(--white)' : 'var(--paper)';
+        const statusIcon = item.detected ? `<span style="color:var(--gain);">&#10003;</span>` : `<span style="color:var(--bad);">&#10007;</span>`;
+        html += `<tr style="background:${rowBg};border-bottom:1px solid var(--line);"><td style="padding:8px;color:var(--ink-soft);">${item.criterion}<br><span style="font-size:11px;color:var(--muted);">${item.explanation}</span></td><td style="padding:8px;text-align:center;">${statusIcon}</td><td style="padding:8px;text-align:right;font-weight:600;color:var(--ink);">${item.score}</td></tr>\n`;
       });
       html += '</tbody></table>\n';
     }
 
     if (card.geoScore.suggestions?.length) {
-      html += '<p style="font-size:11px;letter-spacing:0.08em;color:#6b7280;text-transform:uppercase;font-weight:600;margin:0 0 8px 0;">GEO OPTIMIZATION SUGGESTIONS</p>\n';
-      html += '<ul style="margin:0;padding-left:20px;color:#374151;">\n';
+      html += '<p style="font-size:11px;letter-spacing:0.08em;color:var(--muted);text-transform:uppercase;font-weight:600;margin:0 0 8px 0;">GEO OPTIMIZATION SUGGESTIONS</p>\n';
+      html += '<ul style="margin:0;padding-left:20px;color:var(--ink-soft);">\n';
       card.geoScore.suggestions.forEach(s => { html += `<li style="font-size:13px;line-height:1.6;margin:4px 0;">${s}</li>\n`; });
       html += '</ul>\n';
     }
@@ -1071,15 +1070,15 @@ export const generateFullHtmlExportForCard = (
   if (card.seoMetadata) {
     const renderSeoGroup = (label: string, items: string[], charLimit: number) => {
       if (!items?.length) return '';
-      let out = `<p style="font-size:12px;letter-spacing:0.06em;color:#6b7280;text-transform:uppercase;font-weight:600;margin:12px 0 6px 0;">${label}</p>\n`;
+      let out = `<p style="font-size:12px;letter-spacing:0.06em;color:var(--muted);text-transform:uppercase;font-weight:600;margin:12px 0 6px 0;">${label}</p>\n`;
       items.forEach((item, idx) => {
-        out += `<div style="margin:4px 0;padding:8px 12px;background:#f9fafb;border-radius:4px;"><code style="font-family:'Courier New',monospace;font-size:13px;color:#111827;">${item}</code><span style="color:#9ca3af;font-size:11px;margin-left:8px;">${item.length}/${charLimit} chars</span></div>\n`;
+        out += `<div style="margin:4px 0;padding:8px 12px;background:var(--paper);border-radius:4px;"><code style="font-family:inherit;font-size:13px;color:var(--ink);">${item}</code><span style="color:var(--muted);font-size:11px;margin-left:8px;">${item.length}/${charLimit} chars</span></div>\n`;
       });
       return out;
     };
 
     html += '<div style="margin-bottom:32px;page-break-inside:avoid;">\n';
-    html += '<p style="font-size:11px;letter-spacing:0.08em;color:#6b7280;text-transform:uppercase;font-weight:600;margin:0 0 12px 0;">SEO METADATA</p>\n';
+    html += '<p style="font-size:11px;letter-spacing:0.08em;color:var(--muted);text-transform:uppercase;font-weight:600;margin:0 0 12px 0;">SEO METADATA</p>\n';
     html += renderSeoGroup('URL Slugs', card.seoMetadata.urlSlugs ?? [], 60);
     html += renderSeoGroup('Meta Descriptions', card.seoMetadata.metaDescriptions ?? [], 160);
     html += renderSeoGroup('H1 Variants', card.seoMetadata.h1Variants ?? [], 60);
@@ -1094,7 +1093,7 @@ export const generateFullHtmlExportForCard = (
   if (card.faqSchema && Object.keys(card.faqSchema).length > 0) {
     html += '<div style="margin-bottom:32px;page-break-inside:avoid;">\n';
     html += '<p style="font-size:11px;letter-spacing:0.08em;color:#6b7280;text-transform:uppercase;font-weight:600;margin:0 0 8px 0;">FAQ SCHEMA (JSON-LD)</p>\n';
-    html += `<pre style="background:#f9fafb;border:1px solid #e5e7eb;padding:16px;border-radius:6px;overflow-x:auto;font-size:12px;font-family:'Courier New',monospace;color:#374151;"><code>${JSON.stringify(card.faqSchema, null, 2).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>\n`;
+    html += `<pre style="background:var(--paper);border:1px solid var(--line);padding:16px;border-radius:6px;overflow-x:auto;font-size:12px;font-family:inherit;color:var(--ink-soft);"><code>${JSON.stringify(card.faqSchema, null, 2).replace(/</g, '&lt;').replace(/>/g, '&gt;')}</code></pre>\n`;
     html += '</div>\n';
   }
 
@@ -1994,8 +1993,8 @@ export const generateAllVersionsBreakdownHtml = (
 
       // VERIFICATION FLAGS: Claims that need human review before publishing
       if (row.verificationFlags && row.verificationFlags.length > 0) {
-        html += '<div style="margin:16px 0;padding:12px 16px;background:#fef3c7;border-left:3px solid #fbbf24;border-radius:6px;">\n';
-        html += '<p style="margin:0 0 8px 0;font-size:12px;font-weight:700;color:#92400e;text-transform:uppercase;letter-spacing:0.025em;">Verification required before publishing</p>\n';
+        html += '<div style="margin:16px 0;padding:12px 16px;background:var(--warn-soft);border-left:3px solid var(--warn);border-radius:6px;">\n';
+        html += '<p style="margin:0 0 8px 0;font-size:12px;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:0.025em;">Verification required before publishing</p>\n';
         html += '<ul style="margin:0;padding:0;list-style:none;">\n';
         row.verificationFlags.forEach(flag => {
           const escapedFlag = String(flag).replace(/</g, '&lt;').replace(/>/g, '&gt;');
