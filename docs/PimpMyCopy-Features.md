@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.37
-Last Updated: 2026-09-11T00:00:00Z
+Version: 1.38
+Last Updated: 2026-09-11T12:00:00Z
 
 ---
 
@@ -14,6 +14,26 @@ Last Updated: 2026-09-11T00:00:00Z
 **Verification:**
 - `npm run build` passes.
 - The footer reads `CopyZap 49.1` with the same size and color as before.
+
+---
+
+## HTML Report Export — No Score Coloring in Copy Text, Black Preview Banner, Stacked Bottom CTA (2026-09-11)
+
+**Feature:** Three small fixes to the HTML report export (`Export HTML` and `Export HTML Preview`), scoped to `src/utils/copyFormatter.ts` and `src/utils/enhancedExports.ts` only. No changes to scoring, generation, or app UI.
+
+1. **Numbers in normal copy are no longer color-coded in the export path.** `markdownToHtml`'s "color-code any scores in the paragraph text" step was matching every number 0–100 in ordinary copy and wrapping it in a green/amber/red span — so a line like "Más de 90 empresas en 20 países" rendered with `90` in green and `20` in red, as if they were scores. The same coloring ran in four other places inside `markdownToHtml` (markdown-table headers, markdown-table body cells, the legacy table-regex headers, and the legacy table-regex body cells). All five coloring blocks now check the `inline` flag: when `options.inlineStyles === false` (the export path), they are skipped entirely and numbers stay plain text. The in-app callers (`FormattedContent.tsx` and friends), which use the default `inline === true`, keep the existing coloring behavior unchanged.
+
+2. **Preview banner background changed from `#111827` to `#000000`.** The preview banner at the top of a partial export read `background:#111827` (a dark navy), which sat oddly against the black/white/gray design system the rest of the export now uses. It now reads `background:#000000` — pure black — matching the strict palette.
+
+3. **Bottom CTA stacks vertically instead of a misaligned flex row.** The `.cta-mini` block ("¿Quieres más variaciones…") uses `display:flex` from the stylesheet, which put the "Back to top" button on the same row as the heading and sub-text and misaligned it. The block's inline style now adds `flex-direction:column;align-items:center;gap:6px` so the heading, the generated-versions note, and the button stack vertically and center, while keeping the existing `text-align:center`.
+
+**Files touched:** `src/utils/copyFormatter.ts`, `src/utils/enhancedExports.ts`.
+
+**Verification:**
+- `npm run build` passes.
+- In the export path, numbers inside copy text render as plain text (no green/amber/red spans); in-app rendering is unchanged.
+- The preview banner is pure black.
+- The bottom CTA's heading, note, and button stack vertically and center.
 
 ---
 

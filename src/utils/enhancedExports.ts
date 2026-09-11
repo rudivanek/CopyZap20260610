@@ -2938,7 +2938,7 @@ export const exportAsFormattedHtml = (
 ${buildReportStyles(resolvedTheme)}  </style>
 </head>
 <body id="top">
-${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:center;padding:8px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;">${t.previewBanner(previewPercent)}</div>\n` : ''}
+${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:center;padding:8px;font-size:12px;letter-spacing:0.08em;text-transform:uppercase;font-weight:600;">${t.previewBanner(previewPercent)}</div>\n` : ''}
 `;
 
     // ── DOCUMENT HEADER (cover) ─────────────────────────────────────────────────
@@ -3356,7 +3356,7 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
     const generatedCount = contentCards.length;
     if (generatedCount > 0) {
       htmlContent += '<div class="wrap">\n';
-      htmlContent += '<div class="cta-mini" style="text-align: center; padding: 32px; background: var(--white); border: 1px solid var(--line); border-radius: 8px; margin-top: 56px;">\n';
+      htmlContent += '<div class="cta-mini" style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align: center; padding: 32px; background: var(--white); border: 1px solid var(--line); border-radius: 8px; margin-top: 56px;">\n';
       htmlContent += `<p style="margin: 0 0 6px 0; font-size: 16px; font-weight: 700; color: var(--ink);">${t.wantMoreVariations}</p>\n`;
       htmlContent += `<p style="margin: 0 0 20px 0; font-size: 14px; color: var(--muted);">${t.generatedVersionsNote(generatedCount)}</p>\n`;
       htmlContent += `<a href="#top" style="display: inline-block; padding: 10px 20px; background: var(--ink); color: var(--white); border-radius: 6px; font-size: 14px; font-weight: 600; text-decoration: none;">&#8593; ${t.backToTop}</a>\n`;

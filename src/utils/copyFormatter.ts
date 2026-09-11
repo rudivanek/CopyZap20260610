@@ -16,7 +16,7 @@ const getScoreColorForHtml = (score: number): string => {
 /**
  * Helper function to convert an array of markdown table lines to HTML table
  */
-const convertMarkdownTableToHtml = (lines: string[]): string => {
+const convertMarkdownTableToHtml = (lines: string[], inline: boolean = true): string => {
   if (lines.length < 3) return lines.join('\n'); // Need header, separator, and at least one row
 
   // Find separator line (contains only |, -, :, and whitespace)
@@ -61,17 +61,19 @@ const convertMarkdownTableToHtml = (lines: string[]): string => {
   if (headers.length > 0) {
     tableHtml += '  <thead>\n    <tr style="background: #f3f4f6;">\n';
     headers.forEach(header => {
-      // Color-code scores in headers
+      // Color-code scores in headers (in-app only; export path leaves numbers plain)
       let styledHeader = header;
-      const scorePattern = /(\d{1,3})/g;
-      styledHeader = styledHeader.replace(scorePattern, (match) => {
-        const score = parseInt(match);
-        if (score >= 0 && score <= 100) {
-          const color = getScoreColorForHtml(score);
-          return `<span style="color: ${color}; font-weight: 700;">${match}</span>`;
-        }
-        return match;
-      });
+      if (inline) {
+        const scorePattern = /(\d{1,3})/g;
+        styledHeader = styledHeader.replace(scorePattern, (match) => {
+          const score = parseInt(match);
+          if (score >= 0 && score <= 100) {
+            const color = getScoreColorForHtml(score);
+            return `<span style="color: ${color}; font-weight: 700;">${match}</span>`;
+          }
+          return match;
+        });
+      }
       tableHtml += `      <th style="border: 2px solid #111827; padding: 12px; text-align: left; font-size: 14px; font-weight: 700; color: #111827;">${styledHeader}</th>\n`;
     });
     tableHtml += '    </tr>\n  </thead>\n';
@@ -86,19 +88,21 @@ const convertMarkdownTableToHtml = (lines: string[]): string => {
       cells.forEach((cell, cellIdx) => {
         const fontWeight = cellIdx === 0 ? 'font-weight: 600;' : '';
 
-        // Color-code scores
+        // Color-code scores (in-app only; export path leaves numbers plain)
         let styledCell = cell;
-        const scorePattern = /(\d{1,3})\s*(?:\(([A-Z]+)\))?/g;
-        styledCell = styledCell.replace(scorePattern, (match, score, label) => {
-          const scoreNum = parseInt(score);
-          if (scoreNum >= 0 && scoreNum <= 100) {
-            const color = getScoreColorForHtml(scoreNum);
-            return label
-              ? `<span style="color: ${color}; font-weight: 600;">${score}</span> <span style="color: #6b7280;">(${label})</span>`
-              : `<span style="color: ${color}; font-weight: 600;">${match}</span>`;
-          }
-          return match;
-        });
+        if (inline) {
+          const scorePattern = /(\d{1,3})\s*(?:\(([A-Z]+)\))?/g;
+          styledCell = styledCell.replace(scorePattern, (match, score, label) => {
+            const scoreNum = parseInt(score);
+            if (scoreNum >= 0 && scoreNum <= 100) {
+              const color = getScoreColorForHtml(scoreNum);
+              return label
+                ? `<span style="color: ${color}; font-weight: 600;">${score}</span> <span style="color: #6b7280;">(${label})</span>`
+                : `<span style="color: ${color}; font-weight: 600;">${match}</span>`;
+            }
+            return match;
+          });
+        }
 
         tableHtml += `      <td style="border: 1px solid #111827; padding: 12px; font-size: 14px; ${fontWeight}">${styledCell}</td>\n`;
       });
@@ -154,7 +158,7 @@ export const markdownToHtml = (markdownText: string, options?: { inlineStyles?: 
       // Not a table row - if we were collecting table lines, process them now
       if (inTable && tableLines.length >= 3) {
         // Convert the collected table
-        processedHtml += convertMarkdownTableToHtml(tableLines) + '\n';
+        processedHtml += convertMarkdownTableToHtml(tableLines, inline) + '\n';
         tableLines = [];
         inTable = false;
       } else if (inTable) {
@@ -220,17 +224,19 @@ export const markdownToHtml = (markdownText: string, options?: { inlineStyles?: 
     if (headers.length > 0) {
       tableHtml += '  <thead>\n    <tr style="background: #f3f4f6;">\n';
       headers.forEach(header => {
-        // Color-code scores in headers too
+        // Color-code scores in headers too (in-app only; export path leaves numbers plain)
         let styledHeader = header;
-        const scorePattern = /(\d{1,3})/g;
-        styledHeader = styledHeader.replace(scorePattern, (match) => {
-          const score = parseInt(match);
-          if (score >= 0 && score <= 100) {
-            const color = getScoreColorForHtml(score);
-            return `<span style="color: ${color}; font-weight: 700;">${match}</span>`;
-          }
-          return match;
-        });
+        if (inline) {
+          const scorePattern = /(\d{1,3})/g;
+          styledHeader = styledHeader.replace(scorePattern, (match) => {
+            const score = parseInt(match);
+            if (score >= 0 && score <= 100) {
+              const color = getScoreColorForHtml(score);
+              return `<span style="color: ${color}; font-weight: 700;">${match}</span>`;
+            }
+            return match;
+          });
+        }
         tableHtml += `      <th style="border: 2px solid #111827; padding: 12px; text-align: left; font-size: 14px; font-weight: 700; color: #111827;">${styledHeader}</th>\n`;
       });
       tableHtml += '    </tr>\n  </thead>\n';
@@ -246,19 +252,21 @@ export const markdownToHtml = (markdownText: string, options?: { inlineStyles?: 
           // First column gets bold styling
           const fontWeight = cellIdx === 0 ? 'font-weight: 600;' : '';
 
-          // Color-code any scores in the cell
+          // Color-code any scores in the cell (in-app only; export path leaves numbers plain)
           let styledCell = cell;
-          const scorePattern = /(\d{1,3})\s*(?:\(([A-Z]+)\))?/g;
-          styledCell = styledCell.replace(scorePattern, (match, score, label) => {
-            const scoreNum = parseInt(score);
-            if (scoreNum >= 0 && scoreNum <= 100) {
-              const color = getScoreColorForHtml(scoreNum);
-              return label
-                ? `<span style="color: ${color}; font-weight: 600;">${score}</span> <span style="color: #6b7280;">(${label})</span>`
-                : `<span style="color: ${color}; font-weight: 600;">${match}</span>`;
-            }
-            return match;
-          });
+          if (inline) {
+            const scorePattern = /(\d{1,3})\s*(?:\(([A-Z]+)\))?/g;
+            styledCell = styledCell.replace(scorePattern, (match, score, label) => {
+              const scoreNum = parseInt(score);
+              if (scoreNum >= 0 && scoreNum <= 100) {
+                const color = getScoreColorForHtml(scoreNum);
+                return label
+                  ? `<span style="color: ${color}; font-weight: 600;">${score}</span> <span style="color: #6b7280;">(${label})</span>`
+                  : `<span style="color: ${color}; font-weight: 600;">${match}</span>`;
+              }
+              return match;
+            });
+          }
 
           tableHtml += `      <td style="border: 1px solid #111827; padding: 12px; font-size: 14px; ${fontWeight}">${styledCell}</td>\n`;
         });
@@ -390,19 +398,21 @@ export const markdownToHtml = (markdownText: string, options?: { inlineStyles?: 
     // Handle multi-line content within a paragraph
     const paragraphContent = trimmed.replace(/\n/g, '<br>');
 
-    // Color-code any scores in the paragraph text
+    // Color-code any scores in the paragraph text (in-app only; export path leaves numbers plain)
     let styledContent = paragraphContent;
-    const scorePattern = /(\d{1,3})(?:\s*\/\s*100|\s*\(([A-Z]+)\))?/g;
-    styledContent = styledContent.replace(scorePattern, (match, score, label) => {
-      const scoreNum = parseInt(score);
-      if (scoreNum >= 0 && scoreNum <= 100 && !match.includes(':')) {
-        const color = getScoreColorForHtml(scoreNum);
-        return label
-          ? `<span style="color: ${color}; font-weight: 600;">${score}</span> <span style="color: #6b7280;">(${label})</span>`
-          : `<span style="color: ${color}; font-weight: 600;">${match}</span>`;
-      }
-      return match;
-    });
+    if (inline) {
+      const scorePattern = /(\d{1,3})(?:\s*\/\s*100|\s*\(([A-Z]+)\))?/g;
+      styledContent = styledContent.replace(scorePattern, (match, score, label) => {
+        const scoreNum = parseInt(score);
+        if (scoreNum >= 0 && scoreNum <= 100 && !match.includes(':')) {
+          const color = getScoreColorForHtml(scoreNum);
+          return label
+            ? `<span style="color: ${color}; font-weight: 600;">${score}</span> <span style="color: #6b7280;">(${label})</span>`
+            : `<span style="color: ${color}; font-weight: 600;">${match}</span>`;
+        }
+        return match;
+      });
+    }
 
     return inline
       ? `<p style="color: #374151; line-height: 1.6; margin: 8px 0;">${styledContent}</p>`
