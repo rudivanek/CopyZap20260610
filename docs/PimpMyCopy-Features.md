@@ -1,7 +1,49 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.35
-Last Updated: 2026-08-12T00:00:00Z
+Version: 1.36
+Last Updated: 2026-09-11T00:00:00Z
+
+---
+
+## HTML Report Export — Inter-Only, Black/White/Gray, Aligned Margins, Markdown Input Summary (2026-09-11)
+
+**Feature:** Restyled the HTML report export to a strict black/white/gray design system with Inter as the single font everywhere (headings, body, scores, labels, index numbers, code), red/green reserved only for indicators (score deltas, "Ganador" badge, winner score, strengths, improvements/risk factors, roadmap "+3" chips), and the cover and footer moved off dark navy to light gray with black text. Also fixed scrambled parts of the export: a stray dash before the URL in the title/h1, raw markdown (`#`, `**bold`, `- +`) leaking into the input summary, ranking rows wrapping onto two lines with misaligned columns, the bottom CTA and footer using hardcoded hex, version cards running edge-to-edge instead of sharing the 940px centered margin, and a "Reset saved to default" path so a previously-saved admin theme (Cormorant Garamond, Roboto, orange/purple) no longer overrides the new defaults.
+
+**Files touched (only export/theme):** `src/utils/exportReportTheme.ts`, `src/utils/enhancedExports.ts`, `src/components/admin/ReportThemeEditor.tsx`. No changes to scoring, generation, or app UI.
+
+**`exportReportTheme.ts`:**
+- `DEFAULT_THEME_VARS` rewritten: ink `#000000`, inkSoft `#1F2937`, muted `#6B7280`, line `#D1D5DB`, lineSoft `#E5E7EB`, paper `#F3F4F6`, white `#FFFFFF`, accent `#111111`, accentSoft `#F3F4F6`, gain `#15803D`, gainSoft `#DCFCE7`, warn `#B91C1C`, warnSoft `#FEF2F2`, serif and sans both `"Inter",system-ui,sans-serif`.
+- `MONO_STACK` set to `"Inter",system-ui,sans-serif` so code blocks also render in Inter.
+- `rootVars` gained `--bad:#B91C1C` and `--bad-soft:#FEE2E2`. `.split .neg h5` and `.split .neg li:before` use `var(--bad)`; `.stop.goal .num` uses `var(--gain)`.
+- `.cover` and its children (`.brandbar`, `.logo`, `.powered`, `.cover h1`, `.cover .stamp`, `.journey`, `.journey-head`, `.stop .num/.lbl`, `.rail`, `.rail i`, `.journey-foot`) switched from `rgba(255,255,255,…)` text/borders on a dark background to `var(--ink)`/`var(--muted)`/`var(--line)` on `var(--paper)`. `.journey` background is now `var(--white)` with a `var(--line)` border. `.logo span` and `.cover .kicker` use `var(--ink)`. `.rail` gradient is `var(--line)→var(--gain)`; `.rail i.b` is `var(--gain)`.
+- `footer`: background `var(--paper)`, color `var(--muted)`, `border-top: 1px solid var(--line)`, `footer strong` `var(--ink)`, `.disclaimer` `var(--muted)`.
+- `.cta-mini` border changed from `#F2D3CC` to `var(--line)`.
+- `body` gained `padding-bottom:56px` so the fixed breadcrumb bar never covers content.
+- `h1` gained `overflow-wrap:anywhere` for long URLs.
+- `.road-item .pts` rule completed (it was previously cut off after `font-variant-numeric:`, which broke `.road-item .txt`).
+- Added missing `.road-total` styles (the classes existed in HTML but had no CSS): flex row, `border-top: 1px solid var(--line)`, `background: var(--paper)`, `.lb` in `var(--ink-soft)`, `.vv` in `var(--gain)` with tabular-nums and a `small` in `var(--muted)`.
+- Rankings grid fixed: `.rank-row` grid is now `34px 1fr 90px 90px 90px 90px` (six columns for the six children: pos, nm, cell, cell, dl, tot) instead of four columns that wrapped every row onto two lines. `.rank-row .cell` gets `text-align:right; font-variant-numeric:tabular-nums; font-size:15px`. Mobile (`@media max-width:760px`) collapses to `28px 1fr 64px 64px` and hides the `.cell` columns.
+- `getGoogleFontLinkTag` now loads only Inter regardless of the passed stacks (the params are kept for signature compatibility but ignored).
+
+**`enhancedExports.ts`:**
+- Title (`<title>`) and `<h1>` strip a leading dash/space/em-dash from `projectDescription` via `.replace(/^[\s\-–—]+/, '')` so the report no longer opens with "-https://salesboostconsulting.com.mx/".
+- Input summary (`sourceText`) now renders through `markdownToHtml(sourceText, { inlineStyles: false })` instead of `renderTextAsParagraphs`, so raw `#`, `##`, `###`, `**bold**`, and `- +` are converted to styled HTML instead of printing verbatim. The `md-h1/h2/h3/p/ul/li` styles are now scoped to also apply inside `.preview-box` and `.v-body .sec`.
+- Verification flags: `li` color changed from `#78350f` to `var(--ink-soft)`; heading keeps `var(--warn)`; background stays `var(--warn-soft)`.
+- Risk factors: background changed from `var(--accent-soft)` (now gray) to `var(--bad-soft)`; heading color from `var(--accent)` to `var(--bad)`; `li` color from `#7f1d1d` to `var(--bad)`.
+- Line ~2001 (a separate verification-flag block in the comparison-card renderer): `#78350f` → `var(--ink-soft)`.
+- Version card score color: removed the orange `#d97706` and `#111827` steps. New rule: score ≥ 80 → `var(--gain)`, < 60 → `var(--bad)`, otherwise `var(--ink)`.
+- "MEJORAS SUGERIDAS · — POTENCIAL +9 PTS" double punctuation fixed: the ` &middot; ` before `potentialPts` was removed (potentialPts already starts with " — ").
+- Bottom CTA and footer: replaced hardcoded `#f9fafb`/`#e5e7eb`/`#111827`/`#6b7280`/`#9ca3af` with `var(--white)`/`var(--line)`/`var(--ink)`/`var(--muted)`. The CTA is now wrapped in a `<div class="wrap">` so it shares the 940px centered margin.
+- Each version `<section class="version">` is now wrapped in a `<div class="wrap">…</div>` (opened right before the section, closed right after) so the version cards share the same left/right edge as every other section instead of running edge-to-edge. The trailing `<hr>` border color changed from `#e5e7eb` to `var(--line)`.
+
+**`ReportThemeEditor.tsx`:**
+- `SERIF_PRESETS` and `SANS_PRESETS` restricted to a single Inter entry each, so the admin can no longer pick Cormorant Garamond, Roboto, or other fonts that would override the Inter-only design.
+- `PRESETS` collapsed to the single "Inter / Black & White (default)" entry (the Cool Slate, Forest & Cream, and Midnight Blue presets that carried non-compliant colors and serif fonts were removed).
+- Added a "Reset saved to default" button alongside the existing "Reset local" button. The existing button was relabeled "Reset local" to disambiguate. The new button calls `saveTheme(DEFAULT_THEME_VARS)` so a previously-saved theme that carried the old colors/fonts is overwritten with the new defaults and applies to all future exports — this is the path that clears the Cormorant Garamond / Roboto / `#e86354` / purple `#aa0ea5` / gray `#9d9b95` overrides the user was seeing.
+
+**Verification:**
+- `npm run build` passes.
+- Only Inter loads from Google Fonts; no navy/orange/purple/brown; red/green only on indicators; no raw `#` or `**` in the input summary; each ranking row is one line aligned with its header; no dash before the URL; version cards and the bottom CTA share the same 940px centered margin as the rest of the report.
 
 ---
 

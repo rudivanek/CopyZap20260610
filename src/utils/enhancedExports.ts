@@ -852,12 +852,12 @@ export const generateFullHtmlExportForCard = (
 
   // Score color
   const scoreVal = card.score?.overall ?? 0;
-  let scoreColor = '#dc2626';
-  if (scoreVal >= 90) scoreColor = '#16a34a';
-  else if (scoreVal >= 80) scoreColor = '#111827';
-  else if (scoreVal >= 70) scoreColor = '#d97706';
+  let scoreColor = 'var(--bad)';
+  if (scoreVal >= 80) scoreColor = 'var(--gain)';
+  else if (scoreVal >= 60) scoreColor = 'var(--ink)';
 
   // Section with page-break-before for print
+  html += `<div class="wrap">\n`;
   html += `<section id="output-${card.id}" data-copy-id="${card.id}" data-copy-kind="${copyKind}" data-copy-label="${escapeHtml(copyLabel)}" class="version" style="page-break-before: always; margin-bottom: 0; padding:0;">\n`;
 
   // Compute delta vs baseline (original copy) if available
@@ -1099,7 +1099,8 @@ export const generateFullHtmlExportForCard = (
   }
 
   html += '</section>\n';
-  html += '<hr style="border:none;border-top:1px solid #e5e7eb;margin:56px 0;">\n';
+  html += '</div>\n';
+  html += '<hr style="border:none;border-top:1px solid var(--line);margin:56px 0;">\n';
 
   return html;
 };
@@ -1998,7 +1999,7 @@ export const generateAllVersionsBreakdownHtml = (
         html += '<ul style="margin:0;padding:0;list-style:none;">\n';
         row.verificationFlags.forEach(flag => {
           const escapedFlag = String(flag).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-          html += '<li style="display:flex;align-items:start;gap:8px;margin-bottom:6px;font-size:13px;color:#78350f;line-height:1.5;">\n';
+          html += '<li style="display:flex;align-items:start;gap:8px;margin-bottom:6px;font-size:13px;color:var(--ink-soft);line-height:1.5;">\n';
           html += '<span style="flex-shrink:0;margin-top:2px;">•</span>\n';
           html += '<span>' + escapedFlag + '</span>\n';
           html += '</li>\n';
@@ -2926,7 +2927,7 @@ export const exportAsFormattedHtml = (
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Copy Report — ${escapeHtml(formState.projectDescription || 'CopyZap')}</title>
+  <title>Copy Report — ${escapeHtml((formState.projectDescription || 'CopyZap').replace(/^[\s\-–—]+/, ''))}</title>
   ${getGoogleFontLinkTag(resolvedTheme?.serif ?? DEFAULT_THEME_VARS.serif, resolvedTheme?.sans ?? DEFAULT_THEME_VARS.sans)}
   <style>
 ${buildReportStyles(resolvedTheme)}  </style>
@@ -2965,7 +2966,7 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
     htmlContent += '<div class="powered">' + t.copyReportLabel + '</div>\n';
     htmlContent += '</div>\n';
     htmlContent += `<div class="kicker">${t.copyReportLabel}</div>\n`;
-    htmlContent += `<h1>${escapeHtml(formState.projectDescription || 'Untitled Project')}</h1>\n`;
+    htmlContent += `<h1>${escapeHtml((formState.projectDescription || 'Untitled Project').replace(/^[\s\-–—]+/, ''))}</h1>\n`;
     htmlContent += `<div class="stamp">${t.generatedLabel}: ${formatExportTimestamp()} &nbsp;&middot;&nbsp; ${totalVariants} ${totalVariants !== 1 ? t.variantsEvaluated : t.variantEvaluated} &nbsp;&middot;&nbsp; ${t.languageLabel}: ${lang}</div>\n`;
 
     if (baselineScore !== null || winnerScore !== null) {
@@ -3052,7 +3053,7 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
     if (sourceText) {
       htmlContent += '<div class="preview-box">\n';
       htmlContent += `<div class="sec-lbl">${escapeHtml(sourceLabel)}</div>\n`;
-      htmlContent += `<div class="preview-text">${renderTextAsParagraphs(sourceText, 'margin:0 0 11px 0;line-height:1.6;')}</div>\n`;
+      htmlContent += `<div class="preview-text">${markdownToHtml(sourceText, { inlineStyles: false })}</div>\n`;
       htmlContent += '</div>\n';
     }
 
@@ -3255,19 +3256,19 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
             row.verificationFlags.forEach((flag: string) => {
               const translatedFlag = translateVerificationFlag(flag, exportLangCode);
               const ef = String(translatedFlag).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-              htmlContent += `<li style="font-size:11px;color:#78350f;line-height:1.5;margin-bottom:2px;">&bull; "${ef}" &mdash; ${t.sourceUnknown}</li>\n`;
+              htmlContent += `<li style="font-size:11px;color:var(--ink-soft);line-height:1.5;margin-bottom:2px;">&bull; "${ef}" &mdash; ${t.sourceUnknown}</li>\n`;
             });
             htmlContent += '</ul>\n</div>\n';
           }
 
           const htmlRisks = htmlContentStr ? computeRiskFactors(htmlContentStr, row.verificationFlags) : [];
           if (htmlRisks.length > 0) {
-            htmlContent += '<div class="rank-row" style="display:block;padding:10px 22px 12px 70px;background:var(--accent-soft);border-bottom:1px solid var(--line-soft);">\n';
-            htmlContent += `<p style="margin:0 0 4px 0;font-size:10px;font-weight:700;color:var(--accent);text-transform:uppercase;letter-spacing:.05em;">${t.riskFactorsLabel}</p>\n`;
+            htmlContent += '<div class="rank-row" style="display:block;padding:10px 22px 12px 70px;background:var(--bad-soft);border-bottom:1px solid var(--line-soft);">\n';
+            htmlContent += `<p style="margin:0 0 4px 0;font-size:10px;font-weight:700;color:var(--bad);text-transform:uppercase;letter-spacing:.05em;">${t.riskFactorsLabel}</p>\n`;
             htmlContent += '<ul style="margin:0;padding:0;list-style:none;">\n';
             htmlRisks.forEach(r => {
               const er = String(r).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-              htmlContent += `<li style="font-size:11px;color:#7f1d1d;line-height:1.5;margin-bottom:2px;">&bull; ${er}</li>\n`;
+              htmlContent += `<li style="font-size:11px;color:var(--bad);line-height:1.5;margin-bottom:2px;">&bull; ${er}</li>\n`;
             });
             htmlContent += '</ul>\n</div>\n';
           }
@@ -3300,7 +3301,7 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
                 .filter((item: any) => typeof item === 'object' && item.points_delta > 0)
                 .reduce((sum: number, item: any) => sum + item.points_delta, 0);
 
-              htmlContent += `<p class="eyebrow accent" style="margin-top:20px;">${t.suggestedImprovementsLabel}${winnerDeltaTotal > 0 ? ` &middot; ${t.potentialPts(winnerDeltaTotal)}` : ''}</p>\n`;
+              htmlContent += `<p class="eyebrow accent" style="margin-top:20px;">${t.suggestedImprovementsLabel}${winnerDeltaTotal > 0 ? ` ${t.potentialPts(winnerDeltaTotal)}` : ''}</p>\n`;
               htmlContent += '<div class="road">\n';
               winnerAnalysis.suggestedImprovements.forEach((item: any) => {
                 const isObj = typeof item === 'object';
@@ -3349,15 +3350,17 @@ ${previewPercent ? `<div style="background:#111827;color:#ffffff;text-align:cent
     // BOTTOM CTA BLOCK
     const generatedCount = contentCards.length;
     if (generatedCount > 0) {
-      htmlContent += '<div style="text-align: center; padding: 32px; background: #f9fafb; border: 1px solid #e5e7eb; border-radius: 8px; margin-top: 56px;">\n';
-      htmlContent += `<p style="margin: 0 0 6px 0; font-size: 16px; font-weight: 700; color: #111827;">${t.wantMoreVariations}</p>\n`;
-      htmlContent += `<p style="margin: 0 0 20px 0; font-size: 14px; color: #6b7280;">${t.generatedVersionsNote(generatedCount)}</p>\n`;
-      htmlContent += `<a href="#top" style="display: inline-block; padding: 10px 20px; background: #111827; color: #ffffff; border-radius: 6px; font-size: 14px; font-weight: 600; text-decoration: none;">&#8593; ${t.backToTop}</a>\n`;
+      htmlContent += '<div class="wrap">\n';
+      htmlContent += '<div class="cta-mini" style="text-align: center; padding: 32px; background: var(--white); border: 1px solid var(--line); border-radius: 8px; margin-top: 56px;">\n';
+      htmlContent += `<p style="margin: 0 0 6px 0; font-size: 16px; font-weight: 700; color: var(--ink);">${t.wantMoreVariations}</p>\n`;
+      htmlContent += `<p style="margin: 0 0 20px 0; font-size: 14px; color: var(--muted);">${t.generatedVersionsNote(generatedCount)}</p>\n`;
+      htmlContent += `<a href="#top" style="display: inline-block; padding: 10px 20px; background: var(--ink); color: var(--white); border-radius: 6px; font-size: 14px; font-weight: 600; text-decoration: none;">&#8593; ${t.backToTop}</a>\n`;
+      htmlContent += '</div>\n';
       htmlContent += '</div>\n\n';
     }
 
     // FOOTER
-    htmlContent += `<footer style="margin-top: 48px; padding-top: 24px; border-top: 1px solid #e5e7eb; text-align: center; font-size: 12px; color: #9ca3af; padding-bottom: 56px;">
+    htmlContent += `<footer style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); text-align: center; font-size: 12px; color: var(--muted); padding-bottom: 56px;">
   ${t.generatedBy} &mdash; ${formatExportTimestamp()}
 </footer>\n`;
 

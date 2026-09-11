@@ -23,24 +23,11 @@ const COLOR_VARS: { key: keyof ThemeVars; label: string }[] = [
 ];
 
 const SERIF_PRESETS: { label: string; value: string }[] = [
-  { label: 'Iowan / Palatino / Georgia (default)', value: '"Iowan Old Style","Palatino Linotype",Palatino,Georgia,"Times New Roman",serif' },
-  { label: 'Georgia', value: 'Georgia,"Times New Roman",serif' },
-  { label: 'Times New Roman', value: '"Times New Roman",Times,serif' },
-  { label: 'Playfair Display', value: '"Playfair Display",Georgia,serif' },
-  { label: 'DM Serif Display', value: '"DM Serif Display",Georgia,serif' },
-  { label: 'Lora', value: 'Lora,Georgia,serif' },
-  { label: 'Merriweather', value: 'Merriweather,Georgia,serif' },
-  { label: 'Cormorant Garamond', value: '"Cormorant Garamond",Georgia,serif' },
+  { label: 'Inter (default)', value: '"Inter",system-ui,sans-serif' },
 ];
 
 const SANS_PRESETS: { label: string; value: string }[] = [
-  { label: 'System / Inter (default)', value: '-apple-system,BlinkMacSystemFont,"Segoe UI",Inter,Roboto,"Helvetica Neue",Arial,sans-serif' },
-  { label: 'Helvetica', value: 'Helvetica,Arial,sans-serif' },
-  { label: 'Segoe UI', value: '"Segoe UI",Tahoma,Geneva,sans-serif' },
-  { label: 'Roboto', value: 'Roboto,Arial,sans-serif' },
-  { label: 'Work Sans', value: '"Work Sans",Arial,sans-serif' },
-  { label: 'Source Sans 3', value: '"Source Sans 3",Arial,sans-serif' },
-  { label: 'Manrope', value: 'Manrope,Arial,sans-serif' },
+  { label: 'Inter (default)', value: '"Inter",system-ui,sans-serif' },
 ];
 
 const WEIGHTS: { label: string; value: number }[] = [
@@ -63,34 +50,7 @@ const SIZE_TOKENS: { key: keyof ThemeVars; label: string; min: number; max: numb
 ];
 
 const PRESETS: { name: string; vars: Partial<ThemeVars> }[] = [
-  { name: 'Warm Paper (current)', vars: DEFAULT_THEME_VARS },
-  {
-    name: 'Cool Slate',
-    vars: {
-      ink: '#1A1E27', inkSoft: '#3D4456', muted: '#7A8195', line: '#DCE1E8', lineSoft: '#EAEDF2',
-      paper: '#F3F5F8', white: '#FFFFFF', accent: '#2C5EF6', accentSoft: '#E6ECFE',
-      gain: '#0E8F6C', gainSoft: '#E1F5EE', warn: '#B4780A', warnSoft: '#FCEFD9',
-      serif: 'Georgia,"Times New Roman",serif',
-    },
-  },
-  {
-    name: 'Forest & Cream',
-    vars: {
-      ink: '#1C2318', inkSoft: '#3B4632', muted: '#7B8570', line: '#DCE0CE', lineSoft: '#EAEDE2',
-      paper: '#F6F5EC', white: '#FFFDF6', accent: '#7A5C2E', accentSoft: '#EFE6D3',
-      gain: '#2F6B3B', gainSoft: '#E5F0E4', warn: '#96631A', warnSoft: '#F6E9D2',
-      serif: '"Playfair Display",Georgia,serif',
-    },
-  },
-  {
-    name: 'Midnight Blue',
-    vars: {
-      ink: '#0B1220', inkSoft: '#2C3A52', muted: '#6E7C93', line: '#D9DEE7', lineSoft: '#EBEEF3',
-      paper: '#F2F4F8', white: '#FFFFFF', accent: '#C9A227', accentSoft: '#FBF3DA',
-      gain: '#146356', gainSoft: '#E1EFEC', warn: '#A8720E', warnSoft: '#FBF0DA',
-      serif: '"Times New Roman",Times,serif',
-    },
-  },
+  { name: 'Inter / Black & White (default)', vars: DEFAULT_THEME_VARS },
 ];
 
 function isColorKey(key: keyof ThemeVars): boolean {
@@ -142,6 +102,18 @@ export function ReportThemeEditor() {
     setEdited(DEFAULT_THEME_VARS);
     setDirty(true);
   }, []);
+
+  const resetSavedToDefault = useCallback(async () => {
+    setEdited(DEFAULT_THEME_VARS);
+    setDirty(true);
+    const result = await saveTheme(DEFAULT_THEME_VARS);
+    if (result.success) {
+      toast.success('Saved theme reset to defaults — applied to all future exports');
+      setDirty(false);
+    } else {
+      toast.error(result.error || 'Failed to reset saved theme');
+    }
+  }, [saveTheme]);
 
   const handleSave = useCallback(async () => {
     const result = await saveTheme(edited);
@@ -224,7 +196,16 @@ export function ReportThemeEditor() {
                 title="Reset local edits to defaults (does not delete the saved theme)"
               >
                 <RotateCcw className="w-4 h-4" />
-                Reset to defaults
+                Reset local
+              </button>
+              <button
+                onClick={resetSavedToDefault}
+                disabled={isSaving}
+                className="flex items-center gap-2 px-4 py-2 bg-gray-200 dark:bg-gray-700 hover:bg-gray-300 dark:hover:bg-gray-600 text-gray-800 dark:text-white rounded-lg text-sm disabled:opacity-50"
+                title="Reset the saved theme to defaults and apply to all future exports"
+              >
+                <RotateCcw className="w-4 h-4" />
+                Reset saved to default
               </button>
               <button
                 onClick={handleSave}
