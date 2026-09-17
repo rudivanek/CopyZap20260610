@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Target } from 'lucide-react';
 import { Button } from '../../../ui/button';
-import { ScoringContext, UseCaseKey, GoalKey } from '../../../../types';
-import { loadFromStorage, saveToStorage, clearStorage, DEFAULT_USE_CASE_KEY, USE_CASE_OPTIONS, DEFAULT_GOAL_KEY, GOAL_OPTIONS } from '../../../../utils/scoringContextStorage';
+import { ScoringContext, UseCaseKey, GoalKey, ScoringMethod } from '../../../../types';
+import { loadFromStorage, saveToStorage, clearStorage, DEFAULT_USE_CASE_KEY, USE_CASE_OPTIONS, DEFAULT_GOAL_KEY, GOAL_OPTIONS, DEFAULT_SCORING_METHOD, SCORING_METHOD_OPTIONS } from '../../../../utils/scoringContextStorage';
 
 interface ScoringContextModalProps {
   isOpen: boolean;
@@ -21,6 +21,7 @@ const ScoringContextModal: React.FC<ScoringContextModalProps> = ({
 }) => {
   const [useCaseKey, setUseCaseKey] = useState<UseCaseKey>(DEFAULT_USE_CASE_KEY);
   const [goalKey, setGoalKey] = useState<GoalKey>(DEFAULT_GOAL_KEY);
+  const [scoringMethod, setScoringMethod] = useState<ScoringMethod>(DEFAULT_SCORING_METHOD);
   const [customLabel, setCustomLabel] = useState('');
 
   useEffect(() => {
@@ -30,6 +31,7 @@ const ScoringContextModal: React.FC<ScoringContextModalProps> = ({
     if (src) {
       setUseCaseKey(src.useCaseKey);
       setGoalKey(src.goalKey ?? DEFAULT_GOAL_KEY);
+      setScoringMethod(src.method ?? DEFAULT_SCORING_METHOD);
       if (src.useCaseKey === 'custom') {
         const predefined = USE_CASE_OPTIONS.find(o => o.key === src.useCaseKey);
         const isDerivedLabel = predefined && predefined.label === src.useCaseLabel;
@@ -53,7 +55,7 @@ const ScoringContextModal: React.FC<ScoringContextModalProps> = ({
     const optionLabel = USE_CASE_OPTIONS.find(o => o.key === useCaseKey)?.label ?? useCaseKey;
     const useCaseLabel = isCustom ? customLabel.trim() : optionLabel;
     const goalLabel = GOAL_OPTIONS.find(o => o.key === goalKey)?.label ?? goalKey;
-    const ctx: ScoringContext = { useCaseKey, useCaseLabel, goalKey, goalLabel };
+    const ctx: ScoringContext = { useCaseKey, useCaseLabel, goalKey, goalLabel, method: scoringMethod };
     saveToStorage(ctx);
     onConfirm(ctx);
   };
@@ -62,6 +64,7 @@ const ScoringContextModal: React.FC<ScoringContextModalProps> = ({
     clearStorage();
     setUseCaseKey(DEFAULT_USE_CASE_KEY);
     setGoalKey(DEFAULT_GOAL_KEY);
+    setScoringMethod(DEFAULT_SCORING_METHOD);
     setCustomLabel('');
   };
 
@@ -123,6 +126,24 @@ const ScoringContextModal: React.FC<ScoringContextModalProps> = ({
                 <option key={o.key} value={o.key}>{o.label}</option>
               ))}
             </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              Scoring method
+            </label>
+            <select
+              value={scoringMethod}
+              onChange={e => setScoringMethod(e.target.value as ScoringMethod)}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600"
+            >
+              {SCORING_METHOD_OPTIONS.map(o => (
+                <option key={o.key} value={o.key}>{o.label}</option>
+              ))}
+            </select>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              "New method" grades each version against its goal and flags incomplete variants. Switch between methods to compare on the same copy.
+            </p>
           </div>
 
           {isChangeContext ? (

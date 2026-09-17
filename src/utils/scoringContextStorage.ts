@@ -1,8 +1,14 @@
-import { ScoringContext, UseCaseKey, GoalKey } from '../types';
+import { ScoringContext, UseCaseKey, GoalKey, ScoringMethod } from '../types';
 
 export const LS_KEY = 'copyzap_scoring_context_v1';
 export const DEFAULT_USE_CASE_KEY: UseCaseKey = 'hero_section';
 export const DEFAULT_GOAL_KEY: GoalKey = 'convert';
+export const DEFAULT_SCORING_METHOD: ScoringMethod = 'current';
+
+export const SCORING_METHOD_OPTIONS: { key: ScoringMethod; label: string }[] = [
+  { key: 'current', label: 'Current — comparative ranking only' },
+  { key: 'new', label: 'New — goal-aware absolute + structural gate' },
+];
 
 export const USE_CASE_OPTIONS: { key: UseCaseKey; label: string }[] = [
   { key: 'hero_section', label: 'Hero section' },
@@ -25,7 +31,7 @@ export const GOAL_OPTIONS: { key: GoalKey; label: string }[] = [
   { key: 'custom', label: 'Custom' },
 ];
 
-export function loadFromStorage(): { useCaseKey: UseCaseKey; useCaseLabel: string; goalKey?: GoalKey; goalLabel?: string } | null {
+export function loadFromStorage(): { useCaseKey: UseCaseKey; useCaseLabel: string; goalKey?: GoalKey; goalLabel?: string; method?: ScoringMethod } | null {
   try {
     const raw = localStorage.getItem(LS_KEY);
     if (!raw) return null;
@@ -42,6 +48,7 @@ export function saveToStorage(ctx: ScoringContext) {
       useCaseLabel: ctx.useCaseLabel,
       goalKey: ctx.goalKey,
       goalLabel: ctx.goalLabel,
+      method: ctx.method,
     }));
   } catch {
     // ignore
