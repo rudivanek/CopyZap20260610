@@ -34,12 +34,14 @@ export type UseCaseKey =
 
 export type GoalKey =
   | 'convert' | 'nurture' | 'inform' | 'educate' | 'brand' | 'custom';
+export type ScoringMethod = 'current' | 'new';
 
 export interface ScoringContext {
   useCaseKey: UseCaseKey;
   useCaseLabel: string;
   goalKey?: GoalKey;
   goalLabel?: string;
+  method?: ScoringMethod;
 }
 
 // New enum for different types of generated content items

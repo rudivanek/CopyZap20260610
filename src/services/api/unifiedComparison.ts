@@ -1,11 +1,9 @@
-import { GeneratedContentItem, User, Model, ScoringContext } from '../../types';
+import { GeneratedContentItem, User, Model, ScoringContext, ScoringMethod } from '../../types';
 import { ComparisonResult } from './comprehensiveScoring';
 // phase 2 scoring cleanup: comparative scoring is now the only scoring path
 import { compareVersionsRelatively, mapToComparisonResult } from './comparativeScoring';
 import { structuralGate, GateResult } from '../../utils/structuralGate';
 import { generateAbsoluteScore, AbsoluteScoreBreakdown } from './absoluteScoring';
-
-export type ScoringMethod = 'current' | 'new';
 
 export interface UnifiedComparisonResult {
   comparisonResult: ComparisonResult;
@@ -52,9 +50,10 @@ export async function generateUnifiedComparison(
   keywords: string[] = [],
   scoringContext?: ScoringContext,
   section?: string,
-  method: ScoringMethod = 'current'
+  method?: ScoringMethod
 ): Promise<UnifiedComparisonResult> {
-  console.log(`🔄 Using comparative scoring engine (method: ${method})`);
+  const resolvedMethod: ScoringMethod = method ?? scoringContext?.method ?? 'current';
+  console.log(`🔄 Using comparative scoring engine (method: ${resolvedMethod})`);
   addProgressMessage?.('Comparing versions relatively...');
 
   // Build version labels
@@ -79,7 +78,7 @@ export async function generateUnifiedComparison(
   const comparisonResult = mapToComparisonResult(comparativeResult, generatedVersions);
 
   // CURRENT method: unchanged behaviour.
-  if (method !== 'new') {
+  if (resolvedMethod !== 'new') {
     console.log('✅ Comparative result generated (current method)');
     return {
       comparisonResult,
