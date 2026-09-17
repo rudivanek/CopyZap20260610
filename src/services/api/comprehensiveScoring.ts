@@ -1043,6 +1043,11 @@ export interface ComparisonResult {
     brandFit?: number; // 0-100: Alignment with inferred positioning
     // Editor review checklist: figurative language, unverified metrics, tone intensity
     verificationFlags?: string[];
+    // NEW method (comparative-v2): goal-aware absolute score + structural gate, per version.
+    absoluteTotal?: number;   // 0-100 absolute score judged against the goal
+    absoluteNotes?: string[]; // per-dimension notes from the absolute scorer
+    incomplete?: boolean;     // true if the structural validity gate failed
+    gateFlags?: string[];     // gate reasons, e.g. 'repeated_passage', 'too_short:...'
   }>;
 }
 

@@ -114,6 +114,22 @@ export async function generateUnifiedComparison(
 
   // Stamp so saved sessions and reports know which method produced this result.
   comparisonResult.scoringVersion = 'comparative-v2';
+  // Attach the goal-aware absolute score and structural-gate result onto each
+  // comparison row, so they ride along with comparisonResult through the app's
+  // existing state, props and storage — no separate plumbing needed. The results
+  // panel reads these fields for display.
+  for (const row of comparisonResult.rows) {
+    const abs = absoluteByVersion[row.versionId];
+    if (abs) {
+      row.absoluteTotal = abs.total;
+      row.absoluteNotes = [abs.clarity_note, abs.persuasion_note, abs.audience_fit_note, abs.structure_note].filter(Boolean);
+    }
+    const gate = gateByVersion[row.versionId];
+    if (gate) {
+      row.incomplete = !gate.valid;
+      row.gateFlags = gate.flags;
+    }
+  }
 
   console.log('✅ Comparative result generated (new method)');
   return {
