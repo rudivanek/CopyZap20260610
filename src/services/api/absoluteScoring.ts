@@ -6,10 +6,14 @@
  *
  * Total: 0–100 (4 dimensions × 0–25 each)
  */
-import { User, GoalKey } from '../../types';
+import { User, GoalKey, Model } from '../../types';
 import { makeApiRequestWithFallback, cleanJsonResponse } from './utils';
 import { trackTokenUsage, extractTokenBreakdown } from './tokenTracking';
-import { SCORING_MODEL } from '../../constants';
+// Absolute scoring is pinned to claude-sonnet-4-6, matching comparativeScoring.
+// The shared SCORING_MODEL constant is 'gpt-4o', which routes to OpenAI and fails
+// (invalid key); the app's scoring is Claude-based. sonnet-4-6 also stays within
+// the 150s edge-function timeout when several absolute scores run in parallel.
+const ABSOLUTE_SCORE_MODEL: Model = 'claude-sonnet-4-6';
 
 export interface AbsoluteScoreBreakdown {
   clarity: number;           // 0–25
@@ -80,7 +84,7 @@ export async function generateAbsoluteScore(
 
   try {
     const response = await makeApiRequestWithFallback(
-      SCORING_MODEL,
+      ABSOLUTE_SCORE_MODEL,
       [
         { role: 'system', content: buildAbsoluteSystemPrompt(goalKey) },
         { role: 'user', content: `Score this copy:\n\n"""\n${text}\n"""` }
@@ -98,7 +102,7 @@ export async function generateAbsoluteScore(
       await trackTokenUsage(
         currentUser,
         tokenUsage,
-        SCORING_MODEL,
+        ABSOLUTE_SCORE_MODEL,
         'absolute_score',
         sessionId,
         0,
