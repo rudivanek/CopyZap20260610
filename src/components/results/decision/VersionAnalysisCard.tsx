@@ -27,6 +27,11 @@ interface ScoringRow {
     hasSignal?: boolean;
   };
   verificationFlags?: string[];
+  // NEW method (comparative-v2): goal-aware absolute score + structural gate.
+  absoluteTotal?: number;
+  absoluteNotes?: string[];
+  incomplete?: boolean;
+  gateFlags?: string[];
 }
 
 interface VersionAnalysisCardProps {
@@ -161,6 +166,14 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
               {isLoading && (
                 <RefreshCw className="w-3.5 h-3.5 animate-spin text-gray-400 flex-shrink-0" />
               )}
+              {row.incomplete && (
+                <span
+                  className="text-xs font-semibold text-amber-700 dark:text-amber-400 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-700 px-2 py-0.5 rounded-full flex-shrink-0"
+                  title={row.gateFlags && row.gateFlags.length ? `Problemas estructurales: ${row.gateFlags.join(', ')}` : 'No pasó la validación estructural'}
+                >
+                  Incompleta
+                </span>
+              )}
             </div>
             {summaryLine && (
               <p className="text-xs text-gray-500 dark:text-gray-400 mt-1.5 leading-relaxed">
@@ -190,6 +203,14 @@ export const VersionAnalysisCard: React.FC<VersionAnalysisCardProps> = ({
                   {row.finalScore != null ? row.finalScore : '—'}
                 </span>
               </span>
+              {row.absoluteTotal != null && (
+                <span className="flex flex-col items-end mt-1" title={row.absoluteNotes && row.absoluteNotes.length ? row.absoluteNotes.join('\n\n') : undefined}>
+                  <span className="text-[10px] font-bold text-gray-400 dark:text-gray-600 uppercase tracking-widest">Absoluto</span>
+                  <span className={`text-sm font-black tabular-nums leading-none ${getScoreTextClass(row.absoluteTotal)}`}>
+                    {row.absoluteTotal}<span className="text-[10px] font-semibold text-gray-400">/100</span>
+                  </span>
+                </span>
+              )}
               {!isBaseline && delta && !delta.neutral ? (
                 <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums whitespace-nowrap ${deltaBadgeClass(delta.positive)}`}>
                   {delta.label}
