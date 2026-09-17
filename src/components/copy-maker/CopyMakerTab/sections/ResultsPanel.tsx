@@ -185,17 +185,13 @@ const ResultsPanel: React.FC<ResultsPanelProps> = ({
   const handleScoringContextConfirm = (ctx: ScoringContext) => {
     setShowScoringContextModal(false);
     setIsContextChangeMode(false);
-
-    if (isContextChangeMode && comparisonResult) {
-      const locked = comparisonResult.scoringContext;
-      const isSame = locked?.useCaseKey === ctx.useCaseKey && locked?.useCaseLabel === ctx.useCaseLabel;
-      if (!isSame) {
-        setPendingNewContext(ctx);
-      }
-      return;
-    }
-
-    // Use external handler if provided, otherwise fall back to onCompareWithGrok
+    // Clear any stale pending-context banner; we apply the chosen context now.
+    setPendingNewContext(null);
+    // Confirming the context (format, goal AND scoring method) always re-scores
+    // immediately with that exact context. The previous change-context path only
+    // stored a pending context and compared just useCaseKey/label — so changing
+    // ONLY the goal or the scoring method was treated as "no change" and dropped,
+    // which is why selecting "New" never took effect.
     if (onScoringContextConfirm) {
       onScoringContextConfirm(ctx);
     } else {
