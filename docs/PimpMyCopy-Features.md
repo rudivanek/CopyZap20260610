@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.40
-Last Updated: 2026-09-17T00:00:00Z
+Version: 1.41
+Last Updated: 2026-09-17T12:00:00Z
 
 ---
 
@@ -31,7 +31,26 @@ Last Updated: 2026-09-17T00:00:00Z
 **Verification:**
 - `npm run build` passes.
 - The Scoring Context modal shows the new goal dropdown below the use-case dropdown; selecting a goal and confirming persists it; reopening the modal restores it; Reset clears it back to "Convert".
-- No scoring, generation, or export logic was modified — the goal field is carried but not yet consumed.
+- No scoring, generation, or export logic was modified in that stage — the goal field was carried but not yet consumed. The next stage (below) wires it into the absolute scoring engine.
+
+---
+
+## Absolute Scoring — Goal Context Now Adjusts the System Prompt (2026-09-17)
+
+**Feature:** The scoring context "goal" selector (added in the prior stage) now influences how the absolute scoring engine evaluates copy. When a goal is set (convert, nurture, inform, educate, or brand), the absolute scoring system prompt is appended with a goal-specific guidance paragraph that tells the evaluator how to weight the four dimensions and what to reward or penalize for that intent. The `custom` goal and the absence of a goal both produce the original prompt unchanged, so existing behavior is preserved when no goal is selected.
+
+**`src/services/api/absoluteScoring.ts`:**
+- The types import was widened from `import { User }` to `import { User, GoalKey }`.
+- A new `GOAL_GUIDANCE` map (keyed by goal string) holds a tailored guidance paragraph for each of the five non-custom goals. Each paragraph tells the evaluator which dimensions to weight most heavily, what to reward, and what to treat as off-tone or off-brand for that intent. For example, the `convert` guidance demands a strong specific CTA and judges Persuasion strictly; the `nurture` guidance explicitly says not to penalize the absence of a hard CTA and to treat aggressive selling as off-tone.
+- A new `buildAbsoluteSystemPrompt(goalKey?)` helper concatenates the existing `ABSOLUTE_SCORE_SYSTEM_PROMPT` constant with the matching guidance paragraph (or nothing, for `custom`/absent). The original prompt text is untouched.
+- `generateAbsoluteScore` gained an optional `goalKey?: GoalKey` parameter and now passes `buildAbsoluteSystemPrompt(goalKey)` as the system message instead of the bare constant.
+
+**Files touched:** `src/services/api/absoluteScoring.ts` only. No other file was modified.
+
+**Verification:**
+- `npm run build` passes.
+- With no goal or a `custom` goal, the system prompt is identical to the original — no behavior change for existing callers that do not pass a goal.
+- With a non-custom goal, the evaluator receives the goal-specific guidance appended to the original rubric.
 
 ---
 

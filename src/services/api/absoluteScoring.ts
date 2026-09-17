@@ -6,7 +6,7 @@
  *
  * Total: 0–100 (4 dimensions × 0–25 each)
  */
-import { User } from '../../types';
+import { User, GoalKey } from '../../types';
 import { makeApiRequestWithFallback, cleanJsonResponse } from './utils';
 import { trackTokenUsage, extractTokenBreakdown } from './tokenTracking';
 import { SCORING_MODEL } from '../../constants';
@@ -53,10 +53,24 @@ function extractText(content: unknown): string {
   return '';
 }
 
+const GOAL_GUIDANCE: Record<string, string> = {
+  convert: `\n\nGOAL CONTEXT — CONVERT: This copy exists to drive a specific action or sale. Judge Persuasion & Conversion Mechanics strictly — a clear value proposition and a strong, specific CTA are required, and a weak, buried, or missing CTA is a serious flaw. Reward decision-driving structure and appropriate urgency.`,
+  nurture: `\n\nGOAL CONTEXT — NURTURE: This copy exists to maintain a warm ongoing relationship, not to close a sale. Do NOT penalize the absence of a hard CTA or urgency — a soft CTA or none at all is appropriate here. Weight Audience Fit and Clarity most heavily and reward warmth, relevance and reader value. Treat aggressive selling, hype or pressure as OFF-tone and score it down.`,
+  inform: `\n\nGOAL CONTEXT — INFORM: This copy exists to announce or update. Weight Clarity and Structure & Flow most heavily — the information must be immediately understandable and well organized. Do NOT penalize the absence of persuasion or a CTA. Treat hype or salesy framing as off-tone.`,
+  educate: `\n\nGOAL CONTEXT — EDUCATE: This copy exists to teach or onboard. Weight Clarity and Structure & Flow most heavily — logical progression, comprehension and completeness matter most. Persuasion and urgency are largely irrelevant, so do not penalize their absence. Penalize jargon, confusing sequence, or gaps that block understanding.`,
+  brand: `\n\nGOAL CONTEXT — BRAND: This copy exists to build trust and identity, not to close immediately. Weight Audience Fit (tone and voice match) and Clarity most heavily and reward a distinct, consistent, credible voice. Treat hype, exaggeration and aggressive CTAs as OFF-brand and score them down; do not reward urgency.`,
+};
+
+function buildAbsoluteSystemPrompt(goalKey?: GoalKey): string {
+  const guidance = goalKey && goalKey !== 'custom' ? (GOAL_GUIDANCE[goalKey] || '') : '';
+  return ABSOLUTE_SCORE_SYSTEM_PROMPT + guidance;
+}
+
 export async function generateAbsoluteScore(
   content: unknown,
   currentUser?: User,
-  sessionId?: string
+  sessionId?: string,
+  goalKey?: GoalKey
 ): Promise<AbsoluteScoreBreakdown> {
   const text = extractText(content).slice(0, 6000).trim();
 
@@ -68,7 +82,7 @@ export async function generateAbsoluteScore(
     const response = await makeApiRequestWithFallback(
       SCORING_MODEL,
       [
-        { role: 'system', content: ABSOLUTE_SCORE_SYSTEM_PROMPT },
+        { role: 'system', content: buildAbsoluteSystemPrompt(goalKey) },
         { role: 'user', content: `Score this copy:\n\n"""\n${text}\n"""` }
       ],
       0.3,
