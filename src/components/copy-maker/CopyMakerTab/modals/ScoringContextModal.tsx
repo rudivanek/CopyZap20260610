@@ -1,8 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { X, Target } from 'lucide-react';
 import { Button } from '../../../ui/button';
-import { ScoringContext, UseCaseKey } from '../../../../types';
-import { loadFromStorage, saveToStorage, clearStorage, DEFAULT_USE_CASE_KEY, USE_CASE_OPTIONS } from '../../../../utils/scoringContextStorage';
+import { ScoringContext, UseCaseKey, GoalKey } from '../../../../types';
+import { loadFromStorage, saveToStorage, clearStorage, DEFAULT_USE_CASE_KEY, USE_CASE_OPTIONS, DEFAULT_GOAL_KEY, GOAL_OPTIONS } from '../../../../utils/scoringContextStorage';
 
 interface ScoringContextModalProps {
   isOpen: boolean;
@@ -20,6 +20,7 @@ const ScoringContextModal: React.FC<ScoringContextModalProps> = ({
   isChangeContext = false,
 }) => {
   const [useCaseKey, setUseCaseKey] = useState<UseCaseKey>(DEFAULT_USE_CASE_KEY);
+  const [goalKey, setGoalKey] = useState<GoalKey>(DEFAULT_GOAL_KEY);
   const [customLabel, setCustomLabel] = useState('');
 
   useEffect(() => {
@@ -28,6 +29,7 @@ const ScoringContextModal: React.FC<ScoringContextModalProps> = ({
     const src = initialContext ?? saved;
     if (src) {
       setUseCaseKey(src.useCaseKey);
+      setGoalKey(src.goalKey ?? DEFAULT_GOAL_KEY);
       if (src.useCaseKey === 'custom') {
         const predefined = USE_CASE_OPTIONS.find(o => o.key === src.useCaseKey);
         const isDerivedLabel = predefined && predefined.label === src.useCaseLabel;
@@ -50,7 +52,8 @@ const ScoringContextModal: React.FC<ScoringContextModalProps> = ({
     if (!canConfirm) return;
     const optionLabel = USE_CASE_OPTIONS.find(o => o.key === useCaseKey)?.label ?? useCaseKey;
     const useCaseLabel = isCustom ? customLabel.trim() : optionLabel;
-    const ctx: ScoringContext = { useCaseKey, useCaseLabel };
+    const goalLabel = GOAL_OPTIONS.find(o => o.key === goalKey)?.label ?? goalKey;
+    const ctx: ScoringContext = { useCaseKey, useCaseLabel, goalKey, goalLabel };
     saveToStorage(ctx);
     onConfirm(ctx);
   };
@@ -58,6 +61,7 @@ const ScoringContextModal: React.FC<ScoringContextModalProps> = ({
   const handleReset = () => {
     clearStorage();
     setUseCaseKey(DEFAULT_USE_CASE_KEY);
+    setGoalKey(DEFAULT_GOAL_KEY);
     setCustomLabel('');
   };
 
@@ -104,6 +108,21 @@ const ScoringContextModal: React.FC<ScoringContextModalProps> = ({
                 autoFocus
               />
             )}
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1.5">
+              What is the goal of this copy?
+            </label>
+            <select
+              value={goalKey}
+              onChange={e => setGoalKey(e.target.value as GoalKey)}
+              className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600"
+            >
+              {GOAL_OPTIONS.map(o => (
+                <option key={o.key} value={o.key}>{o.label}</option>
+              ))}
+            </select>
           </div>
 
           {isChangeContext ? (

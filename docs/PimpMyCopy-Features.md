@@ -1,7 +1,37 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.39
-Last Updated: 2026-09-11T13:00:00Z
+Version: 1.40
+Last Updated: 2026-09-17T00:00:00Z
+
+---
+
+## Scoring Context — Goal Field Added to Use-Case Selection (2026-09-17)
+
+**Feature:** Added an optional "goal" selector to the Scoring Context modal so a user can declare the intent of their copy (convert, nurture, inform, educate, brand, or custom) alongside the existing use-case selector. The goal is stored, persisted, and passed through the `ScoringContext` object, but it does not yet influence any scoring weights — this stage only adds the field and the UI; no scoring logic was touched.
+
+**`src/types/index.ts`:** Added a new `GoalKey` union type (`'convert' | 'nurture' | 'inform' | 'educate' | 'brand' | 'custom'`) and two optional fields on `ScoringContext` — `goalKey?: GoalKey` and `goalLabel?: string`. Both are optional so every existing caller that constructs a `ScoringContext` without a goal keeps compiling unchanged.
+
+**`src/utils/scoringContextStorage.ts`:** Rewritten to carry the goal through the full storage lifecycle:
+- New `DEFAULT_GOAL_KEY: GoalKey = 'convert'`.
+- New `GOAL_OPTIONS` array with the six goal keys and their human labels ("Convert — drive an action / sale", "Nurture — keep a warm relationship", "Inform — announce or update", "Educate — teach or onboard", "Brand — build trust / identity", "Custom").
+- `loadFromStorage()` return type widened to include `goalKey?` and `goalLabel?`.
+- `saveToStorage(ctx)` now persists `goalKey` and `goalLabel` alongside the use-case fields.
+- `buildContextFromKey(useCaseKey, goalKey = DEFAULT_GOAL_KEY)` now accepts a goal and resolves its label from `GOAL_OPTIONS`.
+
+**`src/components/copy-maker/CopyMakerTab/modals/ScoringContextModal.tsx`:** The modal now exposes the goal selector:
+- Imports widened to include `DEFAULT_GOAL_KEY`, `GOAL_OPTIONS`, and the `GoalKey` type.
+- New `goalKey` state, defaulting to `DEFAULT_GOAL_KEY`.
+- On open, a saved `goalKey` is restored (falling back to `DEFAULT_GOAL_KEY` when absent).
+- On confirm, `goalLabel` is resolved from `GOAL_OPTIONS` and both `goalKey` and `goalLabel` are placed on the `ScoringContext` passed to `onConfirm` and `saveToStorage`.
+- Reset now also clears `goalKey` back to the default.
+- A new labeled `<select>` dropdown ("What is the goal of this copy?") renders directly under the use-case dropdown, styled to match the existing use-case select.
+
+**Files touched:** `src/types/index.ts`, `src/utils/scoringContextStorage.ts`, `src/components/copy-maker/CopyMakerTab/modals/ScoringContextModal.tsx`.
+
+**Verification:**
+- `npm run build` passes.
+- The Scoring Context modal shows the new goal dropdown below the use-case dropdown; selecting a goal and confirming persists it; reopening the modal restores it; Reset clears it back to "Convert".
+- No scoring, generation, or export logic was modified — the goal field is carried but not yet consumed.
 
 ---
 

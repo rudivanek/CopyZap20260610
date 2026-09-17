@@ -32,9 +32,14 @@ export type UseCaseKey =
   | 'hero_section' | 'landing_page' | 'seo_page' | 'newsletter'
   | 'linkedin_ad' | 'twitter_ad' | 'google_ad' | 'general_improve' | 'custom';
 
+export type GoalKey =
+  | 'convert' | 'nurture' | 'inform' | 'educate' | 'brand' | 'custom';
+
 export interface ScoringContext {
   useCaseKey: UseCaseKey;
   useCaseLabel: string;
+  goalKey?: GoalKey;
+  goalLabel?: string;
 }
 
 // New enum for different types of generated content items
