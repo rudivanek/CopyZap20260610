@@ -951,11 +951,9 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
     }));
 
     // Trigger fresh comparison after clearing cache, preserving the active scoring context
-    setTimeout(() => {
-      compareOutputsWithGrok(false, comparisonResult?.scoringContext ?? undefined);
-    }, 100);
+    handleOpenScoringModal(comparisonResult?.scoringContext ?? undefined);
 
-    toast.info('Re-scoring all versions with fresh analysis...');
+    // Fresh comparison runs after the user confirms the Scoring Context modal.
   };
 
   // SCORING SYSTEM UNIFIED: Comparative scoring is now the only scoring path.
