@@ -77,6 +77,12 @@ export async function generateUnifiedComparison(
   // Map to ComparisonResult format
   const comparisonResult = mapToComparisonResult(comparativeResult, generatedVersions);
 
+  // Stamp the scoring context (use case + goal) onto the result so the UI and
+  // reports can display "Judged as / Goal". Applies to BOTH methods.
+  if (scoringContext) {
+    comparisonResult.scoringContext = scoringContext;
+  }
+
   // CURRENT method: unchanged behaviour.
   if (resolvedMethod !== 'new') {
     console.log('✅ Comparative result generated (current method)');
