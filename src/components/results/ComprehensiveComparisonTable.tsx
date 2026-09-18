@@ -239,6 +239,16 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
   const missingAnalysisCount = sortedRows.filter(r => !versionDeepAnalysis?.[r.versionId]).length;
   const allAnalysisGenerated = missingAnalysisCount === 0 && sortedRows.length > 0;
 
+  // Prefer the goal-aware absolute (new method: row.absoluteTotal) over the older
+  // generation-time absolute score, so the UI shows ONE honest number instead of
+  // two that disagree. Falls back to the old score for the current method.
+  const effectiveAbsolute = (
+    absoluteTotal: number | undefined,
+    fallback: AbsoluteScoreBreakdown | undefined
+  ): AbsoluteScoreBreakdown | undefined => {
+    if (absoluteTotal == null) return fallback;
+    return { total: absoluteTotal, clarity: 0, persuasion: 0, audience_fit: 0, structure: 0, clarity_note: '', persuasion_note: '', audience_fit_note: '', structure_note: '' };
+  };
   const rankingRows = useMemo(() => {
     const winnerScore = winnerRow?.finalScore ?? 0;
     return sortedRows.map(r => ({
@@ -249,7 +259,7 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
       isWinner: r.isWinner,
       evaluatedAt: r.evaluatedAt,
       contentText: versionContentMap?.[r.versionId] || '',
-      absoluteScore: absoluteScoreMap?.[r.versionId],
+      absoluteScore: effectiveAbsolute(r.absoluteTotal, absoluteScoreMap?.[r.versionId]),
       // DIAGNOSTIC: pass through new positioning-aware subscores if available
       humanAuthenticity: r.humanAuthenticity,
       overMarketingPenalty: r.overMarketingPenalty,
@@ -464,7 +474,7 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
         {winnerRow && (
           <div className="mb-4">
             <WinnerHeroCard
-              winnerRow={{ ...winnerRow, absoluteScore: absoluteScoreMap?.[winnerRow.versionId] }}
+              winnerRow={{ ...winnerRow, absoluteScore: effectiveAbsolute(winnerRow.absoluteTotal, absoluteScoreMap?.[winnerRow.versionId]) }}
               finalRecommendation={comparison.finalRecommendation}
               priorityActions={comparison.priorityActions}
               scoringGap={scoringGap}
@@ -474,7 +484,7 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
               winnerBreakdown={comparison.winnerBreakdown}
               decisionLayer={comparison.decisionLayer}
               baselineScore={baselineRow?.finalScore ?? null}
-              baselineAbsTotal={baselineRow ? (absoluteScoreMap?.[baselineRow.versionId]?.total ?? null) : null}
+              baselineAbsTotal={baselineRow ? (baselineRow.absoluteTotal ?? absoluteScoreMap?.[baselineRow.versionId]?.total ?? null) : null}
             />
           </div>
         )}
