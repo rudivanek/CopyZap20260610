@@ -231,6 +231,23 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
   const secondRow = safeRows.filter(r => !r.isWinner).sort((a, b) => b.finalScore - a.finalScore)[0];
   const scoringGap = winnerRow && secondRow ? winnerRow.finalScore - secondRow.finalScore : undefined;
 
+  // Absolute is the decision score. Choose the Best Performing Version by highest
+  // absolute among non-baseline versions, so the Decision card names the same
+  // version the Rankings marks "Recommended". Falls back to the engine winner when
+  // no absolute scores exist.
+  const absTotalOf = (r: any): number | null =>
+    effectiveAbsolute(r.absoluteTotal, absoluteScoreMap?.[r.versionId])?.total ?? null;
+  const absWinnerRow = safeRows
+    .filter(r => r.versionId !== baselineVersionId && r.optionLabel !== 'Original Copy')
+    .reduce<any>((best, r) => {
+      const t = absTotalOf(r);
+      if (t == null) return best;
+      if (!best || t > (absTotalOf(best) ?? -Infinity)) return r;
+      return best;
+    }, null);
+  const heroWinnerRow = absWinnerRow ?? winnerRow;
+  const narrativeMatches = !absWinnerRow || absWinnerRow.versionId === winnerRow?.versionId;
+
   const seoOn = safeRows[0]?.seoActive ?? false;
   const kwCount = safeRows[0]?.keywordsProvided ?? 0;
   const useCaseLabel = comparison.scoringContext?.useCaseLabel ?? null;
@@ -488,15 +505,15 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
         {winnerRow && (
           <div className="mb-4">
             <WinnerHeroCard
-              winnerRow={{ ...winnerRow, absoluteScore: effectiveAbsolute(winnerRow.absoluteTotal, absoluteScoreMap?.[winnerRow.versionId]) }}
-              finalRecommendation={comparison.finalRecommendation}
-              priorityActions={comparison.priorityActions}
+              winnerRow={{ ...heroWinnerRow, absoluteScore: effectiveAbsolute(heroWinnerRow.absoluteTotal, absoluteScoreMap?.[heroWinnerRow.versionId]) }}
+              finalRecommendation={narrativeMatches ? comparison.finalRecommendation : undefined}
+              priorityActions={narrativeMatches ? comparison.priorityActions : undefined}
               scoringGap={scoringGap}
-              onViewWinningCopy={() => onVersionClick?.(winnerRow.versionId)}
-              onJumpToAnalysis={() => handleJumpToBreakdown(winnerRow.versionId, 'output')}
+              onViewWinningCopy={() => onVersionClick?.(heroWinnerRow.versionId)}
+              onJumpToAnalysis={() => handleJumpToBreakdown(heroWinnerRow.versionId, 'output')}
               allVersions={comparison.rows}
-              winnerBreakdown={comparison.winnerBreakdown}
-              decisionLayer={comparison.decisionLayer}
+              winnerBreakdown={narrativeMatches ? comparison.winnerBreakdown : undefined}
+              decisionLayer={narrativeMatches ? comparison.decisionLayer : undefined}
               baselineScore={baselineRow?.finalScore ?? null}
               baselineAbsTotal={baselineRow ? (baselineRow.absoluteTotal ?? absoluteScoreMap?.[baselineRow.versionId]?.total ?? null) : null}
             />

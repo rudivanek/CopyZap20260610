@@ -1,6 +1,4 @@
 import React, { useMemo } from 'react';
-import { calculateMultiScoreDisplay } from '../../../utils/multiScoreDisplay';
-import { SubScoreChips } from '../SubScoreChips';
 import { formatLocalDateTime } from '../../../utils/dateFormatting';
 import { AbsoluteScoreBreakdown } from '../../../types';
 import { deltaBadgeClass, getAbsoluteScoreMarkClass, getAbsoluteScoreLabel } from '../../../utils/scoreColors';
@@ -129,7 +127,6 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
               : deltaBadgeClass(false)
             : '';
 
-          const subScores = row.contentText ? calculateMultiScoreDisplay(row.contentText) : null;
           const hasActionChips = onRowClick || (!isBaseline && onViewAnalysis);
 
           return (
@@ -171,17 +168,6 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                 {row.evaluatedAt && (
                   <div className="text-xs text-gray-400 dark:text-gray-600">
                     {formatLocalDateTime(row.evaluatedAt)}
-                  </div>
-                )}
-                {subScores && (
-                  <div className="mt-1">
-                    <SubScoreChips
-                      conversion={subScores.conversion}
-                      trust={subScores.trust}
-                      risk={subScores.risk}
-                      compact={true}
-                      hasSignal={subScoresUsable}
-                    />
                   </div>
                 )}
                 {/* Action chips */}

@@ -1,6 +1,6 @@
 import React from 'react';
 import { ArrowRight, Award } from 'lucide-react';
-import { getScoreTextClass, getScoreMarkClass, deltaBadgeClass } from '../../../utils/scoreColors';
+import { getScoreTextClass, getScoreMarkClass, deltaBadgeClass, getAbsoluteScoreMarkClass, getAbsoluteScoreLabel } from '../../../utils/scoreColors';
 import { AbsoluteScoreBreakdown } from '../../../types';
 import { getComparisonDelta } from '../../../utils/comparisonDelta';
 
@@ -94,6 +94,18 @@ export const WinnerHeroCard: React.FC<WinnerHeroCardProps> = ({
     ? getComparisonDelta(winnerRow.finalScore, baselineScore)
     : null;
 
+  // Absolute quality is the decision score; session is only a fallback.
+  const absoluteTotal = winnerRow.absoluteScore?.total ?? null;
+  const absDelta =
+    absoluteTotal != null && baselineAbsTotal != null && absoluteTotal !== baselineAbsTotal
+      ? (() => {
+          const diff = absoluteTotal - baselineAbsTotal;
+          const pct = baselineAbsTotal > 0 ? ((diff / baselineAbsTotal) * 100).toFixed(1) : '0.0';
+          const sign = diff > 0 ? '+' : '';
+          return { label: `${sign}${diff} pts (${sign}${pct}%)`, positive: diff > 0 };
+        })()
+      : null;
+
   const quickWhyBullets = winnerBreakdown?.whatItDoesBetter?.slice(0, 3).map(item => {
     return item.replace(/^(Compared to|vs\.?)\s+[^,]+,\s*/i, '');
   }) ?? [];
@@ -135,21 +147,44 @@ export const WinnerHeroCard: React.FC<WinnerHeroCardProps> = ({
             )}
           </div>
 
-          {/* Session score only */}
+          {/* Absolute quality score — the decision number (session fallback) */}
           <div className="flex flex-col items-end gap-1 flex-shrink-0">
-            <span className="text-xs font-bold text-gray-300 dark:text-gray-700 uppercase tracking-widest">Session</span>
-            <span className="flex items-center gap-1.5">
-              <span className={`w-1 h-5 ${getScoreMarkClass(winnerRow.finalScore)}`} aria-hidden="true" />
-              <span className={`text-2xl font-black tabular-nums leading-none ${getScoreTextClass(winnerRow.finalScore)}`}>
-                {winnerRow.finalScore}
-              </span>
+            <span className="text-xs font-bold text-gray-300 dark:text-gray-700 uppercase tracking-widest">
+              {absoluteTotal != null ? 'Absolute' : 'Session'}
             </span>
-            {sessionDelta && !sessionDelta.neutral ? (
-              <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums whitespace-nowrap ${deltaBadgeClass(sessionDelta.positive)}`}>
-                {sessionDelta.label}
-              </span>
+            {absoluteTotal != null ? (
+              <>
+                <span className="flex items-center gap-1.5">
+                  <span className={`w-1 h-6 ${getAbsoluteScoreMarkClass(absoluteTotal)}`} aria-hidden="true" />
+                  <span className="text-2xl font-black tabular-nums leading-none text-gray-900 dark:text-white">
+                    {absoluteTotal}
+                  </span>
+                </span>
+                {getAbsoluteScoreLabel(absoluteTotal) && (
+                  <span className="text-xs font-medium text-gray-500 dark:text-gray-400">
+                    {getAbsoluteScoreLabel(absoluteTotal)}
+                  </span>
+                )}
+                {absDelta && (
+                  <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums whitespace-nowrap ${deltaBadgeClass(absDelta.positive)}`}>
+                    {absDelta.label}
+                  </span>
+                )}
+              </>
             ) : (
-              <span className="text-xs text-gray-300 dark:text-gray-700">—</span>
+              <>
+                <span className="flex items-center gap-1.5">
+                  <span className={`w-1 h-5 ${getScoreMarkClass(winnerRow.finalScore)}`} aria-hidden="true" />
+                  <span className={`text-2xl font-black tabular-nums leading-none ${getScoreTextClass(winnerRow.finalScore)}`}>
+                    {winnerRow.finalScore}
+                  </span>
+                </span>
+                {sessionDelta && !sessionDelta.neutral && (
+                  <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums whitespace-nowrap ${deltaBadgeClass(sessionDelta.positive)}`}>
+                    {sessionDelta.label}
+                  </span>
+                )}
+              </>
             )}
           </div>
         </div>
