@@ -697,6 +697,11 @@ const EXPORT_I18N = {
     jumpTo: 'Jump to:',
     inputsNavLabel: 'Inputs',
     rankingsNavLabel: 'Rankings',
+    judgedAsLabel: 'Judged as',
+    goalWordLabel: 'Goal',
+    qualityTotalLabel: 'Quality',
+    incompleteLabel: 'Incomplete',
+    absoluteNote: 'The score is an absolute quality measure (0–100) against a fixed standard for the stated goal; it does not change when versions are added. The ranking reflects this score, and #1 is the recommended version.',
   },
   es: {
     original: 'ORIGINAL',
@@ -770,6 +775,11 @@ const EXPORT_I18N = {
     jumpTo: 'Ir a:',
     inputsNavLabel: 'Entradas',
     rankingsNavLabel: 'Clasificación',
+    judgedAsLabel: 'Evaluado como',
+    goalWordLabel: 'Objetivo',
+    qualityTotalLabel: 'Calidad',
+    incompleteLabel: 'Incompleta',
+    absoluteNote: 'La puntuación es una medida absoluta de calidad (0–100) frente a un estándar fijo para el objetivo indicado; no cambia al añadir versiones. La clasificación refleja esta puntuación y la #1 es la versión recomendada.',
   },
 } as const;
 
@@ -3196,48 +3206,59 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
         const originalRow = comparisonResult.rows.find(r =>
           r.versionId === '__original__' || r.optionLabel === 'Original Copy'
         );
+        const absOf = (r: any): number | null => r.absoluteTotal ?? null;
+        const anyAbs = comparisonResult.rows.some(r => absOf(r) != null);
         const originalBaseScore = originalRow?.finalScore ?? null;
+        const originalBaseAbs = originalRow ? absOf(originalRow) : null;
+        const isBaseFn = (r: any) => r.versionId === '__original__' || r.optionLabel === 'Original Copy';
 
-        const sortedRows = [...comparisonResult.rows].sort((a, b) => (b.finalScore ?? 0) - (a.finalScore ?? 0));
+        const sortedRows = [...comparisonResult.rows].sort((a, b) =>
+          anyAbs ? ((absOf(b) ?? -1) - (absOf(a) ?? -1)) : ((b.finalScore ?? 0) - (a.finalScore ?? 0))
+        );
 
-        // Rankings table — .rank / .rank-row design
+        // Winner = highest absolute among non-baseline versions (session winner when no absolute).
+        let absWinnerId: string | null = null;
+        if (anyAbs) {
+          let best = -Infinity;
+          for (const r of comparisonResult.rows) {
+            if (isBaseFn(r)) continue;
+            const tt = absOf(r);
+            if (tt != null && tt > best) { best = tt; absWinnerId = r.versionId; }
+          }
+        } else {
+          absWinnerId = comparisonResult.rows.find(r => r.isWinner)?.versionId ?? null;
+        }
+
+        // Scoring context — what bar these scores were judged against.
+        const ctxFormat = comparisonResult.scoringContext?.useCaseLabel ?? null;
+        const ctxGoal = comparisonResult.scoringContext?.goalLabel ?? null;
+        if (ctxFormat || ctxGoal) {
+          let ctxLine = '';
+          if (ctxFormat) ctxLine += `<strong>${t.judgedAsLabel}:</strong> ${escapeHtml(ctxFormat)}`;
+          if (ctxGoal) ctxLine += `${ctxFormat ? ' &middot; ' : ''}<strong>${t.goalWordLabel}:</strong> ${escapeHtml(ctxGoal)}`;
+          htmlContent += `<p style="margin:0 0 4px 0;font-size:13px;color:var(--ink-soft);">${ctxLine}</p>\n`;
+        }
+
+        // Rankings table — single Absolute quality score column.
         htmlContent += '<div class="rank">\n';
-        htmlContent += `<div class="rank-row head"><div class="pos">#</div><div class="nm">${t.versionLabel}</div><div class="cell">${t.editorialQuality}</div><div class="cell">${t.conversionPotential}</div><div class="dl">${t.deltaLabel}</div><div class="tot">${t.totalLabel}</div></div>\n`;
+        htmlContent += `<div class="rank-row head"><div class="pos">#</div><div class="nm">${t.versionLabel}</div><div class="dl">${t.deltaLabel}</div><div class="tot">${anyAbs ? t.qualityTotalLabel : t.totalLabel}</div></div>\n`;
 
         sortedRows.forEach((row, idx) => {
           const matchedCard = contentCards.find(c => c.id === row.versionId)
             || generatedOutputCards.find(c => c.id === row.versionId);
           const versionLabel = row.optionLabel || matchedCard?.sourceDisplayName || `Version ${idx + 1}`;
-          const score = row.finalScore ?? 0;
-          const isOriginal = row.versionId === '__original__' || row.optionLabel === 'Original Copy';
-          const isWinner = row.isWinner === true;
+          const isOriginal = isBaseFn(row);
+          const isWinner = anyAbs ? (row.versionId === absWinnerId) : (row.isWinner === true);
 
-          // Get content text for new computations
-          let htmlContentStr = '';
-          if (matchedCard) {
-            let cardContent = matchedCard.content;
-            if (typeof cardContent === 'object' && cardContent !== null && 'content' in cardContent) cardContent = (cardContent as any).content;
-            if (typeof cardContent === 'string') {
-              htmlContentStr = cardContent;
-            } else if (Array.isArray(cardContent)) {
-              htmlContentStr = (cardContent as string[]).join('\n');
-            } else if (cardContent && typeof cardContent === 'object' && 'headline' in (cardContent as any)) {
-              htmlContentStr = structuredToPlainText(cardContent as StructuredCopyOutput);
-            }
-          }
+          const primary = anyAbs ? absOf(row) : (row.finalScore ?? null);
+          const baseVal = anyAbs ? originalBaseAbs : originalBaseScore;
 
-          const htmlEq = htmlContentStr ? computeEditorialQuality(htmlContentStr) : score;
-          const htmlCp = htmlContentStr ? computeConversionPotential(htmlContentStr) : score;
-
-          // Delta vs original
           let deltaHtml = '';
-          let deltaClass = '';
           if (isOriginal) {
             deltaHtml = `<small>baseline</small>`;
-            deltaClass = 'base';
-          } else if (originalBaseScore !== null) {
-            const delta = score - originalBaseScore;
-            const pct = originalBaseScore > 0 ? Math.round((delta / originalBaseScore) * 100) : 0;
+          } else if (primary != null && baseVal != null) {
+            const delta = primary - baseVal;
+            const pct = baseVal > 0 ? Math.round((delta / baseVal) * 100) : 0;
             const sign = delta >= 0 ? '+' : '';
             deltaHtml = `${sign}${delta}<small>${sign}${pct}%</small>`;
           }
@@ -3246,16 +3267,18 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
           if (isWinner) rowClasses.push('is-win');
           if (isOriginal) rowClasses.push('base');
 
+          const winTag = isWinner ? ` <span class="win" style="display:inline-block;margin-left:8px;">${t.winner}</span>` : '';
+          const incompleteTag = (row as any).incomplete ? ` <span class="win" style="display:inline-block;margin-left:6px;background:var(--warn-soft);color:var(--warn);">${t.incompleteLabel}</span>` : '';
+          const subName = isOriginal ? t.original : (matchedCard?.persona || '');
+
           htmlContent += `<div class="${rowClasses.join(' ')}">\n`;
           htmlContent += `<div class="pos">${idx + 1}</div>\n`;
-          htmlContent += `<div class="nm">${escapeHtml(stripEmoji(versionLabel))}${isWinner ? ` <span class="win" style="display:inline-block;margin-left:8px;">${t.winner}</span>` : ''}<small>${isOriginal ? t.original : (matchedCard?.persona || '')}</small></div>\n`;
-          htmlContent += `<div class="cell">${htmlEq}</div>\n`;
-          htmlContent += `<div class="cell">${htmlCp}</div>\n`;
+          htmlContent += `<div class="nm">${escapeHtml(stripEmoji(versionLabel))}${winTag}${incompleteTag}<small>${subName}</small></div>\n`;
           htmlContent += `<div class="dl">${deltaHtml}</div>\n`;
-          htmlContent += `<div class="tot">${score}<small>/100</small></div>\n`;
+          htmlContent += `<div class="tot">${primary != null ? primary : '&mdash;'}<small>/100</small></div>\n`;
           htmlContent += '</div>\n';
 
-          // Verification flags + risk factors (kept inline below the row, styled subtly)
+          // Verification flags (LLM-provided, localized). English keyword risk heuristic removed.
           if (row.verificationFlags && row.verificationFlags.length > 0) {
             htmlContent += '<div class="rank-row" style="display:block;padding:10px 22px 12px 70px;background:var(--warn-soft);border-bottom:1px solid var(--line-soft);">\n';
             htmlContent += `<p style="margin:0 0 4px 0;font-size:10px;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:.05em;">&#9888; ${t.verifyBeforePublishing}</p>\n`;
@@ -3267,25 +3290,13 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
             });
             htmlContent += '</ul>\n</div>\n';
           }
-
-          const htmlRisks = htmlContentStr ? computeRiskFactors(htmlContentStr, row.verificationFlags) : [];
-          if (htmlRisks.length > 0) {
-            htmlContent += '<div class="rank-row" style="display:block;padding:10px 22px 12px 70px;background:var(--bad-soft);border-bottom:1px solid var(--line-soft);">\n';
-            htmlContent += `<p style="margin:0 0 4px 0;font-size:10px;font-weight:700;color:var(--bad);text-transform:uppercase;letter-spacing:.05em;">${t.riskFactorsLabel}</p>\n`;
-            htmlContent += '<ul style="margin:0;padding:0;list-style:none;">\n';
-            htmlRisks.forEach(r => {
-              const er = String(r).replace(/</g, '&lt;').replace(/>/g, '&gt;');
-              htmlContent += `<li style="font-size:11px;color:var(--bad);line-height:1.5;margin-bottom:2px;">&bull; ${er}</li>\n`;
-            });
-            htmlContent += '</ul>\n</div>\n';
-          }
         });
 
         htmlContent += '</div>\n';
-        htmlContent += `<p class="methodo">&#9432; ${t.scoresRelativeNote}</p>\n`;
+        htmlContent += `<p class="methodo">&#9432; ${anyAbs ? t.absoluteNote : t.scoresRelativeNote}</p>\n`;
 
-        // Deep analysis for the winner only
-        const winnerRow = comparisonResult.rows.find(r => r.isWinner);
+        // Deep analysis for the recommended (highest-absolute) winner.
+        const winnerRow = comparisonResult.rows.find(r => r.versionId === absWinnerId) ?? comparisonResult.rows.find(r => r.isWinner);
         const winnerCard = winnerRow ? generatedOutputCards.find(c => c.id === winnerRow.versionId) : null;
 
         if (versionDeepAnalysis && winnerCard) {
