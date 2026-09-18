@@ -2489,14 +2489,28 @@ export const formatAsEnhancedMarkdown = (
     if (comparisonResult) {
       // COMPREHENSIVE ANALYSIS TABLE (uses rows[] from comprehensiveScoring)
       if (comparisonResult.rows && comparisonResult.rows.length > 0) {
+        // Absolute quality is the decision score. Order, winner and all displayed
+        // scores use it when present; session finalScore is only a fallback.
+        const mdAbsOf = (r: any): number | null => r.absoluteTotal ?? null;
+        const mdAnyAbs = comparisonResult.rows.some((r: any) => mdAbsOf(r) != null);
+        const mdScoreOf = (r: any): number => mdAnyAbs ? (mdAbsOf(r) ?? r.finalScore ?? 0) : (r.finalScore ?? 0);
+        const mdIsBase = (r: any) => r.optionLabel === 'Original Copy' || r.versionId === '__original__';
         const sortedRows = [...comparisonResult.rows].sort((a: any, b: any) => {
+          if (mdAnyAbs) return mdScoreOf(b) - mdScoreOf(a);
           if (a.isWinner) return -1;
           if (b.isWinner) return 1;
           return b.finalScore - a.finalScore;
         });
+        const mdWinnerId: string | null = mdAnyAbs
+          ? (sortedRows.filter((r: any) => !mdIsBase(r)).reduce((best: any, r: any) => (!best || mdScoreOf(r) > mdScoreOf(best)) ? r : best, null)?.versionId ?? null)
+          : (sortedRows.find((r: any) => r.isWinner)?.versionId ?? null);
+        const mdIsWinner = (r: any) => r.versionId === mdWinnerId;
 
         const hasBaseline = sortedRows.some((r: any) => r.optionLabel === 'Original Copy');
-        const baselineScoreMd: number | null = sortedRows.find((r: any) => r.optionLabel === 'Original Copy')?.finalScore ?? null;
+        const baselineScoreMd: number | null = (() => {
+          const orig = sortedRows.find((r: any) => mdIsBase(r));
+          return orig ? mdScoreOf(orig) : null;
+        })();
         const hasDetailedBreakdown = !!(versionDeepAnalysis && Object.keys(versionDeepAnalysis).length > 0);
 
         const mdSeoOn = comparisonResult.rows[0]?.seoActive ?? false;
@@ -2507,15 +2521,15 @@ export const formatAsEnhancedMarkdown = (
 
         // Final Decision block (top of comparison) — MATCHES WinnerHeroCard UI
         {
-          const mdTopWinner = sortedRows.find((r: any) => r.isWinner);
+          const mdTopWinner = sortedRows.find((r: any) => mdIsWinner(r)) ?? sortedRows.find((r: any) => r.isWinner);
           if (mdTopWinner) {
-            const mdSecond = sortedRows.find((r: any) => !r.isWinner);
-            const mdGap = mdSecond ? mdTopWinner.finalScore - mdSecond.finalScore : 0;
+            const mdSecond = sortedRows.find((r: any) => r.versionId !== mdTopWinner.versionId && !mdIsBase(r));
+            const mdGap = mdSecond ? mdScoreOf(mdTopWinner) - mdScoreOf(mdSecond) : 0;
             const confidenceLevel = mdGap >= 10 ? 'HIGH' : mdGap >= 5 ? 'MEDIUM' : 'LOW';
 
             markdown += `## BEST PERFORMING VERSION\n\n`;
             markdown += `# ${mdTopWinner.optionLabel}\n\n`;
-            markdown += `**Score:** ${mdTopWinner.finalScore}/100`;
+            markdown += `**Score:** ${mdScoreOf(mdTopWinner)}/100`;
             if (mdGap > 0) {
               markdown += ` | **+${Math.round(mdGap)} pts** vs others | **Confidence: ${confidenceLevel}**`;
             }
@@ -2621,16 +2635,16 @@ export const formatAsEnhancedMarkdown = (
           markdown += `*Scoring context: ${ctxParts.join(' · ')}*\n\n`;
         }
         if (hasBaseline) {
-          markdown += `| Option | Words | Reading Level | Final Score | Δ vs Original | % Improved |\n`;
+          markdown += `| Option | Words | Reading Level | Quality (0–100) | Δ vs Original | % Improved |\n`;
           markdown += `|--------|:-----:|:-------------:|:-----------:|:-------------:|:----------:|\n`;
         } else {
-          markdown += `| Option | Words | Reading Level | Final Score | Δ vs Best |\n`;
+          markdown += `| Option | Words | Reading Level | Quality (0–100) | Δ vs Best |\n`;
           markdown += `|--------|:-----:|:-------------:|:-----------:|:---------:|\n`;
         }
         sortedRows.forEach((row: any) => {
-          const winnerTag = row.isWinner ? ' **(Winner)**' : '';
-          const isBaselineMdRow = row.optionLabel === 'Original Copy';
-          const mdRowDelta = isBaselineMdRow ? null : getComparisonDelta(row.finalScore, baselineScoreMd);
+          const winnerTag = mdIsWinner(row) ? ' **(Winner)**' : '';
+          const isBaselineMdRow = mdIsBase(row);
+          const mdRowDelta = isBaselineMdRow ? null : getComparisonDelta(mdScoreOf(row), baselineScoreMd);
           const mdDeltaLabel = isBaselineMdRow ? 'baseline' : (mdRowDelta ? mdRowDelta.label : `${row.deltaVsBest}`);
 
           const matchingCardMd = generatedOutputCards.find((card: any) => card.id === row.versionId);
@@ -2647,16 +2661,18 @@ export const formatAsEnhancedMarkdown = (
 
           if (hasBaseline) {
             let improvPct: string;
-            if (row.improvementPct === null) improvPct = '—';
-            else if (row.improvementPct === 0) improvPct = '0%';
-            else improvPct = `${row.improvementPct > 0 ? '+' : ''}${row.improvementPct}%`;
-            markdown += `| ${row.optionLabel}${winnerTag} | ${wordsCol} | ${readingCol} | ${row.finalScore} | ${mdDeltaLabel} | ${improvPct} |\n`;
+            if (isBaselineMdRow || baselineScoreMd == null || baselineScoreMd <= 0) improvPct = isBaselineMdRow ? '0%' : '—';
+            else {
+              const pct = Math.round(((mdScoreOf(row) - baselineScoreMd) / baselineScoreMd) * 100);
+              improvPct = `${pct > 0 ? '+' : ''}${pct}%`;
+            }
+            markdown += `| ${row.optionLabel}${winnerTag} | ${wordsCol} | ${readingCol} | ${mdScoreOf(row)} | ${mdDeltaLabel} | ${improvPct} |\n`;
           } else {
-            markdown += `| ${row.optionLabel}${winnerTag} | ${wordsCol} | ${readingCol} | ${row.finalScore} | ${mdDeltaLabel} |\n`;
+            markdown += `| ${row.optionLabel}${winnerTag} | ${wordsCol} | ${readingCol} | ${mdScoreOf(row)} | ${mdDeltaLabel} |\n`;
           }
         });
         markdown += `\n`;
-        markdown += `> **Final Score** is 0–100.${hasBaseline ? ' **Δ vs Original** and **% Improved** are relative to the Original Copy baseline.' : ' **Δ vs Best** compares each option to the top-scoring version.'}\n\n`;
+        markdown += `> **Quality** is an absolute score (0–100) measured against a fixed standard for the stated goal; it does not change as versions are added.${hasBaseline ? ' **Δ vs Original** and **% Improved** show the gain over your Original Copy.' : ' **Δ vs Best** compares each option to the top-scoring version.'}\n\n`;
 
         // 3d. PER-ROW DECISION DETAILS (decisionSummary, decisionReason only)
         const rowsWithDecision = sortedRows.filter((r: any) => r.decisionSummary || r.decisionReason);
@@ -2680,14 +2696,14 @@ export const formatAsEnhancedMarkdown = (
           markdown += `## All Versions Breakdown\n\n`;
 
           // Determine winner type for the winner section
-          const winnerRowMd = sortedRows.find((r: any) => r.isWinner);
-          const secondRowMd = sortedRows.find((r: any) => !r.isWinner);
-          const winnerTypeMd = winnerRowMd && secondRowMd ? classifyWinnerType(winnerRowMd.finalScore, secondRowMd.finalScore) : null;
+          const winnerRowMd = sortedRows.find((r: any) => mdIsWinner(r)) ?? sortedRows.find((r: any) => r.isWinner);
+          const secondRowMd = sortedRows.find((r: any) => winnerRowMd && r.versionId !== winnerRowMd.versionId && !mdIsBase(r));
+          const winnerTypeMd = winnerRowMd && secondRowMd ? classifyWinnerType(mdScoreOf(winnerRowMd), mdScoreOf(secondRowMd)) : null;
 
           sortedRows.forEach((row: any, idx: number) => {
-            markdown += `### ${row.isWinner ? '[WINNER] ' : ''}${row.optionLabel}\n\n`;
-            const isBaselineBdRow = row.optionLabel === 'Original Copy';
-            const bdDelta = isBaselineBdRow ? null : getComparisonDelta(row.finalScore, baselineScoreMd);
+            markdown += `### ${mdIsWinner(row) ? '[WINNER] ' : ''}${row.optionLabel}\n\n`;
+            const isBaselineBdRow = mdIsBase(row);
+            const bdDelta = isBaselineBdRow ? null : getComparisonDelta(mdScoreOf(row), baselineScoreMd);
             const bdDeltaLabel = isBaselineBdRow ? 'baseline' : (bdDelta ? bdDelta.label : `${row.deltaVsBest}`);
 
             // Get content text for all new computations
@@ -2720,31 +2736,25 @@ export const formatAsEnhancedMarkdown = (
             }
 
             // — ITEM 6: Winner Type (winner only) —
-            if (row.isWinner && winnerTypeMd) {
+            if (mdIsWinner(row) && winnerTypeMd) {
               markdown += `**Winner Type:** ${winnerTypeMd.type}\n`;
               markdown += `**Reason:** ${winnerTypeMd.reason}\n\n`;
             }
 
             // Score delta line
-            let statsLine = `**Final Score:** ${row.finalScore}/100 | **Δ vs Original:** ${bdDeltaLabel}`;
+            let statsLine = `**Quality:** ${mdScoreOf(row)}/100 | **Δ vs Original:** ${bdDeltaLabel}`;
             if (hasBaseline) {
               let improvPctStr: string;
-              if (row.improvementPct === null) improvPctStr = '—';
-              else if (row.improvementPct === 0) improvPctStr = '0%';
-              else improvPctStr = `${row.improvementPct > 0 ? '+' : ''}${row.improvementPct}%`;
+              if (isBaselineBdRow || baselineScoreMd == null || baselineScoreMd <= 0) improvPctStr = isBaselineBdRow ? '0%' : '—';
+              else {
+                const pct = Math.round(((mdScoreOf(row) - baselineScoreMd) / baselineScoreMd) * 100);
+                improvPctStr = `${pct > 0 ? '+' : ''}${pct}%`;
+              }
               statsLine += ` | **% Improved:** ${improvPctStr}`;
             }
             markdown += `${statsLine}\n\n`;
 
-            // — ITEM 4: Risk Factors —
-            if (contentTextForMdScores) {
-              const risks = computeRiskFactors(contentTextForMdScores, row.verificationFlags);
-              if (risks.length > 0) {
-                markdown += `#### Risk Factors\n\n`;
-                risks.forEach(r => { markdown += `- ${r}\n`; });
-                markdown += `\n`;
-              }
-            }
+            // Risk Factors block removed — it used a deprecated English-keyword heuristic.
 
             const analysis = versionDeepAnalysis?.[row.versionId];
             if (analysis && !analysis.errorMessage) {
