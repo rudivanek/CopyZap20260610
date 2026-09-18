@@ -1,7 +1,28 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.41
-Last Updated: 2026-09-17T12:00:00Z
+Last Updated: 2026-09-18T00:00:00Z
+
+---
+
+## Rankings Snapshot — Self-Labeled Score Columns Replace Header Labels (2026-09-18)
+
+**Feature:** The Rankings Snapshot card (`src/components/results/decision/RankingsSnapshotCard.tsx`) no longer relies on a shared header row to label the Session and Absolute score columns. Each score group now labels itself, so the column alignment between header and body that the previous fixed-width layout required is gone. The header's `ScoreColumnLabel` tooltips (Session / Absolute, each with a hover info icon) were removed; the "Show / Hide Absolute" toggle button in the header is kept.
+
+**Why:** The previous layout used a fixed `SCORE_COL_CLASS = 'w-10 text-right tabular-nums'` width on both the header labels and the body values so the two would line up. That coupling meant any change to one side required a matching change on the other, and the header tooltips duplicated information already conveyed by the values themselves. Self-labeling each group removes the coupling and the duplicated header.
+
+**New body layout:** Each row's score block is now `flex items-start gap-4` containing up to two stacked groups:
+- **Session group** (always rendered): a right-aligned column with a `text-[10px]` uppercase "Session" label above a row holding the delta badge (when non-neutral) and the `finalScore` in tabular-nums. Winner uses `font-black`; others `font-bold`.
+- **Absolute group** (rendered only when `showAbsolute && hasAnyAbsoluteScore`): a right-aligned column separated from the Session group by a left border (`border-l border-gray-100 dark:border-gray-800 pl-4`), with a "Absolute" label above the abs-delta badge, the `w-1 h-5` band-coloured mark, the `absoluteScore.total` in neutral ink, and the optional "Excellent" label for scores above 85. When no absolute score is available yet, a muted `...` placeholder renders in its place.
+
+**Dead code removed:** With the header labels gone, the `ScoreColumnLabel` component, the `SCORE_COL_CLASS` constant, and the `Info` icon import from `lucide-react` (used only by `ScoreColumnLabel`) were all deleted to keep the tree clean and avoid unused-symbol type errors.
+
+**Files touched:** `src/components/results/decision/RankingsSnapshotCard.tsx` only.
+
+**Verification:**
+- `npx tsc --noEmit -p tsconfig.app.json` reports no new errors in this file (the single pre-existing type mismatch in the unchanged `decisionBadges` useMemo remains, unrelated to this change).
+- `npm run build` passes.
+- The Rankings Snapshot header now shows only the "Rankings" label and the Show/Hide Absolute toggle; each row labels its own Session and Absolute scores.
 
 ---
 

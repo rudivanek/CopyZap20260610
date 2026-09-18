@@ -1,5 +1,4 @@
 import React, { useMemo, useState } from 'react';
-import { Info } from 'lucide-react';
 import { getComparisonDelta } from '../../../utils/comparisonDelta';
 import { calculateMultiScoreDisplay } from '../../../utils/multiScoreDisplay';
 import { getDecisionBadgeForVersion, getBadgeStyles, DecisionBadge } from '../../../utils/decisionBadges';
@@ -49,30 +48,6 @@ function getAbsoluteDelta(
     negative: diff < 0,
   };
 }
-
-// Fixed width for score columns so header labels align with values
-const SCORE_COL_CLASS = 'w-10 text-right tabular-nums';
-
-const ScoreColumnLabel: React.FC<{ label: string; tip: string }> = ({ label, tip }) => {
-  const [show, setShow] = React.useState(false);
-  return (
-    <span
-      className={`relative inline-flex items-center justify-end gap-0.5 cursor-default ${SCORE_COL_CLASS}`}
-      onMouseEnter={() => setShow(true)}
-      onMouseLeave={() => setShow(false)}
-    >
-      <span className="text-xs font-bold text-gray-300 dark:text-gray-700 uppercase tracking-widest">
-        {label}
-      </span>
-      <Info size={9} className="text-gray-200 dark:text-gray-800 flex-shrink-0" />
-      {show && (
-        <span className="absolute bottom-full right-0 mb-1.5 z-50 w-44 bg-gray-900 dark:bg-gray-100 text-white dark:text-gray-900 text-xs leading-snug rounded px-2 py-1.5 shadow-lg pointer-events-none whitespace-normal text-center">
-          {tip}
-        </span>
-      )}
-    </span>
-  );
-};
 
 export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
   rows,
@@ -129,17 +104,6 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
           Rankings
         </span>
         <div className="flex items-center gap-3">
-          {/* Session label always visible; Absolute label only when toggled on */}
-          <ScoreColumnLabel
-            label="Session"
-            tip="Relative to other versions generated in this session — may shift slightly when new versions are added"
-          />
-          {showAbsolute && hasAnyAbsoluteScore && (
-            <ScoreColumnLabel
-              label="Absolute"
-              tip="Evaluated in isolation — does not change as new versions are added. Use this for a stable quality benchmark."
-            />
-          )}
           {/* Toggle button — only shown when absolute scores exist */}
           {hasAnyAbsoluteScore && (
             <button
@@ -272,59 +236,72 @@ export const RankingsSnapshotCard: React.FC<RankingsSnapshotCardProps> = ({
                 )}
               </div>
 
-              {/* Score columns — fixed width to align with header labels */}
-              <div className="flex items-center gap-2 flex-shrink-0">
-                {delta && !delta.neutral && (
-                  <span
-                    className={`text-xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${deltaBadgeClasses}`}
-                  >
-                    {delta.label}
+              {/* Score columns — each score self-labeled so no header alignment is needed */}
+              <div className="flex items-start gap-4 flex-shrink-0">
+                {/* Session score group */}
+                <div className="flex flex-col items-end">
+                  <span className="text-[10px] font-bold uppercase tracking-wider text-gray-300 dark:text-gray-700 leading-none mb-1">
+                    Session
                   </span>
-                )}
-                <span
-                  className={`text-sm ${SCORE_COL_CLASS} ${
-                    row.isWinner
-                      ? 'font-black text-gray-900 dark:text-white'
-                      : 'font-bold text-gray-400 dark:text-gray-500'
-                  }`}
-                >
-                  {row.finalScore}
-                </span>
-
-                {/* Absolute score + delta — only rendered when toggled on */}
-                {showAbsolute && hasAnyAbsoluteScore && (
-                  <div className="flex items-center gap-1.5 ml-1">
-                    {absDelta && (
+                  <div className="flex items-center gap-1.5">
+                    {delta && !delta.neutral && (
                       <span
-                        className={`text-xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${absDeltaClass}`}
+                        className={`text-xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${deltaBadgeClasses}`}
                       >
-                        {absDelta.label}
+                        {delta.label}
                       </span>
                     )}
-                    {row.absoluteScore ? (
-                      <div className="flex items-center gap-1.5">
+                    <span
+                      className={`text-sm tabular-nums ${
+                        row.isWinner
+                          ? 'font-black text-gray-900 dark:text-white'
+                          : 'font-bold text-gray-400 dark:text-gray-500'
+                      }`}
+                    >
+                      {row.finalScore}
+                    </span>
+                  </div>
+                </div>
+
+                {/* Absolute score group — only rendered when toggled on */}
+                {showAbsolute && hasAnyAbsoluteScore && (
+                  <div className="flex flex-col items-end border-l border-gray-100 dark:border-gray-800 pl-4">
+                    <span className="text-[10px] font-bold uppercase tracking-wider text-gray-300 dark:text-gray-700 leading-none mb-1">
+                      Absolute
+                    </span>
+                    <div className="flex items-center gap-1.5">
+                      {absDelta && (
                         <span
-                          aria-hidden="true"
-                          className={`w-1 h-5 flex-shrink-0 ${getAbsoluteScoreMarkClass(row.absoluteScore.total)}`}
-                        />
-                        <span
-                          className={`text-sm ${SCORE_COL_CLASS} text-gray-900 dark:text-gray-100 ${
-                            row.isWinner ? 'font-bold' : 'font-semibold'
-                          }`}
+                          className={`text-xs font-semibold px-1.5 py-0.5 rounded-full tabular-nums ${absDeltaClass}`}
                         >
-                          {row.absoluteScore.total}
+                          {absDelta.label}
                         </span>
-                        {getAbsoluteScoreLabel(row.absoluteScore.total) && (
-                          <span className="text-xs text-gray-400 dark:text-gray-600 font-medium">
-                            {getAbsoluteScoreLabel(row.absoluteScore.total)}
+                      )}
+                      {row.absoluteScore ? (
+                        <>
+                          <span
+                            aria-hidden="true"
+                            className={`w-1 h-5 flex-shrink-0 ${getAbsoluteScoreMarkClass(row.absoluteScore.total)}`}
+                          />
+                          <span
+                            className={`text-sm tabular-nums text-gray-900 dark:text-gray-100 ${
+                              row.isWinner ? 'font-bold' : 'font-semibold'
+                            }`}
+                          >
+                            {row.absoluteScore.total}
                           </span>
-                        )}
-                      </div>
-                    ) : (
-                      <span className={`text-xs ${SCORE_COL_CLASS} text-gray-300 dark:text-gray-700 font-normal`}>
-                        ...
-                      </span>
-                    )}
+                          {getAbsoluteScoreLabel(row.absoluteScore.total) && (
+                            <span className="text-xs text-gray-400 dark:text-gray-600 font-medium">
+                              {getAbsoluteScoreLabel(row.absoluteScore.total)}
+                            </span>
+                          )}
+                        </>
+                      ) : (
+                        <span className="text-xs tabular-nums text-gray-300 dark:text-gray-700 font-normal">
+                          ...
+                        </span>
+                      )}
+                    </div>
                   </div>
                 )}
               </div>
