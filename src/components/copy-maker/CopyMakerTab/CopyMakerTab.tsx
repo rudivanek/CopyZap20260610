@@ -2380,11 +2380,9 @@ try {
         isOpen={showInitialAnalysisModal}
         onConfirm={async () => {
           setShowInitialAnalysisModal(false);
-          await compareOutputsWithGrok(false);
-          setTimeout(() => {
-            const el = document.getElementById('comprehensive-analysis');
-            if (el) el.scrollIntoView({ behavior: 'smooth', block: 'start' });
-          }, 500);
+          // Open the Scoring Context modal first so the user picks format, goal and
+          // scoring method (Current / New) before the first analysis runs.
+          handleOpenScoringModal(comparisonResult?.scoringContext ?? undefined);
         }}
         onCancel={() => {
           setShowInitialAnalysisModal(false);
