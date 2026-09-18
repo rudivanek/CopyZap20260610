@@ -3036,18 +3036,31 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
       return `<a href="#${id}"${isWin ? ' class="is-win"' : ''}><span class="idx">${idxStr}</span><span class="name">${escapeHtml(stripEmoji(name))}${winBadge}</span><span class="sc">${scoreStr}</span></a>\n`;
     };
 
-    // Build a score lookup from comparisonResult rows (authoritative source for scores)
+    // Build a score lookup from comparisonResult rows. Prefer the absolute quality
+    // score so the TOC matches the rankings table and the app.
     const comparisonScoreMap = new Map<string, number>();
+    let tocAnyAbs = false;
+    let tocAbsWinnerId: string | null = null;
+    let tocAbsWinnerBest = -Infinity;
     if (comparisonResult?.rows) {
       comparisonResult.rows.forEach(row => {
-        if (row.versionId && row.finalScore != null) comparisonScoreMap.set(row.versionId, row.finalScore);
+        const absVal = (row as any).absoluteTotal ?? null;
+        if (absVal != null) tocAnyAbs = true;
+        const val = absVal ?? row.finalScore;
+        if (row.versionId && val != null) comparisonScoreMap.set(row.versionId, val);
+        const isBase = row.versionId === '__original__' || row.optionLabel === 'Original Copy';
+        if (absVal != null && !isBase && absVal > tocAbsWinnerBest) {
+          tocAbsWinnerBest = absVal;
+          tocAbsWinnerId = row.versionId;
+        }
       });
     }
+    const tocWinnerId = tocAnyAbs ? tocAbsWinnerId : winnerVersionId;
 
     htmlContent += renderTocRow('input-summary', t.inputSummaryLabel, null, false);
     contentCards.forEach(card => {
       const score = comparisonScoreMap.get(card.id) ?? card.score?.overall ?? null;
-      const isWin = card.id === winnerVersionId;
+      const isWin = card.id === tocWinnerId;
       htmlContent += renderTocRow(`output-${card.id}`, stripEmoji(card.sourceDisplayName || card.type), score, isWin);
     });
     if (comparisonResult) {
