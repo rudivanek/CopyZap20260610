@@ -2488,6 +2488,7 @@ export const formatAsEnhancedMarkdown = (
         const mdSeoOn = comparisonResult.rows[0]?.seoActive ?? false;
         const mdKwCount = comparisonResult.rows[0]?.keywordsProvided ?? 0;
         const mdUseCaseLabel = comparisonResult.scoringContext?.useCaseLabel ?? null;
+        const mdGoalLabel = comparisonResult.scoringContext?.goalLabel ?? null;
         const mdScoringVer = comparisonResult.scoringVersion ?? null;
 
         // Final Decision block (top of comparison) — MATCHES WinnerHeroCard UI
@@ -2599,6 +2600,7 @@ export const formatAsEnhancedMarkdown = (
         {
           const ctxParts: string[] = [];
           if (mdUseCaseLabel) ctxParts.push(mdUseCaseLabel);
+          if (mdGoalLabel) ctxParts.push(`Goal: ${mdGoalLabel}`);
           ctxParts.push(`SEO: ${mdSeoOn ? 'On' : 'Off'}`);
           if (mdKwCount > 0) ctxParts.push(`Keywords: ${mdKwCount}`);
           if (mdScoringVer) ctxParts.push(mdScoringVer);

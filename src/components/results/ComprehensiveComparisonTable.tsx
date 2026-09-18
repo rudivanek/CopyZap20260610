@@ -234,6 +234,7 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
   const seoOn = safeRows[0]?.seoActive ?? false;
   const kwCount = safeRows[0]?.keywordsProvided ?? 0;
   const useCaseLabel = comparison.scoringContext?.useCaseLabel ?? null;
+  const goalLabel = comparison.scoringContext?.goalLabel ?? null;
   const scoringVersion = comparison.scoringVersion ?? null;
 
   const missingAnalysisCount = sortedRows.filter(r => !versionDeepAnalysis?.[r.versionId]).length;
@@ -403,6 +404,19 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
                       Compare every version against the original baseline.
                     </p>
                   )}
+                  {(useCaseLabel || goalLabel) && (
+                    <p className="text-xs text-gray-600 dark:text-gray-300 mt-1">
+                      <span className="font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Judged as:</span>{' '}
+                      {useCaseLabel ?? '—'}
+                      {goalLabel && (
+                        <>
+                          {' · '}
+                          <span className="font-semibold uppercase tracking-wide text-gray-500 dark:text-gray-400">Goal:</span>{' '}
+                          {goalLabel}
+                        </>
+                      )}
+                    </p>
+                  )}
                 </div>
                 <span className="text-xs text-gray-400 dark:text-gray-600 font-normal flex-shrink-0">
                   ({sortedRows.length})
@@ -560,6 +574,11 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
               <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
                 <Target className="w-3 h-3 text-gray-400 dark:text-gray-500" />
                 {useCaseLabel}
+              </span>
+            )}
+            {goalLabel && (
+              <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium bg-gray-100 dark:bg-gray-800 text-gray-600 dark:text-gray-400 border border-gray-200 dark:border-gray-700">
+                Goal: {goalLabel}
               </span>
             )}
             <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-xs font-medium border ${
