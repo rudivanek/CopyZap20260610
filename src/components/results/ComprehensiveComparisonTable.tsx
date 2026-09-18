@@ -236,7 +236,7 @@ export const ComprehensiveComparisonTable: React.FC<ComprehensiveComparisonTable
   // version the Rankings marks "Recommended". Falls back to the engine winner when
   // no absolute scores exist.
   const absTotalOf = (r: any): number | null =>
-    effectiveAbsolute(r.absoluteTotal, absoluteScoreMap?.[r.versionId])?.total ?? null;
+    r.absoluteTotal ?? absoluteScoreMap?.[r.versionId]?.total ?? null;
   const absWinnerRow = safeRows
     .filter(r => r.versionId !== baselineVersionId && r.optionLabel !== 'Original Copy')
     .reduce<any>((best, r) => {
