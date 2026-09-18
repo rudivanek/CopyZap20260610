@@ -700,6 +700,8 @@ const EXPORT_I18N = {
     judgedAsLabel: 'Judged as',
     goalWordLabel: 'Goal',
     qualityTotalLabel: 'Quality',
+    baselineWordLabel: 'baseline',
+    potentialWordLabel: 'potential',
     incompleteLabel: 'Incomplete',
     absoluteNote: 'The score is an absolute quality measure (0–100) against a fixed standard for the stated goal; it does not change when versions are added. The ranking reflects this score, and #1 is the recommended version.',
   },
@@ -778,6 +780,8 @@ const EXPORT_I18N = {
     judgedAsLabel: 'Evaluado como',
     goalWordLabel: 'Objetivo',
     qualityTotalLabel: 'Calidad',
+    baselineWordLabel: 'referencia',
+    potentialWordLabel: 'potencial',
     incompleteLabel: 'Incompleta',
     absoluteNote: 'La puntuación es una medida absoluta de calidad (0–100) frente a un estándar fijo para el objetivo indicado; no cambia al añadir versiones. La clasificación refleja esta puntuación y la #1 es la versión recomendada.',
   },
@@ -3016,14 +3020,14 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
       htmlContent += `<div class="journey-head">${t.analysisLabel}</div>\n`;
       htmlContent += '<div class="stops">\n';
       if (baselineScore !== null) {
-        htmlContent += `<div class="stop"><div class="num">${baselineScore}<small>/100</small></div><div class="lbl"><b>${t.original}</b>baseline</div></div>\n`;
+        htmlContent += `<div class="stop"><div class="num">${baselineScore}<small>/100</small></div><div class="lbl"><b>${t.original}</b>${t.baselineWordLabel}</div></div>\n`;
       }
       if (winnerScore !== null) {
         const winnerLabel = jWinnerRow?.optionLabel || contentCards.find(c => c.id === jWinnerRow?.versionId)?.sourceDisplayName || t.winner;
         htmlContent += `<div class="stop now"><div class="num">${winnerScore}<small>/100</small></div><div class="lbl"><b>${escapeHtml(stripEmoji(winnerLabel))}</b>${t.winner}</div></div>\n`;
       }
       if (projectedScore !== null) {
-        htmlContent += `<div class="stop goal"><div class="num">${projectedScore}<small>/100</small></div><div class="lbl"><b>${t.suggestedImprovementsLabel}</b>potential</div></div>\n`;
+        htmlContent += `<div class="stop goal"><div class="num">${projectedScore}<small>/100</small></div><div class="lbl"><b>${t.suggestedImprovementsLabel}</b>${t.potentialWordLabel}</div></div>\n`;
       }
       htmlContent += '</div>\n';
       const railMarks = (baselineScore !== null ? 1 : 0) + (winnerScore !== null ? 1 : 0) + (projectedScore !== null ? 1 : 0);
