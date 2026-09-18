@@ -3981,6 +3981,17 @@ export const buildLLMEvaluationAudit = (
 
   if (comparisonResult) {
     winnerId = (comparisonResult as any).winnerVersionId || comparisonResult.winner || '';
+    {
+      const wRows = (comparisonResult as any).rows;
+      if (Array.isArray(wRows) && wRows.some((r: any) => r.absoluteTotal != null)) {
+        let best = -Infinity; let bestId = winnerId;
+        for (const r of wRows) {
+          const isBase = r.versionId === '__original__' || r.optionLabel === 'Original Copy';
+          if (!isBase && r.absoluteTotal != null && r.absoluteTotal > best) { best = r.absoluteTotal; bestId = r.versionId; }
+        }
+        winnerId = bestId;
+      }
+    }
 
     if (winnerId) {
       const winnerVersion = generatedOutputCards.find(item =>
@@ -4002,16 +4013,15 @@ export const buildLLMEvaluationAudit = (
 
     const rows = (comparisonResult as any).rows;
     if (rows && Array.isArray(rows)) {
-      rankingList = rows
-        .sort((a: any, b: any) => (a.rank || 0) - (b.rank || 0))
-        .map((row: any) => {
-          const rank = row.rank || 0;
-          const label = row.label || row.optionLabel || `Version ${rank}`;
-          return `${rank}. ${label}`;
+      rankingList = [...rows]
+        .sort((a: any, b: any) => ((b.absoluteTotal ?? b.finalScore ?? 0) - (a.absoluteTotal ?? a.finalScore ?? 0)))
+        .map((row: any, idx: number) => {
+          const label = row.label || row.optionLabel || `Version ${idx + 1}`;
+          return `${idx + 1}. ${label}`;
         });
       scoresList = rows.map((row: any) => ({
         label: row.label || row.optionLabel || 'Unknown',
-        score: row.finalScore ?? row.score ?? 0
+        score: row.absoluteTotal ?? row.finalScore ?? row.score ?? 0
       }));
     } else if (comparisonResult.ranking && Array.isArray(comparisonResult.ranking)) {
       rankingList = comparisonResult.ranking.map((item: any, idx: number) => {
@@ -4090,7 +4100,7 @@ export const buildLLMEvaluationAudit = (
     const auditRows = (comparisonResult as any).rows;
     if (auditRows && Array.isArray(auditRows)) {
       markdown += `### PER-VERSION ANALYSIS\n\n`;
-      auditRows.sort((a: any, b: any) => (a.rank || 0) - (b.rank || 0)).forEach((row: any) => {
+      [...auditRows].sort((a: any, b: any) => ((b.absoluteTotal ?? b.finalScore ?? 0) - (a.absoluteTotal ?? a.finalScore ?? 0))).forEach((row: any) => {
         const label = row.label || row.optionLabel || 'Unknown';
         const ct = contentMap[row.versionId] || contentMap[label] || '';
         const wcrl = ct ? computeWordCountAndReadingLevel(ct) : null;
@@ -4098,9 +4108,9 @@ export const buildLLMEvaluationAudit = (
         const strategy = ct ? computeConversionStrategy(ct) : 'ROI Framing' as const;
         const intensity = ct ? computeCommercialIntensity(ct) : 'Medium' as const;
         const driver = ct ? computeMostLikelyConversionDriver(ct) : 'Relevance to reader context.';
-        const risks = ct ? computeRiskFactors(ct, row.verificationFlags) : [];
+        const risks: string[] = [];
 
-        markdown += `#### ${label}${row.isWinner ? ' (WINNER)' : ''}\n\n`;
+        markdown += `#### ${label}${row.versionId === winnerId ? ' (WINNER)' : ''}\n\n`;
 
         if (row.verificationFlags && row.verificationFlags.length > 0) {
           markdown += `⚠️ **Verify before publishing:**\n`;
@@ -4137,8 +4147,9 @@ export const buildLLMEvaluationAudit = (
 
   const auditRows2 = (comparisonResult as any).rows;
   if (auditRows2 && auditRows2.length >= 2) {
-    const sortedAuditRows = [...auditRows2].sort((a: any, b: any) => (b.finalScore || 0) - (a.finalScore || 0));
-    const wt = classifyWinnerType(sortedAuditRows[0].finalScore || 0, sortedAuditRows[1].finalScore || 0);
+    const auditScoreOf = (r: any) => r.absoluteTotal ?? r.finalScore ?? 0;
+    const sortedAuditRows = [...auditRows2].sort((a: any, b: any) => auditScoreOf(b) - auditScoreOf(a));
+    const wt = classifyWinnerType(auditScoreOf(sortedAuditRows[0]), auditScoreOf(sortedAuditRows[1]));
     markdown += `### WINNER TYPE\n\n`;
     markdown += `**${wt.type}** — ${wt.reason}\n\n`;
   }
@@ -4175,40 +4186,44 @@ export const buildLLMEvaluationAudit = (
   markdown += `---\n\n`;
 
   // SECTION C - TASK
+  const auditCtxFormat = (comparisonResult as any)?.scoringContext?.useCaseLabel ?? null;
+  const auditCtxGoal = (comparisonResult as any)?.scoringContext?.goalLabel ?? null;
+  const auditCtxLine = (auditCtxFormat || auditCtxGoal)
+    ? `${auditCtxFormat ? `Format: ${auditCtxFormat}` : ''}${auditCtxFormat && auditCtxGoal ? ' · ' : ''}${auditCtxGoal ? `Goal: ${auditCtxGoal}` : ''}`
+    : 'not specified';
+
   markdown += `## SECTION C — TASK\n\n`;
+  markdown += `The app scores each version with a single **Absolute Quality** score (0–100): how good the copy is at its stated job, judged against a fixed standard, independent of the other versions. This copy's job is: **${auditCtxLine}**.\n\n`;
   markdown += `Perform the following:\n\n`;
-  markdown += `**1. Rank all versions (best → worst)**\n\n`;
-  markdown += `**2. Choose a winner**\n\n`;
-  markdown += `**3. Score each version on TWO separate dimensions:**\n`;
-  markdown += `   - Editorial Quality (0–100): how well-written, clear, and professional\n`;
-  markdown += `   - Conversion Potential (0–100): how likely to make the reader take action\n`;
-  markdown += `   - Do NOT combine them into a single score\n\n`;
-  markdown += `**4. Score each version on the 10 Persuasion Sub-Dimensions:**\n`;
-  markdown += `   - Emotional Impact / Clarity / Trust / Specificity / Urgency\n`;
-  markdown += `   - Professionalism / Readability / CTA Strength / Audience Fit / Differentiation\n\n`;
-  markdown += `**5. Classify winner:**\n`;
+  markdown += `**1. Rank all versions (best → worst)** by absolute quality.\n\n`;
+  markdown += `**2. Choose a winner** (the single best version to publish).\n\n`;
+  markdown += `**3. Give each version ONE Absolute Quality score (0–100)** for how well it does the job above, against a fixed standard — NOT relative to the other versions. Do not split it into separate editorial/conversion numbers.\n\n`;
+  markdown += `**4. Break that score into the four sub-dimensions the standard uses (0–25 each, summing to your 0–100):**\n`;
+  markdown += `   - Clarity — is the message immediately understandable\n`;
+  markdown += `   - Persuasion — does it motivate the reader toward the goal\n`;
+  markdown += `   - Audience Fit — does it speak to the stated audience and job\n`;
+  markdown += `   - Structure — is it well-organized and complete (no missing/empty sections)\n\n`;
+  markdown += `**5. Classify the winner:**\n`;
   markdown += `   - Clear Winner (≥10 pt gap over next best)\n`;
   markdown += `   - Moderate Winner (5–9 pt gap)\n`;
   markdown += `   - Close Call (<5 pt gap)\n\n`;
-  markdown += `**6. Compare with SECTION B:**\n`;
+  markdown += `**6. Compare with SECTION B (the app's judgment):**\n`;
   markdown += `   - Where do you AGREE?\n`;
   markdown += `   - Where do you DISAGREE?\n\n`;
   markdown += `**7. For each disagreement:**\n`;
   markdown += `   - Explain why\n`;
   markdown += `   - State who is more correct (you or the app)\n\n`;
-  markdown += `**8. Evaluate the app scoring system:**\n`;
+  markdown += `**8. Evaluate the app's absolute scoring:**\n`;
   markdown += `   - Is it directionally correct?\n`;
-  markdown += `   - Does it over/under score?\n`;
+  markdown += `   - Is it well-calibrated, or does it over-score / under-score against the fixed standard?\n`;
   markdown += `   - Does it miss important factors?\n\n`;
   markdown += `**9. Score comparison analysis (REQUIRED):**\n`;
-  markdown += `   - Compare Editorial Quality scores between app and your judgment. Flag any version with a gap greater than 10 points and explain why.\n`;
-  markdown += `   - Compare Conversion Potential scores separately. Flag any gap greater than 10 points and explain why.\n`;
-  markdown += `   - For each Persuasion Sub-Dimension, flag disagreements greater than 15 points.\n`;
-  markdown += `   - State explicitly: does the app conflate Editorial Quality with Conversion Potential? Provide evidence from the scores.\n\n`;
-  markdown += `**10. Final reliability verdict (answer all three):**\n`;
-  markdown += `   - Is the app reliable for **ranking**? (yes/no + reason)\n`;
-  markdown += `   - Is the app reliable for **Editorial Quality scoring**? (yes/no + reason)\n`;
-  markdown += `   - Is the app reliable for **Conversion Potential scoring**? (yes/no + reason)\n\n`;
+  markdown += `   - Compare your Absolute Quality total to the app's for each version. Flag any version with a gap greater than 10 points and explain why.\n`;
+  markdown += `   - Compare each of the four sub-dimensions. Flag any disagreement greater than 6 points (on the 0–25 scale) and explain why.\n`;
+  markdown += `   - Judge whether the app's score is anchored to a fixed standard or drifts with the batch. Provide evidence from the scores.\n\n`;
+  markdown += `**10. Final reliability verdict (answer both):**\n`;
+  markdown += `   - Is the app reliable for **ranking / choosing the winner**? (yes/no + reason)\n`;
+  markdown += `   - Is the app reliable for **absolute quality scoring** (is the 0–100 number trustworthy on its own)? (yes/no + reason)\n\n`;
   markdown += `---\n\n`;
 
   // OUTPUT FORMAT
@@ -4217,14 +4232,11 @@ export const buildLLMEvaluationAudit = (
   markdown += `...\n\n`;
   markdown += `**RANKING:**\n`;
   markdown += `...\n\n`;
-  markdown += `**EDITORIAL QUALITY SCORES:**\n`;
+  markdown += `**ABSOLUTE QUALITY SCORES:**\n`;
   markdown += `- [Version label]: XX/100\n`;
   markdown += `...\n\n`;
-  markdown += `**CONVERSION POTENTIAL SCORES:**\n`;
-  markdown += `- [Version label]: XX/100\n`;
-  markdown += `...\n\n`;
-  markdown += `**PERSUASION BREAKDOWN:**\n`;
-  markdown += `[Version label]: Emotional Impact XX | Clarity XX | Trust XX | Specificity XX | Urgency XX | Professionalism XX | Readability XX | CTA Strength XX | Audience Fit XX | Differentiation XX\n`;
+  markdown += `**SUB-DIMENSION BREAKDOWN (0–25 each):**\n`;
+  markdown += `[Version label]: Clarity XX | Persuasion XX | Audience Fit XX | Structure XX | Total XX/100\n`;
   markdown += `...\n\n`;
   markdown += `**WINNER TYPE:**\n`;
   markdown += `...\n\n`;
@@ -4234,17 +4246,15 @@ export const buildLLMEvaluationAudit = (
   markdown += `...\n\n`;
   markdown += `**WHO IS MORE CORRECT:**\n`;
   markdown += `...\n\n`;
-  markdown += `**EDITORIAL QUALITY GAP ANALYSIS:**\n`;
+  markdown += `**ABSOLUTE QUALITY GAP ANALYSIS:**\n`;
   markdown += `...\n\n`;
-  markdown += `**CONVERSION POTENTIAL GAP ANALYSIS:**\n`;
+  markdown += `**SUB-DIMENSION GAP ANALYSIS:**\n`;
   markdown += `...\n\n`;
-  markdown += `**DOES APP CONFLATE EDITORIAL AND CONVERSION?**\n`;
+  markdown += `**IS THE APP'S ABSOLUTE SCORE WELL-CALIBRATED?**\n`;
   markdown += `...\n\n`;
   markdown += `**APP RELIABILITY FOR RANKING:**\n`;
   markdown += `...\n\n`;
-  markdown += `**APP RELIABILITY FOR EDITORIAL QUALITY SCORING:**\n`;
-  markdown += `...\n\n`;
-  markdown += `**APP RELIABILITY FOR CONVERSION POTENTIAL SCORING:**\n`;
+  markdown += `**APP RELIABILITY FOR ABSOLUTE QUALITY SCORING:**\n`;
   markdown += `...\n\n`;
   markdown += `**BIGGEST ERROR:**\n`;
   markdown += `...\n\n`;
