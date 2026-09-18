@@ -3297,7 +3297,7 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
 
           let deltaHtml = '';
           if (isOriginal) {
-            deltaHtml = `<small>baseline</small>`;
+            deltaHtml = `<small>${t.baselineWordLabel}</small>`;
           } else if (primary != null && baseVal != null) {
             const delta = primary - baseVal;
             const pct = baseVal > 0 ? Math.round((delta / baseVal) * 100) : 0;
