@@ -2954,7 +2954,29 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
 `;
 
     // ── DOCUMENT HEADER (cover) ─────────────────────────────────────────────────
+    // Absolute is the decision score — use it for the cover journey band too, so the
+    // baseline, winner and projected numbers match the rankings table and the app.
+    const jAbsOf = (r: any): number | null => r?.absoluteTotal ?? null;
+    const jAnyAbs = !!comparisonResult?.rows?.some((r: any) => jAbsOf(r) != null);
+    const jOriginalRow = comparisonResult?.rows?.find(r => r.versionId === '__original__' || r.optionLabel === 'Original Copy') ?? null;
+    let jWinnerRow: any = winnerRow;
+    if (jAnyAbs && comparisonResult?.rows) {
+      let best = -Infinity;
+      for (const r of comparisonResult.rows) {
+        const isBase = r.versionId === '__original__' || r.optionLabel === 'Original Copy';
+        const tt = jAbsOf(r);
+        if (!isBase && tt != null && tt > best) { best = tt; jWinnerRow = r; }
+      }
+    }
+
     const baselineScore = (() => {
+      if (jAnyAbs) {
+        if (jOriginalRow && jAbsOf(jOriginalRow) != null) return jAbsOf(jOriginalRow);
+        const lowestAbs = [...(comparisonResult?.rows ?? [])]
+          .filter((r: any) => jAbsOf(r) != null)
+          .sort((a: any, b: any) => (jAbsOf(a) ?? 0) - (jAbsOf(b) ?? 0))[0];
+        return lowestAbs ? jAbsOf(lowestAbs) : null;
+      }
       if (comparisonResult?.rows?.length) {
         const orig = comparisonResult.rows.find(r => r.versionId === '__original__' || r.optionLabel === 'Original Copy');
         if (orig?.finalScore != null) return orig.finalScore;
@@ -2964,15 +2986,18 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
       const lowestCard = [...contentCards].sort((a, b) => (a.score?.overall ?? 0) - (b.score?.overall ?? 0))[0];
       return lowestCard?.score?.overall ?? null;
     })();
-    const winnerScore = winnerRow?.finalScore ?? winnerRow?.score ?? null;
+    const winnerScore = jAnyAbs ? (jAbsOf(jWinnerRow) ?? null) : (winnerRow?.finalScore ?? winnerRow?.score ?? null);
     let projectedScore: number | null = null;
-    if (versionDeepAnalysis && winnerVersionId) {
-      const wa = versionDeepAnalysis[winnerVersionId];
-      if (wa?.suggestedImprovements?.length && winnerRow) {
-        const total = wa.suggestedImprovements
-          .filter((item: any) => typeof item === 'object' && item.points_delta > 0)
-          .reduce((sum: number, item: any) => sum + item.points_delta, 0);
-        if (total > 0) projectedScore = Math.min(92, (winnerRow.finalScore ?? 0) + total);
+    {
+      const projBaseId = jAnyAbs ? jWinnerRow?.versionId : winnerVersionId;
+      if (versionDeepAnalysis && projBaseId && winnerScore != null) {
+        const wa = versionDeepAnalysis[projBaseId];
+        if (wa?.suggestedImprovements?.length) {
+          const total = wa.suggestedImprovements
+            .filter((item: any) => typeof item === 'object' && item.points_delta > 0)
+            .reduce((sum: number, item: any) => sum + item.points_delta, 0);
+          if (total > 0) projectedScore = Math.min(100, winnerScore + total);
+        }
       }
     }
 
@@ -2994,7 +3019,7 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
         htmlContent += `<div class="stop"><div class="num">${baselineScore}<small>/100</small></div><div class="lbl"><b>${t.original}</b>baseline</div></div>\n`;
       }
       if (winnerScore !== null) {
-        const winnerLabel = winnerRow?.optionLabel || contentCards.find(c => c.id === winnerVersionId)?.sourceDisplayName || t.winner;
+        const winnerLabel = jWinnerRow?.optionLabel || contentCards.find(c => c.id === jWinnerRow?.versionId)?.sourceDisplayName || t.winner;
         htmlContent += `<div class="stop now"><div class="num">${winnerScore}<small>/100</small></div><div class="lbl"><b>${escapeHtml(stripEmoji(winnerLabel))}</b>${t.winner}</div></div>\n`;
       }
       if (projectedScore !== null) {
@@ -3343,7 +3368,8 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
                 htmlContent += `<div class="road-item">${ptsBadge}<div class="txt">${escapedText}</div></div>\n`;
               });
               if (winnerDeltaTotal > 0 && winnerRow) {
-                const winnerProjScore = Math.min(92, winnerRow.finalScore + winnerDeltaTotal);
+                const winnerBaseAbs = (winnerRow as any).absoluteTotal ?? winnerRow.finalScore;
+                const winnerProjScore = Math.min(100, winnerBaseAbs + winnerDeltaTotal);
                 htmlContent += `<div class="road-total"><div class="lb">${t.applyAllSuggestions(winnerProjScore)}</div><div class="vv">${winnerProjScore}<small>/100</small></div></div>\n`;
               }
               htmlContent += '</div>\n';
