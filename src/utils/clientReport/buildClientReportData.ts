@@ -974,19 +974,29 @@ export function buildClientReportData(
       content: formState.originalCopy.trim(),
       generatedAt: formState.originalCopyEnteredAt || new Date().toISOString(),
       sourceDisplayName: 'Original Copy',
-      score: originalRowInComparison.finalScore != null
-        ? { overall: originalRowInComparison.finalScore, clarity: '0', persuasiveness: '0', toneMatch: '0', engagement: '0' }
+      score: ((originalRowInComparison as any).absoluteTotal ?? originalRowInComparison.finalScore) != null
+        ? { overall: ((originalRowInComparison as any).absoluteTotal ?? originalRowInComparison.finalScore), clarity: '0', persuasiveness: '0', toneMatch: '0', engagement: '0' }
         : undefined,
     });
   }
 
-  // Score maps.
+  // Score maps. Absolute quality (0–100, fixed bar) is the headline score when any
+  // version has one — matching the app and the Preview HTML export. Session/relative
+  // finalScore is used only as a fallback for runs with no absolute scores.
+  const absTotalForRow = (row: any): number | null => {
+    const cardAbs = contentCards.find(c => c.id === row.versionId)?.absoluteScore?.total;
+    if (cardAbs != null) return cardAbs;
+    return row.absoluteTotal ?? null;
+  };
+  const anyAbsolute = !!comparisonResult?.rows?.some(r => absTotalForRow(r) != null);
   const scoreMap = new Map<string, number>();
   const editorialMap = new Map<string, number>();
   const conversionMap = new Map<string, number>();
   if (comparisonResult?.rows) {
     for (const row of comparisonResult.rows) {
-      if (row.versionId && row.finalScore != null) scoreMap.set(row.versionId, row.finalScore);
+      const absTotal = absTotalForRow(row);
+      const primary = anyAbsolute ? absTotal : (row.finalScore ?? null);
+      if (row.versionId && primary != null) scoreMap.set(row.versionId, primary);
       const abs = contentCards.find(c => c.id === row.versionId)?.absoluteScore;
       if (abs) {
         // Average of the two sub-scores, clamped 0–100 (spec 4.3).
@@ -996,12 +1006,25 @@ export function buildClientReportData(
     }
   }
 
-  const winnerRow = comparisonResult?.rows?.find(r => r.isWinner);
+  // Winner = highest absolute among non-baseline versions (falls back to the engine
+  // winner when no absolute scores exist), so the client report recommends the same
+  // version as the app and the Preview export.
+  let winnerRow = comparisonResult?.rows?.find(r => r.isWinner);
+  if (anyAbsolute && comparisonResult?.rows) {
+    let best = -Infinity;
+    let bestRow: typeof winnerRow = undefined;
+    for (const r of comparisonResult.rows) {
+      if (r.versionId === ORIGINAL_VERSION_ID) continue;
+      const tt = scoreMap.get(r.versionId);
+      if (tt != null && tt > best) { best = tt; bestRow = r; }
+    }
+    if (bestRow) winnerRow = bestRow;
+  }
   const winnerVersionId = winnerRow?.versionId || comparisonResult?.winnerVersionId || '';
   const baselineRow = comparisonResult?.rows?.find(r => r.versionId === ORIGINAL_VERSION_ID) ||
     comparisonResult?.rows?.find(r => (r as any).isBaseline);
-  const baselineScore = baselineRow?.finalScore ?? scoreMap.get(ORIGINAL_VERSION_ID) ?? 0;
-  const winnerScore = winnerRow?.finalScore ?? (winnerVersionId ? scoreMap.get(winnerVersionId) ?? 0 : 0);
+  const baselineScore = scoreMap.get(ORIGINAL_VERSION_ID) ?? baselineRow?.finalScore ?? 0;
+  const winnerScore = (winnerVersionId ? scoreMap.get(winnerVersionId) : undefined) ?? winnerRow?.finalScore ?? 0;
 
   const winnerAnalysis = winnerVersionId ? versionDeepAnalysis?.[winnerVersionId] : undefined;
   const { items: roadmapItems, projected } = roadmapFromAnalysis(winnerAnalysis);

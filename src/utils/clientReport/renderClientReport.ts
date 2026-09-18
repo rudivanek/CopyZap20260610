@@ -193,8 +193,8 @@ function renderToc(data: ClientReportData): string {
   <div class="wrap">
     <div class="eyebrow">Contenido del reporte</div>
     <h2>Versiones evaluadas</h2>
-    <p class="lede">Cada versión se puntúa sobre los mismos seis criterios. La diferencia frente a tu copy
-       actual se expresa en puntos y en porcentaje.</p>
+    <p class="lede">Cada versión recibe una puntuación absoluta de calidad (0–100) frente a un estándar fijo.
+       La diferencia frente a tu copy actual se expresa en puntos y en porcentaje.</p>
     <nav class="toc">
 ${rows.join('\n')}
     </nav>
@@ -425,10 +425,10 @@ function renderRanking(data: ClientReportData): string {
 ${rows}
     </div>
 ${noteHtml}
-    <p class="methodo"><b>Cómo se calcula.</b> Cada versión se evalúa sobre seis dimensiones —claridad,
-      persuasión, engagement, calidad editorial, potencial de conversión y ajuste al público definido— con el
-      mismo criterio y el mismo contexto de marca. Las puntuaciones son comparativas entre las versiones de
-      este análisis: lo relevante es el orden y la magnitud de la diferencia, no el número absoluto.</p>
+    <p class="methodo"><b>Cómo se calcula.</b> Cada versión se evalúa de forma independiente contra un
+      estándar fijo de calidad (0–100) para el objetivo definido, con el mismo criterio y el mismo contexto
+      de marca. La puntuación es absoluta: no cambia al añadir o quitar versiones. La clasificación refleja
+      esta puntuación, y la versión #1 es la recomendada.</p>
   </div>
 </section>`;
 }
