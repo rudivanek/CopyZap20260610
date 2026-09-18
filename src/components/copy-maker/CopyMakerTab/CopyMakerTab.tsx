@@ -1058,6 +1058,16 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
   const performScoreAndNavigate = async (scoringContext?: import('../../../types').ScoringContext) => {
     // comparative scoring state fix: reset stale comparison before rescoring
     if (!currentUser || !comparisonResult) return;
+    // The incremental anchor path below runs ONLY the comparative ranking — it does
+    // not run the New method's structural gate or goal-aware absolute scoring, which
+    // live in generateUnifiedComparison. So when the New method is active, fall
+    // through to the full comparison instead, keeping scoring consistent no matter
+    // which button triggered it. The incremental path is kept for the Current method.
+    const effectiveMethod = scoringContext?.method ?? comparisonResult.scoringContext?.method ?? 'current';
+    if (effectiveMethod === 'new') {
+      await compareOutputsWithGrok(false, scoringContext ?? comparisonResult.scoringContext ?? undefined);
+      return;
+    }
 
     const comparedIds = new Set(comparisonResult.rows.map((r: any) => r.versionId));
     const missingVersions = (formState.copyResult?.generatedVersions || []).filter(
