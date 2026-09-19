@@ -121,10 +121,10 @@ export async function generateAbsoluteScore(
     const persuasion  = clamp(parsed.persuasion, 25);
     const audience_fit = clamp(parsed.audience_fit, 25);
     const structure   = clamp(parsed.structure, 25);
-    const total = clamp(
-      typeof parsed.total === 'number' ? parsed.total : clarity + persuasion + audience_fit + structure,
-      100
-    );
+    // Total is defined as the sum of the four 0–25 dimensions, so it always matches the
+    // sub-score breakdown shown in reports (previously used the model's independently
+    // returned total, which could drift ±1–2 from the actual sum).
+    const total = clamp(clarity + persuasion + audience_fit + structure, 100);
 
     return {
       clarity,

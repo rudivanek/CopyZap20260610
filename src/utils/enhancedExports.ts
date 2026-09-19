@@ -16,10 +16,6 @@ import {
   computeRiskFactors,
   computeWordCountAndReadingLevel,
   classifyWinnerType,
-  computeEvaluationConfidence,
-  computeConversionStrategy,
-  computeCommercialIntensity,
-  computeMostLikelyConversionDriver,
 } from './multiScoreDisplay';
 import { getDecisionBadgeForVersion, getBadgeStyles, DecisionBadge } from './decisionBadges';
 import { formatLocalDateTime } from './dateFormatting';
@@ -2687,12 +2683,12 @@ export const formatAsEnhancedMarkdown = (
         if (rowsWithDecision.length > 0) {
           markdown += `### Decision Details\n\n`;
           rowsWithDecision.forEach((row: any) => {
-            const winnerLabelMd = mdIsWinner(row) ? ' **(Winner)**' : '';
+            const winnerLabelMd = mdIsWinner(row) ? ' (Winner)' : '';
             markdown += `**${row.optionLabel}${winnerLabelMd}**\n\n`;
             if (row.decisionSummary) {
               markdown += `${row.decisionSummary}\n\n`;
             }
-            if (row.decisionReason) {
+            if (row.decisionReason && row.decisionReason !== row.decisionSummary) {
               markdown += `*${row.decisionReason}*\n\n`;
             }
           });
@@ -3697,6 +3693,11 @@ export const buildLLMEvaluationMarkdown = (
 
   // GENERATED VERSIONS
   generatedOutputCards.forEach((item, index) => {
+    // Skip the Original/baseline card here when improve-mode already emitted it above,
+    // otherwise the Original Copy appears twice in the blind SECTION A input.
+    const isOriginalCard = item.type === GeneratedContentItemType.Original || item.sourceDisplayName === 'Original Copy';
+    if (formState.tab === 'improve' && formState.originalCopy && isOriginalCard) return;
+
     let versionLabel = item.sourceDisplayName || item.type || `Version ${index + 1}`;
     if (item.persona) {
       versionLabel += ` (${item.persona}'s Voice)`;
@@ -3993,6 +3994,11 @@ export const buildLLMEvaluationAudit = (
 
   // GENERATED VERSIONS
   generatedOutputCards.forEach((item, index) => {
+    // Skip the Original/baseline card here when improve-mode already emitted it above,
+    // otherwise the Original Copy appears twice in the blind SECTION A input.
+    const isOriginalCard = item.type === GeneratedContentItemType.Original || item.sourceDisplayName === 'Original Copy';
+    if (formState.tab === 'improve' && formState.originalCopy && isOriginalCard) return;
+
     let versionLabel = item.sourceDisplayName || item.type || `Version ${index + 1}`;
     if (item.persona) {
       versionLabel += ` (${item.persona}'s Voice)`;
@@ -4154,11 +4160,6 @@ export const buildLLMEvaluationAudit = (
         const label = row.label || row.optionLabel || 'Unknown';
         const ct = contentMap[row.versionId] || contentMap[label] || '';
         const wcrl = ct ? computeWordCountAndReadingLevel(ct) : null;
-        const confidence = ct ? computeEvaluationConfidence(ct) : { confidence: 'Medium' as const };
-        const strategy = ct ? computeConversionStrategy(ct) : 'ROI Framing' as const;
-        const intensity = ct ? computeCommercialIntensity(ct) : 'Medium' as const;
-        const driver = ct ? computeMostLikelyConversionDriver(ct) : 'Relevance to reader context.';
-        const risks: string[] = [];
 
         markdown += `#### ${label}${row.versionId === winnerId ? ' (WINNER)' : ''}\n\n`;
 
@@ -4187,16 +4188,10 @@ export const buildLLMEvaluationAudit = (
           markdown += `**Reading Level:** ${wcrl.readingLevel}\n`;
         }
         markdown += `\n`;
-        if (risks.length > 0) {
-          markdown += `**Risk Factors:**\n`;
-          risks.forEach(r => { markdown += `- ${r}\n`; });
-          markdown += `\n`;
-        }
 
-        markdown += `**Evaluation Confidence:** ${confidence.confidence}${confidence.reason ? ` — ${confidence.reason}` : ''}\n`;
-        markdown += `**Primary Conversion Strategy:** ${strategy}\n`;
-        markdown += `**Commercial Intensity:** ${intensity}\n`;
-        markdown += `**Most Likely Conversion Driver:** ${driver}\n\n`;
+        // Removed Evaluation Confidence / Primary Conversion Strategy / Commercial Intensity /
+        // Most Likely Conversion Driver — these came from the old English-keyword heuristics and
+        // returned identical, generic values for every version (misleading on non-English copy).
       });
     }
   } else {
