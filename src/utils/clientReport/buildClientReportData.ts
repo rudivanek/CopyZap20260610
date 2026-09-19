@@ -985,9 +985,12 @@ export function buildClientReportData(
   // version has one — matching the app and the Preview HTML export. Session/relative
   // finalScore is used only as a fallback for runs with no absolute scores.
   const absTotalForRow = (row: any): number | null => {
-    const cardAbs = contentCards.find(c => c.id === row.versionId)?.absoluteScore?.total;
-    if (cardAbs != null) return cardAbs;
-    return row.absoluteTotal ?? null;
+    // Prefer the goal-aware comparison score (row.absoluteTotal) — the same number the
+    // app and every other export use. The card's absoluteScore is the older generation-
+    // time score (goal-agnostic, runs higher) and is only a fallback; preferring it made
+    // the client report show different, inflated numbers than the rest of the app.
+    if (row.absoluteTotal != null) return row.absoluteTotal;
+    return contentCards.find(c => c.id === row.versionId)?.absoluteScore?.total ?? null;
   };
   const anyAbsolute = !!comparisonResult?.rows?.some(r => absTotalForRow(r) != null);
   const scoreMap = new Map<string, number>();
@@ -1105,14 +1108,24 @@ export function buildClientReportData(
     const editorial = editorialMap.get(card.id) ?? clamp(Math.round(score * 0.5), 0, 100);
     const conversion = conversionMap.get(card.id) ?? clamp(Math.round(score * 0.5), 0, 100);
 
-    const cardAbsSub = card.absoluteScore && card.absoluteScore.total > 0
+    // Sub-scores must match the goal-aware total above, so prefer the row's absoluteSub;
+    // fall back to the card's generation-time breakdown only when a run has no row subs.
+    const subRow = comparisonResult?.rows?.find((r: any) => r.versionId === card.id) as any;
+    const cardAbsSub = subRow?.absoluteSub
       ? {
-          clarity: card.absoluteScore.clarity,
-          persuasion: card.absoluteScore.persuasion,
-          audienceFit: card.absoluteScore.audience_fit,
-          structure: card.absoluteScore.structure,
+          clarity: subRow.absoluteSub.clarity,
+          persuasion: subRow.absoluteSub.persuasion,
+          audienceFit: subRow.absoluteSub.audience_fit,
+          structure: subRow.absoluteSub.structure,
         }
-      : null;
+      : (card.absoluteScore && card.absoluteScore.total > 0
+          ? {
+              clarity: card.absoluteScore.clarity,
+              persuasion: card.absoluteScore.persuasion,
+              audienceFit: card.absoluteScore.audience_fit,
+              structure: card.absoluteScore.structure,
+            }
+          : null);
 
     let displayName: string;
     let roleLine: string;
