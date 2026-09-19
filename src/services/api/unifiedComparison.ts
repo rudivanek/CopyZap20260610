@@ -129,6 +129,7 @@ export async function generateUnifiedComparison(
     if (abs) {
       row.absoluteTotal = abs.total;
       row.absoluteNotes = [abs.clarity_note, abs.persuasion_note, abs.audience_fit_note, abs.structure_note].filter(Boolean);
+      row.absoluteSub = { clarity: abs.clarity, persuasion: abs.persuasion, audience_fit: abs.audience_fit, structure: abs.structure };
     }
     const gate = gateByVersion[row.versionId];
     if (gate) {

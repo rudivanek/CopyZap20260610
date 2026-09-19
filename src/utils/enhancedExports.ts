@@ -2535,8 +2535,16 @@ export const formatAsEnhancedMarkdown = (
             }
             markdown += `\n\n`;
 
+            // Only show the comparative engine's singular winner narrative when the
+            // absolute winner shown above is the same version the engine chose; otherwise
+            // that prose describes a different version (causes self-comparison / wrong notes).
+            const mdLlmWinnerId = (comparisonResult as any).winnerVersionId ?? sortedRows.find((r: any) => r.isWinner)?.versionId ?? null;
+            const mdNarrativeMatches = !mdLlmWinnerId || mdTopWinner.versionId === mdLlmWinnerId;
+            if (!mdNarrativeMatches) {
+              markdown += `_Recommended on its absolute quality score. See this version's own analysis under "All Versions Breakdown" for its specific strengths and fixes._\n\n`;
+            }
             // QUICK WHY (winnerBreakdown.whatItDoesBetter)
-            if (comparisonResult.winnerBreakdown?.whatItDoesBetter && comparisonResult.winnerBreakdown.whatItDoesBetter.length > 0) {
+            if (mdNarrativeMatches && comparisonResult.winnerBreakdown?.whatItDoesBetter && comparisonResult.winnerBreakdown.whatItDoesBetter.length > 0) {
               const quickWhyBullets = comparisonResult.winnerBreakdown.whatItDoesBetter.slice(0, 3).map((item: string) => {
                 const cleaned = item.replace(/^(Compared to|vs\.?)\s+[^,]+,\s*/i, '');
                 return cleaned.split(/\s+/).slice(0, 8).join(' ');
@@ -2550,7 +2558,7 @@ export const formatAsEnhancedMarkdown = (
             }
 
             // RECOMMENDATION (decisionLayer)
-            if (comparisonResult.decisionLayer) {
+            if (mdNarrativeMatches && comparisonResult.decisionLayer) {
               const dl = comparisonResult.decisionLayer;
               markdown += `### RECOMMENDATION\n\n`;
               if (dl.recommendedUseCase) {
@@ -2565,13 +2573,13 @@ export const formatAsEnhancedMarkdown = (
             }
 
             // CORE STRENGTH
-            if (comparisonResult.winnerBreakdown?.coreStrength) {
+            if (mdNarrativeMatches && comparisonResult.winnerBreakdown?.coreStrength) {
               markdown += `### CORE STRENGTH\n\n`;
               markdown += `${comparisonResult.winnerBreakdown.coreStrength}\n\n`;
             }
 
             // WHY THIS BEATS OTHERS (with version comparisons)
-            if (comparisonResult.winnerBreakdown?.whatItDoesBetter && comparisonResult.winnerBreakdown.whatItDoesBetter.length > 0) {
+            if (mdNarrativeMatches && comparisonResult.winnerBreakdown?.whatItDoesBetter && comparisonResult.winnerBreakdown.whatItDoesBetter.length > 0) {
               const comparisonBullets = comparisonResult.winnerBreakdown.whatItDoesBetter.slice(0, 4).map((item: string) => {
                 const match = item.match(/^(Compared to|vs\.?)\s+([^,]+),\s*(.+)$/i);
                 if (match) {
@@ -2590,7 +2598,7 @@ export const formatAsEnhancedMarkdown = (
             }
 
             // MINOR CONSIDERATIONS (tradeoffs)
-            if (comparisonResult.winnerBreakdown?.tradeoffs && comparisonResult.winnerBreakdown.tradeoffs.length > 0) {
+            if (mdNarrativeMatches && comparisonResult.winnerBreakdown?.tradeoffs && comparisonResult.winnerBreakdown.tradeoffs.length > 0) {
               markdown += `### MINOR CONSIDERATIONS\n\n`;
               comparisonResult.winnerBreakdown.tradeoffs.forEach((tradeoff: string) => {
                 markdown += `- ${tradeoff}\n`;
@@ -2679,7 +2687,7 @@ export const formatAsEnhancedMarkdown = (
         if (rowsWithDecision.length > 0) {
           markdown += `### Decision Details\n\n`;
           rowsWithDecision.forEach((row: any) => {
-            const winnerLabelMd = row.isWinner ? ' **(Winner)**' : '';
+            const winnerLabelMd = mdIsWinner(row) ? ' **(Winner)**' : '';
             markdown += `**${row.optionLabel}${winnerLabelMd}**\n\n`;
             if (row.decisionSummary) {
               markdown += `${row.decisionSummary}\n\n`;
@@ -2720,12 +2728,20 @@ export const formatAsEnhancedMarkdown = (
             }
 
             // — ITEM 7: Verification flags FIRST (before scores) —
+            // Split factual claims (need verification) from figurative/tone notes (brand-voice review, not "source unknown").
             if (row.verificationFlags && row.verificationFlags.length > 0) {
-              markdown += `#### ⚠️ Verify before publishing\n\n`;
-              row.verificationFlags.forEach((flag: string) => {
-                markdown += `- "${flag}" — source unknown\n`;
-              });
-              markdown += `\n`;
+              const mdClaimFlags = row.verificationFlags.filter((f: string) => /^unverified claim/i.test(f));
+              const mdVoiceFlags = row.verificationFlags.filter((f: string) => !/^unverified claim/i.test(f));
+              if (mdClaimFlags.length > 0) {
+                markdown += `#### ⚠️ Claims to verify\n\n`;
+                mdClaimFlags.forEach((flag: string) => { markdown += `- "${flag}"\n`; });
+                markdown += `\n`;
+              }
+              if (mdVoiceFlags.length > 0) {
+                markdown += `#### 🎨 Brand-voice / tone review\n\n`;
+                mdVoiceFlags.forEach((flag: string) => { markdown += `- "${flag}"\n`; });
+                markdown += `\n`;
+              }
             }
 
             // — ITEM 8: Word count + reading level —
