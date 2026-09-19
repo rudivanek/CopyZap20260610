@@ -2770,9 +2770,10 @@ export const formatAsEnhancedMarkdown = (
             }
             markdown += `${statsLine}\n\n`;
 
-            if (row.absoluteSub) {
-              const sub = row.absoluteSub;
-              markdown += `**Sub-scores:** Clarity ${sub.clarity}/25 · Persuasion ${sub.persuasion}/25 · Audience Fit ${sub.audience_fit}/25 · Structure ${sub.structure}/25\n\n`;
+            const mdSub = row.absoluteSub
+              ?? (matchingCardForMdScores?.absoluteScore && matchingCardForMdScores.absoluteScore.total > 0 ? matchingCardForMdScores.absoluteScore : null);
+            if (mdSub) {
+              markdown += `**Sub-scores:** Clarity ${mdSub.clarity}/25 · Persuasion ${mdSub.persuasion}/25 · Audience Fit ${mdSub.audience_fit}/25 · Structure ${mdSub.structure}/25\n\n`;
             }
 
             // Risk Factors block removed — it used a deprecated English-keyword heuristic.
@@ -3352,8 +3353,10 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
           htmlContent += '</div>\n';
 
           // Absolute sub-scores (Clarity / Persuasion / Audience Fit / Structure, each out of 25)
-          if (row.absoluteSub) {
-            const sub = row.absoluteSub;
+          const htmlSub = row.absoluteSub
+            ?? (matchedCard?.absoluteScore && matchedCard.absoluteScore.total > 0 ? matchedCard.absoluteScore : null);
+          if (htmlSub) {
+            const sub = htmlSub;
             const subL = exportLangCode === 'es'
               ? { c: 'Claridad', p: 'Persuasión', a: 'Ajuste al público', s: 'Estructura' }
               : { c: 'Clarity', p: 'Persuasion', a: 'Audience Fit', s: 'Structure' };
@@ -4159,9 +4162,9 @@ export const buildLLMEvaluationAudit = (
 
         markdown += `#### ${label}${row.versionId === winnerId ? ' (WINNER)' : ''}\n\n`;
 
-        if (row.absoluteSub) {
-          const sub = row.absoluteSub;
-          markdown += `**Sub-scores:** Clarity ${sub.clarity}/25 · Persuasion ${sub.persuasion}/25 · Audience Fit ${sub.audience_fit}/25 · Structure ${sub.structure}/25\n\n`;
+        const auditSub = row.absoluteSub ?? absScoreMap[row.versionId] ?? absScoreMap[label] ?? null;
+        if (auditSub && (auditSub.total == null || auditSub.total > 0)) {
+          markdown += `**Sub-scores:** Clarity ${auditSub.clarity}/25 · Persuasion ${auditSub.persuasion}/25 · Audience Fit ${auditSub.audience_fit}/25 · Structure ${auditSub.structure}/25\n\n`;
         }
 
         if (row.verificationFlags && row.verificationFlags.length > 0) {
