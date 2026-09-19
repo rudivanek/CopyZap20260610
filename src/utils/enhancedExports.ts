@@ -2643,7 +2643,7 @@ export const formatAsEnhancedMarkdown = (
           markdown += `*Scoring context: ${ctxParts.join(' · ')}*\n\n`;
         }
         if (hasBaseline) {
-          markdown += `| Option | Words | Reading Level | Quality (0–100) | Δ vs Original | % Improved |\n`;
+          markdown += `| Option | Words | Reading Level | Quality (0–100) | Δ vs Original | % gain vs Original |\n`;
           markdown += `|--------|:-----:|:-------------:|:-----------:|:-------------:|:----------:|\n`;
         } else {
           markdown += `| Option | Words | Reading Level | Quality (0–100) | Δ vs Best |\n`;
@@ -2680,7 +2680,7 @@ export const formatAsEnhancedMarkdown = (
           }
         });
         markdown += `\n`;
-        markdown += `> **Quality** is an absolute score (0–100) measured against a fixed standard for the stated goal; it does not change as versions are added.${hasBaseline ? ' **Δ vs Original** and **% Improved** show the gain over your Original Copy.' : ' **Δ vs Best** compares each option to the top-scoring version.'}\n\n`;
+        markdown += `> **Quality** is an absolute score (0–100) measured against a fixed standard for the stated goal; it does not change as versions are added.${hasBaseline ? ' **Δ vs Original** (points) and **% gain vs Original** show how much each option beats your Original Copy.' : ' **Δ vs Best** compares each option to the top-scoring version.'}\n\n`;
 
         // 3d. PER-ROW DECISION DETAILS (decisionSummary, decisionReason only)
         const rowsWithDecision = sortedRows.filter((r: any) => r.decisionSummary || r.decisionReason);
@@ -2766,9 +2766,14 @@ export const formatAsEnhancedMarkdown = (
                 const pct = Math.round(((mdScoreOf(row) - baselineScoreMd) / baselineScoreMd) * 100);
                 improvPctStr = `${pct > 0 ? '+' : ''}${pct}%`;
               }
-              statsLine += ` | **% Improved:** ${improvPctStr}`;
+              statsLine += ` | **% gain vs Original:** ${improvPctStr}`;
             }
             markdown += `${statsLine}\n\n`;
+
+            if (row.absoluteSub) {
+              const sub = row.absoluteSub;
+              markdown += `**Sub-scores:** Clarity ${sub.clarity}/25 · Persuasion ${sub.persuasion}/25 · Audience Fit ${sub.audience_fit}/25 · Structure ${sub.structure}/25\n\n`;
+            }
 
             // Risk Factors block removed — it used a deprecated English-keyword heuristic.
 
