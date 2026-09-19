@@ -2506,21 +2506,6 @@ const CopyMakerSidebar: React.FC<CopyMakerSidebarProps> = ({
                     disabled={!hasContent || !comparisonResult}
                   />
                   <FlyoutOption
-                    label="Evaluation Report"
-                    onClick={() => { handleGenerateEvalReport(); setReportsOpen(false); }}
-                    disabled={!hasContent || !comparisonResult || sortedGeneratedVersions.length < 2 || isGeneratingEvalReport}
-                  />
-                  <FlyoutOption
-                    label="Compare Report"
-                    onClick={() => { handleGenerateCompareReport(); setReportsOpen(false); }}
-                    disabled={!hasContent || !comparisonResult || sortedGeneratedVersions.length < 2 || isGeneratingCompareReport}
-                  />
-                  <FlyoutOption
-                    label="Client Report"
-                    onClick={() => { handleGenerateClientReport(); setReportsOpen(false); }}
-                    disabled={!hasContent || !comparisonResult || sortedGeneratedVersions.length < 2 || isGeneratingClientReport}
-                  />
-                  <FlyoutOption
                     label="View Prompts"
                     onClick={() => { onViewPrompts(); setReportsOpen(false); }}
                   />
