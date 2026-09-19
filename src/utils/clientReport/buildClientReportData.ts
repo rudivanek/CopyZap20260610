@@ -146,6 +146,7 @@ export interface ClientReportVersion {
   strengthsHeading: string;
   improvementsHeading: string;
   rankSubline: string;
+  subScores: { clarity: number; persuasion: number; audienceFit: number; structure: number } | null;
 }
 
 export interface ClientReportFinding {
@@ -1104,6 +1105,15 @@ export function buildClientReportData(
     const editorial = editorialMap.get(card.id) ?? clamp(Math.round(score * 0.5), 0, 100);
     const conversion = conversionMap.get(card.id) ?? clamp(Math.round(score * 0.5), 0, 100);
 
+    const cardAbsSub = card.absoluteScore && card.absoluteScore.total > 0
+      ? {
+          clarity: card.absoluteScore.clarity,
+          persuasion: card.absoluteScore.persuasion,
+          audienceFit: card.absoluteScore.audience_fit,
+          structure: card.absoluteScore.structure,
+        }
+      : null;
+
     let displayName: string;
     let roleLine: string;
     if (isBaseline) {
@@ -1205,6 +1215,7 @@ export function buildClientReportData(
       strengthsHeading,
       improvementsHeading,
       rankSubline,
+      subScores: cardAbsSub,
       sectionNumber: idx + 2,
     };
   });

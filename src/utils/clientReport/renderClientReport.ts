@@ -363,6 +363,7 @@ ${lbl}${body}
         <div class="t">
           <h3>${escapeOnce(v.shortName)}${winTag}</h3>
           <div class="role">${escapeOnce(v.roleLine)}</div>
+          ${v.subScores ? `<div class="role" style="margin-top:6px;opacity:.85;">Claridad ${escapeOnce(v.subScores.clarity)}/25 · Persuasión ${escapeOnce(v.subScores.persuasion)}/25 · Ajuste al público ${escapeOnce(v.subScores.audienceFit)}/25 · Estructura ${escapeOnce(v.subScores.structure)}/25</div>` : ''}
         </div>
         <div class="v-scores">
           ${gainBlock}
