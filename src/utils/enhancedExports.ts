@@ -2238,7 +2238,7 @@ export const formatAsEnhancedMarkdown = (
   markdown += `|---------|-------|\n`;
   markdown += `| Language | ${formState.language} |\n`;
   markdown += `| Tone | ${formState.tone} |\n`;
-  markdown += `| Word Count | ${formState.wordCount}${formState.wordCount === 'Custom' ? ` (${formState.customWordCount})` : ''} |\n`;
+  markdown += `| Word Count | ${formState.wordCount}${formState.wordCount === 'Custom' ? ` (${formState.customWordCount})` : ' (per section)'} |\n`;
   if (formState.targetAudience) {
     markdown += `| Target Audience | ${formState.targetAudience} |\n`;
   }
@@ -3130,7 +3130,7 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
     const configRows: [string, string][] = [
       [t.languageLabel, formState.language || '—'],
       [t.toneLabel, formState.tone || '—'],
-      [t.wordCount, `${formState.wordCount || '—'}${formState.wordCount === 'Custom' ? ` (${formState.customWordCount})` : ''}`],
+      [t.wordCount, `${formState.wordCount || '—'}${formState.wordCount === 'Custom' ? ` (${formState.customWordCount})` : (formState.wordCount ? (exportLangCode === 'es' ? ' (por sección)' : ' (per section)') : '')}`],
     ];
     if (formState.targetAudience) configRows.push([t.targetAudienceLabel, formState.targetAudience]);
     if (formState.geoRegions) configRows.push([t.targetRegionLabel, formState.geoRegions]);
@@ -3160,7 +3160,7 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
     if (formState.language) htmlContent += `  <div data-context-field="language">${formState.language}</div>\n`;
     if (formState.tone) htmlContent += `  <div data-context-field="tone">${formState.tone}</div>\n`;
     if (formState.wordCount) {
-      const wordCountText = formState.wordCount === 'Custom' ? `${formState.wordCount} (${formState.customWordCount})` : formState.wordCount;
+      const wordCountText = formState.wordCount === 'Custom' ? `${formState.wordCount} (${formState.customWordCount})` : `${formState.wordCount} (per section)`;
       htmlContent += `  <div data-context-field="word-count">${wordCountText}</div>\n`;
     }
     if (formState.targetAudience) htmlContent += `  <div data-context-field="target-audience">${escapeHtml(formState.targetAudience)}</div>\n`;
@@ -4513,7 +4513,7 @@ export const exportAsEnhancedPDF = (
   const configData = [
     { label: 'Language', value: formState.language },
     { label: 'Tone', value: formState.tone },
-    { label: 'Word Count', value: formState.wordCount === 'Custom' ? `${formState.wordCount} (${formState.customWordCount})` : formState.wordCount },
+    { label: 'Word Count', value: formState.wordCount === 'Custom' ? `${formState.wordCount} (${formState.customWordCount})` : `${formState.wordCount} (per section)` },
   ];
 
   if (formState.targetAudience) configData.push({ label: 'Target Audience', value: formState.targetAudience });
