@@ -4148,7 +4148,7 @@ export const buildLLMEvaluationAudit = (
       }
     });
 
-    scoresList.forEach(({ label, score }) => {
+    [...scoresList].sort((a, b) => b.score - a.score).forEach(({ label, score }) => {
       markdown += `- **${label}**: ${score}/100\n`;
     });
     markdown += `\n`;
