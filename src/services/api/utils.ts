@@ -803,6 +803,30 @@ export function getWordCountTolerance(formState: FormState, targetWordCount: num
 }
 
 /**
+ * Type-aware Output Structure formatting for MARKDOWN-output generators only
+ * (the main Generate path and the Enhanced pipeline). It makes a "Header 1" element
+ * render as an actual heading and a "Paragraph" element render as body text, so the
+ * defined structure is honored consistently instead of the model guessing.
+ *
+ * NOTE: Do NOT use this for the JSON-output generators (Alternative, Humanize, Voice).
+ * Those carry the header in the JSON structure (headline / section title) and already
+ * render it as a heading; adding "#" instructions there would corrupt their JSON.
+ */
+export function buildMarkdownStructureFormat(formState: FormState): string {
+  const structure = formState.outputStructure;
+  if (!structure || structure.length === 0) return '';
+  return `
+
+FORMAT EACH STRUCTURE ELEMENT BY ITS TYPE (Markdown, in the exact order listed):
+- "Header 1" (value "header1") -> a Markdown H1: a line starting with "# ", written as a heading (no trailing period).
+- "Header 2" (value "header2") -> a Markdown H2: a line starting with "## ".
+- "Paragraph" (value "paragraphs") -> normal body text: plain paragraph(s), with NO "#" heading of its own.
+- "Bullet Points" (value "bullets") -> a Markdown bullet list ("- item"); "Numbered list" (value "numbered") -> a numbered list ("1. item").
+- Any other element (Problem, Solution, Benefits, Features, Call to Action, Testimonial, etc.) -> a content section: its own "# " heading followed by body text.
+Do NOT give a Paragraph its own heading, do NOT merge two elements into one, and do NOT add elements that are not listed.`;
+}
+
+/**
  * Extract the actual word count from content (string or structured)
  */
 export function extractWordCount(content: any): number {

@@ -3,7 +3,7 @@
  * Three-step process: Input Expansion → Enhanced Generation → Editorial Refinement
  */
 import { FormState, User, CopyResult, BrandVoice } from '../../types';
-import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, getWordCountTolerance, makeApiRequestWithFallback } from '../../services/api/utils';
+import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, getWordCountTolerance, makeApiRequestWithFallback, buildMarkdownStructureFormat } from '../../services/api/utils';
 import { trackTokenUsage, extractTokenBreakdown } from '../../services/api/tokenTracking';
 import { saveCopySession, getSupabaseClient } from '../../services/supabaseClient';
 import { reviseContentForWordCount } from '../../services/api/contentRefinement';
@@ -200,6 +200,8 @@ ${expandedInputs.credibilityFactors.map(c => `• ${c}`).join('\n')}`;
     formState.outputStructure.forEach((element, index) => {
       systemPrompt += `\n${index + 1}. ${element.label || element.value}${element.wordCount ? ` (${element.wordCount} words)` : ''}`;
     });
+    // Type-aware formatting: header elements render as headings, paragraph elements as body.
+    systemPrompt += buildMarkdownStructureFormat(formState);
   }
 
   // Add keyword integration if keywords are provided

@@ -2,7 +2,7 @@
  * Main copy generation functionality
  */
 import { FormState, User, CopyResult, BrandVoice, StructuredCopyOutput } from '../../types';
-import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, getWordCountTolerance, makeApiRequestWithFallback } from './utils';
+import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, getWordCountTolerance, makeApiRequestWithFallback, buildMarkdownStructureFormat } from './utils';
 import { trackTokenUsage, extractTokenBreakdown } from './tokenTracking';
 import { saveCopySession, getSupabaseClient } from '../supabaseClient';
 import { reviseContentForWordCount } from './contentRefinement';
@@ -1349,6 +1349,9 @@ Notice how the titles are DIFFERENT from the section names - they're compelling 
     userPrompt += `
 
 Ensure each section meets its target word count. If a section is underdeveloped, expand it with more examples, details, or elaboration.`;
+
+    // Type-aware formatting: header elements render as headings, paragraph elements as body.
+    userPrompt += buildMarkdownStructureFormat(formState);
   } else {
     // Add term exclusion instructions if specified
     // Always use plain text format for consistency when copying prompts to other AI tools
