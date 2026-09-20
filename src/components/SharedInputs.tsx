@@ -683,15 +683,22 @@ const SharedInputs: React.FC<SharedInputsProps> = ({
           </div>
         )}
 
-        {/* Word Count Priority Notice */}
-        {!formData.wordCount.includes('Custom') &&
-         mode !== 'quick' &&
-         formData.prioritizeWordCount &&
-         totalStructureWordCount > 0 && (
+        {/* Effective Target Word Count notice — always surface the REAL number that will
+            be used, so the dropdown label never silently disagrees with what runs. */}
+        {!formData.wordCount.includes('Custom') && mode !== 'quick' && totalStructureWordCount > 0 && (
           <div className="mb-6 p-2 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-md text-xs">
             <div className="font-medium text-gray-800 dark:text-gray-300">Target Word Count</div>
             <p className="text-gray-800 dark:text-gray-200 mt-1">
-              With strict word count adherence enabled, the target will be {effectiveTargetWordCount} words based on your section structure.
+              The target is <strong>{effectiveTargetWordCount}</strong> words — from your section structure (Total allocated). This overrides the dropdown above.
+            </p>
+          </div>
+        )}
+        {!formData.wordCount.includes('Custom') && mode !== 'quick' && totalStructureWordCount === 0 &&
+         formData.tab === 'improve' && formData.originalCopy && formData.wordCount === 'Medium: 100-200' && (
+          <div className="mb-6 p-2 bg-gray-50 dark:bg-gray-900/20 border border-gray-200 dark:border-gray-800 rounded-md text-xs">
+            <div className="font-medium text-gray-800 dark:text-gray-300">Target Word Count</div>
+            <p className="text-gray-800 dark:text-gray-200 mt-1">
+              The target is <strong>{effectiveTargetWordCount}</strong> words — matching your original copy. Pick Short/Long, enter a custom count, or add a section structure to change it.
             </p>
           </div>
         )}

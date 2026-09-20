@@ -719,9 +719,26 @@ export function calculateTargetWordCount(formState: FormState): { target: number
   else if (customWordCount > 0) {
     targetWordCount = customWordCount;
   } 
-  // If only structure counts exist
+  // If only structure counts exist — the section total (Total Allocated words)
+  // always wins. It is an explicit user allocation and overrides everything else.
   else if (structureWordCount > 0) {
     targetWordCount = structureWordCount;
+  }
+  // No structure and no custom count. When IMPROVING existing copy and the length
+  // dropdown is left at its default (Medium), match the length of the original copy
+  // instead of the generic 150-word preset — so a short input yields short output and
+  // a long input long output by default. Picking Short/Long/Custom, or adding a
+  // section structure, still overrides this (handled by the branches above / the
+  // preset value already set for Short/Long).
+  else if (
+    formState.tab === 'improve' &&
+    formState.originalCopy &&
+    formState.wordCount === 'Medium: 100-200'
+  ) {
+    const originalWordCount = countWords(formState.originalCopy);
+    if (originalWordCount > 0) {
+      targetWordCount = originalWordCount;
+    }
   }
   
   // Check if little word count mode is enabled and target is below 100 words
