@@ -96,6 +96,7 @@ export async function generateUnifiedComparison(
   // NEW method: structural gate + goal-aware absolute scoring.
   addProgressMessage?.('New method: goal-aware absolute scoring…');
   const goalKey = scoringContext?.goalKey;
+  const goalLabel = scoringContext?.goalLabel;
 
   // Structural gate (deterministic, language-independent). No word target passed
   // yet, so it flags repeated passages; too-short can be wired later.
@@ -109,7 +110,7 @@ export async function generateUnifiedComparison(
   const absoluteByVersion: Record<string, AbsoluteScoreBreakdown> = {};
   const scored = await Promise.all(
     generatedVersions.map((v) =>
-      generateAbsoluteScore(v.content, currentUser, sessionId, goalKey)
+      generateAbsoluteScore(v.content, currentUser, sessionId, goalKey, goalLabel)
         .then((score) => ({ id: v.id, score: score as AbsoluteScoreBreakdown | null }))
         .catch(() => ({ id: v.id, score: null as AbsoluteScoreBreakdown | null }))
     )

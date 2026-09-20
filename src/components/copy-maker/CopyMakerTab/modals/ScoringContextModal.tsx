@@ -23,6 +23,7 @@ const ScoringContextModal: React.FC<ScoringContextModalProps> = ({
   const [goalKey, setGoalKey] = useState<GoalKey>(DEFAULT_GOAL_KEY);
   const [scoringMethod, setScoringMethod] = useState<ScoringMethod>(DEFAULT_SCORING_METHOD);
   const [customLabel, setCustomLabel] = useState('');
+  const [customGoal, setCustomGoal] = useState('');
 
   useEffect(() => {
     if (!isOpen) return;
@@ -39,22 +40,31 @@ const ScoringContextModal: React.FC<ScoringContextModalProps> = ({
       } else {
         setCustomLabel('');
       }
+      if (src.goalKey === 'custom') {
+        const predefinedGoal = GOAL_OPTIONS.find(o => o.key === src.goalKey);
+        const isDerivedGoalLabel = predefinedGoal && predefinedGoal.label === src.goalLabel;
+        setCustomGoal(isDerivedGoalLabel ? '' : (src.goalLabel ?? ''));
+      } else {
+        setCustomGoal('');
+      }
     } else {
       setUseCaseKey(DEFAULT_USE_CASE_KEY);
       setCustomLabel('');
+      setCustomGoal('');
     }
   }, [isOpen, initialContext]);
 
   if (!isOpen) return null;
 
   const isCustom = useCaseKey === 'custom';
-  const canConfirm = !isCustom || customLabel.trim().length > 0;
+  const isCustomGoal = goalKey === 'custom';
+  const canConfirm = (!isCustom || customLabel.trim().length > 0) && (!isCustomGoal || customGoal.trim().length > 0);
 
   const handleConfirm = () => {
     if (!canConfirm) return;
     const optionLabel = USE_CASE_OPTIONS.find(o => o.key === useCaseKey)?.label ?? useCaseKey;
     const useCaseLabel = isCustom ? customLabel.trim() : optionLabel;
-    const goalLabel = GOAL_OPTIONS.find(o => o.key === goalKey)?.label ?? goalKey;
+    const goalLabel = isCustomGoal ? customGoal.trim() : (GOAL_OPTIONS.find(o => o.key === goalKey)?.label ?? goalKey);
     const ctx: ScoringContext = { useCaseKey, useCaseLabel, goalKey, goalLabel, method: scoringMethod };
     saveToStorage(ctx);
     onConfirm(ctx);
@@ -66,6 +76,7 @@ const ScoringContextModal: React.FC<ScoringContextModalProps> = ({
     setGoalKey(DEFAULT_GOAL_KEY);
     setScoringMethod(DEFAULT_SCORING_METHOD);
     setCustomLabel('');
+    setCustomGoal('');
   };
 
   return (
@@ -119,13 +130,23 @@ const ScoringContextModal: React.FC<ScoringContextModalProps> = ({
             </label>
             <select
               value={goalKey}
-              onChange={e => setGoalKey(e.target.value as GoalKey)}
+              onChange={e => { setGoalKey(e.target.value as GoalKey); setCustomGoal(''); }}
               className="w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600"
             >
               {GOAL_OPTIONS.map(o => (
                 <option key={o.key} value={o.key}>{o.label}</option>
               ))}
             </select>
+            {isCustomGoal && (
+              <input
+                type="text"
+                placeholder="e.g., Get sign-ups for a free trial…"
+                value={customGoal}
+                onChange={e => setCustomGoal(e.target.value)}
+                className="mt-2 w-full rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 text-gray-900 dark:text-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-gray-300 dark:focus:ring-gray-600"
+                autoFocus
+              />
+            )}
           </div>
 
           <div>

@@ -65,8 +65,16 @@ const GOAL_GUIDANCE: Record<string, string> = {
   brand: `\n\nGOAL CONTEXT — BRAND: This copy exists to build trust and identity, not to close immediately. Weight Audience Fit (tone and voice match) and Clarity most heavily and reward a distinct, consistent, credible voice. Treat hype, exaggeration and aggressive CTAs as OFF-brand and score them down; do not reward urgency.`,
 };
 
-function buildAbsoluteSystemPrompt(goalKey?: GoalKey): string {
-  const guidance = goalKey && goalKey !== 'custom' ? (GOAL_GUIDANCE[goalKey] || '') : '';
+function buildAbsoluteSystemPrompt(goalKey?: GoalKey, goalLabel?: string): string {
+  // Custom goal: the user typed a free-text objective. Feed it into the rubric so the
+  // score reflects THAT goal instead of falling back to the plain (goal-agnostic) prompt.
+  if (goalKey === 'custom') {
+    const g = (goalLabel || '').trim();
+    return g
+      ? ABSOLUTE_SCORE_SYSTEM_PROMPT + `\n\nGOAL CONTEXT — CUSTOM: The user states the specific goal of this copy is: "${g}". Judge every dimension — especially Persuasion & Conversion Mechanics — by how well the copy achieves THIS stated goal. Reward copy that is clearly built to accomplish it; penalize copy that drifts from it, is off-tone for it, or omits what the goal requires. Do not assume a generic sales objective — use the stated goal as the standard.`
+      : ABSOLUTE_SCORE_SYSTEM_PROMPT;
+  }
+  const guidance = goalKey ? (GOAL_GUIDANCE[goalKey] || '') : '';
   return ABSOLUTE_SCORE_SYSTEM_PROMPT + guidance;
 }
 
@@ -74,7 +82,8 @@ export async function generateAbsoluteScore(
   content: unknown,
   currentUser?: User,
   sessionId?: string,
-  goalKey?: GoalKey
+  goalKey?: GoalKey,
+  goalLabel?: string
 ): Promise<AbsoluteScoreBreakdown> {
   const text = extractText(content).slice(0, 6000).trim();
 
@@ -86,7 +95,7 @@ export async function generateAbsoluteScore(
     const response = await makeApiRequestWithFallback(
       ABSOLUTE_SCORE_MODEL,
       [
-        { role: 'system', content: buildAbsoluteSystemPrompt(goalKey) },
+        { role: 'system', content: buildAbsoluteSystemPrompt(goalKey, goalLabel) },
         { role: 'user', content: `Score this copy:\n\n"""\n${text}\n"""` }
       ],
       0.3,
