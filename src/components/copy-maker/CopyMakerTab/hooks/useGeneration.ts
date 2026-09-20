@@ -1333,6 +1333,7 @@ export function useGeneration(
       }
 
       toast.success('Analysis and scoring complete!');
+      playSuccessSound();
       triggerGuidanceHint('after_score');
     } catch (error: any) {
       console.error('❌ Error comparing outputs:', error);

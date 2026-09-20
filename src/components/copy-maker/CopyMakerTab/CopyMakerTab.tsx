@@ -586,6 +586,10 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
 
   // Scoring context modal state (shared between ResultsPanel and Sidebar)
   const [showScoringContextModal, setShowScoringContextModal] = useState(false);
+  // Keeps the blocking Processing modal up for the WHOLE scoring run triggered from the
+  // Scoring Context modal — including the async prep (original-copy scoring + access check)
+  // that runs before isComparing flips — so the form can't be edited mid-scoring.
+  const [isPreparingScore, setIsPreparingScore] = useState(false);
   const [modalInitialContext, setModalInitialContext] = useState<ScoringContext | undefined>(undefined);
 
   // State for hidden fields banner (shown when loading sessions/outputs with hidden populated fields)
@@ -1052,7 +1056,14 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
   // Handle scoring context confirmation from modal (used by sidebar and results panel)
   const handleScoringContextConfirm = async (ctx: ScoringContext) => {
     setShowScoringContextModal(false);
-    await compareOutputsWithGrok(false, ctx);
+    // Lock the form immediately (before the async prep inside compareOutputsWithGrok runs)
+    // and keep it locked until scoring fully resolves — no editable gap after the modal closes.
+    setIsPreparingScore(true);
+    try {
+      await compareOutputsWithGrok(false, ctx);
+    } finally {
+      setIsPreparingScore(false);
+    }
   };
 
   const performScoreAndNavigate = async (scoringContext?: import('../../../types').ScoringContext) => {
@@ -2374,9 +2385,9 @@ try {
 
       {/* Scoring / Analysis Blocking Modal */}
       <ProcessingModal
-        isOpen={isComparing || isScoringNewOutputs || isGeneratingDetails}
+        isOpen={isComparing || isScoringNewOutputs || isGeneratingDetails || isPreparingScore}
         message={
-          isComparing
+          isComparing || isPreparingScore
             ? "Scoring outputs..."
             : isScoringNewOutputs
             ? "Scoring new outputs..."
