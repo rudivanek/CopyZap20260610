@@ -2,7 +2,7 @@
  * Humanized copy generation functionality
  */
 import { FormState } from '../../types';
-import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, makeApiRequestWithFallback, getWordCountTolerance, cleanJsonResponse, buildJsonStructureFormat } from './utils';
+import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, makeApiRequestWithFallback, getWordCountTolerance, cleanJsonResponse, buildJsonStructureFormat, buildMarkdownStructureFormat } from './utils';
 import { trackTokenUsage, extractTokenBreakdown } from './tokenTracking';
 import { reviseContentForWordCount } from './contentRefinement';
 import { calculateGeoScore } from './geoScoring';
@@ -52,6 +52,17 @@ export async function generateHumanizedCopy(
   
   // Determine if we should return structured format
   const useStructuredFormat = formState.outputStructure && formState.outputStructure.length > 0;
+
+  // Only FAQ (JSON) and Q&A need a JSON object; every other Output Structure outputs Markdown
+  // (like the main Generate copy) so all versions render consistently with a header.
+  const _structureEls = formState.outputStructure || [];
+  const hasFaqJsonFormat = _structureEls.some(element =>
+    element.value === 'faqJson' || element.label?.toLowerCase().includes('faq (json)')
+  );
+  const hasQAFormat = _structureEls.some(element =>
+    element.value === 'qaFormat' || element.label?.toLowerCase().includes('q&a')
+  );
+  const useJsonStructure = !!useStructuredFormat && (hasFaqJsonFormat || hasQAFormat);
   
   // Add CRITICAL TL;DR formatting requirement at the very beginning if enabled and NOT using structured format
   if (formState.enhanceForGEO && formState.addTldrSummary && !useStructuredFormat) {
@@ -156,12 +167,7 @@ ${formState.geoRegions && formState.geoRegions.trim()
     }
   }
 
-  if (useStructuredFormat) {
-    // Check if Q&A format is requested
-    const hasQAFormat = formState.outputStructure && formState.outputStructure.some(element => 
-      element.value === 'qaFormat' || element.label?.toLowerCase().includes('q&a')
-    );
-    
+  if (useJsonStructure) {
     if (hasQAFormat) {
       userPrompt += `\n\nStructure your response in this JSON format for Q&A content:
 {
@@ -211,11 +217,6 @@ CRITICAL Q&A FORMATTING RULES:
 
     // Add specific structure guidance if output structure is specified
     if (formState.outputStructure && formState.outputStructure.length > 0) {
-      // Check if FAQ (JSON) format is requested
-      const hasFaqJsonFormat = formState.outputStructure.some(element => 
-        element.value === 'faqJson' || element.label?.toLowerCase().includes('faq (json)')
-      );
-      
       if (hasFaqJsonFormat) {
         userPrompt += `\n\nCRITICAL: You MUST structure your response as a FAQPage Schema JSON object in this EXACT format:
 {
@@ -271,7 +272,20 @@ MANDATORY JSON REQUIREMENTS:
       }
     }
   } else {
-    userPrompt += `\n\nProvide your response as plain text with appropriate paragraphs and formatting.`;
+    if (useStructuredFormat) {
+      // Normal (non FAQ/Q&A) structure: output MARKDOWN with "#" headings — same format as the
+      // main Generate copy — so every version renders consistently with a header
+      // (Header 1 -> "# ", Header 2 -> "## ", Paragraph -> body text).
+      userPrompt += `\n\nInclude these specific sections in the exact order, written as natural flowing text with Markdown headings (NOT JSON):`;
+      formState.outputStructure!.forEach((element, index) => {
+        userPrompt += `\n${index + 1}. ${element.label || element.value}${element.wordCount ? ` (target: ${element.wordCount} words)` : ''}`;
+      });
+      userPrompt += `\n\nCRITICAL OUTPUT FORMAT:\n- DO NOT use JSON. Do NOT return an object with "headline"/"sections" keys.\n- Write the response as natural flowing text with Markdown headings.\n- Use "# " for a main heading and "## " for subheadings.`;
+      userPrompt += buildMarkdownStructureFormat(formState);
+      userPrompt += `\n\nEnsure each section meets its target word count. If a section is underdeveloped, expand it with more examples, details, or elaboration.`;
+    } else {
+      userPrompt += `\n\nProvide your response as plain text with appropriate paragraphs and formatting.`;
+    }
     
     // Add TL;DR reminder for plain text output
     if (formState.enhanceForGEO && formState.addTldrSummary) {
@@ -317,7 +331,7 @@ Use alternative terminology only if it doesn't interfere with the exact word cou
   ];
 
   const temperature = 0.85; // Higher temperature for more natural, varied humanization
-  const responseFormat = useStructuredFormat ? { type: "json_object" as const } : undefined;
+  const responseFormat = useJsonStructure ? { type: "json_object" as const } : undefined;
 
   try {
     // Make the API request with automatic fallback
@@ -353,8 +367,9 @@ Use alternative terminology only if it doesn't interfere with the exact word cou
       throw new Error('No content in response');
     }
     
-    // Parse structured content if needed
-    if (useStructuredFormat) {
+    // Parse structured content only for JSON formats (FAQ / Q&A). Normal structures are
+    // Markdown strings now, like the main copy, and must NOT be JSON-parsed.
+    if (useJsonStructure) {
       try {
         const cleanContent = cleanJsonResponse(humanizedCopy);
         const parsedContent = JSON.parse(cleanContent);
