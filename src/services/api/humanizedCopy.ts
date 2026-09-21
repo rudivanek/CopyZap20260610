@@ -2,7 +2,7 @@
  * Humanized copy generation functionality
  */
 import { FormState } from '../../types';
-import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, makeApiRequestWithFallback, getWordCountTolerance, cleanJsonResponse, buildJsonStructureFormat, buildMarkdownStructureFormat } from './utils';
+import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, makeApiRequestWithFallback, getWordCountTolerance, cleanJsonResponse, buildJsonStructureFormat, buildMarkdownStructureFormat, ensureStructureHeader } from './utils';
 import { trackTokenUsage, extractTokenBreakdown } from './tokenTracking';
 import { reviseContentForWordCount } from './contentRefinement';
 import { calculateGeoScore } from './geoScoring';
@@ -379,7 +379,10 @@ Use alternative terminology only if it doesn't interfere with the exact word cou
         // Keep as plain text if parsing fails
       }
     }
-    
+
+    // Safety net: guarantee a heading when a Header element is in the structure.
+    humanizedCopy = ensureStructureHeader(humanizedCopy, formState);
+
     // Always check word count and apply appropriate tolerance
     const currentWordCount = extractWordCount(humanizedCopy);
     const targetWordCountInfo = calculateTargetWordCount(formState);

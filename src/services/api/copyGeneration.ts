@@ -2,7 +2,7 @@
  * Main copy generation functionality
  */
 import { FormState, User, CopyResult, BrandVoice, StructuredCopyOutput } from '../../types';
-import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, getWordCountTolerance, makeApiRequestWithFallback, buildMarkdownStructureFormat } from './utils';
+import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, getWordCountTolerance, makeApiRequestWithFallback, buildMarkdownStructureFormat, ensureStructureHeader } from './utils';
 import { trackTokenUsage, extractTokenBreakdown } from './tokenTracking';
 import { saveCopySession, getSupabaseClient } from '../supabaseClient';
 import { reviseContentForWordCount } from './contentRefinement';
@@ -409,6 +409,9 @@ export async function generateCopy(
         progressCallback(`✓ Generated ${alternativeVersions.length} variants successfully`);
       }
     }
+
+    // Safety net: guarantee a heading when a Header element is in the structure.
+    improvedCopy = ensureStructureHeader(improvedCopy, formState);
 
     // Create the result object with just the improved copy - no alternative or humanized versions initially
     const result: CopyResult = {

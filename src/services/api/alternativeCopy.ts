@@ -2,7 +2,7 @@
  * Alternative copy generation functionality
  */
 import { FormState } from '../../types';
-import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, makeApiRequestWithFallback, getWordCountTolerance, cleanJsonResponse, buildJsonStructureFormat, buildMarkdownStructureFormat } from './utils';
+import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, makeApiRequestWithFallback, getWordCountTolerance, cleanJsonResponse, buildJsonStructureFormat, buildMarkdownStructureFormat, ensureStructureHeader } from './utils';
 import { trackTokenUsage, extractTokenBreakdown } from './tokenTracking';
 import { generateSeoMetadata } from './seoGeneration';
 import { saveCopySession } from '../supabaseClient';
@@ -450,7 +450,10 @@ ${formState.geoRegions && formState.geoRegions.trim()
         // Keep as plain text if parsing fails
       }
     }
-    
+
+    // Safety net: guarantee a heading when a Header element is in the structure.
+    alternativeCopy = ensureStructureHeader(alternativeCopy, formState);
+
     // Always check word count and apply appropriate tolerance
     const currentWordCount = extractWordCount(alternativeCopy);
     const percentageOfTarget = (currentWordCount / targetWordCount) * 100;

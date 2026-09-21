@@ -847,6 +847,56 @@ Do NOT leave the headline blank, and do NOT turn a Paragraph element into its ow
 }
 
 /**
+ * Deterministic header safety net. When the Output Structure includes a Header 1 (or Header 2)
+ * element but the model returned copy WITHOUT any heading — which happens under very tight word
+ * budgets — promote the first sentence/line into a real heading, so every version shows a header
+ * regardless of the model or the word count. Handles Markdown strings and the { headline, sections }
+ * JSON shape. No-op when no header element is requested or a heading is already present.
+ */
+export function ensureStructureHeader(content: any, formState: FormState): any {
+  const structure = formState?.outputStructure;
+  if (!content || !Array.isArray(structure) || structure.length === 0) return content;
+  const hasH1 = structure.some(el => el.value === 'header1');
+  const hasH2 = structure.some(el => el.value === 'header2');
+  if (!hasH1 && !hasH2) return content;
+  const prefix = hasH1 ? '# ' : '## ';
+
+  // Markdown string content
+  if (typeof content === 'string') {
+    const text = content.replace(/^\s+/, '');
+    if (/(^|\n)#{1,6}\s/.test(text)) return content; // a Markdown heading is already present
+    const firstBreak = text.indexOf('\n');
+    const firstBlock = firstBreak === -1 ? text : text.slice(0, firstBreak);
+    const sentence = firstBlock.match(/^\s*(.+?[.!?])(\s|$)/);
+    const headingText = (sentence ? sentence[1] : firstBlock).trim().replace(/[.\s]+$/, '');
+    const remainderOfBlock = sentence ? firstBlock.slice(sentence[0].length).trim() : '';
+    const restAfterBlock = firstBreak === -1 ? '' : text.slice(firstBreak + 1).trim();
+    const body = [remainderOfBlock, restAfterBlock].filter(Boolean).join('\n\n');
+    return body ? `${prefix}${headingText}\n\n${body}` : `${prefix}${headingText}`;
+  }
+
+  // Structured JSON content { headline, sections }
+  if (typeof content === 'object' && content !== null && 'headline' in content && Array.isArray((content as any).sections)) {
+    const c = content as any;
+    if (c.headline && String(c.headline).trim()) return content; // already has a headline
+    const sections = c.sections;
+    if (sections.length > 0 && sections[0]) {
+      const first = sections[0];
+      if (first.title && String(first.title).trim()) {
+        return { ...c, headline: first.title, sections: [{ ...first, title: '' }, ...sections.slice(1)] };
+      }
+      if (first.content && String(first.content).trim()) {
+        const m = String(first.content).match(/^\s*(.+?[.!?])(\s|$)/);
+        const headingText = (m ? m[1] : String(first.content)).trim();
+        const rest = m ? String(first.content).slice(m[0].length).trim() : '';
+        return { ...c, headline: headingText, sections: [{ ...first, content: rest }, ...sections.slice(1)] };
+      }
+    }
+  }
+  return content;
+}
+
+/**
  * Extract the actual word count from content (string or structured)
  */
 export function extractWordCount(content: any): number {

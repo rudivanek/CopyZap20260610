@@ -3,7 +3,7 @@
  * Three-step process: Input Expansion → Enhanced Generation → Editorial Refinement
  */
 import { FormState, User, CopyResult, BrandVoice } from '../../types';
-import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, getWordCountTolerance, makeApiRequestWithFallback, buildMarkdownStructureFormat } from '../../services/api/utils';
+import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, getWordCountTolerance, makeApiRequestWithFallback, buildMarkdownStructureFormat, ensureStructureHeader } from '../../services/api/utils';
 import { trackTokenUsage, extractTokenBreakdown } from '../../services/api/tokenTracking';
 import { saveCopySession, getSupabaseClient } from '../../services/supabaseClient';
 import { reviseContentForWordCount } from '../../services/api/contentRefinement';
@@ -455,6 +455,9 @@ export async function runEnhancedPipeline(
         progressCallback('Using generated version (refinement step skipped)');
       }
     }
+
+    // Safety net: guarantee a heading when a Header element is in the structure.
+    improvedCopy = ensureStructureHeader(improvedCopy, formState);
 
     // Word count validation and revision if needed
     const currentWordCount = extractWordCount(improvedCopy);
