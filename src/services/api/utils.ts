@@ -827,6 +827,26 @@ Do NOT give a Paragraph its own heading, do NOT merge two elements into one, and
 }
 
 /**
+ * Type-aware Output Structure mapping for JSON-output generators (Alternative, Humanize).
+ * These return { headline, sections[] } which the UI renders as an <h1> headline plus
+ * <h2> section titles + body. Without this, a "Header 1" element gets no clear home, so
+ * the model leaves "headline" empty and the version renders with no visible header.
+ */
+export function buildJsonStructureFormat(formState: FormState): string {
+  const structure = formState.outputStructure;
+  if (!structure || structure.length === 0) return '';
+  return `
+
+MAP THE STRUCTURE ELEMENTS ONTO THE JSON (keep their order):
+- A "Header 1" element (value "header1") is the main heading: put its text in the top-level "headline" field, as a short heading with no trailing period. Never leave "headline" empty. If several are present, use the first one for "headline".
+- A "Header 2" element (value "header2") is a section heading: output a section whose "title" is that heading.
+- A "Paragraph" element (value "paragraphs") is body text: output a section with "content" and NO "title".
+- "Bullet Points" (value "bullets") or "Numbered list" (value "numbered"): a section with "listItems".
+- Any other element (Problem, Solution, Benefits, Features, Call to Action, Testimonial, etc.): a section with a descriptive "title" and its "content".
+Do NOT leave the headline blank, and do NOT turn a Paragraph element into its own titled section.`;
+}
+
+/**
  * Extract the actual word count from content (string or structured)
  */
 export function extractWordCount(content: any): number {

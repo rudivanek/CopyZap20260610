@@ -2,7 +2,7 @@
  * Humanized copy generation functionality
  */
 import { FormState } from '../../types';
-import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, makeApiRequestWithFallback, getWordCountTolerance, cleanJsonResponse } from './utils';
+import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, makeApiRequestWithFallback, getWordCountTolerance, cleanJsonResponse, buildJsonStructureFormat } from './utils';
 import { trackTokenUsage, extractTokenBreakdown } from './tokenTracking';
 import { reviseContentForWordCount } from './contentRefinement';
 import { calculateGeoScore } from './geoScoring';
@@ -258,6 +258,9 @@ MANDATORY JSON REQUIREMENTS:
       });
 
       userPrompt += `\n\nEnsure each section meets its target word count. If a section is underdeveloped, expand it with more examples, details, or elaboration.`;
+
+      // Type-aware JSON mapping: a "Header 1" element becomes the headline (so it renders as a heading).
+      userPrompt += buildJsonStructureFormat(formState);
 
       // Add section title generation reminder if enabled
       if (formState.includeSectionTitles !== false) {
