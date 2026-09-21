@@ -63,12 +63,22 @@ const PromptEvaluation: React.FC<PromptEvaluationProps> = ({ evaluation, isLoadi
         <div className="bg-gray-100 dark:bg-gray-800 rounded-lg p-4">
           <p className="text-xs font-semibold text-gray-400 dark:text-gray-500 uppercase tracking-widest mb-3">Improvement Tips</p>
           <ul className="space-y-3">
-            {evaluation.tips.map((tip, index) => (
-              <li key={index} className="flex items-start">
-                <span className="text-gray-400 dark:text-gray-500 mr-2">•</span>
-                <span className="text-gray-700 dark:text-gray-300">{tip}</span>
-              </li>
-            ))}
+            {evaluation.tips.map((tip, index) => {
+              // Tips are normally strings, but the evaluator LLM sometimes returns structured
+              // objects like { field, issue, suggestion, importance }. Coerce to text so React
+              // never receives a raw object as a child (which crashes with error #31).
+              const t: any = tip;
+              const tipText = typeof t === 'string'
+                ? t
+                : [t?.field && `${t.field}:`, t?.issue, t?.suggestion && `→ ${t.suggestion}`]
+                    .filter(Boolean).join(' ') || (t == null ? '' : JSON.stringify(t));
+              return (
+                <li key={index} className="flex items-start">
+                  <span className="text-gray-400 dark:text-gray-500 mr-2">•</span>
+                  <span className="text-gray-700 dark:text-gray-300">{tipText}</span>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}

@@ -86,12 +86,21 @@ const ContentQualityIndicator: React.FC<ContentQualityIndicatorProps> = ({
         <div className="text-xs text-gray-700 dark:text-gray-400 mt-3 bg-gray-100 dark:bg-gray-800 p-3 rounded border border-gray-300 dark:border-gray-700 animate-fadeIn">
           <div className="font-medium mb-2 text-gray-700 dark:text-gray-300">Improvement Tips:</div>
           <ul className="space-y-2">
-            {score.tips.map((tip, index) => (
-              <li key={index} className="flex">
-                <span className="text-primary-500 mr-1.5">•</span>
-                <span>{tip}</span>
-              </li>
-            ))}
+            {score.tips.map((tip, index) => {
+              // Coerce to text — tips are usually strings but can be structured objects
+              // ({ field, issue, suggestion, importance }); never pass a raw object to React.
+              const t: any = tip;
+              const tipText = typeof t === 'string'
+                ? t
+                : [t?.field && `${t.field}:`, t?.issue, t?.suggestion && `→ ${t.suggestion}`]
+                    .filter(Boolean).join(' ') || (t == null ? '' : JSON.stringify(t));
+              return (
+                <li key={index} className="flex">
+                  <span className="text-primary-500 mr-1.5">•</span>
+                  <span>{tipText}</span>
+                </li>
+              );
+            })}
           </ul>
         </div>
       )}
