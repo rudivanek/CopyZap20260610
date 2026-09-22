@@ -13,7 +13,7 @@
  */
 
 import { GeneratedContentItem } from '../../types';
-import { makeApiRequestWithFallback, cleanJsonResponse, enforceWordCountLimit } from './utils';
+import { makeApiRequestWithFallback, cleanJsonResponse, enforceWordCountLimit, collapseHeadingsToStructure } from './utils';
 import { SCORING_MODEL } from '../../constants';
 import { ComparisonResult } from './comprehensiveScoring';
 
@@ -440,5 +440,11 @@ Return ONLY JSON.`;
   // budget it can run much longer than every other output. Run it through the same
   // target-word-count enforcement (trim toward target, keep headings + message + CTA).
   const model = formState?.model || SCORING_MODEL;
-  return enforceWordCountLimit(assembled, formState, model, currentUser?.email, 'compile_word_count_trim', sessionId);
+  const enforced = await enforceWordCountLimit(assembled, formState, model, currentUser?.email, 'compile_word_count_trim', sessionId);
+
+  // Compiled glues whole sections together, each of which may carry its own "# " heading,
+  // so it can end up with more headings than the Output Structure defines. Collapse extras
+  // down to the structure's heading count (e.g. a single Header 1) so it matches every
+  // other output.
+  return collapseHeadingsToStructure(enforced, formState);
 }

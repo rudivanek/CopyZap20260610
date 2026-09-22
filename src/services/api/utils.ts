@@ -973,6 +973,31 @@ ${content}`;
 }
 
 /**
+ * Collapse extra leading headings on a DERIVED output (Compiled) down to the number of
+ * heading elements the Output Structure actually defines. Compiled concatenates whole
+ * sections, each of which may carry its own "# " heading, so it can render two H1s when the
+ * structure only asks for one. This keeps the first N heading lines (N = count of Header 1 /
+ * Header 2 elements in the structure) and demotes any further heading lines to plain body text.
+ * No-op when the structure defines no headings, or when there are no extra headings.
+ */
+export function collapseHeadingsToStructure(content: any, formState: FormState | undefined): any {
+  if (typeof content !== 'string' || !content.trim()) return content;
+  const structure = formState?.outputStructure;
+  if (!Array.isArray(structure) || structure.length === 0) return content;
+  const allowedHeadings = structure.filter(el => el.value === 'header1' || el.value === 'header2').length;
+  if (allowedHeadings === 0) return content; // structure defines no headings — leave content untouched
+
+  let kept = 0;
+  const lines = content.split('\n').map(line => {
+    const m = line.match(/^\s*#{1,6}\s+(.*)$/);
+    if (!m) return line;
+    if (kept < allowedHeadings) { kept++; return line; }
+    return m[1]; // demote this extra heading to plain body text
+  });
+  return lines.join('\n');
+}
+
+/**
  * Extract the actual word count from content (string or structured)
  */
 export function extractWordCount(content: any): number {
