@@ -1,6 +1,6 @@
 import { GeneratedContentItem, User } from '../../types';
 import { trackTokenUsage, extractTokenBreakdown } from './tokenTracking';
-import { makeApiRequestWithFallback } from './utils';
+import { makeApiRequestWithFallback, calculateTargetWordCount, enforceWordCountLimit } from './utils';
 import { getPrimaryModel, DEFAULT_ENGINE } from '../../lib/llm/modelRegistry';
 import { contentToText } from './contentText';
 
@@ -121,7 +121,11 @@ ${detail.metrics ? `Metrics:
   const detectedLanguageFallback = /[áéíóúñ¿¡]/i.test(contentAsString) ? 'Spanish' : 'English';
   const language = (formState?.language && String(formState.language).trim()) || detectedLanguageFallback;
   const referenceWordCount = contentAsString.trim().split(/\s+/).length;
-  const targetWordCount = formState?.customWordCount || referenceWordCount;
+  // Use the same target-word-count logic every other generator uses (custom count,
+  // structure total, preset, or improve-length seeding) so the blend respects the
+  // requested length. Fall back to the reference length only if that yields nothing.
+  const calculatedTarget = formState ? calculateTargetWordCount(formState).target : 0;
+  const targetWordCount = calculatedTarget && calculatedTarget > 0 ? calculatedTarget : referenceWordCount;
 
   const prompt = `You are an expert copywriter. I have multiple versions of copy with detailed analysis. Create an OPTIMIZED BLEND that synthesizes the best elements.
 
@@ -180,11 +184,15 @@ Respond ONLY with the blended copy. No explanations.`;
       userEmail
     );
 
-    const content = completion.choices[0]?.message?.content?.trim();
+    let content = completion.choices[0]?.message?.content?.trim();
 
     if (!content) {
       throw new Error('No response from AI model');
     }
+
+    // Enforce the requested word-count target (±tolerance) so Blended isn't longer
+    // than every other output at a tight budget.
+    content = await enforceWordCountLimit(content, formState, modelToUse, userEmail, 'blend_word_count_trim', sessionId);
 
     if (userId && completion.usage) {
       try {

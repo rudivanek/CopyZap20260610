@@ -897,6 +897,82 @@ export function ensureStructureHeader(content: any, formState: FormState): any {
 }
 
 /**
+ * Enforce the same target word-count discipline on DERIVED outputs (Blended, Compiled)
+ * that the primary generators already apply. These two are assembled/synthesized from
+ * other versions and previously ignored the word-count target, so at a tight budget they
+ * came back far longer than every other output. This trims an over-long result back toward
+ * the target with one LLM call, preserving language, markdown headings, the core message
+ * and the CTA. No-op when "let AI decide" is on, when there is no target, or when the
+ * content is already within the maximum tolerance.
+ */
+export async function enforceWordCountLimit(
+  content: any,
+  formState: FormState | undefined,
+  model: Model,
+  userEmail?: string,
+  operationType: string = 'word_count_trim',
+  sessionId?: string | null
+): Promise<any> {
+  // Only enforce on non-empty string content
+  if (typeof content !== 'string' || !content.trim()) return content;
+  if (!formState) return content;
+
+  // Respect the "let AI decide word count" escape hatch
+  if (formState.aiDecideWordCount) return content;
+
+  const { target } = calculateTargetWordCount(formState);
+  if (!target || target <= 0) return content;
+
+  const tolerance = getWordCountTolerance(formState, target);
+  const maxPct = tolerance.maximumAcceptablePercentage ?? 130;
+  const maxWords = Math.round(target * (maxPct / 100));
+
+  const current = extractWordCount(content);
+  if (current <= maxWords) return content;
+
+  const language = (formState.language && String(formState.language).trim()) || 'English';
+
+  const systemPrompt = `You are an expert copy editor. You tighten copy to a target length WITHOUT losing its core message, offer, or call to action. You always keep the same language and preserve markdown headings (# and ##).`;
+
+  const userPrompt = `The copy below is ${current} words. Shorten it to about ${target} words (hard maximum ${maxWords} words).
+
+Rules:
+- Write in ${language}.
+- Keep the main message, the key benefits, and the call to action.
+- Preserve markdown headings exactly as they are (lines starting with "#" or "##").
+- Cut redundancy and filler; do not add new ideas.
+- Return ONLY the shortened copy — no commentary, no word count, no explanations.
+
+COPY:
+${content}`;
+
+  try {
+    const completion = await makeApiRequestWithFallback(
+      model,
+      [
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt }
+      ],
+      0.4,
+      2000,
+      undefined,
+      userEmail,
+      operationType,
+      sessionId
+    );
+
+    const trimmed = completion.choices?.[0]?.message?.content?.trim();
+    if (trimmed) {
+      return ensureStructureHeader(trimmed, formState);
+    }
+  } catch (error) {
+    console.warn('enforceWordCountLimit: trim call failed, returning original content', error);
+  }
+
+  return content;
+}
+
+/**
  * Extract the actual word count from content (string or structured)
  */
 export function extractWordCount(content: any): number {

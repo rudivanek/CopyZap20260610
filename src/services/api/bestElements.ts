@@ -13,7 +13,7 @@
  */
 
 import { GeneratedContentItem } from '../../types';
-import { makeApiRequestWithFallback, cleanJsonResponse } from './utils';
+import { makeApiRequestWithFallback, cleanJsonResponse, enforceWordCountLimit } from './utils';
 import { SCORING_MODEL } from '../../constants';
 import { ComparisonResult } from './comprehensiveScoring';
 
@@ -434,5 +434,11 @@ Return ONLY JSON.`;
     }
   }
 
-  return parts.join('\n\n');
+  const assembled = parts.join('\n\n');
+
+  // Compiled output concatenates whole sections from multiple versions, so at a tight
+  // budget it can run much longer than every other output. Run it through the same
+  // target-word-count enforcement (trim toward target, keep headings + message + CTA).
+  const model = formState?.model || SCORING_MODEL;
+  return enforceWordCountLimit(assembled, formState, model, currentUser?.email, 'compile_word_count_trim', sessionId);
 }
