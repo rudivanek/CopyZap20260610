@@ -680,7 +680,9 @@ const AppRouter: React.FC = () => {
         <Route
           path="/"
           element={
-            currentUser ? <Navigate to={getLastRoute()} replace /> : <HomePage />
+            currentUser
+              ? <Navigate to={getLastRoute()} replace />
+              : (window.location.hostname.startsWith('app.') ? <Navigate to="/login" replace /> : <HomePage />)
           }
         />
         <Route

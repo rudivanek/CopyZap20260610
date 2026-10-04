@@ -78,7 +78,7 @@ const BlogPost: React.FC = () => {
     );
   }
 
-  const canonicalUrl = `https://copyzap.app/blog/${post.slug}`;
+  const canonicalUrl = `https://app.copyzap.app/blog/${post.slug}`;
 
   const jsonLd = {
     '@context': 'https://schema.org',

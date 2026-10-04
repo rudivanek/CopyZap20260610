@@ -109,13 +109,13 @@ Deno.serve(async (req: Request) => {
 
                 <!-- CTA Button -->
                 <div style="text-align: center; margin: 35px 0;">
-                  <a href="https://copyzap.app/login" style="display: inline-block; background: linear-gradient(135deg, #4b5563 0%, #6b7280 100%); color: #ffffff; text-decoration: none; padding: 14px 35px; border-radius: 6px; font-size: 16px; font-weight: 600;">
+                  <a href="https://app.copyzap.app/login" style="display: inline-block; background: linear-gradient(135deg, #4b5563 0%, #6b7280 100%); color: #ffffff; text-decoration: none; padding: 14px 35px; border-radius: 6px; font-size: 16px; font-weight: 600;">
                     Get Started Now
                   </a>
                 </div>
 
                 <p style="font-size: 14px; color: #6b7280; line-height: 1.5; margin: 25px 0 0 0;">
-                  Need help getting started? Check out our <a href="https://copyzap.app/help" style="color: #4b5563; text-decoration: underline;">Help Center</a> or reply to this email with any questions.
+                  Need help getting started? Check out our <a href="https://app.copyzap.app/help" style="color: #4b5563; text-decoration: underline;">Help Center</a> or reply to this email with any questions.
                 </p>
               </div>
 
