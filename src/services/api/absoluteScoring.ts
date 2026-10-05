@@ -15,6 +15,11 @@ import { trackTokenUsage, extractTokenBreakdown } from './tokenTracking';
 // the 150s edge-function timeout when several absolute scores run in parallel.
 const ABSOLUTE_SCORE_MODEL: Model = 'claude-sonnet-4-6';
 
+// How much of a version the scorer reads. This was 6,000 characters, which cut
+// off anything past roughly 900 words (and with it, usually, the closing CTA).
+// 60,000 covers any normal page; it stays as a ceiling against runaway input.
+const ABSOLUTE_SCORE_MAX_CHARS = 60000;
+
 export interface AbsoluteScoreBreakdown {
   clarity: number;           // 0–25
   persuasion: number;        // 0–25
@@ -85,7 +90,7 @@ export async function generateAbsoluteScore(
   goalKey?: GoalKey,
   goalLabel?: string
 ): Promise<AbsoluteScoreBreakdown> {
-  const text = extractText(content).slice(0, 6000).trim();
+  const text = extractText(content).slice(0, ABSOLUTE_SCORE_MAX_CHARS).trim();
 
   if (!text) {
     return fallbackScore('Empty content');
