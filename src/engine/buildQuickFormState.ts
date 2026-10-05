@@ -2,7 +2,7 @@
  * Quick — turns "pasted copy + a goal" into the full settings object the
  * CopyZap engine expects. Everything not set here keeps the Copy Maker default.
  */
-import { FormState, GoalKey, ScoringContext } from '../types';
+import { FormState, GoalKey, Language, ScoringContext, Tone } from '../types';
 import { DEFAULT_FORM_STATE } from '../constants';
 import { detectLanguage, convertLanguageCodeToFormDataLanguage } from '../utils/languageDetection';
 import { countWords } from '../utils/markdownUtils';
@@ -41,21 +41,34 @@ export function deriveQuickLabel(copy: string): string {
   return `${(lastSpace > 20 ? cut.slice(0, lastSpace) : cut).trim()}…`;
 }
 
+/** What the user confirmed about the copy. Every field is optional. */
+export interface QuickBriefInput {
+  product?: string;
+  audience?: string;
+  tone?: Tone;
+  language?: Language;
+}
+
 export interface QuickFormInput {
   copy: string;
   variants?: number;
+  brief?: QuickBriefInput;
 }
 
 export function buildQuickFormState(input: QuickFormInput): FormState {
   const copy = input.copy.trim();
   const words = countWords(copy);
   const variants = Math.min(Math.max(input.variants ?? QUICK_DEFAULT_VARIANTS, 1), 5);
+  const brief = input.brief ?? {};
 
   return {
     ...DEFAULT_FORM_STATE,
     tab: 'improve',
     originalCopy: copy,
-    language: convertLanguageCodeToFormDataLanguage(detectLanguage(copy)),
+    language: brief.language ?? convertLanguageCodeToFormDataLanguage(detectLanguage(copy)),
+    tone: brief.tone ?? DEFAULT_FORM_STATE.tone,
+    productServiceName: (brief.product ?? '').trim(),
+    targetAudience: (brief.audience ?? '').trim(),
     // Improve keeps the length of the original.
     wordCount: 'Custom',
     customWordCount: words,

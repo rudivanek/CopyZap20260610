@@ -23,6 +23,8 @@ import { countWords } from '../utils/markdownUtils';
 import {
   buildQuickFormState,
   buildQuickScoringContext,
+  deriveQuickLabel,
+  QuickBriefInput,
   QUICK_DEFAULT_VARIANTS,
   QUICK_MAX_WORDS,
   QUICK_MIN_WORDS,
@@ -45,7 +47,9 @@ export type QuickErrorCode =
   | 'too_long'
   | 'no_access'
   | 'session_failed'
-  | 'generation_failed';
+  | 'generation_failed'
+  | 'bad_url'
+  | 'fetch_failed';
 
 export class QuickPipelineError extends Error {
   code: QuickErrorCode;
@@ -71,6 +75,10 @@ export interface QuickRunInput {
   copy: string;
   goalKey: GoalKey;
   variants?: number;
+  /** What the user confirmed about the copy (product, audience, tone, language). */
+  brief?: QuickBriefInput;
+  /** A tracking session already started by startQuickSession. One is created when missing. */
+  sessionId?: string;
 }
 
 export interface QuickRunResult {
@@ -301,15 +309,8 @@ export function withQuickResult(
   };
 }
 
-export async function runQuickPipeline(
-  input: QuickRunInput,
-  user: User,
-  onProgress?: ProgressFn
-): Promise<QuickRunResult> {
-  validateQuickCopy(input.copy);
-
-  // 1 — access
-  onProgress?.({ stage: 'checking' });
+/** Throws QuickPipelineError('no_access') when the account cannot generate. */
+async function assertQuickAccess(user: User): Promise<void> {
   let access;
   try {
     access = await checkUserAccess(user.id, user.email || '');
@@ -319,23 +320,51 @@ export async function runQuickPipeline(
   if (!access.hasAccess) {
     throw new QuickPipelineError('no_access', access.message || 'Your account cannot generate copy right now.');
   }
+}
 
-  // 2 — settings and tracking session (the engine refuses to run without one)
-  let formState = buildQuickFormState({ copy: input.copy, variants: input.variants });
-  let sessionId: string;
+async function createQuickSession(user: User, name: string, inputData?: FormState): Promise<string> {
   try {
-    const session = await sessionManager.createSession(
-      user.id,
-      'quick',
-      formState.projectDescription,
-      undefined,
-      formState,
-      undefined,
-      'quick'
-    );
-    sessionId = session.id;
+    const session = await sessionManager.createSession(user.id, 'quick', name, undefined, inputData, undefined, 'quick');
+    return session.id;
   } catch (error) {
     throw new QuickPipelineError('session_failed', `Could not start a tracking session. ${errorMessage(error)}`);
+  }
+}
+
+/**
+ * Checks access and starts the tracking session before the first paid step
+ * (fetching a page or reading the copy), so every call of a run is recorded
+ * under one session. Pass the returned id to runQuickPipeline.
+ */
+export async function startQuickSession(user: User, label: string): Promise<string> {
+  await assertQuickAccess(user);
+  return createQuickSession(user, `Quick: ${deriveQuickLabel(label)}`);
+}
+
+export async function runQuickPipeline(
+  input: QuickRunInput,
+  user: User,
+  onProgress?: ProgressFn
+): Promise<QuickRunResult> {
+  validateQuickCopy(input.copy);
+
+  // 1 — access
+  onProgress?.({ stage: 'checking' });
+  await assertQuickAccess(user);
+
+  // 2 — settings and tracking session (the engine refuses to run without one)
+  let formState = buildQuickFormState({ copy: input.copy, variants: input.variants, brief: input.brief });
+  let sessionId = input.sessionId;
+  if (sessionId) {
+    // The session was started earlier, before the copy was final: store the real
+    // name and inputs now. Best effort — a failure here must not stop the run.
+    try {
+      await sessionManager.updateSession(sessionId, formState.projectDescription || 'Quick', formState);
+    } catch {
+      // keep going with the session as it is
+    }
+  } else {
+    sessionId = await createQuickSession(user, formState.projectDescription || 'Quick', formState);
   }
   formState = { ...formState, sessionId };
 
