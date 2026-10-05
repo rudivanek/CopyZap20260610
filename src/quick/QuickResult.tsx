@@ -14,6 +14,8 @@ interface QuickResultProps {
   isRescoring: boolean;
   onRescore: () => void;
   onNew: () => void;
+  /** How long the run took, already formatted (m:ss). */
+  elapsedLabel?: string;
 }
 
 const card = 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700';
@@ -79,8 +81,9 @@ const CopyButton: React.FC<{ content: GeneratedContentItem['content']; className
   );
 };
 
-const QuickResult: React.FC<QuickResultProps> = ({ result, isRescoring, onRescore, onNew }) => {
+const QuickResult: React.FC<QuickResultProps> = ({ result, isRescoring, onRescore, onNew, elapsedLabel }) => {
   const [showOthers, setShowOthers] = useState(false);
+  const [showOriginal, setShowOriginal] = useState(false);
 
   const { scores, versions } = result;
   const generated = versions.filter(version => version.id !== ORIGINAL_VERSION_ID);
@@ -95,6 +98,10 @@ const QuickResult: React.FC<QuickResultProps> = ({ result, isRescoring, onRescor
   const winnerTotal = winnerScore?.total;
   const originalTotal = originalScore?.total;
   const delta = winnerTotal != null && originalTotal != null ? winnerTotal - originalTotal : null;
+  // Improvement relative to the original's own score, e.g. 71 -> 85 is +20%.
+  const deltaPercent =
+    delta != null && originalTotal != null && originalTotal > 0 ? Math.round((delta / originalTotal) * 100) : null;
+  const original = versions.find(version => version.id === ORIGINAL_VERSION_ID);
 
   const gate = scores?.gateByVersion[winner.id];
   const isIncomplete = gate ? !gate.valid : false;
@@ -123,6 +130,7 @@ const QuickResult: React.FC<QuickResultProps> = ({ result, isRescoring, onRescor
         <h1 className="text-gray-900 dark:text-white">{deriveQuickLabel(result.formState.originalCopy || '')}</h1>
         <p className="text-gray-600 dark:text-gray-400">
           Goal: {goalName} · {result.formState.language}
+          {elapsedLabel && ` · Finished in ${elapsedLabel}`}
         </p>
       </div>
 
@@ -149,17 +157,50 @@ const QuickResult: React.FC<QuickResultProps> = ({ result, isRescoring, onRescor
             </button>
           </div>
 
-          {others.length > 0 && (
-            <div className="flex flex-col gap-3">
-              <button
-                type="button"
-                onClick={() => setShowOthers(open => !open)}
-                aria-expanded={showOthers}
-                className={`${linkButton} self-start`}
-              >
-                {showOthers ? 'Hide' : 'See'} {others.length} other {others.length === 1 ? 'version' : 'versions'}
-              </button>
-              {showOthers &&
+          <div className="flex flex-col gap-3">
+            <div className="flex flex-wrap gap-x-6 gap-y-1">
+              {original && (
+                <button
+                  type="button"
+                  onClick={() => setShowOriginal(open => !open)}
+                  aria-expanded={showOriginal}
+                  className={linkButton}
+                >
+                  {showOriginal ? 'Hide' : 'See'} your original
+                </button>
+              )}
+              {others.length > 0 && (
+                <button
+                  type="button"
+                  onClick={() => setShowOthers(open => !open)}
+                  aria-expanded={showOthers}
+                  className={linkButton}
+                >
+                  {showOthers ? 'Hide' : 'See'} {others.length} other {others.length === 1 ? 'version' : 'versions'}
+                </button>
+              )}
+            </div>
+
+            {showOriginal && original && (
+              <article className={`${paper} p-5 flex flex-col gap-3`}>
+                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                  <span className="text-xs font-semibold text-gray-600">Your original</span>
+                  <span className="inline-flex items-center gap-2 text-xs font-semibold text-gray-900">
+                    {originalTotal != null ? (
+                      <>
+                        <span className={`w-1 h-5 ${getAbsoluteScoreMarkClass(originalTotal)}`} aria-hidden="true" />
+                        {originalTotal} / 100
+                      </>
+                    ) : (
+                      'Not scored'
+                    )}
+                  </span>
+                </div>
+                <FormattedContent content={original.content} className={copyText} />
+              </article>
+            )}
+
+            {showOthers &&
                 others.map(({ version, total }) => (
                   <article key={version.id} className={`${paper} p-5 flex flex-col gap-3`}>
                     <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
@@ -181,8 +222,7 @@ const QuickResult: React.FC<QuickResultProps> = ({ result, isRescoring, onRescor
                     <CopyButton content={version.content} className={`${paperButton} self-start`} />
                   </article>
                 ))}
-            </div>
-          )}
+          </div>
 
           {result.failedVersions > 0 && (
             <p className="text-gray-600 dark:text-gray-400">
@@ -212,12 +252,16 @@ const QuickResult: React.FC<QuickResultProps> = ({ result, isRescoring, onRescor
                     )}
                   </div>
                   {delta != null && originalTotal != null ? (
-                    <p className="text-gray-600 dark:text-gray-400">
-                      Your original scored {originalTotal}.{' '}
-                      {delta > 0 && `This version is ${delta} ${delta === 1 ? 'point' : 'points'} higher.`}
-                      {delta === 0 && 'This version scores the same.'}
-                      {delta < 0 && `This version is ${Math.abs(delta)} ${delta === -1 ? 'point' : 'points'} lower.`}
-                    </p>
+                    <div className="flex flex-col gap-1">
+                      <p className="font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
+                        {delta > 0 && `+${delta} ${delta === 1 ? 'point' : 'points'}`}
+                        {delta < 0 && `−${Math.abs(delta)} ${delta === -1 ? 'point' : 'points'}`}
+                        {delta === 0 && 'Same score'}
+                        {delta !== 0 && deltaPercent != null && ` (${delta > 0 ? '+' : '−'}${Math.abs(deltaPercent)}%)`}
+                        {delta !== 0 ? ' vs your original' : ' as your original'}
+                      </p>
+                      <p className="text-gray-600 dark:text-gray-400">Your original scored {originalTotal} / 100.</p>
+                    </div>
                   ) : (
                     <p className="text-gray-600 dark:text-gray-400">Your original could not be scored.</p>
                   )}

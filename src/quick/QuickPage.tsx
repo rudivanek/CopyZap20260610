@@ -54,6 +54,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<QuickRunResult | null>(null);
   const [isRescoring, setIsRescoring] = useState(false);
+  const [runSeconds, setRunSeconds] = useState<number | null>(null);
   const isMounted = useRef(true);
 
   useEffect(() => {
@@ -95,12 +96,14 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setProgress({ stage: 'checking' });
     setPhase('running');
     window.scrollTo(0, 0);
+    const startedAt = Date.now();
 
     try {
       const run = await runQuickPipeline({ copy, goalKey }, currentUser, update => {
         if (isMounted.current) setProgress(update);
       });
       if (!isMounted.current) return;
+      setRunSeconds(Math.round((Date.now() - startedAt) / 1000));
       setResult(run);
       setPhase('result');
     } catch (runError) {
@@ -132,6 +135,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
 
   const handleNew = () => {
     setResult(null);
+    setRunSeconds(null);
     setError(null);
     setCopy('');
     setPhase('start');
@@ -269,7 +273,13 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
 
       {phase === 'result' && result && (
         <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-8 pb-16">
-          <QuickResult result={result} isRescoring={isRescoring} onRescore={handleRescore} onNew={handleNew} />
+          <QuickResult
+            result={result}
+            isRescoring={isRescoring}
+            onRescore={handleRescore}
+            onNew={handleNew}
+            elapsedLabel={runSeconds != null ? formatElapsed(runSeconds) : undefined}
+          />
         </main>
       )}
     </div>
