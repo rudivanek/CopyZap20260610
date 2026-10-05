@@ -1,2 +1,5 @@
 [functions.send-welcome-email]
 verify_jwt = true
+
+[functions.analyze-url-firecrawl]
+verify_jwt = true

@@ -11,7 +11,7 @@ interface FirecrawlRequest {
   url: string;
   user_id: string;
   user_email?: string;
-  extractMode?: 'context' | 'fullCopy';
+  extractMode?: 'context' | 'fullCopy' | 'rawCopy';
   model?: string;
   session_id?: string | null;
 }
@@ -185,6 +185,37 @@ Deno.serve(async (req) => {
       if (trackError) {
         console.error('Failed to track Firecrawl credit:', trackError);
       }
+    }
+
+    // rawCopy mode: return the page text exactly as Firecrawl extracted it.
+    // No model re-types it, so nothing is shortened, cut off or reworded,
+    // and no AI tokens are used.
+    if (extractMode === 'rawCopy') {
+      if (!markdown.trim()) {
+        return new Response(
+          JSON.stringify({ error: 'No content extracted from the URL. The page may be empty or inaccessible.' }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400
+          }
+        );
+      }
+
+      return new Response(
+        JSON.stringify({
+          success: true,
+          mode: 'rawCopy',
+          data: { markdown, language },
+          title,
+          description,
+          tokensUsed: 0,
+          scraper: 'firecrawl'
+        }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 200
+        }
+      );
     }
 
     // Now analyze the content with AI based on extractMode
