@@ -31,6 +31,13 @@ import {
   QUICK_SECTION,
 } from './buildQuickFormState';
 import { ORIGINAL_OPTION_LABEL, ORIGINAL_VERSION_ID, pickWinner } from './pickWinner';
+import {
+  findUnverifiedQuotes,
+  lockTestimonials,
+  restoreTestimonials,
+  testimonialInstructions,
+} from './quoteLock';
+import { contentToText } from '../services/api/contentText';
 
 export type QuickStage = 'checking' | 'writing' | 'scoring';
 
@@ -92,6 +99,14 @@ export interface QuickRunResult {
   scoringError?: string;
   /** How many requested versions could not be written. */
   failedVersions: number;
+  /** Testimonials found in the original and kept word for word in every version. */
+  testimonials: {
+    count: number;
+    /** Versions that lost the testimonials' place; there they were put back before the last section. */
+    movedIds: string[];
+  };
+  /** Per version: quoted passages that are not in the original. */
+  quoteFlags: Record<string, string[]>;
 }
 
 type ProgressFn = (progress: QuickProgress) => void;
@@ -199,7 +214,8 @@ export async function scoreQuickVersions(
 ): Promise<QuickScores> {
   onProgress?.({ stage: 'scoring' });
 
-  const targetWords = calculateTargetWordCount({ ...formState }).target;
+  // The gate compares each version with the whole original, testimonials included.
+  const targetWords = countWords(formState.originalCopy || '') || calculateTargetWordCount({ ...formState }).target;
 
   const unified = await generateUnifiedComparison(
     formState.originalCopy,
@@ -352,8 +368,15 @@ export async function runQuickPipeline(
   onProgress?.({ stage: 'checking' });
   await assertQuickAccess(user);
 
-  // 2 — settings and tracking session (the engine refuses to run without one)
-  let formState = buildQuickFormState({ copy: input.copy, variants: input.variants, brief: input.brief });
+  // 2 — settings and tracking session (the engine refuses to run without one).
+  // Testimonials are taken out first: the engine rewrites the page around a
+  // marker line and never sees, and so never edits, what customers said.
+  const fullCopy = input.copy.trim();
+  const lock = lockTestimonials(fullCopy);
+  let formState = buildQuickFormState({ copy: lock.lockedCopy, variants: input.variants, brief: input.brief });
+  if (lock.count > 0) {
+    formState = { ...formState, specialInstructions: testimonialInstructions(lock.zones) };
+  }
   let sessionId = input.sessionId;
   if (sessionId) {
     // The session was started earlier, before the copy was final: store the real
@@ -376,6 +399,23 @@ export async function runQuickPipeline(
       written.firstError || 'No version could be written. Please try again.'
     );
   }
+
+  // Put the testimonials back, word for word, and check every version for
+  // quoted passages that are not in the original.
+  const movedIds: string[] = [];
+  const quoteFlags: Record<string, string[]> = {};
+  for (const item of written.items) {
+    if (lock.count > 0) {
+      const restored = restoreTestimonials(contentToText(item.content), lock.zones);
+      item.content = restored.text;
+      item.sourceText = fullCopy;
+      if (restored.moved) movedIds.push(item.id);
+    }
+    const flagged = findUnverifiedQuotes(contentToText(item.content), fullCopy);
+    if (flagged.length > 0) quoteFlags[item.id] = flagged;
+  }
+  // From here on the settings describe the whole page again.
+  formState = { ...formState, originalCopy: fullCopy, specialInstructions: '' };
 
   const original: GeneratedContentItem = {
     id: ORIGINAL_VERSION_ID,
@@ -403,5 +443,7 @@ export async function runQuickPipeline(
     scores,
     scoringError,
     failedVersions: written.failed,
+    testimonials: { count: lock.count, movedIds },
+    quoteFlags,
   };
 }
