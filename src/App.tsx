@@ -35,6 +35,7 @@ const MIN_DESKTOP_WIDTH = 1024;
 const Dashboard = lazy(() => import('./components/Dashboard'));
 const CopyMakerTab = lazy(() => import('./components/copy-maker/CopyMakerTab/CopyMakerTab'));
 const CopySnap = lazy(() => import('./components/CopySnap'));
+const QuickPage = lazy(() => import('./quick/QuickPage'));
 // Lazy loaded - Admin components
 const ManageUsers = lazy(() => import('./components/ManageUsers'));
 const ManagePrefills = lazy(() => import('./components/ManagePrefills'));
@@ -632,7 +633,8 @@ const AppRouter: React.FC = () => {
   const shouldShowMainMenu = () => {
     const hiddenPaths = ['/', '/login'];
     const isHelpPath = location.pathname.startsWith('/help');
-    return !hiddenPaths.includes(location.pathname) && !isHelpPath;
+    const isQuickPath = location.pathname.startsWith('/quick');
+    return !hiddenPaths.includes(location.pathname) && !isHelpPath && !isQuickPath;
   };
 
   // Show loading screen while initializing
@@ -760,6 +762,18 @@ const AppRouter: React.FC = () => {
                   />
                 </Suspense>
               </AuthenticatedRoute>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/quick"
+          element={
+            currentUser ? (
+              <Suspense fallback={null}>
+                <QuickPage currentUser={currentUser} onLogout={handleEnhancedLogout} />
+              </Suspense>
             ) : (
               <Navigate to="/login" replace />
             )
