@@ -61,7 +61,7 @@ class SessionManager {
     if (projectDescription && projectDescription.trim().length > 0) {
       const desc = projectDescription.trim();
       // Skip "Copy Maker" prefix for Purpose Rewrite and CopySnap sessions (they have their own prefixes)
-      if (desc.startsWith('Purpose Rewrite:') || desc.startsWith('CopySnap:')) {
+      if (desc.startsWith('Purpose Rewrite:') || desc.startsWith('CopySnap:') || desc.startsWith('Quick:')) {
         rawName = desc;
       } else {
         rawName = `Copy Maker : ${desc}`;

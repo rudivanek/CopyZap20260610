@@ -367,8 +367,9 @@ npm run check:hardcoded-admins
 
 **Type checking:**
 ```bash
-npx tsc --noEmit
+npx tsc --noEmit -p tsconfig.app.json
 ```
+Note: plain `npx tsc --noEmit` checks zero files (the root `tsconfig.json` has `"files": []`) and always passes. `npm run build` does not typecheck either.
 
 **Linting:**
 ```bash

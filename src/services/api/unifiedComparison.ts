@@ -50,7 +50,8 @@ export async function generateUnifiedComparison(
   keywords: string[] = [],
   scoringContext?: ScoringContext,
   section?: string,
-  method?: ScoringMethod
+  method?: ScoringMethod,
+  targetWords?: number // optional word target for the structural gate (too-short check)
 ): Promise<UnifiedComparisonResult> {
   const resolvedMethod: ScoringMethod = method ?? scoringContext?.method ?? 'current';
   console.log(`🔄 Using comparative scoring engine (method: ${resolvedMethod})`);
@@ -98,11 +99,11 @@ export async function generateUnifiedComparison(
   const goalKey = scoringContext?.goalKey;
   const goalLabel = scoringContext?.goalLabel;
 
-  // Structural gate (deterministic, language-independent). No word target passed
-  // yet, so it flags repeated passages; too-short can be wired later.
+  // Structural gate (deterministic, language-independent). Always flags repeated
+  // passages; also flags too-short versions when a caller passes targetWords.
   const gateByVersion: Record<string, GateResult> = {};
   for (const v of generatedVersions) {
-    gateByVersion[v.id] = structuralGate(toPlainText(v.content));
+    gateByVersion[v.id] = structuralGate(toPlainText(v.content), targetWords);
   }
 
   // Goal-aware absolute score, computed in PARALLEL to stay within the
