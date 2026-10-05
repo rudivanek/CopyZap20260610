@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { GoalKey, User } from '../types';
 import { DEFAULT_GOAL_KEY, GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import { countWords } from '../utils/markdownUtils';
+import { playSuccessSound } from '../utils/soundEffects';
 import { QUICK_DEFAULT_VARIANTS, QUICK_MAX_WORDS, QUICK_MIN_WORDS } from '../engine/buildQuickFormState';
 import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
@@ -9,13 +10,13 @@ import {
   QuickPipelineError,
   QuickProgress,
   QuickRunResult,
-  QuickStage,
   runQuickPipeline,
   scoreQuickVersions,
   startQuickSession,
   withQuickResult,
 } from '../engine/runQuickPipeline';
 import QuickTopBar from './QuickTopBar';
+import QuickBusyModal, { QuickBusyKind } from './QuickBusyModal';
 import QuickConfirm from './QuickConfirm';
 import QuickResult from './QuickResult';
 
@@ -24,9 +25,7 @@ interface QuickPageProps {
   onLogout: () => void;
 }
 
-type Phase = 'start' | 'reading' | 'confirm' | 'running' | 'result';
-
-const STAGE_ORDER: QuickStage[] = ['checking', 'writing', 'scoring'];
+type Phase = 'start' | 'confirm' | 'result';
 
 const GOALS = GOAL_OPTIONS.filter(option => option.key !== 'custom').map(option => {
   const [name, description = ''] = option.label.split(' — ');
@@ -57,10 +56,12 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
   const [result, setResult] = useState<QuickRunResult | null>(null);
-  const [isRescoring, setIsRescoring] = useState(false);
+  // The process currently running, if any. While one runs, a modal covers the screen.
+  const [busy, setBusy] = useState<QuickBusyKind | null>(null);
+  const isFetching = busy === 'fetch';
+  const isRescoring = busy === 'rescoring';
   const [runSeconds, setRunSeconds] = useState<number | null>(null);
   const [url, setUrl] = useState('');
-  const [isFetching, setIsFetching] = useState(false);
   const [fetchedFrom, setFetchedFrom] = useState<string | null>(null);
   // One tracking session per piece of work, started at the first paid step.
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -76,8 +77,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     };
   }, []);
 
-  // Count seconds while a run or a page fetch is in progress.
-  const isTiming = phase === 'running' || isFetching;
+  // Count seconds while any process is running.
+  const isTiming = busy !== null;
   useEffect(() => {
     if (!isTiming) return;
     setElapsed(0);
@@ -88,7 +89,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     return () => window.clearInterval(timer);
   }, [isTiming]);
 
-  // Ask before closing the tab mid-run or mid-fetch: both have already used credits.
+  // Ask before closing the tab while a process runs: it has already used credits.
   useEffect(() => {
     if (!isTiming) return;
     const warn = (event: BeforeUnloadEvent) => {
@@ -112,7 +113,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   };
 
   const handleFetch = async () => {
-    if (isFetching) return;
+    if (busy) return;
     setError(null);
     let target: string;
     try {
@@ -122,7 +123,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       return;
     }
 
-    setIsFetching(true);
+    setBusy('fetch');
     try {
       const id = await ensureSession(new URL(target).hostname);
       const page = await fetchQuickPage(target, currentUser, id);
@@ -130,25 +131,26 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       setCopy(page.copy);
       setUrl(page.url);
       setFetchedFrom(page.host);
+      playSuccessSound();
     } catch (fetchError) {
       if (isMounted.current) setError(messageOf(fetchError));
     } finally {
-      if (isMounted.current) setIsFetching(false);
+      if (isMounted.current) setBusy(null);
     }
   };
 
   const handleContinue = async () => {
-    if (tooShort || tooLong || isFetching) return;
+    if (tooShort || tooLong || busy) return;
     setError(null);
-    window.scrollTo(0, 0);
 
     // Same copy as last time: the earlier reading still applies.
     if (brief && briefCopy === copy) {
       setPhase('confirm');
+      window.scrollTo(0, 0);
       return;
     }
 
-    setPhase('reading');
+    setBusy('reading');
     try {
       const id = await ensureSession(copy);
       const understood = await inferQuickBrief(copy, currentUser, id);
@@ -156,19 +158,21 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       setBrief(understood);
       setBriefCopy(copy);
       setPhase('confirm');
+      window.scrollTo(0, 0);
     } catch (readError) {
       if (!isMounted.current) return;
       setError(messageOf(readError));
       setPhase('start');
+    } finally {
+      if (isMounted.current) setBusy(null);
     }
   };
 
   const handleRun = async () => {
-    if (tooShort || tooLong) return;
+    if (tooShort || tooLong || busy) return;
     setError(null);
     setProgress({ stage: 'checking' });
-    setPhase('running');
-    window.scrollTo(0, 0);
+    setBusy('running');
     const startedAt = Date.now();
 
     try {
@@ -190,16 +194,21 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       setRunSeconds(Math.round((Date.now() - startedAt) / 1000));
       setResult(run);
       setPhase('result');
+      window.scrollTo(0, 0);
+      playSuccessSound();
     } catch (runError) {
       if (!isMounted.current) return;
       setError(messageOf(runError));
       setPhase('start');
+      window.scrollTo(0, 0);
+    } finally {
+      if (isMounted.current) setBusy(null);
     }
   };
 
   const handleRescore = async () => {
-    if (!result || isRescoring) return;
-    setIsRescoring(true);
+    if (!result || busy) return;
+    setBusy('rescoring');
     try {
       const scores = await scoreQuickVersions(result.formState, result.versions, result.goalKey, currentUser);
       if (!isMounted.current) return;
@@ -209,11 +218,12 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         scoringError: undefined,
         formState: withQuickResult(result.formState, result.versions, scores),
       });
+      playSuccessSound();
     } catch (scoreError) {
       if (!isMounted.current) return;
       setResult({ ...result, scoringError: messageOf(scoreError) });
     } finally {
-      if (isMounted.current) setIsRescoring(false);
+      if (isMounted.current) setBusy(null);
     }
   };
 
@@ -231,20 +241,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     window.scrollTo(0, 0);
   };
 
-  const activeStage = STAGE_ORDER.indexOf(progress.stage);
-  const total = progress.total ?? QUICK_DEFAULT_VARIANTS;
-  const stageLabels: Record<QuickStage, string> = {
-    checking: 'Checking your account',
-    writing:
-      progress.stage === 'writing'
-        ? `Writing ${total} versions (${progress.done ?? 0} of ${total} done)`
-        : `Writing ${total} versions`,
-    scoring: 'Scoring them and picking the best',
-  };
-
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-gray-100">
-      <QuickTopBar onNew={handleNew} onLogout={onLogout} isBusy={phase === 'running' || phase === 'reading' || isFetching} />
+      <QuickTopBar onNew={handleNew} onLogout={onLogout} isBusy={busy !== null} />
 
       {phase === 'start' && (
         <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-10 pb-16 flex flex-col gap-7">
@@ -309,13 +308,11 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
                 disabled={isFetching || !url.trim()}
                 className="inline-flex items-center justify-center min-h-[44px] px-5 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
-                {isFetching ? `Fetching… ${formatElapsed(elapsed)}` : 'Fetch page'}
+                Fetch page
               </button>
             </div>
-            <p className="text-gray-600 dark:text-gray-400" role="status" aria-live="polite">
-              {isFetching
-                ? 'Reading the page. This can take up to three minutes. Keep this tab open.'
-                : 'Fetching a page uses credits. It replaces the text in the box above.'}
+            <p className="text-gray-600 dark:text-gray-400">
+              Fetching a page uses credits. It replaces the text in the box above.
             </p>
           </div>
 
@@ -366,15 +363,6 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         </main>
       )}
 
-      {phase === 'reading' && (
-        <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-10 pb-16 flex flex-col gap-1" role="status" aria-live="polite">
-          <h1 className="text-gray-900 dark:text-white">Reading your copy</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Working out what it sells, who it is for and its tone. This takes a moment.
-          </p>
-        </main>
-      )}
-
       {phase === 'confirm' && brief && (
         <QuickConfirm
           copy={copy}
@@ -390,38 +378,6 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         />
       )}
 
-      {phase === 'running' && (
-        <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-10 pb-16 flex flex-col gap-6">
-          <div className="flex flex-col gap-1">
-            <h1 className="text-gray-900 dark:text-white">Working on it</h1>
-            <p className="text-gray-600 dark:text-gray-400">This can take a few minutes. Keep this tab open.</p>
-          </div>
-          <div role="status" aria-live="polite">
-          <ol className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
-            {STAGE_ORDER.map((stage, index) => {
-              const state = index < activeStage ? 'done' : index === activeStage ? 'active' : 'waiting';
-              return (
-                <li key={stage} className="flex items-center gap-3 px-5 min-h-[52px]">
-                  <span
-                    aria-hidden="true"
-                    className={
-                      'w-1 h-5 shrink-0 ' +
-                      (state === 'done' ? 'bg-status-good' : state === 'active' ? 'bg-primary-500 animate-pulse' : 'bg-gray-300 dark:bg-gray-600')
-                    }
-                  />
-                  <span className={state === 'waiting' ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100 font-medium'}>
-                    {stageLabels[stage]}
-                    {state === 'done' && <span className="sr-only"> (done)</span>}
-                  </span>
-                </li>
-              );
-            })}
-          </ol>
-          </div>
-          <p className="text-gray-600 dark:text-gray-400 tabular-nums">Elapsed: {formatElapsed(elapsed)}</p>
-        </main>
-      )}
-
       {phase === 'result' && result && (
         <main className="max-w-5xl mx-auto px-4 sm:px-6 pt-8 pb-16">
           <QuickResult
@@ -432,6 +388,10 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             elapsedLabel={runSeconds != null ? formatElapsed(runSeconds) : undefined}
           />
         </main>
+      )}
+
+      {busy && (
+        <QuickBusyModal kind={busy} elapsed={elapsed} progress={progress} versions={QUICK_DEFAULT_VARIANTS} />
       )}
     </div>
   );
