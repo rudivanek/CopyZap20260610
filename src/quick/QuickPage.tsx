@@ -3,6 +3,8 @@ import { GoalKey, User } from '../types';
 import { DEFAULT_GOAL_KEY, GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import { countWords } from '../utils/markdownUtils';
 import { QUICK_DEFAULT_VARIANTS, QUICK_MAX_WORDS, QUICK_MIN_WORDS } from '../engine/buildQuickFormState';
+import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
+import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
 import {
   QuickPipelineError,
   QuickProgress,
@@ -10,9 +12,11 @@ import {
   QuickStage,
   runQuickPipeline,
   scoreQuickVersions,
+  startQuickSession,
   withQuickResult,
 } from '../engine/runQuickPipeline';
 import QuickTopBar from './QuickTopBar';
+import QuickConfirm from './QuickConfirm';
 import QuickResult from './QuickResult';
 
 interface QuickPageProps {
@@ -20,7 +24,7 @@ interface QuickPageProps {
   onLogout: () => void;
 }
 
-type Phase = 'start' | 'running' | 'result';
+type Phase = 'start' | 'reading' | 'confirm' | 'running' | 'result';
 
 const STAGE_ORDER: QuickStage[] = ['checking', 'writing', 'scoring'];
 
@@ -55,6 +59,14 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [result, setResult] = useState<QuickRunResult | null>(null);
   const [isRescoring, setIsRescoring] = useState(false);
   const [runSeconds, setRunSeconds] = useState<number | null>(null);
+  const [url, setUrl] = useState('');
+  const [isFetching, setIsFetching] = useState(false);
+  const [fetchedFrom, setFetchedFrom] = useState<string | null>(null);
+  // One tracking session per piece of work, started at the first paid step.
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  // What Quick understood about the copy, and the exact copy it was read from.
+  const [brief, setBrief] = useState<QuickBrief | null>(null);
+  const [briefCopy, setBriefCopy] = useState<string | null>(null);
   const isMounted = useRef(true);
 
   useEffect(() => {
@@ -64,44 +76,116 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     };
   }, []);
 
-  // Count seconds while a run is in progress.
+  // Count seconds while a run or a page fetch is in progress.
+  const isTiming = phase === 'running' || isFetching;
   useEffect(() => {
-    if (phase !== 'running') return;
+    if (!isTiming) return;
+    setElapsed(0);
     const startedAt = Date.now();
     const timer = window.setInterval(() => {
       setElapsed(Math.floor((Date.now() - startedAt) / 1000));
     }, 1000);
     return () => window.clearInterval(timer);
-  }, [phase]);
+  }, [isTiming]);
 
-  // Ask before closing the tab mid-run: the run has already used credits.
+  // Ask before closing the tab mid-run or mid-fetch: both have already used credits.
   useEffect(() => {
-    if (phase !== 'running') return;
+    if (!isTiming) return;
     const warn = (event: BeforeUnloadEvent) => {
       event.preventDefault();
       event.returnValue = '';
     };
     window.addEventListener('beforeunload', warn);
     return () => window.removeEventListener('beforeunload', warn);
-  }, [phase]);
+  }, [isTiming]);
 
   const words = copy.trim() ? countWords(copy) : 0;
   const tooShort = words < QUICK_MIN_WORDS;
   const tooLong = words > QUICK_MAX_WORDS;
 
+  /** Returns the tracking session, starting it (with an access check) on first use. */
+  const ensureSession = async (label: string): Promise<string> => {
+    if (sessionId) return sessionId;
+    const id = await startQuickSession(currentUser, label);
+    if (isMounted.current) setSessionId(id);
+    return id;
+  };
+
+  const handleFetch = async () => {
+    if (isFetching) return;
+    setError(null);
+    let target: string;
+    try {
+      target = normalizeQuickUrl(url);
+    } catch (urlError) {
+      setError(messageOf(urlError));
+      return;
+    }
+
+    setIsFetching(true);
+    try {
+      const id = await ensureSession(new URL(target).hostname);
+      const page = await fetchQuickPage(target, currentUser, id);
+      if (!isMounted.current) return;
+      setCopy(page.copy);
+      setUrl(page.url);
+      setFetchedFrom(page.host);
+    } catch (fetchError) {
+      if (isMounted.current) setError(messageOf(fetchError));
+    } finally {
+      if (isMounted.current) setIsFetching(false);
+    }
+  };
+
+  const handleContinue = async () => {
+    if (tooShort || tooLong || isFetching) return;
+    setError(null);
+    window.scrollTo(0, 0);
+
+    // Same copy as last time: the earlier reading still applies.
+    if (brief && briefCopy === copy) {
+      setPhase('confirm');
+      return;
+    }
+
+    setPhase('reading');
+    try {
+      const id = await ensureSession(copy);
+      const understood = await inferQuickBrief(copy, currentUser, id);
+      if (!isMounted.current) return;
+      setBrief(understood);
+      setBriefCopy(copy);
+      setPhase('confirm');
+    } catch (readError) {
+      if (!isMounted.current) return;
+      setError(messageOf(readError));
+      setPhase('start');
+    }
+  };
+
   const handleRun = async () => {
     if (tooShort || tooLong) return;
     setError(null);
-    setElapsed(0);
     setProgress({ stage: 'checking' });
     setPhase('running');
     window.scrollTo(0, 0);
     const startedAt = Date.now();
 
     try {
-      const run = await runQuickPipeline({ copy, goalKey }, currentUser, update => {
-        if (isMounted.current) setProgress(update);
-      });
+      const run = await runQuickPipeline(
+        {
+          copy,
+          goalKey,
+          sessionId: sessionId ?? undefined,
+          brief: brief
+            ? { product: brief.product, audience: brief.audience, tone: brief.tone, language: brief.language }
+            : undefined,
+        },
+        currentUser,
+        update => {
+          if (isMounted.current) setProgress(update);
+        }
+      );
       if (!isMounted.current) return;
       setRunSeconds(Math.round((Date.now() - startedAt) / 1000));
       setResult(run);
@@ -137,6 +221,11 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setResult(null);
     setRunSeconds(null);
     setError(null);
+    setUrl('');
+    setFetchedFrom(null);
+    setSessionId(null);
+    setBrief(null);
+    setBriefCopy(null);
     setCopy('');
     setPhase('start');
     window.scrollTo(0, 0);
@@ -155,14 +244,15 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-gray-100">
-      <QuickTopBar onNew={handleNew} onLogout={onLogout} isBusy={phase === 'running'} />
+      <QuickTopBar onNew={handleNew} onLogout={onLogout} isBusy={phase === 'running' || phase === 'reading' || isFetching} />
 
       {phase === 'start' && (
         <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-10 pb-16 flex flex-col gap-7">
           <div className="flex flex-col gap-1">
             <h1 className="text-gray-900 dark:text-white">What do you want to improve?</h1>
             <p className="text-gray-600 dark:text-gray-400">
-              Paste your copy and say what it is for. You get back the best version, with a score and the reason.
+              Paste your copy or take it from a page, and say what it is for. You get back the best version, with a
+              score and the reason.
             </p>
           </div>
 
@@ -182,6 +272,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               rows={10}
               value={copy}
               onChange={event => setCopy(event.target.value)}
+              disabled={isFetching}
               placeholder="Paste the text you want to improve"
               className="w-full px-3.5 py-3 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
@@ -189,6 +280,42 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               {words} {words === 1 ? 'word' : 'words'}.
               {tooLong && ` Quick handles up to ${QUICK_MAX_WORDS} words for now.`}
               {!tooLong && words > 0 && tooShort && ` Paste at least ${QUICK_MIN_WORDS}.`}
+              {fetchedFrom && !isFetching && ` Taken from ${fetchedFrom}. Check it and trim it if needed.`}
+            </p>
+          </div>
+
+          <div className="flex flex-col gap-2">
+            <label htmlFor="quick-url" className="font-semibold text-gray-900 dark:text-gray-100">
+              Or take the copy from a page
+            </label>
+            <div className="flex flex-wrap gap-2">
+              <input
+                id="quick-url"
+                type="url"
+                inputMode="url"
+                autoComplete="off"
+                value={url}
+                onChange={event => setUrl(event.target.value)}
+                onKeyDown={event => {
+                  if (event.key === 'Enter') handleFetch();
+                }}
+                disabled={isFetching}
+                placeholder="https://"
+                className="flex-[1_1_260px] min-w-0 min-h-[44px] px-3.5 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              <button
+                type="button"
+                onClick={handleFetch}
+                disabled={isFetching || !url.trim()}
+                className="inline-flex items-center justify-center min-h-[44px] px-5 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                {isFetching ? `Fetching… ${formatElapsed(elapsed)}` : 'Fetch page'}
+              </button>
+            </div>
+            <p className="text-gray-600 dark:text-gray-400" role="status" aria-live="polite">
+              {isFetching
+                ? 'Reading the page. This can take up to three minutes. Keep this tab open.'
+                : 'Fetching a page uses credits. It replaces the text in the box above.'}
             </p>
           </div>
 
@@ -226,17 +353,41 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
             <button
               type="button"
-              onClick={handleRun}
-              disabled={tooShort || tooLong}
+              onClick={handleContinue}
+              disabled={tooShort || tooLong || isFetching}
               className="inline-flex items-center justify-center min-h-[48px] px-8 bg-primary-500 hover:bg-primary-400 text-gray-900 font-semibold disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
             >
-              Get the best version
+              Continue
             </button>
             <span className="text-gray-600 dark:text-gray-400">
-              Writes {QUICK_DEFAULT_VARIANTS} versions and scores them. Uses credits.
+              Next you check what Quick understood, then it writes and scores the versions.
             </span>
           </div>
         </main>
+      )}
+
+      {phase === 'reading' && (
+        <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-10 pb-16 flex flex-col gap-1" role="status" aria-live="polite">
+          <h1 className="text-gray-900 dark:text-white">Reading your copy</h1>
+          <p className="text-gray-600 dark:text-gray-400">
+            Working out what it sells, who it is for and its tone. This takes a moment.
+          </p>
+        </main>
+      )}
+
+      {phase === 'confirm' && brief && (
+        <QuickConfirm
+          copy={copy}
+          words={words}
+          goalName={GOALS.find(goal => goal.key === goalKey)?.name ?? goalKey}
+          brief={brief}
+          onBriefChange={setBrief}
+          onGenerate={handleRun}
+          onBack={() => {
+            setPhase('start');
+            window.scrollTo(0, 0);
+          }}
+        />
       )}
 
       {phase === 'running' && (
