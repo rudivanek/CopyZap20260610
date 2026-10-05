@@ -3,7 +3,9 @@
  * Applies a second AI pass to improve clarity, specificity, and persuasive power
  */
 import { FormState } from '../../types';
-import { makeApiRequestWithFallback } from '../../services/api/utils';
+import { makeApiRequestWithFallback, makeStreamingReportRequest } from '../../services/api/utils';
+import { countWords } from '../markdownUtils';
+import { canStream, getOutputBudget } from './outputBudget';
 
 /**
  * Applies editorial refinement to generated content
@@ -51,23 +53,38 @@ Return ONLY the refined version. No introductions, explanations, or commentary.`
     { role: 'user', content: userPrompt }
   ];
 
+  // Long copy needs a larger output budget and is streamed (see outputBudget.ts).
+  // Normal copy is sent exactly as before.
+  const inputWords = countWords(generatedContent);
+  const { isLongCopy, maxTokens } = getOutputBudget(inputWords);
+
   try {
     // Use temperature 0.3 for more controlled, focused refinement
-    const data = await makeApiRequestWithFallback(
-      formState.model,
-      messages,
-      0.3,
-      undefined, // Use default max tokens
-      undefined,
-      userEmail,
-      'refine_output',
-      sessionId
-    );
-
-    const refinedContent = data.choices[0]?.message?.content;
+    const refinedContent = isLongCopy && canStream(formState.model)
+      ? await makeStreamingReportRequest(formState.model, messages, 0.3, maxTokens, 'refine_output', sessionId)
+      : (await makeApiRequestWithFallback(
+          formState.model,
+          messages,
+          0.3,
+          maxTokens, // 4,000 for normal copy, the same as the server default used before
+          undefined,
+          userEmail,
+          'refine_output',
+          sessionId
+        )).choices[0]?.message?.content;
 
     if (!refinedContent) {
       console.warn('No content in refinement response, returning original');
+      return generatedContent;
+    }
+
+    // A refinement pass must not shrink long copy: when it comes back clearly
+    // shorter, sections were dropped or the text was cut, so keep the input.
+    if (isLongCopy && countWords(refinedContent) < inputWords * 0.85) {
+      console.warn('Refinement shortened long copy, keeping the unrefined version');
+      if (progressCallback) {
+        progressCallback('Refinement shortened the text, using the unrefined version');
+      }
       return generatedContent;
     }
 

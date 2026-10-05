@@ -3,7 +3,7 @@
  * Three-step process: Input Expansion → Enhanced Generation → Editorial Refinement
  */
 import { FormState, User, CopyResult, BrandVoice } from '../../types';
-import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, getWordCountTolerance, makeApiRequestWithFallback, buildMarkdownStructureFormat, ensureStructureHeader } from '../../services/api/utils';
+import { handleApiResponse, storePrompts, calculateTargetWordCount, extractWordCount, getWordCountTolerance, makeApiRequestWithFallback, makeStreamingReportRequest, buildMarkdownStructureFormat, ensureStructureHeader } from '../../services/api/utils';
 import { trackTokenUsage, extractTokenBreakdown } from '../../services/api/tokenTracking';
 import { saveCopySession, getSupabaseClient } from '../../services/supabaseClient';
 import { reviseContentForWordCount } from '../../services/api/contentRefinement';
@@ -12,6 +12,7 @@ import { calculateGeoScore } from '../../services/api/geoScoring';
 import { expandInputs, ExpandedInputs } from './expandInputs';
 import { refineOutput } from './refineOutput';
 import { getEnhancedModelSettings } from './modelSettings';
+import { canStream, getOutputBudget } from './outputBudget';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -342,7 +343,9 @@ export async function runEnhancedPipeline(
   const targetWordCount = calculateTargetWordCount(formState);
 
   // Get max tokens for the model (edge function handles all API configuration)
-  const maxTokens = 4000; // Default max tokens for all models
+  // Output budget: 4,000 tokens for normal copy (unchanged); long copy gets a
+  // budget in proportion to its length and is streamed (see outputBudget.ts).
+  const { isLongCopy, maxTokens } = getOutputBudget(targetWordCount.target);
 
   // STEP 1: Input Expansion Pre-Processing
   if (progressCallback) {
@@ -403,17 +406,36 @@ export async function runEnhancedPipeline(
   const modelSettings = getEnhancedModelSettings(generationModel);
 
   try {
-    // Make API request with enhanced settings
-    const data = await makeApiRequestWithFallback(
-      generationModel,
-      messages,
-      modelSettings.temperature,
-      maxTokens,
-      modelSettings.top_p,
-      currentUser?.email,
-      'generate_copy',
-      sessionId
-    );
+    // Make API request with enhanced settings.
+    // Long copy is streamed: a normal request that writes this much can exceed
+    // the 150-second edge function timeout. Usage is recorded server-side.
+    const data = isLongCopy && canStream(generationModel)
+      ? {
+          choices: [{
+            message: {
+              content: await makeStreamingReportRequest(
+                generationModel,
+                messages,
+                modelSettings.temperature,
+                maxTokens,
+                'generate_copy',
+                sessionId
+              )
+            }
+          }],
+          usage: undefined,
+          model_used: generationModel
+        }
+      : await makeApiRequestWithFallback(
+          generationModel,
+          messages,
+          modelSettings.temperature,
+          maxTokens,
+          modelSettings.top_p,
+          currentUser?.email,
+          'generate_copy',
+          sessionId
+        );
 
     console.log('✅ Enhanced generation complete with model:', data.model_used);
 
@@ -480,6 +502,15 @@ export async function runEnhancedPipeline(
       if (percentageOfTarget < toleranceSettings.minimumAcceptablePercentage ||
          (toleranceSettings.maximumAcceptablePercentage && percentageOfTarget > toleranceSettings.maximumAcceptablePercentage)) {
         needsRevision = true;
+      }
+    }
+
+    // Long copy is not sent to the word-count revision: that step is capped at
+    // 4,000 output tokens and would cut a long text off instead of adjusting it.
+    if (needsRevision && isLongCopy) {
+      needsRevision = false;
+      if (progressCallback) {
+        progressCallback(`Word count is ${currentWordCount} (target ${targetValue}). Long copy is not auto-revised.`);
       }
     }
 

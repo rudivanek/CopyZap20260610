@@ -13,11 +13,12 @@ export const QUICK_DEFAULT_VARIANTS = 3;
 /** Shortest input Quick accepts. */
 export const QUICK_MIN_WORDS = 10;
 /**
- * Longest input Quick accepts. The scorers now read the whole text; the limit
- * left is the writing step, which returns at most 4,000 tokens per version
- * (roughly 2,000 words in Spanish). 1,500 keeps a margin until that is raised.
+ * Longest input Quick accepts as one piece. The writing step now sizes its
+ * output to the copy and streams long versions, and the comparison reads up to
+ * about 3,000 words of each version. Larger pages need section-by-section
+ * handling, which is not built yet.
  */
-export const QUICK_MAX_WORDS = 1500;
+export const QUICK_MAX_WORDS = 3000;
 /** Passed to the comparison prompt as the section name. */
 export const QUICK_SECTION = 'Marketing Copy';
 
