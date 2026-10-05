@@ -36,9 +36,6 @@ const secondaryButton =
 const paperButton =
   'inline-flex items-center justify-center min-h-[44px] px-5 bg-white border border-gray-400 ' +
   'text-gray-900 font-medium hover:bg-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500';
-const linkButton =
-  'inline-flex items-center min-h-[44px] text-primary-800 dark:text-primary-300 underline ' +
-  'hover:text-primary-900 focus:outline-none focus:ring-2 focus:ring-primary-500';
 
 const SUB_SCORES: { key: 'clarity' | 'persuasion' | 'audience_fit' | 'structure'; label: string }[] = [
   { key: 'clarity', label: 'Clarity' },
@@ -81,9 +78,25 @@ const CopyButton: React.FC<{ content: GeneratedContentItem['content']; className
   );
 };
 
+/** A version's score with its quality mark, for use on the white paper surface. */
+const ScoreTag: React.FC<{ total: number | undefined }> = ({ total }) => (
+  <span className="inline-flex items-center gap-2 text-xs font-semibold text-gray-900 tabular-nums">
+    {total != null ? (
+      <>
+        <span className={`w-1 h-5 ${getAbsoluteScoreMarkClass(total)}`} aria-hidden="true" />
+        {total} / 100
+      </>
+    ) : (
+      'Not scored'
+    )}
+  </span>
+);
+
 const QuickResult: React.FC<QuickResultProps> = ({ result, isRescoring, onRescore, onNew, elapsedLabel }) => {
-  const [showOthers, setShowOthers] = useState(false);
-  const [showOriginal, setShowOriginal] = useState(false);
+  // Ids of the other versions whose text is currently open.
+  const [openIds, setOpenIds] = useState<string[]>([]);
+  const toggleOpen = (id: string) =>
+    setOpenIds(current => (current.includes(id) ? current.filter(item => item !== id) : [...current, id]));
 
   const { scores, versions } = result;
   const generated = versions.filter(version => version.id !== ORIGINAL_VERSION_ID);
@@ -134,9 +147,10 @@ const QuickResult: React.FC<QuickResultProps> = ({ result, isRescoring, onRescor
         </p>
       </div>
 
-      <div className="flex flex-wrap items-start gap-8">
-        {/* Left: the copy */}
-        <div className="flex flex-col gap-5 min-w-0 flex-[999_1_480px]">
+      {/* One column on phones (best version, score, then the rest); two columns from 1024px. */}
+      <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-[auto_1fr] items-start gap-x-8 gap-y-5">
+        {/* Top left: the best version */}
+        <div className="flex flex-col gap-5 min-w-0 lg:col-start-1 lg:row-start-1">
           <article className={`${paper} p-5 sm:p-8 flex flex-col gap-4`}>
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <span className="text-xs font-semibold text-gray-600">Best version</span>
@@ -156,83 +170,10 @@ const QuickResult: React.FC<QuickResultProps> = ({ result, isRescoring, onRescor
               Start over
             </button>
           </div>
-
-          <div className="flex flex-col gap-3">
-            <div className="flex flex-wrap gap-x-6 gap-y-1">
-              {original && (
-                <button
-                  type="button"
-                  onClick={() => setShowOriginal(open => !open)}
-                  aria-expanded={showOriginal}
-                  className={linkButton}
-                >
-                  {showOriginal ? 'Hide' : 'See'} your original
-                </button>
-              )}
-              {others.length > 0 && (
-                <button
-                  type="button"
-                  onClick={() => setShowOthers(open => !open)}
-                  aria-expanded={showOthers}
-                  className={linkButton}
-                >
-                  {showOthers ? 'Hide' : 'See'} {others.length} other {others.length === 1 ? 'version' : 'versions'}
-                </button>
-              )}
-            </div>
-
-            {showOriginal && original && (
-              <article className={`${paper} p-5 flex flex-col gap-3`}>
-                <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                  <span className="text-xs font-semibold text-gray-600">Your original</span>
-                  <span className="inline-flex items-center gap-2 text-xs font-semibold text-gray-900">
-                    {originalTotal != null ? (
-                      <>
-                        <span className={`w-1 h-5 ${getAbsoluteScoreMarkClass(originalTotal)}`} aria-hidden="true" />
-                        {originalTotal} / 100
-                      </>
-                    ) : (
-                      'Not scored'
-                    )}
-                  </span>
-                </div>
-                <FormattedContent content={original.content} className={copyText} />
-              </article>
-            )}
-
-            {showOthers &&
-                others.map(({ version, total }) => (
-                  <article key={version.id} className={`${paper} p-5 flex flex-col gap-3`}>
-                    <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                      <span className="text-xs font-semibold text-gray-600">
-                        {version.sourceDisplayName || 'Version'}
-                      </span>
-                      <span className="inline-flex items-center gap-2 text-xs font-semibold text-gray-900">
-                        {total != null ? (
-                          <>
-                            <span className={`w-1 h-5 ${getAbsoluteScoreMarkClass(total)}`} aria-hidden="true" />
-                            {total} / 100
-                          </>
-                        ) : (
-                          'Not scored'
-                        )}
-                      </span>
-                    </div>
-                    <FormattedContent content={version.content} className={copyText} />
-                    <CopyButton content={version.content} className={`${paperButton} self-start`} />
-                  </article>
-                ))}
-          </div>
-
-          {result.failedVersions > 0 && (
-            <p className="text-gray-600 dark:text-gray-400">
-              {result.failedVersions} of {result.failedVersions + generated.length} versions could not be written.
-            </p>
-          )}
         </div>
 
         {/* Right: score, reasons, checks */}
-        <aside className="flex flex-col gap-4 min-w-0 flex-[1_1_280px]">
+        <aside className="flex flex-col gap-4 min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2">
           <section aria-label="Quality score" className={`${card} p-6 flex flex-col gap-5`}>
             <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Quality score</span>
 
@@ -334,6 +275,56 @@ const QuickResult: React.FC<QuickResultProps> = ({ result, isRescoring, onRescor
             </section>
           )}
         </aside>
+
+        {/* Below the best version: the original (always shown) and the other versions (closed) */}
+        <div className="flex flex-col gap-5 min-w-0 lg:col-start-1 lg:row-start-2">
+          {original && (
+            <article className={`${paper} p-5 flex flex-col gap-3`}>
+              <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                <span className="text-xs font-semibold text-gray-600">Your original</span>
+                <ScoreTag total={originalTotal} />
+              </div>
+              <FormattedContent content={original.content} className={copyText} />
+            </article>
+          )}
+
+          {others.length > 0 && (
+            <section aria-label="Other versions" className="flex flex-col gap-2">
+              <h2 className="text-gray-900 dark:text-white">Other versions</h2>
+              {others.map(({ version, total }) => {
+                const isOpen = openIds.includes(version.id);
+                return (
+                  <article key={version.id} className={paper}>
+                    <button
+                      type="button"
+                      onClick={() => toggleOpen(version.id)}
+                      aria-expanded={isOpen}
+                      className="w-full min-h-[52px] px-5 py-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-left hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <span className="font-semibold text-gray-900">{version.sourceDisplayName || 'Version'}</span>
+                      <span className="inline-flex items-center gap-4">
+                        <ScoreTag total={total} />
+                        <span className="text-xs text-primary-800 underline">{isOpen ? 'Hide' : 'Show'}</span>
+                      </span>
+                    </button>
+                    {isOpen && (
+                      <div className="px-5 pt-4 pb-5 flex flex-col gap-3 border-t border-gray-200">
+                        <FormattedContent content={version.content} className={copyText} />
+                        <CopyButton content={version.content} className={`${paperButton} self-start`} />
+                      </div>
+                    )}
+                  </article>
+                );
+              })}
+            </section>
+          )}
+
+          {result.failedVersions > 0 && (
+            <p className="text-gray-600 dark:text-gray-400">
+              {result.failedVersions} of {result.failedVersions + generated.length} versions could not be written.
+            </p>
+          )}
+        </div>
       </div>
     </div>
   );
