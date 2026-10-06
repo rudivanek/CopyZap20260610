@@ -6,6 +6,7 @@ import type { AbsoluteScoreBreakdown } from '../services/api/absoluteScoring';
 import { GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import { getAbsoluteScoreLabel, getAbsoluteScoreMarkClass } from '../utils/scoreColors';
 import { deriveQuickLabel } from '../engine/buildQuickFormState';
+import { exportQuickReport } from '../engine/exportQuickReport';
 import { ORIGINAL_VERSION_ID } from '../engine/pickWinner';
 import type { QuickRunResult } from '../engine/runQuickPipeline';
 
@@ -109,6 +110,18 @@ const QuickResult: React.FC<QuickResultProps> = ({
 }) => {
   // Ids of the other versions whose text is currently open.
   const [openIds, setOpenIds] = useState<string[]>([]);
+  // The report is built in the browser and handed over as an HTML file.
+  const [exportState, setExportState] = useState<'idle' | 'working' | 'failed'>('idle');
+  const handleExport = async () => {
+    if (exportState === 'working') return;
+    setExportState('working');
+    try {
+      await exportQuickReport(result, title);
+      setExportState('idle');
+    } catch {
+      setExportState('failed');
+    }
+  };
   const toggleOpen = (id: string) =>
     setOpenIds(current => (current.includes(id) ? current.filter(item => item !== id) : [...current, id]));
 
@@ -221,10 +234,24 @@ const QuickResult: React.FC<QuickResultProps> = ({
 
           <div className="flex flex-wrap gap-2">
             <CopyButton content={winner.content} className={primaryButton} />
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={!scores || exportState === 'working'}
+              className={secondaryButton}
+            >
+              {exportState === 'working' ? 'Building report…' : 'Export report'}
+            </button>
             <button type="button" onClick={onNew} className={secondaryButton}>
               Start over
             </button>
           </div>
+          {exportState === 'failed' && (
+            <p role="alert" className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
+              <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-critical" aria-hidden="true" />
+              <span>The report could not be built. Try again.</span>
+            </p>
+          )}
         </div>
 
         {/* Right: score, reasons, checks */}

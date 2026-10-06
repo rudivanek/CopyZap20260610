@@ -1,0 +1,73 @@
+/**
+ * Quick — the standard report.
+ *
+ * Uses Copy Maker's formatted HTML report (`exportAsFormattedHtml`) unchanged,
+ * so there is one report generator for both interfaces. This file only prepares
+ * what Quick hands to it, so that the report tells the same story as the screen:
+ *
+ *  - the winner is the version Quick shows as best
+ *  - versions Quick set aside, or could not score, are not in the report
+ *  - when Quick's winner is not the one the comparison step preferred, that
+ *    step's written verdict (which is about another version) is left out
+ *
+ * The report code is large, so it is loaded only when a report is exported.
+ */
+import { FormState, GeneratedContentItem } from '../types';
+import type { ComparisonResult } from '../services/api/comprehensiveScoring';
+import { deriveQuickLabel } from './buildQuickFormState';
+import { ORIGINAL_VERSION_ID } from './pickWinner';
+import type { QuickRunResult } from './runQuickPipeline';
+
+export interface QuickReportInput {
+  formState: FormState;
+  cards: GeneratedContentItem[];
+  comparisonResult: ComparisonResult;
+}
+
+/** The written verdict of the comparison step. It names one version; it only applies when that version won. */
+const VERDICT_FIELDS = ['winnerExplanation', 'finalRecommendation', 'winnerBreakdown', 'decisionLayer'] as const;
+
+export function buildQuickReportInput(result: QuickRunResult, title?: string): QuickReportInput {
+  const scores = result.scores;
+  if (!scores) throw new Error('This result has no scores yet. Score it before exporting a report.');
+
+  const winnerId = scores.winnerId;
+  const inReport = (versionId: string): boolean => {
+    if (versionId === ORIGINAL_VERSION_ID || versionId === winnerId) return true;
+    const gate = scores.gateByVersion[versionId];
+    const setAside = gate ? !gate.valid : false;
+    return !setAside && scores.absoluteByVersion[versionId] !== undefined;
+  };
+
+  const source = scores.comparisonResult;
+  const rows = source.rows
+    .filter(row => inReport(row.versionId))
+    .map(row => ({ ...row, isWinner: row.versionId === winnerId }));
+  const winnerRow = rows.find(row => row.isWinner);
+
+  const comparisonResult = { ...source, rows } as ComparisonResult & Record<string, unknown>;
+  if (winnerId && source.winnerVersionId !== winnerId) {
+    for (const field of VERDICT_FIELDS) delete comparisonResult[field];
+  }
+  if (winnerId) {
+    comparisonResult.winnerVersionId = winnerId;
+    if (winnerRow?.optionLabel) comparisonResult.winnerLabel = winnerRow.optionLabel;
+  }
+
+  return {
+    // The report takes its title and file name from the project description.
+    formState: {
+      ...result.formState,
+      projectDescription: (title || deriveQuickLabel(result.formState.originalCopy || '')).trim() || 'CopyZap report',
+    },
+    cards: result.versions.filter(version => inReport(version.id)),
+    comparisonResult,
+  };
+}
+
+/** Builds the report and hands it to the browser as an HTML file. */
+export async function exportQuickReport(result: QuickRunResult, title?: string): Promise<void> {
+  const input = buildQuickReportInput(result, title);
+  const { exportAsFormattedHtml } = await import('../utils/enhancedExports');
+  exportAsFormattedHtml(input.formState, input.cards, undefined, undefined, input.comparisonResult);
+}
