@@ -2,7 +2,7 @@ import React from 'react';
 import type { QuickProgress, QuickStage } from '../engine/runQuickPipeline';
 
 /** The processes that show the modal. */
-export type QuickBusyKind = 'fetch' | 'reading' | 'running' | 'rescoring' | 'opening';
+export type QuickBusyKind = 'fetch' | 'reading' | 'running' | 'rescoring' | 'opening' | 'changing';
 
 interface QuickBusyModalProps {
   kind: QuickBusyKind;
@@ -22,6 +22,7 @@ const TEXT: Record<QuickBusyKind, { title: string; detail: string }> = {
   running: { title: 'Writing and scoring', detail: 'This can take a few minutes.' },
   rescoring: { title: 'Scoring again', detail: 'Scoring every version against your goal.' },
   opening: { title: 'Opening your result', detail: 'Loading the saved versions and scores.' },
+  changing: { title: 'Changing your copy', detail: 'Rewriting the best version, then scoring it. About a minute.' },
 };
 
 function formatElapsed(seconds: number): string {
@@ -34,14 +35,21 @@ const QuickBusyModal: React.FC<QuickBusyModalProps> = ({ kind, elapsed, progress
   const { title, detail } = TEXT[kind];
   const activeStage = progress ? STAGE_ORDER.indexOf(progress.stage) : 0;
   const total = progress?.total ?? versions;
-  const stageLabels: Record<QuickStage, string> = {
-    checking: 'Checking your account',
-    writing:
-      progress?.stage === 'writing'
-        ? `Writing ${total} versions (${progress.done ?? 0} of ${total} done)`
-        : `Writing ${total} versions`,
-    scoring: 'Scoring them and picking the best',
-  };
+  const stageLabels: Record<QuickStage, string> =
+    kind === 'changing'
+      ? {
+          checking: 'Checking your account',
+          writing: 'Rewriting the best version',
+          scoring: 'Scoring it and picking the best',
+        }
+      : {
+          checking: 'Checking your account',
+          writing:
+            progress?.stage === 'writing'
+              ? `Writing ${total} versions (${progress.done ?? 0} of ${total} done)`
+              : `Writing ${total} versions`,
+          scoring: 'Scoring them and picking the best',
+        };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-gray-900/60">
@@ -58,7 +66,7 @@ const QuickBusyModal: React.FC<QuickBusyModalProps> = ({ kind, elapsed, progress
           <p className="text-gray-600 dark:text-gray-400">{detail}</p>
         </div>
 
-        {kind === 'running' && (
+        {(kind === 'running' || kind === 'changing') && (
           <div role="status" aria-live="polite">
             <ol className="border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
               {STAGE_ORDER.map((stage, index) => {

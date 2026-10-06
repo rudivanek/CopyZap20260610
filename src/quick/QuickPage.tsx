@@ -8,6 +8,7 @@ import { QUICK_DEFAULT_VARIANTS, QUICK_MAX_WORDS, QUICK_MIN_WORDS } from '../eng
 import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
 import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
+import { changeQuickVersion, validateQuickChange } from '../engine/changeQuickVersion';
 import { defaultChoices, planSections, SectionChoice, splitIntoSections } from '../engine/pageSections';
 import { lockTestimonials } from '../engine/quoteLock';
 import {
@@ -70,6 +71,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [savedId, setSavedId] = useState<string | null>(null);
   const [savedTitle, setSavedTitle] = useState<string | null>(null);
   const [saveState, setSaveState] = useState<'saving' | 'saved' | 'failed' | null>(null);
+  // What the last "What should change?" request led to.
+  const [changeNotice, setChangeNotice] = useState<{ tone: 'good' | 'neutral' | 'bad'; text: string } | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
   const openAtStart = useRef(searchParams.get('r'));
   const [url, setUrl] = useState('');
@@ -167,6 +170,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         return;
       }
       setResult(loaded.result);
+      setChangeNotice(null);
       setRunSeconds(loaded.runSeconds);
       setSavedId(loaded.id);
       setSavedTitle(loaded.title);
@@ -326,7 +330,39 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     }
   };
 
+  /** Rewrites the best version as the user asked, scores it, and keeps whichever is better. */
+  const handleChange = async (instruction: string) => {
+    if (!result || busy) return;
+    setChangeNotice(null);
+    setProgress({ stage: 'checking' });
+    setBusy('changing');
+    try {
+      const outcome = await changeQuickVersion(result, instruction, currentUser, setProgress);
+      if (!isMounted.current) return;
+      setResult(outcome.result);
+      if (outcome.newScore === null) {
+        setChangeNotice({ tone: 'neutral', text: 'The changed version was written but could not be scored. It is listed under Other versions.' });
+      } else if (outcome.becameBest) {
+        setChangeNotice({ tone: 'good', text: `Your change is now the best version, at ${outcome.newScore} / 100.` });
+      } else {
+        setChangeNotice({
+          tone: 'neutral',
+          text: `Your change scored ${outcome.newScore} / 100, which is not higher than the best version. It is listed under Other versions.`,
+        });
+      }
+      window.scrollTo(0, 0);
+      playSuccessSound();
+      persist(outcome.result, runSeconds, savedId);
+    } catch (changeError) {
+      if (!isMounted.current) return;
+      setChangeNotice({ tone: 'bad', text: messageOf(changeError) });
+    } finally {
+      if (isMounted.current) setBusy(null);
+    }
+  };
+
   const handleNew = () => {
+    setChangeNotice(null);
     setResult(null);
     setRunSeconds(null);
     setSavedId(null);
@@ -533,6 +569,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             title={savedTitle ?? undefined}
             saveState={saveState}
             onRetrySave={() => persist(result, runSeconds, savedId)}
+            onChange={handleChange}
+            changeBlocked={text => validateQuickChange(result, text)}
+            changeNotice={changeNotice}
           />
         </main>
       )}

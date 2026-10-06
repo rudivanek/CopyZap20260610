@@ -22,7 +22,16 @@ interface QuickResultProps {
   /** Where saving stands: null before anything was tried. */
   saveState: 'saving' | 'saved' | 'failed' | null;
   onRetrySave: () => void;
+  /** Rewrites the best version as asked. The page runs it behind the modal. */
+  onChange: (instruction: string) => void;
+  /** Why a change is not possible for this text right now; null when it is. */
+  changeBlocked: (instruction: string) => string | null;
+  /** What the last change led to, or why it failed. */
+  changeNotice: { tone: 'good' | 'neutral' | 'bad'; text: string } | null;
 }
+
+/** One-click requests. Each is sent as written. */
+const CHANGE_IDEAS = ['Shorter', 'More formal', 'Warmer', 'Stronger call to action'];
 
 const card = 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700';
 // The copy itself always sits on a white "paper" surface, in light and dark theme:
@@ -107,7 +116,17 @@ const QuickResult: React.FC<QuickResultProps> = ({
   title,
   saveState,
   onRetrySave,
+  onChange,
+  changeBlocked,
+  changeNotice,
 }) => {
+  const [instruction, setInstruction] = useState('');
+  const changeProblem = instruction.trim() ? changeBlocked(instruction) : null;
+  const submitChange = (text: string) => {
+    if (isRescoring || !text.trim() || changeBlocked(text)) return;
+    onChange(text.trim());
+    setInstruction('');
+  };
   // Ids of the other versions whose text is currently open.
   const [openIds, setOpenIds] = useState<string[]>([]);
   // The report is built in the browser and handed over as an HTML file.
@@ -251,6 +270,75 @@ const QuickResult: React.FC<QuickResultProps> = ({
               <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-critical" aria-hidden="true" />
               <span>The report could not be built. Try again.</span>
             </p>
+          )}
+
+          {scores && scores.winnerId && (
+            <section aria-label="What should change?" className={`${card} p-5 flex flex-col gap-3`}>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="quick-change" className="font-semibold text-gray-900 dark:text-gray-100">
+                  What should change?
+                </label>
+                <p className="text-gray-600 dark:text-gray-400">
+                  Say it in your own words. Quick rewrites the best version, scores it, and keeps whichever is better.
+                  Uses credits.
+                </p>
+              </div>
+              <div className="flex flex-wrap gap-2">
+                <input
+                  id="quick-change"
+                  type="text"
+                  value={instruction}
+                  maxLength={300}
+                  placeholder="For example: shorter, and mention the free diagnosis earlier"
+                  onChange={event => setInstruction(event.target.value)}
+                  onKeyDown={event => {
+                    if (event.key === 'Enter') submitChange(instruction);
+                  }}
+                  className="flex-[1_1_260px] min-w-0 min-h-[44px] px-3.5 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <button
+                  type="button"
+                  onClick={() => submitChange(instruction)}
+                  disabled={isRescoring || !instruction.trim() || changeProblem !== null}
+                  className={primaryButton}
+                >
+                  Change it
+                </button>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs text-gray-600 dark:text-gray-400">Or one click:</span>
+                {CHANGE_IDEAS.map(idea => (
+                  <button
+                    key={idea}
+                    type="button"
+                    onClick={() => submitChange(idea)}
+                    disabled={isRescoring || changeBlocked(idea) !== null}
+                    className="min-h-[44px] px-3 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    {idea}
+                  </button>
+                ))}
+              </div>
+              {(changeProblem || changeBlocked('Shorter')) && (
+                <p className="text-gray-900 dark:text-gray-100">{changeProblem || changeBlocked('Shorter')}</p>
+              )}
+              {changeNotice && (
+                <p role="status" className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
+                  <span
+                    className={
+                      'w-1 h-5 mt-0.5 shrink-0 ' +
+                      (changeNotice.tone === 'good'
+                        ? 'bg-status-good'
+                        : changeNotice.tone === 'bad'
+                          ? 'bg-status-critical'
+                          : 'bg-status-warning')
+                    }
+                    aria-hidden="true"
+                  />
+                  <span className="break-words">{changeNotice.text}</span>
+                </p>
+              )}
+            </section>
           )}
         </div>
 
