@@ -1002,7 +1002,27 @@ export const generateFullHtmlExportForCard = (
     : (actualContent && typeof actualContent === 'object' && 'headline' in actualContent)
       ? structuredToPlainText(actualContent as StructuredCopyOutput) : '';
 
-  if (contentForScoring.trim()) {
+  // Why the version got its score: the scorer's own reasons, one per dimension.
+  // When they exist they replace the keyword-based strengths / improvements lists
+  // below, which printed the same stock sentences for every version.
+  const scorerRow = allComparison?.rows?.find(r => r.versionId === card.id) as any;
+  const scorerNotes: string[] = Array.isArray(scorerRow?.absoluteNotes)
+    ? scorerRow.absoluteNotes.filter((note: unknown) => typeof note === 'string' && note.trim())
+    : [];
+
+  if (scorerNotes.length === 4) {
+    const scorerDims = exportLangCode === 'es'
+      ? ['Claridad', 'Persuasión', 'Ajuste al público', 'Estructura']
+      : ['Clarity', 'Persuasion', 'Audience Fit', 'Structure'];
+    // Same box as the lists it replaces, as one column with a neutral heading.
+    html += '<div class="split" style="grid-template-columns:1fr;">\n<div>\n';
+    html += `<h5 style="color:var(--muted);">${exportLangCode === 'es' ? 'POR QUÉ ESTA PUNTUACIÓN' : 'WHY THIS SCORE'}</h5>\n`;
+    html += '<ul>\n';
+    scorerNotes.forEach((note, index) => {
+      html += `<li style="padding-left:0;"><strong>${scorerDims[index]}:</strong> ${escapeHtml(note)}</li>\n`;
+    });
+    html += '</ul>\n</div>\n</div>\n';
+  } else if (contentForScoring.trim()) {
     const analysis = generateExportAnalysis(contentForScoring, exportLangCode || 'en');
 
     if (analysis.keyStrengths?.length || analysis.suggestedImprovements?.length) {
@@ -2930,7 +2950,8 @@ export const exportAsFormattedHtml = (
   versionDeepAnalysis?: Record<string, VersionDeepAnalysis>,
   comparisonDeepAnalysisMeta?: ComparisonDeepAnalysisMeta,
   loadingVersionIds?: Set<string>,
-  previewPercent?: number
+  previewPercent?: number,
+  reportLanguage?: string
 ): void => {
   try {
     
@@ -2965,7 +2986,9 @@ export const exportAsFormattedHtml = (
     const targetWordCount = calculateTargetWordCount(formState).target;
     const totalVariants = contentCards.length;
     const lang = formState.language || 'English';
-    const exportLangCode = resolveExportLangCode(lang);
+    // A caller can fix the language of the report's own labels (Quick: always English).
+    // The copy keeps its language, and the report still names that language.
+    const exportLangCode = resolveExportLangCode(reportLanguage || lang);
     const t = EXPORT_I18N[exportLangCode];
     const htmlLangCode = ({ english: 'en', spanish: 'es', french: 'fr', german: 'de', portuguese: 'pt', italian: 'it', dutch: 'nl' } as Record<string, string>)[lang.trim().toLowerCase()] || 'en';
 

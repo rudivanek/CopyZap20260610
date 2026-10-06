@@ -10,6 +10,10 @@
  *  - when Quick's winner is not the one the comparison step preferred, that
  *    step's written verdict (which is about another version) is left out
  *
+ * The report's own text is always English, whatever the copy's language: the
+ * screens and the scorer's reasons are English, and a report that mixed
+ * languages would read worse than one that does not.
+ *
  * The report code is large, so it is loaded only when a report is exported.
  */
 import { FormState, GeneratedContentItem } from '../types';
@@ -69,5 +73,17 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
 export async function exportQuickReport(result: QuickRunResult, title?: string): Promise<void> {
   const input = buildQuickReportInput(result, title);
   const { exportAsFormattedHtml } = await import('../utils/enhancedExports');
-  exportAsFormattedHtml(input.formState, input.cards, undefined, undefined, input.comparisonResult);
+  // Quick's report is always in English; only the copy keeps its own language.
+  exportAsFormattedHtml(
+    input.formState,
+    input.cards,
+    undefined,
+    undefined,
+    input.comparisonResult,
+    undefined,
+    undefined,
+    undefined,
+    undefined,
+    'English'
+  );
 }
