@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import { GoalKey, User } from '../types';
 import { DEFAULT_GOAL_KEY, GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import { countWords } from '../utils/markdownUtils';
@@ -6,6 +7,7 @@ import { playSuccessSound } from '../utils/soundEffects';
 import { QUICK_DEFAULT_VARIANTS, QUICK_MAX_WORDS, QUICK_MIN_WORDS } from '../engine/buildQuickFormState';
 import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
+import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
 import { lockTestimonials } from '../engine/quoteLock';
 import {
   QuickPipelineError,
@@ -19,6 +21,7 @@ import {
 import QuickTopBar from './QuickTopBar';
 import QuickBusyModal, { QuickBusyKind } from './QuickBusyModal';
 import QuickConfirm from './QuickConfirm';
+import QuickHistory from './QuickHistory';
 import QuickResult from './QuickResult';
 
 interface QuickPageProps {
@@ -26,7 +29,7 @@ interface QuickPageProps {
   onLogout: () => void;
 }
 
-type Phase = 'start' | 'confirm' | 'result';
+type Phase = 'start' | 'confirm' | 'result' | 'history';
 
 const GOALS = GOAL_OPTIONS.filter(option => option.key !== 'custom').map(option => {
   const [name, description = ''] = option.label.split(' — ');
@@ -62,6 +65,12 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const isFetching = busy === 'fetch';
   const isRescoring = busy === 'rescoring';
   const [runSeconds, setRunSeconds] = useState<number | null>(null);
+  // Saving: every result becomes a History entry without the user doing anything.
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [savedTitle, setSavedTitle] = useState<string | null>(null);
+  const [saveState, setSaveState] = useState<'saving' | 'saved' | 'failed' | null>(null);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const openAtStart = useRef(searchParams.get('r'));
   const [url, setUrl] = useState('');
   const [fetchedFrom, setFetchedFrom] = useState<string | null>(null);
   const [furnitureRemoved, setFurnitureRemoved] = useState(0);
@@ -110,6 +119,62 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   );
   const tooShort = words < QUICK_MIN_WORDS;
   const tooLong = words > QUICK_MAX_WORDS;
+
+  /** Saves a result as a new History entry, or over its existing one, and keeps its id in the address. */
+  const persist = async (run: QuickRunResult, seconds: number | null, id: string | null) => {
+    setSaveState('saving');
+    try {
+      if (id) {
+        await updateQuickResult(id, run, seconds);
+      } else {
+        const newId = await saveQuickResult(run, currentUser, seconds);
+        if (!isMounted.current) return;
+        setSavedId(newId);
+        setSearchParams({ r: newId }, { replace: true });
+      }
+      if (isMounted.current) setSaveState('saved');
+    } catch {
+      if (isMounted.current) setSaveState('failed');
+    }
+  };
+
+  /** Opens a saved result exactly as it was: versions, scores and findings. */
+  const openSaved = async (id: string) => {
+    if (busy) return;
+    setError(null);
+    setBusy('opening');
+    try {
+      const loaded = await loadQuickResult(id);
+      if (!isMounted.current) return;
+      if (!loaded) {
+        setSearchParams({}, { replace: true });
+        setError('That result could not be found. It may have been deleted.');
+        setPhase('start');
+        return;
+      }
+      setResult(loaded.result);
+      setRunSeconds(loaded.runSeconds);
+      setSavedId(loaded.id);
+      setSavedTitle(loaded.title);
+      setSaveState('saved');
+      setSearchParams({ r: loaded.id }, { replace: true });
+      setPhase('result');
+      window.scrollTo(0, 0);
+    } catch (openError) {
+      if (!isMounted.current) return;
+      setError(messageOf(openError));
+      setPhase('start');
+    } finally {
+      if (isMounted.current) setBusy(null);
+    }
+  };
+
+  // A page reload, or a link with ?r=<id>, shows that result again.
+  useEffect(() => {
+    if (openAtStart.current) openSaved(openAtStart.current);
+    // Runs once on arrival; openSaved is recreated on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   /** Returns the tracking session, starting it (with an access check) on first use. */
   const ensureSession = async (label: string): Promise<string> => {
@@ -199,11 +264,15 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         }
       );
       if (!isMounted.current) return;
-      setRunSeconds(Math.round((Date.now() - startedAt) / 1000));
+      const seconds = Math.round((Date.now() - startedAt) / 1000);
+      setRunSeconds(seconds);
       setResult(run);
+      setSavedId(null);
+      setSavedTitle(null);
       setPhase('result');
       window.scrollTo(0, 0);
       playSuccessSound();
+      persist(run, seconds, null);
     } catch (runError) {
       if (!isMounted.current) return;
       setError(messageOf(runError));
@@ -220,13 +289,15 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     try {
       const scores = await scoreQuickVersions(result.formState, result.versions, result.goalKey, currentUser);
       if (!isMounted.current) return;
-      setResult({
+      const rescored: QuickRunResult = {
         ...result,
         scores,
         scoringError: undefined,
         formState: withQuickResult(result.formState, result.versions, scores),
-      });
+      };
+      setResult(rescored);
       playSuccessSound();
+      persist(rescored, runSeconds, savedId);
     } catch (scoreError) {
       if (!isMounted.current) return;
       setResult({ ...result, scoringError: messageOf(scoreError) });
@@ -238,6 +309,10 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const handleNew = () => {
     setResult(null);
     setRunSeconds(null);
+    setSavedId(null);
+    setSavedTitle(null);
+    setSaveState(null);
+    setSearchParams({}, { replace: true });
     setError(null);
     setUrl('');
     setFetchedFrom(null);
@@ -250,9 +325,31 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     window.scrollTo(0, 0);
   };
 
+  const handleHistory = () => {
+    if (busy) return;
+    setError(null);
+    setSearchParams({}, { replace: true });
+    setPhase('history');
+    window.scrollTo(0, 0);
+  };
+
+  /** A History entry was deleted: if it is the result that is open, it is no longer saved. */
+  const handleDeleted = (id: string) => {
+    if (id !== savedId) return;
+    setSavedId(null);
+    setSavedTitle(null);
+    setSaveState(null);
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-gray-100">
-      <QuickTopBar onNew={handleNew} onLogout={onLogout} isBusy={busy !== null} />
+      <QuickTopBar
+        onNew={handleNew}
+        onHistory={handleHistory}
+        onLogout={onLogout}
+        view={phase === 'history' ? 'history' : 'new'}
+        isBusy={busy !== null}
+      />
 
       {phase === 'start' && (
         <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-10 pb-16 flex flex-col gap-7">
@@ -399,8 +496,15 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             onRescore={handleRescore}
             onNew={handleNew}
             elapsedLabel={runSeconds != null ? formatElapsed(runSeconds) : undefined}
+            title={savedTitle ?? undefined}
+            saveState={saveState}
+            onRetrySave={() => persist(result, runSeconds, savedId)}
           />
         </main>
+      )}
+
+      {phase === 'history' && (
+        <QuickHistory currentUser={currentUser} onOpen={openSaved} onNew={handleNew} onDeleted={handleDeleted} />
       )}
 
       {busy && (

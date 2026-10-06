@@ -16,6 +16,11 @@ interface QuickResultProps {
   onNew: () => void;
   /** How long the run took, already formatted (m:ss). */
   elapsedLabel?: string;
+  /** The name of the History entry, when it differs from the first line of the copy. */
+  title?: string;
+  /** Where saving stands: null before anything was tried. */
+  saveState: 'saving' | 'saved' | 'failed' | null;
+  onRetrySave: () => void;
 }
 
 const card = 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700';
@@ -92,7 +97,16 @@ const ScoreTag: React.FC<{ total: number | undefined }> = ({ total }) => (
   </span>
 );
 
-const QuickResult: React.FC<QuickResultProps> = ({ result, isRescoring, onRescore, onNew, elapsedLabel }) => {
+const QuickResult: React.FC<QuickResultProps> = ({
+  result,
+  isRescoring,
+  onRescore,
+  onNew,
+  elapsedLabel,
+  title,
+  saveState,
+  onRetrySave,
+}) => {
   // Ids of the other versions whose text is currently open.
   const [openIds, setOpenIds] = useState<string[]>([]);
   const toggleOpen = (id: string) =>
@@ -143,13 +157,28 @@ const QuickResult: React.FC<QuickResultProps> = ({ result, isRescoring, onRescor
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
-        <h1 className="text-gray-900 dark:text-white">{deriveQuickLabel(result.formState.originalCopy || '')}</h1>
+        <h1 className="text-gray-900 dark:text-white">{title || deriveQuickLabel(result.formState.originalCopy || '')}</h1>
         <p className="text-gray-600 dark:text-gray-400">
           Goal: {goalName} · {result.formState.language}
           {elapsedLabel && ` · Finished in ${elapsedLabel}`}
           {result.testimonials.count > 0 &&
             ` · ${result.testimonials.count} ${result.testimonials.count === 1 ? 'testimonial' : 'testimonials'} kept word for word`}
+          {saveState === 'saved' && ' · Saved'}
+          {saveState === 'saving' && ' · Saving…'}
         </p>
+        {saveState === 'failed' && (
+          <p role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-900 dark:text-gray-100">
+            <span className="w-1 h-5 shrink-0 bg-status-warning" aria-hidden="true" />
+            <span>This result is not saved yet. If you leave this page it is lost.</span>
+            <button
+              type="button"
+              onClick={onRetrySave}
+              className="inline-flex items-center min-h-[44px] text-primary-800 dark:text-primary-300 underline focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              Save again
+            </button>
+          </p>
+        )}
       </div>
 
       {/* One column on phones (best version, score, then the rest); two columns from 1024px. */}
