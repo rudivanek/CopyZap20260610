@@ -41,7 +41,7 @@ export interface TestimonialLock {
 }
 
 const markerFor = (index: number) => `[[TESTIMONIALS-${index}]]`;
-const ANY_MARKER_LINE = /^.*\[\[\s*TESTIMONIALS[-\s_]?\d+\s*\]\].*$/gim;
+const ANY_MARKER_LINE = /^.*\[\[\s*(?:TESTIMONIALS|KEEP)[-\s_]?\d+\s*\]\].*$/gim;
 
 const wordCount = (text: string) => (text.trim() ? text.trim().split(/\s+/).length : 0);
 const isBlank = (line: string) => line.trim() === '';
@@ -236,6 +236,18 @@ export function testimonialInstructions(zones: TestimonialZone[]): string {
   ].join('\n');
 }
 
+/** What the writing step is told about parts of the page the user chose to keep as they are. */
+export function keepInstructions(zones: TestimonialZone[]): string {
+  if (zones.length === 0) return '';
+  const markers = zones.map(zone => zone.marker).join(', ');
+  return [
+    'Some parts of this page must stay exactly as they are and are not yours to rewrite.',
+    `They have been taken out of the text. Each one is represented by a marker line: ${markers}.`,
+    'Keep every marker line exactly as it is, on its own line, once, at the point where that part belongs.',
+    'Do not add a heading for a marker (the part brings its own) and do not write a replacement or a summary of it.',
+  ].join('\n');
+}
+
 export interface RestoredText {
   text: string;
   /** True when a marker was missing and its testimonials had to be put back before the last section. */
@@ -248,8 +260,10 @@ export function restoreTestimonials(text: string, zones: TestimonialZone[]): Res
   let output = (text || '').replace(/\r\n?/g, '\n');
   const missing: TestimonialZone[] = [];
 
-  zones.forEach((zone, index) => {
-    const line = new RegExp(`^.*\\[\\[\\s*TESTIMONIALS[-\\s_]?${index + 1}\\s*\\]\\].*$`, 'im');
+  zones.forEach(zone => {
+    // Each zone is found by its own marker: [[TESTIMONIALS-1]], [[KEEP-2]], ...
+    const [, name = 'TESTIMONIALS', number = '1'] = zone.marker.match(/\[\[\s*([A-Z]+)[-\s_]?(\d+)\s*\]\]/) ?? [];
+    const line = new RegExp(`^.*\\[\\[\\s*${name}[-\\s_]?${number}\\s*\\]\\].*$`, 'im');
     if (!line.test(output)) {
       missing.push(zone);
       return;

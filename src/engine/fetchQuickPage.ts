@@ -57,7 +57,7 @@ export function cleanPageMarkdown(markdown: string): string {
   // Leftover HTML: line breaks become new lines, other tags go.
   text = text.replace(/<br\s*\/?>/gi, '\n').replace(/<\/?[a-z][^>]*>/gi, '');
   // Markdown hard line breaks written as a trailing backslash.
-  text = text.replace(/\\$/gm, '');
+  text = text.replace(/\\[ \t]*$/gm, '');
 
   const lines = text
     .split('\n')
@@ -81,6 +81,9 @@ const isRuleLine = (line: string) => /^\s*([-*_])(\s*\1){2,}\s*$/.test(line);
 /** How often a label must repeat before it counts as furniture. A call to action repeated two or three times stays. */
 const REPEATED_LABEL_MIN = 5;
 const COOKIE_TAIL_LINES = 12;
+/** The accessibility link most sites put first: "Skip to content", in the languages Quick writes. */
+const SKIP_LINK =
+  /^(skip to (the )?(main )?content|ir al contenido( principal)?|saltar al contenido( principal)?|zum inhalt (springen|wechseln)|aller au contenu( principal)?|vai al contenuto( principale)?|(ir|saltar|pular) para o conteúdo( principal)?)$/i;
 const COOKIE_MAX_LINE_WORDS = 45;
 const COOKIE_MAX_TOTAL_WORDS = 150;
 
@@ -90,6 +93,8 @@ const COOKIE_MAX_TOTAL_WORDS = 150;
  *  - a cookie notice at the end (or at the very start) of the page
  *  - a short label repeated five times or more ("Ver testimonio", "- Web")
  *  - ordinal counters on their own line ("01", "03 — 07")
+ *  - lines with no letters or digits at all (a "%" whose number was animated in)
+ *  - a "skip to content" link at the top
  *  - the same label twice in a row
  *
  * It only ever removes whole lines of that kind. Sentences are never touched.
@@ -142,6 +147,8 @@ export function stripPageFurniture(text: string): { text: string; removed: numbe
     if (!key) return true;
     if ((counts.get(key) ?? 0) >= REPEATED_LABEL_MIN) return false;
     if (/^0\d$/.test(key) || /^\d{1,2}\s*[—–\-/]\s*\d{1,2}$/.test(key)) return false;
+    if (!isRuleLine(line) && !/[\p{L}\p{N}]/u.test(key)) return false;
+    if (SKIP_LINK.test(key)) return false;
     return true;
   });
 
