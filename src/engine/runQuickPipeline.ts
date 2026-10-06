@@ -127,6 +127,11 @@ export interface QuickRunResult {
   parts: { kept: number; leftOut: number };
   /** The page the copy was fetched from. Absent for pasted copy. */
   source?: QuickSource;
+  /**
+   * The parts kept as they are, word for word. A later change to a version
+   * needs them to keep those parts untouched again.
+   */
+  keptTexts: string[];
 }
 
 type ProgressFn = (progress: QuickProgress) => void;
@@ -230,7 +235,14 @@ export async function scoreQuickVersions(
   versions: GeneratedContentItem[],
   goalKey: GoalKey,
   user: User,
-  onProgress?: ProgressFn
+  onProgress?: ProgressFn,
+  /**
+   * Scores from before, when a version is added to an existing result. A
+   * version that already has a quality score keeps it: the score is measured
+   * against a fixed bar, so scoring the same text again would only add noise
+   * and could change a number the user has already seen.
+   */
+  keepScores?: QuickScores | null
 ): Promise<QuickScores> {
   onProgress?.({ stage: 'scoring' });
 
@@ -310,6 +322,28 @@ export async function scoreQuickVersions(
         }
         unscoredIds.push(id);
       }
+    }
+  }
+
+  // A version scored before keeps the score it had.
+  if (keepScores) {
+    for (const version of versions) {
+      const kept = keepScores.absoluteByVersion[version.id];
+      if (!isUsableScore(kept)) continue;
+      absoluteByVersion[version.id] = kept;
+      const row = rows.find(item => item.versionId === version.id);
+      if (row) {
+        row.absoluteTotal = kept.total;
+        row.absoluteNotes = [kept.clarity_note, kept.persuasion_note, kept.audience_fit_note, kept.structure_note].filter(Boolean);
+        row.absoluteSub = {
+          clarity: kept.clarity,
+          persuasion: kept.persuasion,
+          audience_fit: kept.audience_fit,
+          structure: kept.structure,
+        };
+      }
+      const at = unscoredIds.indexOf(version.id);
+      if (at >= 0) unscoredIds.splice(at, 1);
     }
   }
 
@@ -473,5 +507,6 @@ export async function runQuickPipeline(
     quoteFlags,
     parts: { kept: keepZones.length, leftOut: input.keep?.leftOut ?? 0 },
     ...(input.source ? { source: input.source } : {}),
+    keptTexts: keepZones.map(zone => zone.text),
   };
 }

@@ -58,6 +58,8 @@ interface QuickExtras {
   parts?: QuickRunResult['parts'];
   /** The page the copy was fetched from. Absent for pasted copy and for older entries. */
   source?: QuickRunResult['source'];
+  /** The kept parts' text. Absent in entries saved before versions could be changed. */
+  keptTexts?: string[];
   runSeconds: number | null;
 }
 
@@ -94,6 +96,7 @@ function toRow(result: QuickRunResult, runSeconds: number | null) {
     testimonials: result.testimonials,
     quoteFlags: result.quoteFlags,
     parts: result.parts,
+    keptTexts: result.keptTexts,
     ...(result.source ? { source: result.source } : {}),
     runSeconds,
   };
@@ -207,6 +210,7 @@ export function rowToQuickResult(row: Record<string, unknown> | null | undefined
     testimonials: quick.testimonials ?? { count: 0, movedIds: [] },
     quoteFlags: quick.quoteFlags ?? {},
     parts: quick.parts ?? { kept: 0, leftOut: 0 },
+    keptTexts: Array.isArray(quick.keptTexts) ? quick.keptTexts.filter(text => typeof text === 'string') : [],
     ...(quick.source && typeof quick.source.url === 'string' && typeof quick.source.host === 'string'
       ? { source: { url: quick.source.url, host: quick.source.host } }
       : {}),
