@@ -65,7 +65,7 @@ function labelFor(instruction: string, taken: string[]): string {
 }
 
 /** Takes the protected parts out of a version: the kept parts first, then the testimonials. */
-function lockVersion(text: string, keptTexts: string[]): { locked: string; zones: TestimonialZone[] } {
+export function lockVersion(text: string, keptTexts: string[]): { locked: string; zones: TestimonialZone[] } {
   let working = text;
   const keepZones: TestimonialZone[] = [];
   for (const kept of keptTexts) {
