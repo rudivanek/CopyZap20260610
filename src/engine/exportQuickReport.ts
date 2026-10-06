@@ -10,9 +10,9 @@
  *  - when Quick's winner is not the one the comparison step preferred, that
  *    step's written verdict (which is about another version) is left out
  *
- * The report's own text is always English, whatever the copy's language: the
- * screens and the scorer's reasons are English, and a report that mixed
- * languages would read worse than one that does not.
+ * The report's own text is always English, whatever the copy's language; the
+ * report generator decides that for every caller. Quick adds a few rows to the
+ * input summary: where the copy came from and what was kept or left out.
  *
  * The report code is large, so it is loaded only when a report is exported.
  */
@@ -26,6 +26,8 @@ export interface QuickReportInput {
   formState: FormState;
   cards: GeneratedContentItem[];
   comparisonResult: ComparisonResult;
+  /** Rows added to the report's input summary: the source page and what was kept or left out. */
+  extraRows: [string, string][];
 }
 
 /** The written verdict of the comparison step. It names one version; it only applies when that version won. */
@@ -58,6 +60,16 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
     if (winnerRow?.optionLabel) comparisonResult.winnerLabel = winnerRow.optionLabel;
   }
 
+  const extraRows: [string, string][] = [];
+  if (result.source?.url) extraRows.push(['Source', result.source.url]);
+  if (result.testimonials.count > 0) {
+    extraRows.push(['Testimonials', `${result.testimonials.count} kept word for word`]);
+  }
+  if (result.parts.kept > 0 || result.parts.leftOut > 0) {
+    const kept = result.parts.kept === 1 ? '1 kept as it is' : `${result.parts.kept} kept as they are`;
+    extraRows.push(['Parts of the page', `${kept}, ${result.parts.leftOut} left out`]);
+  }
+
   return {
     // The report takes its title and file name from the project description.
     formState: {
@@ -66,6 +78,7 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
     },
     cards: result.versions.filter(version => inReport(version.id)),
     comparisonResult,
+    extraRows,
   };
 }
 
@@ -73,7 +86,6 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
 export async function exportQuickReport(result: QuickRunResult, title?: string): Promise<void> {
   const input = buildQuickReportInput(result, title);
   const { exportAsFormattedHtml } = await import('../utils/enhancedExports');
-  // Quick's report is always in English; only the copy keeps its own language.
   exportAsFormattedHtml(
     input.formState,
     input.cards,
@@ -84,6 +96,6 @@ export async function exportQuickReport(result: QuickRunResult, title?: string):
     undefined,
     undefined,
     undefined,
-    'English'
+    input.extraRows
   );
 }

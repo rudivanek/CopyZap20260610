@@ -785,8 +785,12 @@ const EXPORT_I18N = {
 
 type ExportLangCode = keyof typeof EXPORT_I18N;
 
-const resolveExportLangCode = (language?: string): ExportLangCode =>
-  (language || '').trim().toLowerCase().startsWith('span') ? 'es' : 'en';
+// Reports are always written in English, whatever the copy's language
+// (decision of 2026-10-06): the screens and the scorer's reasons are English,
+// and a report that mixes languages reads worse than one that does not.
+// The Spanish labels stay in EXPORT_I18N, so this is the one line to change
+// if a report in the copy's language is wanted again.
+const resolveExportLangCode = (_language?: string): ExportLangCode => 'en';
 
 // Verification flags come from a scoring LLM call that is deliberately pinned to
 // English category labels (see comparativeScoring.ts) so the taxonomy stays
@@ -2951,7 +2955,7 @@ export const exportAsFormattedHtml = (
   comparisonDeepAnalysisMeta?: ComparisonDeepAnalysisMeta,
   loadingVersionIds?: Set<string>,
   previewPercent?: number,
-  reportLanguage?: string
+  extraSummaryRows?: [string, string][]
 ): void => {
   try {
     
@@ -2986,9 +2990,9 @@ export const exportAsFormattedHtml = (
     const targetWordCount = calculateTargetWordCount(formState).target;
     const totalVariants = contentCards.length;
     const lang = formState.language || 'English';
-    // A caller can fix the language of the report's own labels (Quick: always English).
+    // The report's own labels (always English, see resolveExportLangCode).
     // The copy keeps its language, and the report still names that language.
-    const exportLangCode = resolveExportLangCode(reportLanguage || lang);
+    const exportLangCode = resolveExportLangCode(lang);
     const t = EXPORT_I18N[exportLangCode];
     const htmlLangCode = ({ english: 'en', spanish: 'es', french: 'fr', german: 'de', portuguese: 'pt', italian: 'it', dutch: 'nl' } as Record<string, string>)[lang.trim().toLowerCase()] || 'en';
 
@@ -3093,7 +3097,8 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
         const delta = winnerScore - baselineScore;
         const pct = baselineScore > 0 ? Math.round((delta / baselineScore) * 100) : 0;
         const sign = delta >= 0 ? '+' : '';
-        htmlContent += `<div class="journey-foot"><b>${sign}${delta} pts (${sign}${pct}%)</b> &nbsp;${t.applyAllSuggestions(projectedScore ?? winnerScore)}</div>\n`;
+        // The "apply all suggestions" projection is shown only when there are suggestions to apply.
+        htmlContent += `<div class="journey-foot"><b>${sign}${delta} pts (${sign}${pct}%)</b>${projectedScore !== null ? ` &nbsp;${t.applyAllSuggestions(projectedScore)}` : ''}</div>\n`;
       }
       htmlContent += '</div>\n';
     }
@@ -3144,7 +3149,8 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
       htmlContent += renderTocRow(`output-${card.id}`, stripEmoji(card.sourceDisplayName || card.type), score, isWin);
     });
     if (comparisonResult) {
-      htmlContent += renderTocRow('comparison-rankings', t.comparisonRankingsLabel, null, false);
+      // The label already carries "&amp;"; the row escapes its text again, so hand it the plain "&".
+      htmlContent += renderTocRow('comparison-rankings', t.comparisonRankingsLabel.replace(/&amp;/g, '&'), null, false);
     }
     htmlContent += '</div>\n';
     htmlContent += '</div>\n';
@@ -3180,6 +3186,8 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
     if (formState.desiredEmotion) configRows.push([t.desiredEmotionLabel, formState.desiredEmotion]);
     if (formState.brandValues) configRows.push([t.brandValuesLabel, formState.brandValues]);
     if (formState.keywords) configRows.push([t.keywordsLabel, formState.keywords]);
+    // Rows a caller adds (Quick: where the copy came from, which parts were kept or left out).
+    if (extraSummaryRows) configRows.push(...extraSummaryRows);
 
     htmlContent += '<div class="brief-tbl">\n';
     configRows.forEach(([setting, value]) => {
