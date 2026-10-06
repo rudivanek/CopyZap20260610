@@ -8,6 +8,7 @@ import { QUICK_DEFAULT_VARIANTS, QUICK_MAX_WORDS, QUICK_MIN_WORDS } from '../eng
 import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
 import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
+import { defaultChoices, planSections, SectionChoice, splitIntoSections } from '../engine/pageSections';
 import { lockTestimonials } from '../engine/quoteLock';
 import {
   QuickPipelineError,
@@ -79,6 +80,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   // What Quick understood about the copy, and the exact copy it was read from.
   const [brief, setBrief] = useState<QuickBrief | null>(null);
   const [briefCopy, setBriefCopy] = useState<string | null>(null);
+  // What the user chose for parts of the page; reset whenever the copy changes.
+  const [pickedChoices, setPickedChoices] = useState<Record<string, SectionChoice>>({});
   const isMounted = useRef(true);
 
   useEffect(() => {
@@ -112,11 +115,20 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   }, [isTiming]);
 
   const words = copy.trim() ? countWords(copy) : 0;
-  // Counted only for the confirm screen; the pipeline does its own locking.
+  // The parts of the page and what the user wants done with each. Worked out
+  // for the confirm screen only; choices the user has not made follow Quick's proposal.
+  const sections = useMemo(() => (phase === 'confirm' ? splitIntoSections(copy.trim()) : []), [phase, copy]);
+  const choices = useMemo(() => ({ ...defaultChoices(sections), ...pickedChoices }), [sections, pickedChoices]);
+  const plan = useMemo(() => planSections(sections, choices), [sections, choices]);
+  // Testimonials the automatic lock will keep, inside the parts that are improved.
   const testimonialCount = useMemo(
-    () => (phase === 'confirm' ? lockTestimonials(copy.trim()).count : 0),
-    [phase, copy]
+    () => (phase === 'confirm' ? lockTestimonials(plan.lockedCopy).count : 0),
+    [phase, plan]
   );
+  const blocked =
+    phase === 'confirm' && sections.length > 1 && plan.improveWords < QUICK_MIN_WORDS
+      ? `Choose at least one part to improve (${QUICK_MIN_WORDS} words or more).`
+      : null;
   const tooShort = words < QUICK_MIN_WORDS;
   const tooLong = words > QUICK_MAX_WORDS;
 
@@ -230,6 +242,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       if (!isMounted.current) return;
       setBrief(understood);
       setBriefCopy(copy);
+      setPickedChoices({});
       setPhase('confirm');
       window.scrollTo(0, 0);
     } catch (readError) {
@@ -242,7 +255,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   };
 
   const handleRun = async () => {
-    if (tooShort || tooLong || busy) return;
+    if (tooShort || tooLong || busy || blocked) return;
+    const usesParts = sections.length > 1 && (plan.kept > 0 || plan.leftOut > 0);
     setError(null);
     setProgress({ stage: 'checking' });
     setBusy('running');
@@ -251,7 +265,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     try {
       const run = await runQuickPipeline(
         {
-          copy,
+          // With parts kept or left out, "the copy" is the page without the left-out parts.
+          copy: usesParts ? plan.copy : copy,
+          keep: usesParts ? { lockedCopy: plan.lockedCopy, zones: plan.zones, leftOut: plan.leftOut } : undefined,
           goalKey,
           sessionId: sessionId ?? undefined,
           brief: brief
@@ -320,6 +336,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setSessionId(null);
     setBrief(null);
     setBriefCopy(null);
+    setPickedChoices({});
     setCopy('');
     setPhase('start');
     window.scrollTo(0, 0);
@@ -480,6 +497,11 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           brief={brief}
           onBriefChange={setBrief}
           testimonialCount={testimonialCount}
+          sections={sections}
+          choices={choices}
+          onChoiceChange={(id, choice) => setPickedChoices(picked => ({ ...picked, [id]: choice }))}
+          improveWords={plan.improveWords}
+          blocked={blocked}
           onGenerate={handleRun}
           onBack={() => {
             setPhase('start');

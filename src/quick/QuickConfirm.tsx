@@ -2,6 +2,7 @@ import React from 'react';
 import { Language, Tone } from '../types';
 import { QUICK_DEFAULT_VARIANTS } from '../engine/buildQuickFormState';
 import { QUICK_LANGUAGES, QUICK_TONES, QuickBrief } from '../engine/inferQuickBrief';
+import type { PageSection, SectionChoice } from '../engine/pageSections';
 import { stripMarkdown } from '../utils/markdownUtils';
 
 interface QuickConfirmProps {
@@ -14,7 +15,21 @@ interface QuickConfirmProps {
   onBack: () => void;
   /** Testimonials found in the copy. They are kept word for word. */
   testimonialCount: number;
+  /** The parts of the page, from its own headings. One part means there is nothing to choose. */
+  sections: PageSection[];
+  choices: Record<string, SectionChoice>;
+  onChoiceChange: (id: string, choice: SectionChoice) => void;
+  /** Words Quick will rewrite with the current choices. */
+  improveWords: number;
+  /** Why generating is not possible right now, if it is not. */
+  blocked: string | null;
 }
+
+const CHOICES: { value: SectionChoice; label: string }[] = [
+  { value: 'improve', label: 'Improve' },
+  { value: 'keep', label: 'Keep as is' },
+  { value: 'leave', label: 'Leave out' },
+];
 
 const PREVIEW_CHARS = 220;
 
@@ -37,7 +52,14 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
   onGenerate,
   onBack,
   testimonialCount,
+  sections,
+  choices,
+  onChoiceChange,
+  improveWords,
+  blocked,
 }) => {
+  const choiceOf = (section: PageSection): SectionChoice => choices[section.id] ?? 'improve';
+  const count = (value: SectionChoice) => sections.filter(section => choiceOf(section) === value).length;
   const couldNotRead = !brief.product && !brief.audience;
 
   return (
@@ -144,6 +166,69 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
         </div>
       </div>
 
+      {sections.length > 1 && (
+        <fieldset className="m-0 p-0 border-0 flex flex-col gap-2">
+          <legend className="p-0 mb-1 font-semibold text-gray-900 dark:text-gray-100">
+            What should Quick do with each part?
+          </legend>
+          <ul className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
+            {sections.map(section => {
+              const current = choiceOf(section);
+              return (
+                <li key={section.id} className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                  <div className="min-w-0 flex-[1_1_220px] flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                    <span
+                      className={
+                        'font-semibold break-words ' +
+                        (current === 'leave'
+                          ? 'text-gray-500 dark:text-gray-400 line-through'
+                          : 'text-gray-900 dark:text-gray-100')
+                      }
+                    >
+                      {section.title}
+                    </span>
+                    <span className="text-xs text-gray-600 dark:text-gray-400 tabular-nums">
+                      {section.words} {section.words === 1 ? 'word' : 'words'}
+                    </span>
+                    {section.hint && (
+                      <span className="text-xs text-gray-900 dark:text-gray-100 border border-gray-400 dark:border-gray-600 px-1.5">
+                        {section.hint}
+                      </span>
+                    )}
+                  </div>
+                  <div role="group" aria-label={`What to do with ${section.title}`} className="flex flex-wrap gap-1">
+                    {CHOICES.map(option => {
+                      const selected = current === option.value;
+                      return (
+                        <button
+                          key={option.value}
+                          type="button"
+                          aria-pressed={selected}
+                          onClick={() => onChoiceChange(section.id, option.value)}
+                          className={
+                            'min-h-[44px] px-3 border focus:outline-none focus:ring-2 focus:ring-primary-500 ' +
+                            (selected
+                              ? 'bg-gray-900 border-gray-900 text-white dark:bg-gray-100 dark:border-gray-100 dark:text-gray-900'
+                              : 'bg-white border-gray-400 text-gray-900 hover:bg-gray-100 dark:bg-gray-900 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-800')
+                          }
+                        >
+                          {option.label}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          <p className="text-gray-600 dark:text-gray-400">
+            Rewrites {count('improve')} {count('improve') === 1 ? 'part' : 'parts'} ({improveWords} words) · keeps{' '}
+            {count('keep')} as {count('keep') === 1 ? 'it is' : 'they are'} · leaves out {count('leave')}. A part kept
+            as it is goes into the new page unchanged, in its place. A part left out is dropped.
+          </p>
+        </fieldset>
+      )}
+
       {brief.unsupportedLanguage && (
         <div role="alert" className="flex items-start gap-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-4">
           <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-warning" aria-hidden="true" />
@@ -160,7 +245,8 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
           <button
             type="button"
             onClick={onGenerate}
-            className="inline-flex items-center justify-center min-h-[48px] px-8 bg-primary-500 hover:bg-primary-400 text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+            disabled={blocked !== null}
+            className="inline-flex items-center justify-center min-h-[48px] px-8 bg-primary-500 hover:bg-primary-400 text-gray-900 font-semibold disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
           >
             Looks right, generate
           </button>
@@ -172,9 +258,15 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
             Back
           </button>
         </div>
-        <p className="text-gray-600 dark:text-gray-400">
-          Writes {QUICK_DEFAULT_VARIANTS} versions and scores them. Uses credits.
-        </p>
+        {blocked ? (
+          <p role="alert" className="text-gray-900 dark:text-gray-100 font-semibold">
+            {blocked}
+          </p>
+        ) : (
+          <p className="text-gray-600 dark:text-gray-400">
+            Writes {QUICK_DEFAULT_VARIANTS} versions and scores them. Uses credits.
+          </p>
+        )}
       </div>
     </main>
   );

@@ -163,6 +163,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
           {elapsedLabel && ` · Finished in ${elapsedLabel}`}
           {result.testimonials.count > 0 &&
             ` · ${result.testimonials.count} ${result.testimonials.count === 1 ? 'testimonial' : 'testimonials'} kept word for word`}
+          {result.parts.kept > 0 &&
+            ` · ${result.parts.kept} ${result.parts.kept === 1 ? 'part kept as it is' : 'parts kept as they are'}`}
+          {result.parts.leftOut > 0 && ` · ${result.parts.leftOut} left out`}
           {saveState === 'saved' && ' · Saved'}
           {saveState === 'saving' && ' · Saving…'}
         </p>
@@ -306,8 +309,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
                   <li className="flex items-start gap-2.5">
                     <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-warning" aria-hidden="true" />
                     <span>
-                      This version did not keep the place for your testimonials, so they were put back before its last
-                      section. Check that the position fits.
+                      This version did not keep the place for a part that stays as it is, so that part was put back
+                      before the last section. Check that the position fits.
                     </span>
                   </li>
                 )}
