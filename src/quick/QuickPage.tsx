@@ -74,6 +74,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const openAtStart = useRef(searchParams.get('r'));
   const [url, setUrl] = useState('');
   const [fetchedFrom, setFetchedFrom] = useState<string | null>(null);
+  // The address the copy in the box was fetched from; recorded with the result.
+  const [fetchedUrl, setFetchedUrl] = useState<string | null>(null);
   const [furnitureRemoved, setFurnitureRemoved] = useState(0);
   // One tracking session per piece of work, started at the first paid step.
   const [sessionId, setSessionId] = useState<string | null>(null);
@@ -215,6 +217,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       setCopy(page.copy);
       setUrl(page.url);
       setFetchedFrom(page.host);
+      setFetchedUrl(page.url);
       setFurnitureRemoved(page.furnitureRemoved);
       playSuccessSound();
     } catch (fetchError) {
@@ -268,6 +271,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           // With parts kept or left out, "the copy" is the page without the left-out parts.
           copy: usesParts ? plan.copy : copy,
           keep: usesParts ? { lockedCopy: plan.lockedCopy, zones: plan.zones, leftOut: plan.leftOut } : undefined,
+          source: fetchedFrom && fetchedUrl ? { url: fetchedUrl, host: fetchedFrom } : undefined,
           goalKey,
           sessionId: sessionId ?? undefined,
           brief: brief
@@ -332,6 +336,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setError(null);
     setUrl('');
     setFetchedFrom(null);
+    setFetchedUrl(null);
     setFurnitureRemoved(0);
     setSessionId(null);
     setBrief(null);
@@ -393,7 +398,14 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               id="quick-copy"
               rows={10}
               value={copy}
-              onChange={event => setCopy(event.target.value)}
+              onChange={event => {
+                setCopy(event.target.value);
+                // An emptied box no longer holds the fetched page: forget where it came from.
+                if (!event.target.value.trim()) {
+                  setFetchedFrom(null);
+                  setFetchedUrl(null);
+                }
+              }}
               disabled={isFetching}
               placeholder="Paste the text you want to improve"
               className="w-full px-3.5 py-3 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-primary-500"

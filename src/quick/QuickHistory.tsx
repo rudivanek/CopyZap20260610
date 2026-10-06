@@ -191,8 +191,8 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
 
                 <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
                   <span className="text-xs text-gray-600 dark:text-gray-400">
-                    {[
-                      goalName(entry.goalKey) && `Goal: ${goalName(entry.goalKey)}`,
+                    {[goalName(entry.goalKey) && `Goal: ${goalName(entry.goalKey)}`,
+                      entry.sourceHost && `From ${entry.sourceHost}`,
                       entry.originalScore != null && `Original: ${entry.originalScore}`,
                       formatDate(entry.createdAt),
                     ]

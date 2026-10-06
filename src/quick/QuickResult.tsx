@@ -163,6 +163,19 @@ const QuickResult: React.FC<QuickResultProps> = ({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-1">
         <h1 className="text-gray-900 dark:text-white">{title || deriveQuickLabel(result.formState.originalCopy || '')}</h1>
+        {result.source && /^https?:\/\//i.test(result.source.url) && (
+          <p className="text-gray-600 dark:text-gray-400 break-words">
+            Source:{' '}
+            <a
+              href={result.source.url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-primary-800 dark:text-primary-300 underline focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              {result.source.url.replace(/^https?:\/\/(www\.)?/i, '').replace(/\/$/, '')}
+            </a>
+          </p>
+        )}
         <p className="text-gray-600 dark:text-gray-400">
           Goal: {goalName} · {result.formState.language}
           {elapsedLabel && ` · Finished in ${elapsedLabel}`}
