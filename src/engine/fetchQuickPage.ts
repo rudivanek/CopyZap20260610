@@ -41,6 +41,48 @@ export function normalizeQuickUrl(input: string): string {
   }
 }
 
+/** Fewest short links in a row that count as a link bar. Two or three buttons side by side stay. */
+const LINK_BAR_MIN_LINKS = 5;
+const LINK_BAR_MAX_WORDS = 3;
+
+/**
+ * Removes link bars: five or more short links in a row, each on its own line
+ * or list item with nothing but the link. That is how a menu, a row of
+ * buttons-and-pills in a page's top section, or a footer link column arrives
+ * in fetched markdown. The engine treats such a bar as a bullet list and
+ * carries it into the new copy.
+ *
+ * It must run on the raw markdown, while links are still links: once their
+ * addresses are stripped, a link bar cannot be told from an ordinary list of
+ * benefits, which must stay. A single call-to-action link, or two or three
+ * together, are not touched.
+ */
+export function stripLinkBars(markdown: string): { text: string; removed: number } {
+  const lines = (markdown || '').replace(/\r\n?/g, '\n').split('\n');
+  const isShortLink = (line: string) => {
+    const match = line.trim().match(/^(?:[-*+]\s+)?[*_]*\[([^\]!]+)\]\([^)]*\)[*_]*$/);
+    if (!match) return false;
+    const label = match[1].replace(/[*_`>]/g, '').trim();
+    return label.length > 0 && label.split(/\s+/).length <= LINK_BAR_MAX_WORDS;
+  };
+  // Blank lines and list items left empty sit between the links of one bar.
+  const isSpacer = (line: string) => /^\s*[-*+]?\s*$/.test(line);
+
+  const drop = new Set<number>();
+  let run: number[] = [];
+  const flush = () => {
+    if (run.length >= LINK_BAR_MIN_LINKS) run.forEach(index => drop.add(index));
+    run = [];
+  };
+  lines.forEach((line, index) => {
+    if (isShortLink(line)) run.push(index);
+    else if (!isSpacer(line)) flush();
+  });
+  flush();
+
+  return { text: lines.filter((_, index) => !drop.has(index)).join('\n'), removed: drop.size };
+}
+
 /**
  * Tidies page markdown for use as copy. It removes what is not copy (images,
  * link addresses, leftover HTML) and never changes the words themselves.
@@ -94,6 +136,7 @@ const COOKIE_MAX_TOTAL_WORDS = 150;
  *  - a short label repeated five times or more ("Ver testimonio", "- Web")
  *  - ordinal counters on their own line ("01", "03 — 07")
  *  - lines with no letters or digits at all (a "%" whose number was animated in)
+ *  - a counter that never started ("+ 0", "+ 0 %"): the number is animated in on the live page
  *  - a "skip to content" link at the top
  *  - the same label twice in a row
  *
@@ -148,6 +191,7 @@ export function stripPageFurniture(text: string): { text: string; removed: numbe
     if ((counts.get(key) ?? 0) >= REPEATED_LABEL_MIN) return false;
     if (/^0\d$/.test(key) || /^\d{1,2}\s*[—–\-/]\s*\d{1,2}$/.test(key)) return false;
     if (!isRuleLine(line) && !/[\p{L}\p{N}]/u.test(key)) return false;
+    if (/^[+-]?\s*0\s*%?$/.test(key)) return false;
     if (SKIP_LINK.test(key)) return false;
     return true;
   });
@@ -218,7 +262,9 @@ export async function fetchQuickPage(input: string, user: User, sessionId?: stri
     );
   }
 
-  const cleaned = stripPageFurniture(cleanPageMarkdown(result.data.markdown));
+  // Link bars go first, while links are still links; then the text is tidied.
+  const withoutBars = stripLinkBars(result.data.markdown);
+  const cleaned = stripPageFurniture(cleanPageMarkdown(withoutBars.text));
   const copy = cleaned.text;
   if (!copy) throw new QuickPipelineError('fetch_failed', 'No copy was found on that page.');
 
@@ -227,6 +273,6 @@ export async function fetchQuickPage(input: string, user: User, sessionId?: stri
     host: new URL(url).hostname.replace(/^www\./, ''),
     copy,
     words: countWords(copy),
-    furnitureRemoved: cleaned.removed,
+    furnitureRemoved: cleaned.removed + withoutBars.removed,
   };
 }

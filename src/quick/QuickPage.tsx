@@ -416,7 +416,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               {!tooLong && words > 0 && tooShort && ` Paste at least ${QUICK_MIN_WORDS}.`}
               {fetchedFrom && !isFetching && ` Taken from ${fetchedFrom}.`}
               {fetchedFrom && !isFetching && furnitureRemoved > 0 &&
-                ` ${furnitureRemoved} ${furnitureRemoved === 1 ? 'line' : 'lines'} of page furniture left out (cookie notice, repeated labels, counters).`}
+                ` ${furnitureRemoved} ${furnitureRemoved === 1 ? 'line' : 'lines'} of page furniture left out (link bars, cookie notice, repeated labels, counters).`}
               {fetchedFrom && !isFetching && ' Check it and trim it if needed.'}
             </p>
           </div>
