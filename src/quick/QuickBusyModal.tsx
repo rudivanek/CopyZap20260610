@@ -2,7 +2,7 @@ import React from 'react';
 import type { QuickProgress, QuickStage } from '../engine/runQuickPipeline';
 
 /** The processes that show the modal. */
-export type QuickBusyKind = 'fetch' | 'reading' | 'running' | 'rescoring' | 'opening' | 'changing';
+export type QuickBusyKind = 'fetch' | 'reading' | 'running' | 'rescoring' | 'opening' | 'changing' | 'editing';
 
 interface QuickBusyModalProps {
   kind: QuickBusyKind;
@@ -23,6 +23,7 @@ const TEXT: Record<QuickBusyKind, { title: string; detail: string }> = {
   rescoring: { title: 'Scoring again', detail: 'Scoring every version against your goal.' },
   opening: { title: 'Opening your result', detail: 'Loading the saved versions and scores.' },
   changing: { title: 'Changing your copy', detail: 'Rewriting the best version, then scoring it. About a minute.' },
+  editing: { title: 'Scoring your edit', detail: 'Nothing is rewritten. Your version is scored against your goal. About a minute.' },
 };
 
 function formatElapsed(seconds: number): string {
@@ -33,14 +34,16 @@ function formatElapsed(seconds: number): string {
 
 const QuickBusyModal: React.FC<QuickBusyModalProps> = ({ kind, elapsed, progress, versions }) => {
   const { title, detail } = TEXT[kind];
-  const activeStage = progress ? STAGE_ORDER.indexOf(progress.stage) : 0;
+  // Scoring an edit has no writing step.
+  const stages = kind === 'editing' ? STAGE_ORDER.filter(stage => stage !== 'writing') : STAGE_ORDER;
+  const activeStage = progress ? Math.max(0, stages.indexOf(progress.stage)) : 0;
   const total = progress?.total ?? versions;
   const stageLabels: Record<QuickStage, string> =
-    kind === 'changing'
+    kind === 'changing' || kind === 'editing'
       ? {
           checking: 'Checking your account',
           writing: 'Rewriting the best version',
-          scoring: 'Scoring it and picking the best',
+          scoring: kind === 'editing' ? 'Scoring your edit and picking the best' : 'Scoring it and picking the best',
         }
       : {
           checking: 'Checking your account',
@@ -66,10 +69,10 @@ const QuickBusyModal: React.FC<QuickBusyModalProps> = ({ kind, elapsed, progress
           <p className="text-gray-600 dark:text-gray-400">{detail}</p>
         </div>
 
-        {(kind === 'running' || kind === 'changing') && (
+        {(kind === 'running' || kind === 'changing' || kind === 'editing') && (
           <div role="status" aria-live="polite">
             <ol className="border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
-              {STAGE_ORDER.map((stage, index) => {
+              {stages.map((stage, index) => {
                 const state = index < activeStage ? 'done' : index === activeStage ? 'active' : 'waiting';
                 return (
                   <li key={stage} className="flex items-center gap-3 px-4 min-h-[48px]">

@@ -9,6 +9,7 @@ import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
 import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
 import { changeQuickVersion, validateQuickChange } from '../engine/changeQuickVersion';
+import { QuickEditDraft, scoreQuickEdit } from '../engine/editQuickVersion';
 import { defaultChoices, planSections, SectionChoice, splitIntoSections } from '../engine/pageSections';
 import { lockTestimonials } from '../engine/quoteLock';
 import {
@@ -361,6 +362,37 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     }
   };
 
+  /** Scores a version the user edited by hand and keeps whichever version is better. */
+  const handleScoreEdit = async (draft: QuickEditDraft, text: string) => {
+    if (!result || busy) return;
+    setChangeNotice(null);
+    setProgress({ stage: 'checking' });
+    setBusy('editing');
+    try {
+      const outcome = await scoreQuickEdit(result, draft, text, currentUser, setProgress);
+      if (!isMounted.current) return;
+      setResult(outcome.result);
+      if (outcome.newScore === null) {
+        setChangeNotice({ tone: 'neutral', text: 'Your edit was saved as a version but could not be scored. It is listed under Other versions.' });
+      } else if (outcome.becameBest) {
+        setChangeNotice({ tone: 'good', text: `Your edit is now the best version, at ${outcome.newScore} / 100.` });
+      } else {
+        setChangeNotice({
+          tone: 'neutral',
+          text: `Your edit scored ${outcome.newScore} / 100, which is not higher than the best version. It is listed under Other versions.`,
+        });
+      }
+      window.scrollTo(0, 0);
+      playSuccessSound();
+      persist(outcome.result, runSeconds, savedId);
+    } catch (editError) {
+      if (!isMounted.current) return;
+      setChangeNotice({ tone: 'bad', text: messageOf(editError) });
+    } finally {
+      if (isMounted.current) setBusy(null);
+    }
+  };
+
   const handleNew = () => {
     setChangeNotice(null);
     setResult(null);
@@ -572,6 +604,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             onChange={handleChange}
             changeBlocked={text => validateQuickChange(result, text)}
             changeNotice={changeNotice}
+            onScoreEdit={handleScoreEdit}
           />
         </main>
       )}

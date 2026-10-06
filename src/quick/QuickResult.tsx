@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { GeneratedContentItem } from '../types';
 import FormattedContent from '../components/ui/FormattedContent';
 import { contentToText } from '../services/api/contentText';
@@ -6,6 +6,7 @@ import type { AbsoluteScoreBreakdown } from '../services/api/absoluteScoring';
 import { GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import { getAbsoluteScoreLabel, getAbsoluteScoreMarkClass } from '../utils/scoreColors';
 import { deriveQuickLabel } from '../engine/buildQuickFormState';
+import { prepareQuickEdit, QuickEditDraft, validateQuickEdit } from '../engine/editQuickVersion';
 import { exportQuickReport } from '../engine/exportQuickReport';
 import { ORIGINAL_VERSION_ID } from '../engine/pickWinner';
 import type { QuickRunResult } from '../engine/runQuickPipeline';
@@ -26,8 +27,10 @@ interface QuickResultProps {
   onChange: (instruction: string) => void;
   /** Why a change is not possible for this text right now; null when it is. */
   changeBlocked: (instruction: string) => string | null;
-  /** What the last change led to, or why it failed. */
+  /** What the last change or edit led to, or why it failed. */
   changeNotice: { tone: 'good' | 'neutral' | 'bad'; text: string } | null;
+  /** Scores a version the user edited by hand. The page runs it behind the modal. */
+  onScoreEdit: (draft: QuickEditDraft, text: string) => void;
 }
 
 /** One-click requests. Each is sent as written. */
@@ -119,7 +122,23 @@ const QuickResult: React.FC<QuickResultProps> = ({
   onChange,
   changeBlocked,
   changeNotice,
+  onScoreEdit,
 }) => {
+  // Editing by hand: the best version as plain text, protected parts as bracketed lines.
+  const [draft, setDraft] = useState<QuickEditDraft | null>(null);
+  const [editText, setEditText] = useState('');
+  const versionCount = result.versions.length;
+  // A new version arrived (the edit was scored): the editor has done its job.
+  useEffect(() => {
+    setDraft(null);
+  }, [versionCount]);
+  const openEditor = () => {
+    const prepared = prepareQuickEdit(result);
+    if (!prepared) return;
+    setDraft(prepared);
+    setEditText(prepared.text);
+  };
+  const editProblem = draft ? validateQuickEdit(result, editText, draft.text) : null;
   const [instruction, setInstruction] = useState('');
   const changeProblem = instruction.trim() ? changeBlocked(instruction) : null;
   const submitChange = (text: string) => {
@@ -261,6 +280,14 @@ const QuickResult: React.FC<QuickResultProps> = ({
             >
               {exportState === 'working' ? 'Building report…' : 'Export report'}
             </button>
+            <button
+              type="button"
+              onClick={openEditor}
+              disabled={!scores || !scores.winnerId || isRescoring || draft !== null}
+              className={secondaryButton}
+            >
+              Edit it myself
+            </button>
             <button type="button" onClick={onNew} className={secondaryButton}>
               Start over
             </button>
@@ -270,6 +297,48 @@ const QuickResult: React.FC<QuickResultProps> = ({
               <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-critical" aria-hidden="true" />
               <span>The report could not be built. Try again.</span>
             </p>
+          )}
+
+          {draft && (
+            <section aria-label="Edit it yourself" className={`${card} p-5 flex flex-col gap-3`}>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="quick-edit" className="font-semibold text-gray-900 dark:text-gray-100">
+                  Edit it yourself
+                </label>
+                <p className="text-gray-600 dark:text-gray-400">
+                  This is the best version as plain text. Change what you want, then have your version scored. Nothing
+                  is rewritten for you, so it costs only a scoring run.
+                </p>
+                {draft.zones.length > 0 && (
+                  <p className="text-gray-600 dark:text-gray-400">
+                    A line in [[double brackets]] stands for a part that stays as it is. Leave that line where the part
+                    belongs; the part itself comes back when your edit is scored.
+                  </p>
+                )}
+              </div>
+              <textarea
+                id="quick-edit"
+                value={editText}
+                onChange={event => setEditText(event.target.value)}
+                rows={16}
+                spellCheck={false}
+                className="w-full min-h-[320px] px-3.5 py-3 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 leading-relaxed focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              <div className="flex flex-wrap items-center gap-3">
+                <button
+                  type="button"
+                  onClick={() => onScoreEdit(draft, editText)}
+                  disabled={isRescoring || editProblem !== null}
+                  className={primaryButton}
+                >
+                  Score my edit
+                </button>
+                <button type="button" onClick={() => setDraft(null)} className={secondaryButton}>
+                  Cancel
+                </button>
+                {editProblem && <span className="text-gray-900 dark:text-gray-100">{editProblem}</span>}
+              </div>
+            </section>
           )}
 
           {scores && scores.winnerId && (
