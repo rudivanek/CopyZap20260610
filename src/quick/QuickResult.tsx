@@ -147,7 +147,12 @@ const QuickResult: React.FC<QuickResultProps> = ({
 
   const others = generated
     .filter(version => version.id !== winner.id)
-    .map(version => ({ version, total: scores?.absoluteByVersion[version.id]?.total }))
+    .map(version => ({
+      version,
+      total: scores?.absoluteByVersion[version.id]?.total,
+      // A version the structural check set aside cannot win, whatever it scores.
+      setAside: scores?.gateByVersion[version.id] ? !scores.gateByVersion[version.id].valid : false,
+    }))
     .sort((a, b) => (b.total ?? -1) - (a.total ?? -1));
 
   const goalOption = GOAL_OPTIONS.find(option => option.key === result.goalKey);
@@ -346,7 +351,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
           {others.length > 0 && (
             <section aria-label="Other versions" className="flex flex-col gap-2">
               <h2 className="text-gray-900 dark:text-white">Other versions</h2>
-              {others.map(({ version, total }) => {
+              {others.map(({ version, total, setAside }) => {
                 const isOpen = openIds.includes(version.id);
                 return (
                   <article key={version.id} className={paper}>
@@ -356,7 +361,12 @@ const QuickResult: React.FC<QuickResultProps> = ({
                       aria-expanded={isOpen}
                       className="w-full min-h-[52px] px-5 py-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-left hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
                     >
-                      <span className="font-semibold text-gray-900">{version.sourceDisplayName || 'Version'}</span>
+                      <span className="flex flex-wrap items-baseline gap-x-2">
+                        <span className="font-semibold text-gray-900">{version.sourceDisplayName || 'Version'}</span>
+                        {setAside && (
+                          <span className="text-xs text-gray-600">Set aside: repeats a paragraph or is cut short</span>
+                        )}
+                      </span>
                       <span className="inline-flex items-center gap-4">
                         <ScoreTag total={total} />
                         <span className="text-xs text-primary-800 underline">{isOpen ? 'Hide' : 'Show'}</span>

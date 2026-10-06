@@ -13,12 +13,17 @@ export function structuralGate(text: string, targetWords?: number): GateResult {
   if (targetWords && looksSpaceDelimited && words > 0 && words < targetWords * 0.4) {
     flags.push(`too_short:${words}<${Math.round(targetWords * 0.4)}`);
   }
-  // Repeated passage — prefix-independent. Scan a 50-char normalized window across
-  // the text; if any window recurs at least 50 chars from its first sighting, a
-  // passage is duplicated. Catches repeated paragraphs even when a heading or
-  // lead-in is glued in front of them (which defeats a naive prefix check).
+  // Repeated passage — prefix-independent. Scan a normalized window across the
+  // text; if any window recurs at least one window-length from its first
+  // sighting, a passage is duplicated. Catches repeated paragraphs even when a
+  // heading or lead-in is glued in front of them (which defeats a naive prefix check).
+  //
+  // The window is 150 characters (about 25 words): a paragraph, not a sentence.
+  // It was 50, which also flagged copy that repeats one selling claim or one
+  // call-to-action line on purpose ("the only authorised partner in Mexico",
+  // said twice) and so marked sound versions as incomplete.
   const norm = clean.toLowerCase().replace(/[^a-z0-9áéíóúñü ]/gi, '');
-  const W = 50;
+  const W = 150;
   const firstAt = new Map<string, number>();
   let repeated = false;
   for (let i = 0; i + W <= norm.length; i += 1) {
