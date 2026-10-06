@@ -24,12 +24,13 @@ export const QUICK_SECTION = 'Marketing Copy';
 
 const LABEL_MAX_CHARS = 60;
 
-/** A short name for a run, taken from the first line of the copy. */
+/** A short name for a run: the copy's first heading, or its first line when it has no heading. */
 export function deriveQuickLabel(copy: string): string {
-  const firstLine = (copy || '')
+  const lines = (copy || '')
     .split(/\r?\n/)
     .map(line => line.trim())
-    .find(line => line.length > 0) || '';
+    .filter(line => line.length > 0);
+  const firstLine = lines.find(line => /^#{1,6}\s+\S/.test(line)) || lines[0] || '';
 
   const clean = firstLine
     .replace(/^#{1,6}\s+/, '')

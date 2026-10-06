@@ -57,11 +57,11 @@ export function cleanPageMarkdown(markdown: string): string {
   // Leftover HTML: line breaks become new lines, other tags go.
   text = text.replace(/<br\s*\/?>/gi, '\n').replace(/<\/?[a-z][^>]*>/gi, '');
   // Markdown hard line breaks written as a trailing backslash.
-  text = text.replace(/\\[ \t]*$/gm, '');
+  text = text.replace(/\\+(?=[ \t\u00a0*_]*$)/gm, '');
 
   const lines = text
     .split('\n')
-    .map(line => line.replace(/[ \t]+$/g, ''))
+    .map(line => line.replace(/[ \t\u00a0]+$/g, ''))
     .filter(line => {
       const bare = line.trim();
       if (/^https?:\/\/\S+$/i.test(bare)) return false; // a line that is only an address
