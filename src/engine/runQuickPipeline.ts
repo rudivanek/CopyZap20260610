@@ -33,10 +33,12 @@ import {
 import { ORIGINAL_OPTION_LABEL, ORIGINAL_VERSION_ID, pickWinner } from './pickWinner';
 import {
   findUnverifiedQuotes,
+  keepInstructions,
   lockTestimonials,
   restoreTestimonials,
   testimonialInstructions,
 } from './quoteLock';
+import type { TestimonialZone } from './quoteLock';
 import { contentToText } from '../services/api/contentText';
 
 export type QuickStage = 'checking' | 'writing' | 'scoring';
@@ -86,6 +88,12 @@ export interface QuickRunInput {
   brief?: QuickBriefInput;
   /** A tracking session already started by startQuickSession. One is created when missing. */
   sessionId?: string;
+  /**
+   * Parts of the page the user chose to keep as they are or to leave out
+   * (see pageSections.ts). `copy` above is then the page without the left-out
+   * parts, and `lockedCopy` the same with each kept part replaced by its marker.
+   */
+  keep?: { lockedCopy: string; zones: TestimonialZone[]; leftOut: number };
 }
 
 export interface QuickRunResult {
@@ -107,6 +115,8 @@ export interface QuickRunResult {
   };
   /** Per version: quoted passages that are not in the original. */
   quoteFlags: Record<string, string[]>;
+  /** Parts of the page the user kept as they are, and parts left out. */
+  parts: { kept: number; leftOut: number };
 }
 
 type ProgressFn = (progress: QuickProgress) => void;
@@ -372,10 +382,16 @@ export async function runQuickPipeline(
   // Testimonials are taken out first: the engine rewrites the page around a
   // marker line and never sees, and so never edits, what customers said.
   const fullCopy = input.copy.trim();
-  const lock = lockTestimonials(fullCopy);
+  // Parts the user keeps as they are have already been replaced by markers.
+  const keepZones = input.keep?.zones ?? [];
+  const lock = lockTestimonials(input.keep ? input.keep.lockedCopy.trim() : fullCopy);
+  const zones = [...lock.zones, ...keepZones];
   let formState = buildQuickFormState({ copy: lock.lockedCopy, variants: input.variants, brief: input.brief });
-  if (lock.count > 0) {
-    formState = { ...formState, specialInstructions: testimonialInstructions(lock.zones) };
+  if (zones.length > 0) {
+    formState = {
+      ...formState,
+      specialInstructions: [keepInstructions(keepZones), testimonialInstructions(lock.zones)].filter(Boolean).join('\n\n'),
+    };
   }
   let sessionId = input.sessionId;
   if (sessionId) {
@@ -405,8 +421,8 @@ export async function runQuickPipeline(
   const movedIds: string[] = [];
   const quoteFlags: Record<string, string[]> = {};
   for (const item of written.items) {
-    if (lock.count > 0) {
-      const restored = restoreTestimonials(contentToText(item.content), lock.zones);
+    if (zones.length > 0) {
+      const restored = restoreTestimonials(contentToText(item.content), zones);
       item.content = restored.text;
       item.sourceText = fullCopy;
       if (restored.moved) movedIds.push(item.id);
@@ -445,5 +461,6 @@ export async function runQuickPipeline(
     failedVersions: written.failed,
     testimonials: { count: lock.count, movedIds },
     quoteFlags,
+    parts: { kept: keepZones.length, leftOut: input.keep?.leftOut ?? 0 },
   };
 }

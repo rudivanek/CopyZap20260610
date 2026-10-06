@@ -52,6 +52,8 @@ interface QuickExtras {
   failedVersions: number;
   testimonials: QuickRunResult['testimonials'];
   quoteFlags: QuickRunResult['quoteFlags'];
+  /** Absent in entries saved before parts could be kept or left out. */
+  parts?: QuickRunResult['parts'];
   runSeconds: number | null;
 }
 
@@ -87,6 +89,7 @@ function toRow(result: QuickRunResult, runSeconds: number | null) {
     failedVersions: result.failedVersions,
     testimonials: result.testimonials,
     quoteFlags: result.quoteFlags,
+    parts: result.parts,
     runSeconds,
   };
 
@@ -197,6 +200,7 @@ export function rowToQuickResult(row: Record<string, unknown> | null | undefined
     failedVersions: quick.failedVersions ?? 0,
     testimonials: quick.testimonials ?? { count: 0, movedIds: [] },
     quoteFlags: quick.quoteFlags ?? {},
+    parts: quick.parts ?? { kept: 0, leftOut: 0 },
   };
 
   return {
