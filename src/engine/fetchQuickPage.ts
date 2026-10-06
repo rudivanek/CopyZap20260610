@@ -22,6 +22,8 @@ export interface QuickPageCopy {
   /** The page copy as markdown. */
   copy: string;
   words: number;
+  /** Lines of page furniture (cookie notice, repeated labels, counters) that were left out. */
+  furnitureRemoved: number;
 }
 
 /** Adds https:// when missing and checks the address. Throws QuickPipelineError('bad_url'). */
@@ -69,6 +71,92 @@ export function cleanPageMarkdown(markdown: string): string {
     });
 
   return lines.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+}
+
+const nonBlank = (line: string) => line.trim() !== '';
+const wordsIn = (line: string) => (line.trim() ? line.trim().split(/\s+/).length : 0);
+/** A horizontal rule: structure, not furniture. */
+const isRuleLine = (line: string) => /^\s*([-*_])(\s*\1){2,}\s*$/.test(line);
+
+/** How often a label must repeat before it counts as furniture. A call to action repeated two or three times stays. */
+const REPEATED_LABEL_MIN = 5;
+const COOKIE_TAIL_LINES = 12;
+const COOKIE_MAX_LINE_WORDS = 45;
+const COOKIE_MAX_TOTAL_WORDS = 150;
+
+/**
+ * Removes page furniture that a fetch brings along with the copy:
+ *
+ *  - a cookie notice at the end (or at the very start) of the page
+ *  - a short label repeated five times or more ("Ver testimonio", "- Web")
+ *  - ordinal counters on their own line ("01", "03 — 07")
+ *  - the same label twice in a row
+ *
+ * It only ever removes whole lines of that kind. Sentences are never touched.
+ * Used for fetched pages only; pasted text is left exactly as the user gave it.
+ */
+export function stripPageFurniture(text: string): { text: string; removed: number } {
+  let lines = (text || '').replace(/\r\n?/g, '\n').split('\n');
+  const before = lines.filter(nonBlank).length;
+
+  // 1 — cookie notice at the end: short lines from the first mention of cookies to the end.
+  const filled = lines.map((line, index) => ({ line, index })).filter(item => nonBlank(item.line));
+  const tail = filled.slice(-COOKIE_TAIL_LINES);
+  const firstCookie = tail.find(item => /cookie/i.test(item.line));
+  if (firstCookie) {
+    const block = filled.filter(item => item.index >= firstCookie.index);
+    const total = block.reduce((sum, item) => sum + wordsIn(item.line), 0);
+    const inSecondHalf = filled.indexOf(firstCookie) >= Math.max(1, Math.floor(filled.length / 2));
+    const plainLines = block.every(
+      item => wordsIn(item.line) <= COOKIE_MAX_LINE_WORDS && !/^\s{0,3}#{1,6}\s/.test(item.line)
+    );
+    if (inSecondHalf && plainLines && total <= COOKIE_MAX_TOTAL_WORDS) {
+      lines = lines.slice(0, firstCookie.index);
+    }
+  }
+
+  // 2 — cookie notice at the very start: only when the page opens with it.
+  const head = lines.map((line, index) => ({ line, index })).filter(item => nonBlank(item.line)).slice(0, 8);
+  if (head.length > 0 && /cookie/i.test(head[0].line)) {
+    let last = -1;
+    let total = 0;
+    for (const item of head) {
+      if (/^\s{0,3}#{1,6}\s/.test(item.line) || wordsIn(item.line) > COOKIE_MAX_LINE_WORDS) break;
+      total += wordsIn(item.line);
+      if (total > COOKIE_MAX_TOTAL_WORDS) break;
+      if (/cookie|accept|acept|akzept|accetta|aceitar|consent/i.test(item.line)) last = item.index;
+    }
+    if (last >= 0) lines = lines.slice(last + 1);
+  }
+
+  // 3 — labels that repeat all over the page, and ordinal counters.
+  const counts = new Map<string, number>();
+  for (const line of lines) {
+    const key = line.trim();
+    if (key && !isRuleLine(line) && wordsIn(key.replace(/^([-*+]|\d+[.)])\s+/, '')) <= 4 && !/[.!?…:;"”»]$/.test(key)) {
+      counts.set(key, (counts.get(key) ?? 0) + 1);
+    }
+  }
+  lines = lines.filter(line => {
+    const key = line.trim();
+    if (!key) return true;
+    if ((counts.get(key) ?? 0) >= REPEATED_LABEL_MIN) return false;
+    if (/^0\d$/.test(key) || /^\d{1,2}\s*[—–\-/]\s*\d{1,2}$/.test(key)) return false;
+    return true;
+  });
+
+  // 4 — the same short line twice in a row (a button rendered twice).
+  const deduped: string[] = [];
+  let previous = '';
+  for (const line of lines) {
+    const key = line.trim();
+    if (key && key === previous && wordsIn(key) <= 6 && !isRuleLine(line)) continue;
+    deduped.push(line);
+    if (key) previous = key;
+  }
+
+  const result = deduped.join('\n').replace(/\n{3,}/g, '\n\n').trim();
+  return { text: result, removed: Math.max(0, before - result.split('\n').filter(nonBlank).length) };
 }
 
 export async function fetchQuickPage(input: string, user: User, sessionId?: string): Promise<QuickPageCopy> {
@@ -123,8 +211,15 @@ export async function fetchQuickPage(input: string, user: User, sessionId?: stri
     );
   }
 
-  const copy = cleanPageMarkdown(result.data.markdown);
+  const cleaned = stripPageFurniture(cleanPageMarkdown(result.data.markdown));
+  const copy = cleaned.text;
   if (!copy) throw new QuickPipelineError('fetch_failed', 'No copy was found on that page.');
 
-  return { url, host: new URL(url).hostname.replace(/^www\./, ''), copy, words: countWords(copy) };
+  return {
+    url,
+    host: new URL(url).hostname.replace(/^www\./, ''),
+    copy,
+    words: countWords(copy),
+    furnitureRemoved: cleaned.removed,
+  };
 }

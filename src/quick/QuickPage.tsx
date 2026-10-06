@@ -64,6 +64,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [runSeconds, setRunSeconds] = useState<number | null>(null);
   const [url, setUrl] = useState('');
   const [fetchedFrom, setFetchedFrom] = useState<string | null>(null);
+  const [furnitureRemoved, setFurnitureRemoved] = useState(0);
   // One tracking session per piece of work, started at the first paid step.
   const [sessionId, setSessionId] = useState<string | null>(null);
   // What Quick understood about the copy, and the exact copy it was read from.
@@ -137,6 +138,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       setCopy(page.copy);
       setUrl(page.url);
       setFetchedFrom(page.host);
+      setFurnitureRemoved(page.furnitureRemoved);
       playSuccessSound();
     } catch (fetchError) {
       if (isMounted.current) setError(messageOf(fetchError));
@@ -239,6 +241,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setError(null);
     setUrl('');
     setFetchedFrom(null);
+    setFurnitureRemoved(0);
     setSessionId(null);
     setBrief(null);
     setBriefCopy(null);
@@ -285,7 +288,10 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               {words} {words === 1 ? 'word' : 'words'}.
               {tooLong && ` Quick handles up to ${QUICK_MAX_WORDS} words for now.`}
               {!tooLong && words > 0 && tooShort && ` Paste at least ${QUICK_MIN_WORDS}.`}
-              {fetchedFrom && !isFetching && ` Taken from ${fetchedFrom}. Check it and trim it if needed.`}
+              {fetchedFrom && !isFetching && ` Taken from ${fetchedFrom}.`}
+              {fetchedFrom && !isFetching && furnitureRemoved > 0 &&
+                ` ${furnitureRemoved} ${furnitureRemoved === 1 ? 'line' : 'lines'} of page furniture left out (cookie notice, repeated labels, counters).`}
+              {fetchedFrom && !isFetching && ' Check it and trim it if needed.'}
             </p>
           </div>
 
