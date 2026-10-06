@@ -34,6 +34,8 @@ export interface QuickHistoryEntry {
   goalKey: string | null;
   score: number | null;
   originalScore: number | null;
+  /** Host of the page the copy was fetched from; null for pasted copy. */
+  sourceHost: string | null;
   createdAt: string;
 }
 
@@ -54,6 +56,8 @@ interface QuickExtras {
   quoteFlags: QuickRunResult['quoteFlags'];
   /** Absent in entries saved before parts could be kept or left out. */
   parts?: QuickRunResult['parts'];
+  /** The page the copy was fetched from. Absent for pasted copy and for older entries. */
+  source?: QuickRunResult['source'];
   runSeconds: number | null;
 }
 
@@ -90,6 +94,7 @@ function toRow(result: QuickRunResult, runSeconds: number | null) {
     testimonials: result.testimonials,
     quoteFlags: result.quoteFlags,
     parts: result.parts,
+    ...(result.source ? { source: result.source } : {}),
     runSeconds,
   };
 
@@ -137,7 +142,7 @@ export async function listQuickResults(userId: string, limit = 100): Promise<Qui
   const { data, error } = await supabase
     .from(TABLE)
     .select(
-      'id, title, created_at, goal_key:output_data->quick->>goalKey, winner_score:output_data->quick->>winnerScore, original_score:output_data->quick->>originalScore'
+      'id, title, created_at, goal_key:output_data->quick->>goalKey, winner_score:output_data->quick->>winnerScore, original_score:output_data->quick->>originalScore, source_host:output_data->quick->source->>host'
     )
     .eq('user_id', userId)
     .contains('tags', [QUICK_TAG])
@@ -157,6 +162,7 @@ export async function listQuickResults(userId: string, limit = 100): Promise<Qui
     goalKey: typeof row.goal_key === 'string' && row.goal_key ? row.goal_key : null,
     score: toNumber(row.winner_score),
     originalScore: toNumber(row.original_score),
+    sourceHost: typeof row.source_host === 'string' && row.source_host ? row.source_host : null,
     createdAt: String(row.created_at ?? ''),
   }));
 }
@@ -201,6 +207,9 @@ export function rowToQuickResult(row: Record<string, unknown> | null | undefined
     testimonials: quick.testimonials ?? { count: 0, movedIds: [] },
     quoteFlags: quick.quoteFlags ?? {},
     parts: quick.parts ?? { kept: 0, leftOut: 0 },
+    ...(quick.source && typeof quick.source.url === 'string' && typeof quick.source.host === 'string'
+      ? { source: { url: quick.source.url, host: quick.source.host } }
+      : {}),
   };
 
   return {

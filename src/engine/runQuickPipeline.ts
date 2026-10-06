@@ -80,6 +80,12 @@ export interface QuickScores {
   unscoredIds: string[];
 }
 
+/** Where the copy came from, when it was fetched from a page. */
+export interface QuickSource {
+  url: string;
+  host: string;
+}
+
 export interface QuickRunInput {
   copy: string;
   goalKey: GoalKey;
@@ -94,6 +100,8 @@ export interface QuickRunInput {
    * parts, and `lockedCopy` the same with each kept part replaced by its marker.
    */
   keep?: { lockedCopy: string; zones: TestimonialZone[]; leftOut: number };
+  /** The page the copy was fetched from, when it was fetched. Recorded with the result. */
+  source?: QuickSource;
 }
 
 export interface QuickRunResult {
@@ -117,6 +125,8 @@ export interface QuickRunResult {
   quoteFlags: Record<string, string[]>;
   /** Parts of the page the user kept as they are, and parts left out. */
   parts: { kept: number; leftOut: number };
+  /** The page the copy was fetched from. Absent for pasted copy. */
+  source?: QuickSource;
 }
 
 type ProgressFn = (progress: QuickProgress) => void;
@@ -462,5 +472,6 @@ export async function runQuickPipeline(
     testimonials: { count: lock.count, movedIds },
     quoteFlags,
     parts: { kept: keepZones.length, leftOut: input.keep?.leftOut ?? 0 },
+    ...(input.source ? { source: input.source } : {}),
   };
 }
