@@ -127,6 +127,9 @@ const QuickResult: React.FC<QuickResultProps> = ({ result, isRescoring, onRescor
       : 'This version may be incomplete.';
   const flags = (winnerRow?.verificationFlags ?? []).filter(flag => flag && flag.trim().length > 0);
   const whyNotes = reasons(winnerScore);
+  // Quoted passages in this version that are not in the original.
+  const quoteFlags = result.quoteFlags[winner.id] ?? [];
+  const testimonialsMoved = result.testimonials.movedIds.includes(winner.id);
 
   const others = generated
     .filter(version => version.id !== winner.id)
@@ -144,6 +147,8 @@ const QuickResult: React.FC<QuickResultProps> = ({ result, isRescoring, onRescor
         <p className="text-gray-600 dark:text-gray-400">
           Goal: {goalName} · {result.formState.language}
           {elapsedLabel && ` · Finished in ${elapsedLabel}`}
+          {result.testimonials.count > 0 &&
+            ` · ${result.testimonials.count} ${result.testimonials.count === 1 ? 'testimonial' : 'testimonials'} kept word for word`}
         </p>
       </div>
 
@@ -255,10 +260,28 @@ const QuickResult: React.FC<QuickResultProps> = ({ result, isRescoring, onRescor
             </section>
           )}
 
-          {(flags.length > 0 || isIncomplete) && (
+          {(flags.length > 0 || isIncomplete || quoteFlags.length > 0 || testimonialsMoved) && (
             <section aria-label="Check before publishing" className={`${card} p-6 flex flex-col gap-3`}>
               <h2 className="text-gray-900 dark:text-white">Check before publishing</h2>
               <ul className="flex flex-col gap-3 text-gray-700 dark:text-gray-300">
+                {quoteFlags.map((quote, index) => (
+                  <li key={`quote-${index}`} className="flex items-start gap-2.5">
+                    <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-critical" aria-hidden="true" />
+                    <span className="break-words">
+                      Quoted words that are not in your original. Remove them or replace them with the exact words:
+                      “{quote}”
+                    </span>
+                  </li>
+                ))}
+                {testimonialsMoved && (
+                  <li className="flex items-start gap-2.5">
+                    <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-warning" aria-hidden="true" />
+                    <span>
+                      This version did not keep the place for your testimonials, so they were put back before its last
+                      section. Check that the position fits.
+                    </span>
+                  </li>
+                )}
                 {isIncomplete && (
                   <li className="flex items-start gap-2.5">
                     <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-warning" aria-hidden="true" />

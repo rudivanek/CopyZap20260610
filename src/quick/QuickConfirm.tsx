@@ -12,6 +12,8 @@ interface QuickConfirmProps {
   onBriefChange: (brief: QuickBrief) => void;
   onGenerate: () => void;
   onBack: () => void;
+  /** Testimonials found in the copy. They are kept word for word. */
+  testimonialCount: number;
 }
 
 const PREVIEW_CHARS = 220;
@@ -26,7 +28,16 @@ function preview(copy: string): string {
   return flat.length > PREVIEW_CHARS ? `${flat.slice(0, PREVIEW_CHARS).trim()} …` : flat;
 }
 
-const QuickConfirm: React.FC<QuickConfirmProps> = ({ copy, words, goalName, brief, onBriefChange, onGenerate, onBack }) => {
+const QuickConfirm: React.FC<QuickConfirmProps> = ({
+  copy,
+  words,
+  goalName,
+  brief,
+  onBriefChange,
+  onGenerate,
+  onBack,
+  testimonialCount,
+}) => {
   const couldNotRead = !brief.product && !brief.audience;
 
   return (
@@ -57,6 +68,15 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({ copy, words, goalName, brie
           </button>
         </div>
         <p className="text-gray-900 dark:text-gray-100 break-words">{preview(copy)}</p>
+        {testimonialCount > 0 && (
+          <p className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
+            <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-good" aria-hidden="true" />
+            <span>
+              {testimonialCount} {testimonialCount === 1 ? 'testimonial' : 'testimonials'} found. They are kept word for
+              word and are not rewritten.
+            </span>
+          </p>
+        )}
       </section>
 
       <div className="flex flex-wrap gap-4">

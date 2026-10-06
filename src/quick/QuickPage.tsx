@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { GoalKey, User } from '../types';
 import { DEFAULT_GOAL_KEY, GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import { countWords } from '../utils/markdownUtils';
@@ -6,6 +6,7 @@ import { playSuccessSound } from '../utils/soundEffects';
 import { QUICK_DEFAULT_VARIANTS, QUICK_MAX_WORDS, QUICK_MIN_WORDS } from '../engine/buildQuickFormState';
 import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
+import { lockTestimonials } from '../engine/quoteLock';
 import {
   QuickPipelineError,
   QuickProgress,
@@ -101,6 +102,11 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   }, [isTiming]);
 
   const words = copy.trim() ? countWords(copy) : 0;
+  // Counted only for the confirm screen; the pipeline does its own locking.
+  const testimonialCount = useMemo(
+    () => (phase === 'confirm' ? lockTestimonials(copy.trim()).count : 0),
+    [phase, copy]
+  );
   const tooShort = words < QUICK_MIN_WORDS;
   const tooLong = words > QUICK_MAX_WORDS;
 
@@ -370,6 +376,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           goalName={GOALS.find(goal => goal.key === goalKey)?.name ?? goalKey}
           brief={brief}
           onBriefChange={setBrief}
+          testimonialCount={testimonialCount}
           onGenerate={handleRun}
           onBack={() => {
             setPhase('start');
