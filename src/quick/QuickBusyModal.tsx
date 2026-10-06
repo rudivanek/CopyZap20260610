@@ -2,7 +2,7 @@ import React from 'react';
 import type { QuickProgress, QuickStage } from '../engine/runQuickPipeline';
 
 /** The processes that show the modal. */
-export type QuickBusyKind = 'fetch' | 'reading' | 'running' | 'rescoring';
+export type QuickBusyKind = 'fetch' | 'reading' | 'running' | 'rescoring' | 'opening';
 
 interface QuickBusyModalProps {
   kind: QuickBusyKind;
@@ -21,6 +21,7 @@ const TEXT: Record<QuickBusyKind, { title: string; detail: string }> = {
   reading: { title: 'Reading your copy', detail: 'Working out what it sells, who it is for and its tone.' },
   running: { title: 'Writing and scoring', detail: 'This can take a few minutes.' },
   rescoring: { title: 'Scoring again', detail: 'Scoring every version against your goal.' },
+  opening: { title: 'Opening your result', detail: 'Loading the saved versions and scores.' },
 };
 
 function formatElapsed(seconds: number): string {
