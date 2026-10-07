@@ -12,7 +12,6 @@ import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/q
 import { changeQuickVersion, QuickChangeOutcome, validateQuickChange } from '../engine/changeQuickVersion';
 import { QuickEditDraft, scoreQuickEdit } from '../engine/editQuickVersion';
 import { defaultChoices, planSections, SectionChoice, splitIntoSections } from '../engine/pageSections';
-import { lockTestimonials } from '../engine/quoteLock';
 import {
   QUICK_SCORE_MARGIN,
   QuickPipelineError,
@@ -162,11 +161,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const sections = useMemo(() => (phase === 'confirm' ? splitIntoSections(copy.trim()) : []), [phase, copy]);
   const choices = useMemo(() => ({ ...defaultChoices(sections), ...pickedChoices }), [sections, pickedChoices]);
   const plan = useMemo(() => planSections(sections, choices), [sections, choices]);
-  // Testimonials the automatic lock will keep, inside the parts that are improved.
-  const testimonialCount = useMemo(
-    () => (phase === 'confirm' ? lockTestimonials(plan.lockedCopy).count : 0),
-    [phase, plan]
-  );
+  // Every testimonial Quick finds is a row in the list of parts now, with its
+  // own choice, so there is no separate "testimonials found" line any more.
+  const testimonialCount = 0;
   const blocked =
     phase === 'confirm' && sections.length > 1 && plan.improveWords < QUICK_MIN_WORDS
       ? `Choose at least one part to improve (${QUICK_MIN_WORDS} words or more).`
@@ -300,7 +297,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
 
   const handleRun = async () => {
     if (tooShort || tooLong || busy || blocked) return;
-    const usesParts = sections.length > 1 && (plan.kept > 0 || plan.leftOut > 0);
+    // With more than one part the user has decided about each, testimonials included.
+    const usesParts = sections.length > 1;
     setError(null);
     setProgress({ stage: 'checking' });
     setBusy('running');
@@ -311,7 +309,16 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         {
           // With parts kept or left out, "the copy" is the page without the left-out parts.
           copy: usesParts ? plan.copy : copy,
-          keep: usesParts ? { lockedCopy: plan.lockedCopy, zones: plan.zones, leftOut: plan.leftOut } : undefined,
+          keep: usesParts
+            ? {
+                lockedCopy: plan.lockedCopy,
+                zones: plan.zones,
+                leftOut: plan.leftOut,
+                kept: plan.kept,
+                testimonialsKept: plan.testimonialsKept,
+                autoLock: false,
+              }
+            : undefined,
           source: fetchedFrom && fetchedUrl ? { url: fetchedUrl, host: fetchedFrom } : undefined,
           goalKey,
           sessionId: sessionId ?? undefined,
