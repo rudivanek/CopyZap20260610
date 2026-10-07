@@ -149,6 +149,15 @@ const QuickResult: React.FC<QuickResultProps> = ({
     if (!prepared) return;
     setDraft(prepared);
     setEditText(prepared.text);
+    // The editor opens under the best version, which can be far down the page.
+    window.setTimeout(() => {
+      document.getElementById('quick-editor')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      document.getElementById('quick-edit')?.focus({ preventScroll: true });
+    }, 60);
+  };
+  const goToChange = () => {
+    document.getElementById('quick-change-panel')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    window.setTimeout(() => document.getElementById('quick-change')?.focus({ preventScroll: true }), 400);
   };
   const editProblem = draft ? validateQuickEdit(result, editText, draft.text) : null;
   const [instruction, setInstruction] = useState('');
@@ -203,6 +212,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
       ? `This version may be incomplete: ${Array.from(new Set(gateProblems)).join(' and ')}.`
       : 'This version may be incomplete.';
   const flags = (winnerRow?.verificationFlags ?? []).filter(flag => flag && flag.trim().length > 0);
+  // The same wording and grouping as in the rankings table.
+  const claimNotes = flags.filter(isClaimNote).map(noteText);
+  const toneNotes = flags.filter(flag => !isClaimNote(flag)).map(noteText);
   const whyNotes = reasons(winnerScore);
   // Quoted passages in this version that are not in the original.
   const quoteFlags = result.quoteFlags[winner.id] ?? [];
@@ -372,11 +384,57 @@ const QuickResult: React.FC<QuickResultProps> = ({
         )}
       </div>
 
+      {/* What you can do with the result. Stays at the top of the screen while
+          the page scrolls, so the buttons are never out of reach on a long page.
+          The bar at the bottom is the counterpart: where you can go. */}
+      <div
+        role="toolbar"
+        aria-label="Actions"
+        className="sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 bg-gray-50 dark:bg-black border-b border-gray-300 dark:border-gray-700 flex flex-col gap-2"
+      >
+        <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
+          <CopyButton content={winner.content} className={`${primaryButton} shrink-0`} />
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={!scores || exportState === 'working'}
+            className={`${secondaryButton} shrink-0`}
+          >
+            {exportState === 'working' ? 'Building report…' : 'Export report'}
+          </button>
+          <button
+            type="button"
+            onClick={openEditor}
+            disabled={!scores || !scores.winnerId || isRescoring || draft !== null}
+            className={`${secondaryButton} shrink-0`}
+          >
+            Edit it myself
+          </button>
+          <button
+            type="button"
+            onClick={goToChange}
+            disabled={!scores || !scores.winnerId || isRescoring}
+            className={`${secondaryButton} shrink-0`}
+          >
+            Change it
+          </button>
+          <button type="button" onClick={onNew} className={`${secondaryButton} shrink-0`}>
+            Start over
+          </button>
+        </div>
+        {exportState === 'failed' && (
+          <p role="alert" className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
+            <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-critical" aria-hidden="true" />
+            <span>The report could not be built. Try again.</span>
+          </p>
+        )}
+      </div>
+
       {/* One column on phones (best version, score, then the rest); two columns from 1024px. */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-[auto_1fr] items-start gap-x-8 gap-y-5">
         {/* Top left: the best version */}
         <div className="flex flex-col gap-5 min-w-0 lg:col-start-1 lg:row-start-1">
-          <article id="quick-best" className={`${paper} p-5 sm:p-8 flex flex-col gap-4 scroll-mt-4`}>
+          <article id="quick-best" className={`${paper} p-5 sm:p-8 flex flex-col gap-4 scroll-mt-20`}>
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <span className="text-xs font-semibold text-gray-600">Best version</span>
               {scores && !isIncomplete && (
@@ -389,37 +447,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
             <FormattedContent content={winner.content} className={copyText} colorScores={false} />
           </article>
 
-          <div className="flex flex-wrap gap-2">
-            <CopyButton content={winner.content} className={primaryButton} />
-            <button
-              type="button"
-              onClick={handleExport}
-              disabled={!scores || exportState === 'working'}
-              className={secondaryButton}
-            >
-              {exportState === 'working' ? 'Building report…' : 'Export report'}
-            </button>
-            <button
-              type="button"
-              onClick={openEditor}
-              disabled={!scores || !scores.winnerId || isRescoring || draft !== null}
-              className={secondaryButton}
-            >
-              Edit it myself
-            </button>
-            <button type="button" onClick={onNew} className={secondaryButton}>
-              Start over
-            </button>
-          </div>
-          {exportState === 'failed' && (
-            <p role="alert" className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
-              <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-critical" aria-hidden="true" />
-              <span>The report could not be built. Try again.</span>
-            </p>
-          )}
-
           {draft && (
-            <section aria-label="Edit it yourself" className={`${card} p-5 flex flex-col gap-3`}>
+            <section id="quick-editor" aria-label="Edit it yourself" className={`${card} p-5 flex flex-col gap-3 scroll-mt-20`}>
               <div className="flex flex-col gap-1">
                 <label htmlFor="quick-edit" className="font-semibold text-gray-900 dark:text-gray-100">
                   Edit it yourself
@@ -461,7 +490,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
           )}
 
           {scores && scores.winnerId && (
-            <section id="quick-change-panel" aria-label="What should change?" className={`${card} p-5 flex flex-col gap-3 scroll-mt-4`}>
+            <section id="quick-change-panel" aria-label="What should change?" className={`${card} p-5 flex flex-col gap-3 scroll-mt-20`}>
               <div className="flex flex-col gap-1">
                 <label htmlFor="quick-change" className="font-semibold text-gray-900 dark:text-gray-100">
                   What should change?
@@ -532,7 +561,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
 
         {/* Right: score, reasons, checks */}
         <aside className="flex flex-col gap-4 min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2">
-          <section id="quick-score" aria-label="Quality score" className={`${card} p-6 flex flex-col gap-5 scroll-mt-4`}>
+          <section id="quick-score" aria-label="Quality score" className={`${card} p-6 flex flex-col gap-5 scroll-mt-20`}>
             <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Quality score</span>
 
             {winnerTotal != null && winnerScore ? (
@@ -607,7 +636,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
           </section>
 
           {whyNotes.length > 0 && (
-            <section id="quick-why" aria-label="Why this version" className={`${card} p-6 flex flex-col gap-3 scroll-mt-4`}>
+            <section id="quick-why" aria-label="Why this version" className={`${card} p-6 flex flex-col gap-3 scroll-mt-20`}>
               <h2 className="text-gray-900 dark:text-white">Why this version</h2>
               <ul className="flex flex-col gap-2 text-gray-700 dark:text-gray-300">
                 {whyNotes.map(item => (
@@ -620,8 +649,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
           )}
 
           {hasChecks && (
-            <section id="quick-checks" aria-label="Check before publishing" className={`${card} p-6 flex flex-col gap-3 scroll-mt-4`}>
+            <section id="quick-checks" aria-label="Check before publishing" className={`${card} p-6 flex flex-col gap-3 scroll-mt-20`}>
               <h2 className="text-gray-900 dark:text-white">Check before publishing</h2>
+              {(quoteFlags.length > 0 || testimonialsMoved || isIncomplete) && (
               <ul className="flex flex-col gap-3 text-gray-700 dark:text-gray-300">
                 {quoteFlags.map((quote, index) => (
                   <li key={`quote-${index}`} className="flex items-start gap-2.5">
@@ -647,13 +677,31 @@ const QuickResult: React.FC<QuickResultProps> = ({
                     <span>{incompleteNote}</span>
                   </li>
                 )}
-                {flags.map((flag, index) => (
-                  <li key={index} className="flex items-start gap-2.5">
-                    <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-warning" aria-hidden="true" />
-                    <span className="break-words">{flag}</span>
-                  </li>
-                ))}
               </ul>
+              )}
+              {claimNotes.length > 0 && (
+                <div>
+                  <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
+                    <span className="w-1 h-4 bg-status-warning" aria-hidden="true" />
+                    Claims to verify
+                  </p>
+                  <ul className="mt-1 list-disc pl-5 text-gray-900 dark:text-gray-100">
+                    {claimNotes.map((claim, index) => (
+                      <li key={index} className="break-words">{claim}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+              {toneNotes.length > 0 && (
+                <div>
+                  <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">Brand voice and tone to review</p>
+                  <ul className="mt-1 list-disc pl-5 text-gray-600 dark:text-gray-400">
+                    {toneNotes.map((note, index) => (
+                      <li key={index} className="break-words">{note}</li>
+                    ))}
+                  </ul>
+                </div>
+              )}
             </section>
           )}
         </aside>
@@ -661,7 +709,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
         {/* Below the best version: the original (always shown) and the other versions (closed) */}
         <div className="flex flex-col gap-5 min-w-0 lg:col-start-1 lg:row-start-2">
           {original && (
-            <article id="quick-original" className={`${paper} p-5 flex flex-col gap-3 scroll-mt-4`}>
+            <article id="quick-original" className={`${paper} p-5 flex flex-col gap-3 scroll-mt-20`}>
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                 <span className="text-xs font-semibold text-gray-600">Your original</span>
                 <ScoreTag total={originalTotal} />
@@ -676,7 +724,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
               {others.map(({ version, total, setAside }) => {
                 const isOpen = openIds.includes(version.id);
                 return (
-                  <article key={version.id} id={`quick-version-${version.id}`} className={`${paper} scroll-mt-4`}>
+                  <article key={version.id} id={`quick-version-${version.id}`} className={`${paper} scroll-mt-20`}>
                     <button
                       type="button"
                       onClick={() => toggleOpen(version.id)}
@@ -718,7 +766,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
       </div>
 
       {scores && ranked.length > 0 && (
-        <section id="quick-rankings" aria-label="Comparison and rankings" className="flex flex-col gap-3 scroll-mt-4">
+        <section id="quick-rankings" aria-label="Comparison and rankings" className="flex flex-col gap-3 scroll-mt-20">
           <div className="flex flex-col gap-1">
             <h2 className="text-gray-900 dark:text-white">Comparison &amp; rankings</h2>
             <p className="text-gray-600 dark:text-gray-400">{judgedAs}</p>
