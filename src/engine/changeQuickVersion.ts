@@ -39,6 +39,8 @@ export interface QuickChangeOutcome {
   newVersionId: string;
   /** The new version's quality score; null when it could not be scored. */
   newScore: number | null;
+  /** The score of the version that was best before; null when there was none. */
+  previousBestScore: number | null;
   becameBest: boolean;
 }
 
@@ -158,6 +160,7 @@ export async function changeQuickVersion(
     },
     newVersionId: item.id,
     newScore: newScores.absoluteByVersion[item.id]?.total ?? null,
+    previousBestScore: scores.absoluteByVersion[base.id]?.total ?? null,
     becameBest: newScores.winnerId === item.id,
   };
 }

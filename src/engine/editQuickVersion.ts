@@ -136,6 +136,7 @@ export async function scoreQuickEdit(
     },
     newVersionId: item.id,
     newScore: newScores.absoluteByVersion[item.id]?.total ?? null,
+    previousBestScore: scores.absoluteByVersion[base.id]?.total ?? null,
     becameBest: newScores.winnerId === item.id,
   };
 }

@@ -41,6 +41,14 @@ import {
 import type { TestimonialZone } from './quoteLock';
 import { contentToText } from '../services/api/contentText';
 
+/** How many times each version is scored; the middle reading is used. */
+export const QUICK_SCORE_SAMPLES = 3;
+/**
+ * Scores this close are "about the same". Measured on 2026-10-06: one page,
+ * scored three times with nothing changed but a space, came back 79, 79 and 76.
+ */
+export const QUICK_SCORE_MARGIN = 3;
+
 export type QuickStage = 'checking' | 'writing' | 'scoring';
 
 export interface QuickProgress {
@@ -268,60 +276,68 @@ export async function scoreQuickVersions(
   const rows = comparisonResult.rows as ScoredRow[];
   const absoluteByVersion: Record<string, AbsoluteScoreBreakdown> = { ...(unified.absoluteByVersion ?? {}) };
 
-  // Retry once any version the scorer failed on, so a failed call never
-  // reaches the screen as "0 / 100".
+  // One reading of the scorer is not exact: the same text can come back up to
+  // three points apart. So every version is scored QUICK_SCORE_SAMPLES times and
+  // the middle reading is used. The first reading comes from the comparison
+  // above; the others are asked for here. A reading that failed is left out, so
+  // a failed call never reaches the screen as "0 / 100". Versions that keep an
+  // earlier score are not read again.
   const context = buildQuickScoringContext(goalKey);
-  const failedIds = versions.map(version => version.id).filter(id => !isUsableScore(absoluteByVersion[id]));
+  const fresh = versions.filter(version => !isUsableScore(keepScores?.absoluteByVersion[version.id]));
   const unscoredIds: string[] = [];
 
-  if (failedIds.length > 0) {
-    const retried = await Promise.all(
-      failedIds.map(async id => {
-        const version = versions.find(item => item.id === id);
-        if (!version) return { id, score: null };
-        try {
-          const score = await generateAbsoluteScore(
-            version.content,
-            user,
-            formState.sessionId,
-            context.goalKey,
-            context.goalLabel
-          );
-          return { id, score: isUsableScore(score) ? score : null };
-        } catch {
-          return { id, score: null };
-        }
-      })
-    );
+  const settled = await Promise.all(
+    fresh.map(async version => {
+      const first = absoluteByVersion[version.id];
+      const more = await Promise.all(
+        Array.from({ length: QUICK_SCORE_SAMPLES - 1 }, async () => {
+          try {
+            return await generateAbsoluteScore(
+              version.content,
+              user,
+              formState.sessionId,
+              context.goalKey,
+              context.goalLabel
+            );
+          } catch {
+            return null;
+          }
+        })
+      );
+      const readings = [first, ...more].filter(isUsableScore).sort((x, y) => x.total - y.total);
+      // Three readings: the middle one. Two: the lower one. One: that one.
+      const score = readings.length > 0 ? readings[Math.floor((readings.length - 1) / 2)] : null;
+      return { id: version.id, score };
+    })
+  );
 
-    for (const { id, score } of retried) {
-      const row = rows.find(item => item.versionId === id);
-      if (score) {
-        absoluteByVersion[id] = score;
-        if (row) {
-          row.absoluteTotal = score.total;
-          row.absoluteNotes = [
-            score.clarity_note,
-            score.persuasion_note,
-            score.audience_fit_note,
-            score.structure_note,
-          ].filter(Boolean);
-          row.absoluteSub = {
-            clarity: score.clarity,
-            persuasion: score.persuasion,
-            audience_fit: score.audience_fit,
-            structure: score.structure,
-          };
-        }
-      } else {
-        delete absoluteByVersion[id];
-        if (row) {
-          delete row.absoluteTotal;
-          delete row.absoluteNotes;
-          delete row.absoluteSub;
-        }
-        unscoredIds.push(id);
+  for (const { id, score } of settled) {
+    const row = rows.find(item => item.versionId === id);
+    if (score) {
+      absoluteByVersion[id] = score;
+      if (row) {
+        row.absoluteTotal = score.total;
+        row.absoluteNotes = [
+          score.clarity_note,
+          score.persuasion_note,
+          score.audience_fit_note,
+          score.structure_note,
+        ].filter(Boolean);
+        row.absoluteSub = {
+          clarity: score.clarity,
+          persuasion: score.persuasion,
+          audience_fit: score.audience_fit,
+          structure: score.structure,
+        };
       }
+    } else {
+      delete absoluteByVersion[id];
+      if (row) {
+        delete row.absoluteTotal;
+        delete row.absoluteNotes;
+        delete row.absoluteSub;
+      }
+      unscoredIds.push(id);
     }
   }
 
