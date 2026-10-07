@@ -501,7 +501,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                   What should change?
                 </label>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Say it in your own words. Quick rewrites the best version, scores it, and keeps whichever is better.
+                  Say it in your own words. CopyZap rewrites the best version, scores it, and keeps whichever is better.
                   Uses credits.
                 </p>
               </div>

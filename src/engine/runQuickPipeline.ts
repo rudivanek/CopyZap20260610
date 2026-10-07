@@ -173,7 +173,7 @@ export function validateQuickCopy(copy: string): void {
   if (words > QUICK_MAX_WORDS) {
     throw new QuickPipelineError(
       'too_long',
-      `This copy has ${words} words. Quick handles up to ${QUICK_MAX_WORDS} words for now.`
+      `This copy has ${words} words. CopyZap handles up to ${QUICK_MAX_WORDS} words for now.`
     );
   }
 }

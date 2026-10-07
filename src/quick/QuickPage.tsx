@@ -506,7 +506,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             />
             <p className={tooLong ? 'text-gray-900 dark:text-gray-100 font-semibold' : 'text-gray-600 dark:text-gray-400'}>
               {words} {words === 1 ? 'word' : 'words'}.
-              {tooLong && ` Quick handles up to ${QUICK_MAX_WORDS} words for now.`}
+              {tooLong && ` CopyZap handles up to ${QUICK_MAX_WORDS} words for now.`}
               {!tooLong && words > 0 && tooShort && ` Paste at least ${QUICK_MIN_WORDS}.`}
               {fetchedFrom && !isFetching && ` Taken from ${fetchedFrom}.`}
               {fetchedFrom && !isFetching && furnitureRemoved > 0 &&
@@ -589,7 +589,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               Continue
             </button>
             <span className="text-gray-600 dark:text-gray-400">
-              Next you check what Quick understood, then it writes and scores the versions.
+              Next you check what CopyZap understood, then it writes and scores the versions.
             </span>
           </div>
         </main>

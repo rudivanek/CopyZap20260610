@@ -54,7 +54,7 @@ const ManageUsers: React.FC = () => {
     try {
       await setPowerUser(user.id, next);
       setPowerFlags(flags => ({ ...flags, [user.id]: next }));
-      toast.success(next ? `${user.email} now has the Complete interface` : `${user.email} now has Quick only`);
+      toast.success(next ? `${user.email} now has Advanced as well` : `${user.email} now has the standard interface only`);
     } catch (err: any) {
       toast.error(`Could not change the setting: ${err.message}`);
     } finally {
@@ -613,7 +613,7 @@ const ManageUsers: React.FC = () => {
                             className="h-4 w-4"
                           />
                           <span className="text-xs text-gray-500 dark:text-gray-400">
-                            {!powerFlagsLoaded ? 'Not loaded' : powerFlags[user.id] === true ? 'Complete' : 'Quick only'}
+                            {!powerFlagsLoaded ? 'Not loaded' : powerFlags[user.id] === true ? 'Advanced' : 'Standard'}
                           </span>
                         </label>
                       </td>

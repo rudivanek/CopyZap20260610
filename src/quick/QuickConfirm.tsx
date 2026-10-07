@@ -68,7 +68,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
         <h1 className="text-gray-900 dark:text-white">Here is what I understood</h1>
         <p className="text-gray-600 dark:text-gray-400">
           {couldNotRead
-            ? 'Quick could not read this copy automatically. Fill in what you can, or generate as it is.'
+            ? 'CopyZap could not read this copy automatically. Fill in what you can, or generate as it is.'
             : 'Fix anything that is wrong, then generate.'}
         </p>
       </div>
@@ -169,7 +169,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
       {sections.length > 1 && (
         <fieldset className="m-0 p-0 border-0 flex flex-col gap-2">
           <legend className="p-0 mb-1 font-semibold text-gray-900 dark:text-gray-100">
-            What should Quick do with each part?
+            What should CopyZap do with each part?
           </legend>
           <ul className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
             {sections.map(section => {
@@ -233,7 +233,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
         <div role="alert" className="flex items-start gap-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-4">
           <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-warning" aria-hidden="true" />
           <p className="text-gray-900 dark:text-gray-100">
-            This copy looks like it is written in {brief.unsupportedLanguage}. Quick can write in{' '}
+            This copy looks like it is written in {brief.unsupportedLanguage}. CopyZap can write in{' '}
             {QUICK_LANGUAGES.slice(0, -1).join(', ')} and {QUICK_LANGUAGES[QUICK_LANGUAGES.length - 1]}. The new versions
             will be written in {brief.language}.
           </p>
