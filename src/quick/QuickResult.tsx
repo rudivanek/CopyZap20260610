@@ -98,6 +98,17 @@ const CopyButton: React.FC<{ content: GeneratedContentItem['content']; className
 };
 
 /** A version's score with its quality mark, for use on the white paper surface. */
+/** A scorer's note reads "kind — advice: the words it is about". Claims are one kind; the rest is tone. */
+const isClaimNote = (note: string) => /^unverified claim/i.test(note);
+/** Claims show the words themselves; tone notes keep their kind in front. */
+function noteText(note: string): string {
+  const cut = note.indexOf(': ');
+  const words = cut >= 0 ? note.slice(cut + 2).trim() : note.trim();
+  if (isClaimNote(note) || cut < 0) return words;
+  const kind = note.slice(0, cut).split(' — ')[0].trim();
+  return kind ? `${kind.charAt(0).toUpperCase()}${kind.slice(1)}: ${words}` : words;
+}
+
 const ScoreTag: React.FC<{ total: number | undefined }> = ({ total }) => (
   <span className="inline-flex items-center gap-2 text-xs font-semibold text-gray-900 tabular-nums">
     {total != null ? (
@@ -211,6 +222,39 @@ const QuickResult: React.FC<QuickResultProps> = ({
     total != null && winnerTotal != null && Math.abs(winnerTotal - total) <= QUICK_SCORE_MARGIN;
   const closeCount = others.filter(item => !item.setAside && isClose(item.total)).length;
 
+  // Comparison & rankings: every scored version, best first, the original last.
+  const rankingOf = (version: typeof winner) => {
+    const score = scores?.absoluteByVersion[version.id];
+    const row = rows.find(item => item.versionId === version.id);
+    const gate = scores?.gateByVersion[version.id];
+    const gain = score && originalTotal != null ? score.total - originalTotal : null;
+    const notes = (row?.verificationFlags ?? []).filter(flag => flag && flag.trim().length > 0);
+    return {
+      version,
+      score,
+      gain,
+      gainPercent: gain != null && originalTotal != null && originalTotal > 0 ? Math.round((gain / originalTotal) * 100) : null,
+      setAside: gate ? !gate.valid : false,
+      claims: notes.filter(isClaimNote).map(noteText),
+      tone: notes.filter(note => !isClaimNote(note)).map(noteText),
+      quotes: result.quoteFlags[version.id] ?? [],
+    };
+  };
+  const ranked = generated
+    .map(rankingOf)
+    .filter(item => item.score && !item.setAside)
+    .sort((a, b) =>
+      a.version.id === winner.id ? -1 : b.version.id === winner.id ? 1 : (b.score?.total ?? 0) - (a.score?.total ?? 0)
+    );
+  const unranked = generated.map(rankingOf).filter(item => !item.score || item.setAside);
+  const baseline = original ? rankingOf(original) : null;
+  const judgedAs = [
+    scores?.comparisonResult.scoringContext?.useCaseLabel && `Judged as: ${scores.comparisonResult.scoringContext.useCaseLabel}`,
+    `Goal: ${GOAL_OPTIONS.find(option => option.key === result.goalKey)?.label ?? result.goalKey}`,
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
   // The bar at the bottom of the screen: one entry per part of the result.
   const jumpTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const jumpToVersion = (id: string) => {
@@ -238,7 +282,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
     <div className="flex flex-col gap-6 pb-14">
       {/* The same bar as at the bottom of the HTML report: across the whole
           window, the original first, then every version in the order it was
-          made, then the score. */}
+          made, then the rankings. */}
       <nav
         aria-label="Jump to"
         className="fixed bottom-0 inset-x-0 z-40 bg-white dark:bg-gray-900 border-t border-gray-300 dark:border-gray-700"
@@ -259,10 +303,14 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 </button>
               </React.Fragment>
             ))}
-          {jumpSeparator}
-          <button type="button" onClick={() => jumpTo('quick-score')} className={jumpLink}>
-            Score
-          </button>
+          {scores && ranked.length > 0 && (
+            <>
+              {jumpSeparator}
+              <button type="button" onClick={() => jumpTo('quick-rankings')} className={jumpLink}>
+                Rankings
+              </button>
+            </>
+          )}
         </div>
       </nav>
 
@@ -651,6 +699,114 @@ const QuickResult: React.FC<QuickResultProps> = ({
           )}
         </div>
       </div>
+
+      {scores && ranked.length > 0 && (
+        <section id="quick-rankings" aria-label="Comparison and rankings" className="flex flex-col gap-3 scroll-mt-4">
+          <div className="flex flex-col gap-1">
+            <h2 className="text-gray-900 dark:text-white">Comparison &amp; rankings</h2>
+            <p className="text-gray-600 dark:text-gray-400">{judgedAs}</p>
+          </div>
+          <ol className={`${card} divide-y divide-gray-200 dark:divide-gray-700`}>
+            {[...ranked, ...unranked, ...(baseline ? [baseline] : [])].map((item, index) => {
+              const isBaseline = item.version.id === ORIGINAL_VERSION_ID;
+              const isWinner = item.version.id === winner.id;
+              const isRanked = index < ranked.length;
+              const total = item.score?.total;
+              return (
+                <li key={item.version.id} className={'px-5 py-4 flex flex-col gap-2 ' + (isWinner ? 'bg-gray-50 dark:bg-gray-800' : '')}>
+                  <div className="flex flex-wrap items-center gap-x-5 gap-y-1">
+                    <span className="w-6 shrink-0 font-semibold text-gray-600 dark:text-gray-400 tabular-nums">
+                      {isRanked ? index + 1 : '–'}
+                    </span>
+                    <span className="flex-[1_1_220px] min-w-0 flex flex-wrap items-baseline gap-x-2">
+                      {isBaseline ? (
+                        <span className="font-semibold text-gray-900 dark:text-gray-100">Your original</span>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => jumpToVersion(item.version.id)}
+                          className="min-h-[44px] text-left font-semibold text-gray-900 dark:text-gray-100 hover:underline break-words focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                          {item.version.sourceDisplayName || 'Version'}
+                        </button>
+                      )}
+                      {isWinner && (
+                        <span className="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-900 dark:text-gray-100">
+                          <span className="w-1 h-4 bg-status-good" aria-hidden="true" />
+                          Winner
+                        </span>
+                      )}
+                      {isBaseline && <span className="text-xs text-gray-600 dark:text-gray-400">baseline</span>}
+                      {item.setAside && (
+                        <span className="text-xs text-gray-600 dark:text-gray-400">
+                          Set aside: repeats a paragraph or is cut short
+                        </span>
+                      )}
+                      {!isBaseline && !isWinner && !item.setAside && isClose(total) && (
+                        <span className="text-xs text-gray-600 dark:text-gray-400">About the same as the best</span>
+                      )}
+                    </span>
+                    <span className="w-28 shrink-0 text-gray-900 dark:text-gray-100 tabular-nums">
+                      {isBaseline || item.gain == null
+                        ? ''
+                        : `${item.gain >= 0 ? '+' : ''}${item.gain}${item.gainPercent != null ? ` | ${item.gain >= 0 ? '+' : ''}${item.gainPercent}%` : ''}`}
+                    </span>
+                    <span className="w-24 shrink-0 text-right">
+                      {total != null ? <ScoreTag total={total} /> : <span className="text-gray-600 dark:text-gray-400">Not scored</span>}
+                    </span>
+                  </div>
+                  {item.score && (
+                    <p className="pl-11 text-xs text-gray-600 dark:text-gray-400 tabular-nums">
+                      Clarity {item.score.clarity}/25 · Persuasion {item.score.persuasion}/25 · Audience fit{' '}
+                      {item.score.audience_fit}/25 · Structure {item.score.structure}/25
+                    </p>
+                  )}
+                  {(item.quotes.length > 0 || item.claims.length > 0 || item.tone.length > 0) && (
+                    <div className="pl-11 flex flex-col gap-2">
+                      {item.quotes.length > 0 && (
+                        <div>
+                          <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
+                            <span className="w-1 h-4 bg-status-critical" aria-hidden="true" />
+                            Quoted words not in your original
+                          </p>
+                          <ul className="mt-1 list-disc pl-5 text-gray-900 dark:text-gray-100">
+                            {item.quotes.map((quote, n) => (
+                              <li key={n} className="break-words">“{quote}”</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {item.claims.length > 0 && (
+                        <div>
+                          <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
+                            <span className="w-1 h-4 bg-status-warning" aria-hidden="true" />
+                            Claims to verify
+                          </p>
+                          <ul className="mt-1 list-disc pl-5 text-gray-900 dark:text-gray-100">
+                            {item.claims.map((claim, n) => (
+                              <li key={n} className="break-words">{claim}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                      {item.tone.length > 0 && (
+                        <div>
+                          <p className="text-xs font-semibold text-gray-600 dark:text-gray-400">Brand voice and tone to review</p>
+                          <ul className="mt-1 list-disc pl-5 text-gray-600 dark:text-gray-400">
+                            {item.tone.map((note, n) => (
+                              <li key={n} className="break-words">{note}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </li>
+              );
+            })}
+          </ol>
+        </section>
+      )}
     </div>
   );
 };
