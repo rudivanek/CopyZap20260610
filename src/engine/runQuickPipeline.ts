@@ -108,7 +108,21 @@ export interface QuickRunInput {
    * (see pageSections.ts). `copy` above is then the page without the left-out
    * parts, and `lockedCopy` the same with each kept part replaced by its marker.
    */
-  keep?: { lockedCopy: string; zones: TestimonialZone[]; leftOut: number };
+  keep?: {
+    lockedCopy: string;
+    zones: TestimonialZone[];
+    leftOut: number;
+    /** Parts kept as they are, not counting rows of testimonials. Defaults to the number of zones. */
+    kept?: number;
+    /** Testimonials in the kept rows. Shown with the result. */
+    testimonialsKept?: number;
+    /**
+     * False when the user has already decided about every testimonial Quick
+     * found (each is a row with its own choice), so the pipeline must not lock
+     * any by itself: a row left on "improve" is meant to be rewritten.
+     */
+    autoLock?: boolean;
+  };
   /** The page the copy was fetched from, when it was fetched. Recorded with the result. */
   source?: QuickSource;
 }
@@ -454,7 +468,8 @@ export async function runQuickPipeline(
   const fullCopy = input.copy.trim();
   // Parts the user keeps as they are have already been replaced by markers.
   const keepZones = input.keep?.zones ?? [];
-  const lock = lockTestimonials(input.keep ? input.keep.lockedCopy.trim() : fullCopy);
+  const base = input.keep ? input.keep.lockedCopy.trim() : fullCopy;
+  const lock = input.keep?.autoLock === false ? { lockedCopy: base, zones: [], count: 0 } : lockTestimonials(base);
   const zones = [...lock.zones, ...keepZones];
   let formState = buildQuickFormState({ copy: lock.lockedCopy, variants: input.variants, brief: input.brief });
   if (zones.length > 0) {
@@ -529,9 +544,9 @@ export async function runQuickPipeline(
     scores,
     scoringError,
     failedVersions: written.failed,
-    testimonials: { count: lock.count, movedIds },
+    testimonials: { count: lock.count + (input.keep?.testimonialsKept ?? 0), movedIds },
     quoteFlags,
-    parts: { kept: keepZones.length, leftOut: input.keep?.leftOut ?? 0 },
+    parts: { kept: input.keep?.kept ?? keepZones.length, leftOut: input.keep?.leftOut ?? 0 },
     ...(input.source ? { source: input.source } : {}),
     keptTexts: keepZones.map(zone => zone.text),
   };

@@ -11,6 +11,7 @@
  *
  * Plain text handling: no model call, no cost.
  */
+import { lockTestimonials } from './quoteLock';
 import type { TestimonialZone } from './quoteLock';
 
 export type SectionChoice = 'improve' | 'keep' | 'leave';
@@ -26,6 +27,12 @@ export interface PageSection {
   suggested: SectionChoice;
   /** Why "keep" is proposed, when it is. */
   hint?: string;
+  /**
+   * Set on a row that holds testimonials Quick found by itself: how many.
+   * Such a row is cut out of the part it sat in, so the user can decide about
+   * the testimonials apart from the text around them.
+   */
+  testimonials?: number;
 }
 
 export interface SectionPlan {
@@ -35,7 +42,10 @@ export interface SectionPlan {
   lockedCopy: string;
   /** The kept parts, to be put back after writing. */
   zones: TestimonialZone[];
+  /** Parts kept as they are, not counting rows of testimonials. */
   kept: number;
+  /** Testimonials in the rows that are kept as they are. */
+  testimonialsKept: number;
   leftOut: number;
   /** Words the engine will actually rewrite. */
   improveWords: number;
@@ -47,6 +57,8 @@ const TESTIMONIAL_TITLE =
   /testimoni|reseñ|rese[nñ]as|opiniones|lo que dicen|reviews?\b|what (our )?(clients|customers) say|kundenstimmen|referenzen|erfahrungsberichte|témoignages|avis clients|recensioni|depoimentos|avaliações/i;
 
 /** Text in front of the first heading shorter than this joins the first part. */
+/** Text left behind a group of testimonials needs this many words to be a row of its own. */
+const TRAILING_PIECE_MIN_WORDS = 8;
 const LEADING_PART_MIN_WORDS = 15;
 
 const wordCount = (text: string) => (text.trim() ? text.trim().split(/\s+/).length : 0);
@@ -97,13 +109,55 @@ export function splitIntoSections(copy: string): PageSection[] {
     chunks[0].lines = [...lead.lines, ...chunks[0].lines];
   }
 
-  return chunks
+  const parts = chunks
     .map(chunk => ({ title: chunk.title, text: tidy(chunk.lines.join('\n')) }))
-    .filter(chunk => chunk.text)
-    .map((chunk, index, all) => {
-      const title = chunk.title || (all.length === 1 ? 'Whole text' : index === 0 ? 'Start of the page' : 'Untitled part');
-      return { id: `part-${index + 1}`, title, text: chunk.text, words: wordCount(chunk.text), ...suggest(title, chunk.text) };
+    .filter(chunk => chunk.text);
+
+  // Testimonials Quick finds inside a part become a row of their own, right
+  // where they stand, so the user decides about them as about any other part.
+  // A part that is announced as testimonials by its heading is already such a row.
+  const rows: Omit<PageSection, 'id'>[] = [];
+  parts.forEach((part, index) => {
+    const title = part.title || (parts.length === 1 ? 'Whole text' : index === 0 ? 'Start of the page' : 'Untitled part');
+    const proposal = suggest(title, part.text);
+    const lock = proposal.suggested === 'keep' ? null : lockTestimonials(part.text);
+    if (!lock || lock.count === 0) {
+      rows.push({ title, text: part.text, words: wordCount(part.text), ...proposal });
+      return;
+    }
+    // The part with its testimonials replaced by marker lines, cut at those lines.
+    const pieces = lock.lockedCopy.split(/^\[\[TESTIMONIALS-\d+\]\]$/m).map(tidy);
+    let lastText: Omit<PageSection, 'id'> | null = null;
+    pieces.forEach((piece, position) => {
+      if (piece && lastText && wordCount(piece) < TRAILING_PIECE_MIN_WORDS) {
+        // A few words left behind the testimonials (a stray label) are not a row
+        // of their own: they go with the text of the same part before them.
+        lastText.text = `${lastText.text}\n\n${piece}`;
+        lastText.words = wordCount(lastText.text);
+      } else if (piece) {
+        lastText = {
+          title: position === 0 ? title : `${title} (continued)`,
+          text: piece,
+          words: wordCount(piece),
+          suggested: 'improve',
+        };
+        rows.push(lastText);
+      }
+      const zone = lock.zones[position];
+      if (zone) {
+        rows.push({
+          title: zone.count === 1 ? 'Testimonial' : `Testimonials (${zone.count})`,
+          text: zone.text,
+          words: wordCount(zone.text),
+          suggested: 'keep',
+          hint: 'Looks like testimonials',
+          testimonials: zone.count,
+        });
+      }
     });
+  });
+
+  return rows.map((row, index) => ({ id: `part-${index + 1}`, ...row }));
 }
 
 export function defaultChoices(sections: PageSection[]): Record<string, SectionChoice> {
@@ -121,15 +175,17 @@ export function planSections(sections: PageSection[], choices: Record<string, Se
   const locked = used.map(section => {
     if (choiceOf(section) !== 'keep') return section.text;
     const marker = `[[KEEP-${zones.length + 1}]]`;
-    zones.push({ marker, text: section.text, count: 1 });
+    zones.push({ marker, text: section.text, count: section.testimonials ?? 1 });
     return marker;
   });
+  const keptRows = used.filter(section => choiceOf(section) === 'keep');
 
   return {
     copy: used.map(section => section.text).join('\n\n'),
     lockedCopy: locked.join('\n\n'),
     zones,
-    kept: zones.length,
+    kept: keptRows.filter(section => !section.testimonials).length,
+    testimonialsKept: keptRows.reduce((sum, section) => sum + (section.testimonials ?? 0), 0),
     leftOut: sections.length - used.length,
     improveWords: used.filter(section => choiceOf(section) === 'improve').reduce((sum, section) => sum + section.words, 0),
   };
