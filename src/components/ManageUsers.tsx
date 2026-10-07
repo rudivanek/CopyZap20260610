@@ -7,6 +7,7 @@ import LoadingSpinner from './ui/LoadingSpinner';
 import EditUserModal from './EditUserModal';
 import AddUserModal from './AddUserModal';
 import { adminGetUsers, adminDeleteUser } from '../services/supabaseClient';
+import { listPowerUsers, setPowerUser } from '../services/powerUser';
 import { toast } from 'react-hot-toast';
 import PublicFooter from './PublicFooter';
 
@@ -41,6 +42,25 @@ const ManageUsers: React.FC = () => {
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [isAddModalOpen, setIsAddModalOpen] = useState(false);
   const [isDeleting, setIsDeleting] = useState<string | null>(null);
+  // Power user: sees the Complete interface. Off: Quick only. Loaded apart from
+  // the user list, because the list function does not return this column.
+  const [powerFlags, setPowerFlags] = useState<Record<string, boolean>>({});
+  const [powerFlagsLoaded, setPowerFlagsLoaded] = useState(false);
+  const [changingPowerFor, setChangingPowerFor] = useState<string | null>(null);
+
+  const handleTogglePowerUser = async (user: ManageUser) => {
+    const next = !(powerFlags[user.id] === true);
+    setChangingPowerFor(user.id);
+    try {
+      await setPowerUser(user.id, next);
+      setPowerFlags(flags => ({ ...flags, [user.id]: next }));
+      toast.success(next ? `${user.email} now has the Complete interface` : `${user.email} now has Quick only`);
+    } catch (err: any) {
+      toast.error(`Could not change the setting: ${err.message}`);
+    } finally {
+      setChangingPowerFor(null);
+    }
+  };
   const [error, setError] = useState<string | null>(null);
   const [sortField, setSortField] = useState<'name' | 'email' | 'created_at' | 'start_date' | 'until_date' | 'credits_allowed' | 'credits_used' | 'credits_remaining' | 'cost_usd' | 'total_records' | 'tokens_remaining' | 'last_sign_in_at' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -69,6 +89,14 @@ const ManageUsers: React.FC = () => {
       if (data) {
         setUsers(data);
         setFilteredUsers(data);
+      }
+
+      try {
+        setPowerFlags(await listPowerUsers());
+        setPowerFlagsLoaded(true);
+      } catch (flagError: any) {
+        setPowerFlagsLoaded(false);
+        toast.error(`Could not load the power-user settings: ${flagError.message}`);
       }
     } catch (err: any) {
       console.error('Error fetching users:', err);
@@ -493,6 +521,9 @@ const ManageUsers: React.FC = () => {
                         )}
                       </button>
                     </th>
+                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
+                      Power user
+                    </th>
                     <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider">
                       Actions
                     </th>
@@ -570,6 +601,21 @@ const ManageUsers: React.FC = () => {
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {user.last_sign_in_at ? formatDate(user.last_sign_in_at) : 'Never'}
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap">
+                        <label className="inline-flex items-center gap-2 text-sm text-gray-900 dark:text-white">
+                          <input
+                            type="checkbox"
+                            checked={powerFlags[user.id] === true}
+                            disabled={!powerFlagsLoaded || changingPowerFor === user.id}
+                            onChange={() => handleTogglePowerUser(user)}
+                            aria-label={`Power user: ${user.email}`}
+                            className="h-4 w-4"
+                          />
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {!powerFlagsLoaded ? 'Not loaded' : powerFlags[user.id] === true ? 'Complete' : 'Quick only'}
+                          </span>
+                        </label>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end space-x-2">
