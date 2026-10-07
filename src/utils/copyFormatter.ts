@@ -119,7 +119,10 @@ const convertMarkdownTableToHtml = (lines: string[], inline: boolean = true): st
  * Converts basic Markdown formatting to HTML
  * Exported for use in components that need to format comparison tables
  */
-export const markdownToHtml = (markdownText: string, options?: { inlineStyles?: boolean }): string => {
+export const markdownToHtml = (
+  markdownText: string,
+  options?: { inlineStyles?: boolean; colorScores?: boolean }
+): string => {
   if (!markdownText) return '';
 
   // Default to inline styles so every existing caller (FormattedContent.tsx, etc.)
@@ -398,9 +401,11 @@ export const markdownToHtml = (markdownText: string, options?: { inlineStyles?: 
     // Handle multi-line content within a paragraph
     const paragraphContent = trimmed.replace(/\n/g, '<br>');
 
-    // Color-code any scores in the paragraph text (in-app only; export path leaves numbers plain)
+    // Color-code any scores in the paragraph text (in-app only; export path leaves numbers plain).
+    // A caller that shows ordinary copy, where a number is a number and not a score
+    // ("B2B", "48%", "90 empresas"), turns this off with { colorScores: false }.
     let styledContent = paragraphContent;
-    if (inline) {
+    if (inline && options?.colorScores !== false) {
       const scorePattern = /(\d{1,3})(?:\s*\/\s*100|\s*\(([A-Z]+)\))?/g;
       styledContent = styledContent.replace(scorePattern, (match, score, label) => {
         const scoreNum = parseInt(score);

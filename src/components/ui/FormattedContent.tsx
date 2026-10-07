@@ -5,13 +5,21 @@ import { markdownToHtml } from '../../utils/copyFormatter';
 interface FormattedContentProps {
   content: string | StructuredCopyOutput | any;
   className?: string;
+  /**
+   * False for ordinary copy, where a number is a number ("B2B", "48%") and must
+   * not be coloured like a score. Default true: the behaviour every existing
+   * caller has.
+   */
+  colorScores?: boolean;
 }
 
 /**
  * Unified component for rendering content with proper HTML formatting
  * Replaces the old pattern of using stripMarkdown() which removed all formatting
  */
-const FormattedContent: React.FC<FormattedContentProps> = ({ content, className = '' }) => {
+const FormattedContent: React.FC<FormattedContentProps> = ({ content, className = '', colorScores = true }) => {
+  // Passed to every markdownToHtml call below.
+  const render = (text: string) => markdownToHtml(text, { colorScores });
   // Handle empty content
   if (content === null || content === undefined) {
     return null;
@@ -47,7 +55,7 @@ const FormattedContent: React.FC<FormattedContentProps> = ({ content, className 
         {headlineText && (
           <h1
             className="text-2xl font-bold mb-6 text-gray-900 dark:text-white border-b border-gray-300 dark:border-gray-700 pb-2"
-            dangerouslySetInnerHTML={{ __html: markdownToHtml(headlineText) }}
+            dangerouslySetInnerHTML={{ __html: render(headlineText) }}
           />
         )}
 
@@ -58,14 +66,14 @@ const FormattedContent: React.FC<FormattedContentProps> = ({ content, className 
               {section.title && (
                 <h2
                   className="text-xl font-semibold mb-3 text-gray-800 dark:text-gray-200"
-                  dangerouslySetInnerHTML={{ __html: markdownToHtml(section.title) }}
+                  dangerouslySetInnerHTML={{ __html: render(section.title) }}
                 />
               )}
 
               {section.content && (
                 <div
                   className="text-gray-700 dark:text-gray-300"
-                  dangerouslySetInnerHTML={{ __html: markdownToHtml(section.content) }}
+                  dangerouslySetInnerHTML={{ __html: render(section.content) }}
                 />
               )}
 
@@ -74,7 +82,7 @@ const FormattedContent: React.FC<FormattedContentProps> = ({ content, className 
                   {section.listItems.map((item, itemIndex) => (
                     <li
                       key={itemIndex}
-                      dangerouslySetInnerHTML={{ __html: markdownToHtml(item) }}
+                      dangerouslySetInnerHTML={{ __html: render(item) }}
                     />
                   ))}
                 </ul>
@@ -93,7 +101,7 @@ const FormattedContent: React.FC<FormattedContentProps> = ({ content, className 
         {actualContent.map((item, index) => (
           <li
             key={index}
-            dangerouslySetInnerHTML={{ __html: markdownToHtml(String(item)) }}
+            dangerouslySetInnerHTML={{ __html: render(String(item)) }}
           />
         ))}
       </ol>
@@ -102,7 +110,7 @@ const FormattedContent: React.FC<FormattedContentProps> = ({ content, className 
 
   // Handle string content
   const stringContent = String(actualContent);
-  const htmlContent = markdownToHtml(stringContent);
+  const htmlContent = render(stringContent);
 
   return (
     <div

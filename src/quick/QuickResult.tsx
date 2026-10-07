@@ -276,6 +276,10 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const jumpLink =
     'shrink-0 inline-flex items-center min-h-[40px] text-xs text-gray-900 dark:text-gray-100 hover:underline ' +
     'focus:outline-none focus:ring-2 focus:ring-primary-500';
+  // Dark orange, not the bright accent: small text in the bright one is too faint to read.
+  const jumpLinkBest =
+    'shrink-0 inline-flex items-center min-h-[40px] text-xs text-primary-800 dark:text-primary-300 ' +
+    'hover:underline focus:outline-none focus:ring-2 focus:ring-primary-500';
   const jumpSeparator = <span aria-hidden="true" className="shrink-0 text-xs text-gray-400">/</span>;
 
   return (
@@ -289,6 +293,10 @@ const QuickResult: React.FC<QuickResultProps> = ({
       >
         <div className="px-6 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap">
           <span className="shrink-0 text-xs font-semibold text-gray-600 dark:text-gray-400 pr-1">Jump to:</span>
+          <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className={jumpLink}>
+            Top
+          </button>
+          {jumpSeparator}
           <button type="button" onClick={() => jumpTo('quick-original')} className={jumpLink}>
             Your original
           </button>
@@ -297,9 +305,18 @@ const QuickResult: React.FC<QuickResultProps> = ({
             .map(version => (
               <React.Fragment key={version.id}>
                 {jumpSeparator}
-                <button type="button" onClick={() => jumpToVersion(version.id)} className={jumpLink}>
-                  {version.sourceDisplayName || 'Version'}
-                  {version.id === winner.id && <span className="text-gray-600 dark:text-gray-400">&nbsp;(best)</span>}
+                {/* The best version stands out in the accent colour; "(best)" says it in words too. */}
+                <button
+                  type="button"
+                  onClick={() => jumpToVersion(version.id)}
+                  className={version.id === winner.id ? jumpLinkBest : jumpLink}
+                >
+                  {version.id === winner.id ? (
+                    // Bold has to sit on a span: the app's own button style fixes a button's weight.
+                    <span className="font-bold">{version.sourceDisplayName || 'Version'}&nbsp;(best)</span>
+                  ) : (
+                    version.sourceDisplayName || 'Version'
+                  )}
                 </button>
               </React.Fragment>
             ))}
@@ -369,7 +386,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 </span>
               )}
             </div>
-            <FormattedContent content={winner.content} className={copyText} />
+            <FormattedContent content={winner.content} className={copyText} colorScores={false} />
           </article>
 
           <div className="flex flex-wrap gap-2">
@@ -649,7 +666,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 <span className="text-xs font-semibold text-gray-600">Your original</span>
                 <ScoreTag total={originalTotal} />
               </div>
-              <FormattedContent content={original.content} className={copyText} />
+              <FormattedContent content={original.content} className={copyText} colorScores={false} />
             </article>
           )}
 
@@ -682,7 +699,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                     </button>
                     {isOpen && (
                       <div className="px-5 pt-4 pb-5 flex flex-col gap-3 border-t border-gray-200">
-                        <FormattedContent content={version.content} className={copyText} />
+                        <FormattedContent content={version.content} className={copyText} colorScores={false} />
                         <CopyButton content={version.content} className={`${paperButton} self-start`} />
                       </div>
                     )}
