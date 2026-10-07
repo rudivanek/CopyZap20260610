@@ -8,11 +8,12 @@ import { QUICK_DEFAULT_VARIANTS, QUICK_MAX_WORDS, QUICK_MIN_WORDS } from '../eng
 import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
 import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
-import { changeQuickVersion, validateQuickChange } from '../engine/changeQuickVersion';
+import { changeQuickVersion, QuickChangeOutcome, validateQuickChange } from '../engine/changeQuickVersion';
 import { QuickEditDraft, scoreQuickEdit } from '../engine/editQuickVersion';
 import { defaultChoices, planSections, SectionChoice, splitIntoSections } from '../engine/pageSections';
 import { lockTestimonials } from '../engine/quoteLock';
 import {
+  QUICK_SCORE_MARGIN,
   QuickPipelineError,
   QuickProgress,
   QuickRunResult,
@@ -33,6 +34,38 @@ interface QuickPageProps {
 }
 
 type Phase = 'start' | 'confirm' | 'result' | 'history';
+
+type Notice = { tone: 'good' | 'neutral' | 'bad'; text: string };
+
+/**
+ * What to tell the user after a change or an edit was scored. Scores within
+ * QUICK_SCORE_MARGIN points of each other are reported as about the same,
+ * because the scorer cannot tell them apart.
+ */
+function outcomeNotice(name: 'Your change' | 'Your edit', outcome: QuickChangeOutcome): Notice {
+  const { newScore, previousBestScore: best, becameBest } = outcome;
+  const where = becameBest ? 'It is shown first because its score is slightly higher.' : 'It is listed under Other versions.';
+  if (newScore === null) {
+    return { tone: 'neutral', text: `${name} was saved as a version but could not be scored. It is listed under Other versions.` };
+  }
+  if (best === null) {
+    return { tone: becameBest ? 'good' : 'neutral', text: `${name} scored ${newScore} / 100. ${becameBest ? 'It is now the best version.' : where}` };
+  }
+  const difference = newScore - best;
+  if (Math.abs(difference) <= QUICK_SCORE_MARGIN) {
+    return {
+      tone: 'neutral',
+      text: `${name} scored ${newScore} / 100, about the same as the best version before it (${best}). Scores within ${QUICK_SCORE_MARGIN} points of each other cannot be told apart. ${where}`,
+    };
+  }
+  if (difference > 0 && becameBest) {
+    return { tone: 'good', text: `${name} is now the best version, at ${newScore} / 100, ${difference} points above the previous best.` };
+  }
+  if (difference > 0) {
+    return { tone: 'neutral', text: `${name} scored ${newScore} / 100 but was set aside, because it repeats a paragraph or is cut short. It is listed under Other versions.` };
+  }
+  return { tone: 'neutral', text: `${name} scored ${newScore} / 100, ${-difference} points below the best version (${best}). It is listed under Other versions.` };
+}
 
 const GOALS = GOAL_OPTIONS.filter(option => option.key !== 'custom').map(option => {
   const [name, description = ''] = option.label.split(' — ');
@@ -341,16 +374,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       const outcome = await changeQuickVersion(result, instruction, currentUser, setProgress);
       if (!isMounted.current) return;
       setResult(outcome.result);
-      if (outcome.newScore === null) {
-        setChangeNotice({ tone: 'neutral', text: 'The changed version was written but could not be scored. It is listed under Other versions.' });
-      } else if (outcome.becameBest) {
-        setChangeNotice({ tone: 'good', text: `Your change is now the best version, at ${outcome.newScore} / 100.` });
-      } else {
-        setChangeNotice({
-          tone: 'neutral',
-          text: `Your change scored ${outcome.newScore} / 100, which is not higher than the best version. It is listed under Other versions.`,
-        });
-      }
+      setChangeNotice(outcomeNotice('Your change', outcome));
       window.scrollTo(0, 0);
       playSuccessSound();
       persist(outcome.result, runSeconds, savedId);
@@ -372,16 +396,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       const outcome = await scoreQuickEdit(result, draft, text, currentUser, setProgress);
       if (!isMounted.current) return;
       setResult(outcome.result);
-      if (outcome.newScore === null) {
-        setChangeNotice({ tone: 'neutral', text: 'Your edit was saved as a version but could not be scored. It is listed under Other versions.' });
-      } else if (outcome.becameBest) {
-        setChangeNotice({ tone: 'good', text: `Your edit is now the best version, at ${outcome.newScore} / 100.` });
-      } else {
-        setChangeNotice({
-          tone: 'neutral',
-          text: `Your edit scored ${outcome.newScore} / 100, which is not higher than the best version. It is listed under Other versions.`,
-        });
-      }
+      setChangeNotice(outcomeNotice('Your edit', outcome));
       window.scrollTo(0, 0);
       playSuccessSound();
       persist(outcome.result, runSeconds, savedId);

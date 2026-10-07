@@ -9,6 +9,7 @@ import { deriveQuickLabel } from '../engine/buildQuickFormState';
 import { prepareQuickEdit, QuickEditDraft, validateQuickEdit } from '../engine/editQuickVersion';
 import { exportQuickReport } from '../engine/exportQuickReport';
 import { ORIGINAL_VERSION_ID } from '../engine/pickWinner';
+import { QUICK_SCORE_MARGIN } from '../engine/runQuickPipeline';
 import type { QuickRunResult } from '../engine/runQuickPipeline';
 
 interface QuickResultProps {
@@ -205,13 +206,83 @@ const QuickResult: React.FC<QuickResultProps> = ({
       setAside: scores?.gateByVersion[version.id] ? !scores.gateByVersion[version.id].valid : false,
     }))
     .sort((a, b) => (b.total ?? -1) - (a.total ?? -1));
+  // The scorer cannot tell versions apart that are this close to the best one.
+  const isClose = (total: number | undefined) =>
+    total != null && winnerTotal != null && Math.abs(winnerTotal - total) <= QUICK_SCORE_MARGIN;
+  const closeCount = others.filter(item => !item.setAside && isClose(item.total)).length;
+
+  // The bar at the bottom of the screen: one entry per part of the result.
+  const jumpTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  const jumpToVersion = (id: string) => {
+    setOpenIds(current => (current.includes(id) ? current : [...current, id]));
+    // Wait for the version to open before scrolling to it.
+    window.setTimeout(() => jumpTo(`quick-version-${id}`), 60);
+  };
 
   const goalOption = GOAL_OPTIONS.find(option => option.key === result.goalKey);
   const goalName = goalOption ? goalOption.label.split(' — ')[0] : result.goalKey;
   const scoreLabel = winnerTotal != null ? getAbsoluteScoreLabel(winnerTotal) : '';
 
+  const hasChecks = flags.length > 0 || isIncomplete || quoteFlags.length > 0 || testimonialsMoved;
+  const jumpLink =
+    'shrink-0 inline-flex items-center min-h-[44px] px-2 text-xs text-gray-900 dark:text-gray-100 underline ' +
+    'hover:text-primary-800 dark:hover:text-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500';
+  const jumpSeparator = <span aria-hidden="true" className="shrink-0 text-gray-400">/</span>;
+
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 pb-16">
+      <nav
+        aria-label="Jump to"
+        className="fixed bottom-0 inset-x-0 z-40 bg-white dark:bg-gray-900 border-t border-gray-300 dark:border-gray-700"
+      >
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center gap-1 overflow-x-auto whitespace-nowrap">
+          <span className="shrink-0 text-xs font-semibold text-gray-600 dark:text-gray-400 pr-1">Jump to:</span>
+          <button type="button" onClick={() => jumpTo('quick-best')} className={jumpLink}>
+            Best version
+          </button>
+          {jumpSeparator}
+          <button type="button" onClick={() => jumpTo('quick-score')} className={jumpLink}>
+            Score
+          </button>
+          {whyNotes.length > 0 && (
+            <>
+              {jumpSeparator}
+              <button type="button" onClick={() => jumpTo('quick-why')} className={jumpLink}>
+                Why
+              </button>
+            </>
+          )}
+          {hasChecks && (
+            <>
+              {jumpSeparator}
+              <button type="button" onClick={() => jumpTo('quick-checks')} className={jumpLink}>
+                Check before publishing
+              </button>
+            </>
+          )}
+          {scores && scores.winnerId && (
+            <>
+              {jumpSeparator}
+              <button type="button" onClick={() => jumpTo('quick-change-panel')} className={jumpLink}>
+                What should change?
+              </button>
+            </>
+          )}
+          {jumpSeparator}
+          <button type="button" onClick={() => jumpTo('quick-original')} className={jumpLink}>
+            Your original
+          </button>
+          {others.map(({ version }) => (
+            <React.Fragment key={version.id}>
+              {jumpSeparator}
+              <button type="button" onClick={() => jumpToVersion(version.id)} className={jumpLink}>
+                {version.sourceDisplayName || 'Version'}
+              </button>
+            </React.Fragment>
+          ))}
+        </div>
+      </nav>
+
       <div className="flex flex-col gap-1">
         <h1 className="text-gray-900 dark:text-white">{title || deriveQuickLabel(result.formState.originalCopy || '')}</h1>
         {result.source && /^https?:\/\//i.test(result.source.url) && (
@@ -257,7 +328,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-[auto_1fr] items-start gap-x-8 gap-y-5">
         {/* Top left: the best version */}
         <div className="flex flex-col gap-5 min-w-0 lg:col-start-1 lg:row-start-1">
-          <article className={`${paper} p-5 sm:p-8 flex flex-col gap-4`}>
+          <article id="quick-best" className={`${paper} p-5 sm:p-8 flex flex-col gap-4 scroll-mt-4`}>
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <span className="text-xs font-semibold text-gray-600">Best version</span>
               {scores && !isIncomplete && (
@@ -342,7 +413,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
           )}
 
           {scores && scores.winnerId && (
-            <section aria-label="What should change?" className={`${card} p-5 flex flex-col gap-3`}>
+            <section id="quick-change-panel" aria-label="What should change?" className={`${card} p-5 flex flex-col gap-3 scroll-mt-4`}>
               <div className="flex flex-col gap-1">
                 <label htmlFor="quick-change" className="font-semibold text-gray-900 dark:text-gray-100">
                   What should change?
@@ -413,7 +484,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
 
         {/* Right: score, reasons, checks */}
         <aside className="flex flex-col gap-4 min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2">
-          <section aria-label="Quality score" className={`${card} p-6 flex flex-col gap-5`}>
+          <section id="quick-score" aria-label="Quality score" className={`${card} p-6 flex flex-col gap-5 scroll-mt-4`}>
             <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Quality score</span>
 
             {winnerTotal != null && winnerScore ? (
@@ -441,6 +512,12 @@ const QuickResult: React.FC<QuickResultProps> = ({
                         {delta !== 0 ? ' vs your original' : ' as your original'}
                       </p>
                       <p className="text-gray-600 dark:text-gray-400">Your original scored {originalTotal} / 100.</p>
+                      {closeCount > 0 && (
+                        <p className="text-gray-600 dark:text-gray-400">
+                          {closeCount === 1 ? '1 other version scores' : `${closeCount} other versions score`} about the
+                          same. Scores within {QUICK_SCORE_MARGIN} points cannot be told apart.
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <p className="text-gray-600 dark:text-gray-400">Your original could not be scored.</p>
@@ -482,7 +559,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
           </section>
 
           {whyNotes.length > 0 && (
-            <section aria-label="Why this version" className={`${card} p-6 flex flex-col gap-3`}>
+            <section id="quick-why" aria-label="Why this version" className={`${card} p-6 flex flex-col gap-3 scroll-mt-4`}>
               <h2 className="text-gray-900 dark:text-white">Why this version</h2>
               <ul className="flex flex-col gap-2 text-gray-700 dark:text-gray-300">
                 {whyNotes.map(item => (
@@ -494,8 +571,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
             </section>
           )}
 
-          {(flags.length > 0 || isIncomplete || quoteFlags.length > 0 || testimonialsMoved) && (
-            <section aria-label="Check before publishing" className={`${card} p-6 flex flex-col gap-3`}>
+          {hasChecks && (
+            <section id="quick-checks" aria-label="Check before publishing" className={`${card} p-6 flex flex-col gap-3 scroll-mt-4`}>
               <h2 className="text-gray-900 dark:text-white">Check before publishing</h2>
               <ul className="flex flex-col gap-3 text-gray-700 dark:text-gray-300">
                 {quoteFlags.map((quote, index) => (
@@ -536,7 +613,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
         {/* Below the best version: the original (always shown) and the other versions (closed) */}
         <div className="flex flex-col gap-5 min-w-0 lg:col-start-1 lg:row-start-2">
           {original && (
-            <article className={`${paper} p-5 flex flex-col gap-3`}>
+            <article id="quick-original" className={`${paper} p-5 flex flex-col gap-3 scroll-mt-4`}>
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                 <span className="text-xs font-semibold text-gray-600">Your original</span>
                 <ScoreTag total={originalTotal} />
@@ -551,7 +628,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
               {others.map(({ version, total, setAside }) => {
                 const isOpen = openIds.includes(version.id);
                 return (
-                  <article key={version.id} className={paper}>
+                  <article key={version.id} id={`quick-version-${version.id}`} className={`${paper} scroll-mt-4`}>
                     <button
                       type="button"
                       onClick={() => toggleOpen(version.id)}
@@ -562,6 +639,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
                         <span className="font-semibold text-gray-900">{version.sourceDisplayName || 'Version'}</span>
                         {setAside && (
                           <span className="text-xs text-gray-600">Set aside: repeats a paragraph or is cut short</span>
+                        )}
+                        {!setAside && isClose(total) && (
+                          <span className="text-xs text-gray-600">About the same as the best</span>
                         )}
                       </span>
                       <span className="inline-flex items-center gap-4">
