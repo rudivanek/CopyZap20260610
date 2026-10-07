@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
+import { useCompleteAccess } from '../hooks/useCompleteAccess';
 import { GoalKey, User } from '../types';
 import { DEFAULT_GOAL_KEY, GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import { countWords } from '../utils/markdownUtils';
@@ -108,6 +109,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   // What the last "What should change?" request led to.
   const [changeNotice, setChangeNotice] = useState<{ tone: 'good' | 'neutral' | 'bad'; text: string } | null>(null);
   const [searchParams, setSearchParams] = useSearchParams();
+  // Only power users and admins are offered the Complete interface.
+  const completeAccess = useCompleteAccess();
   const openAtStart = useRef(searchParams.get('r'));
   const [url, setUrl] = useState('');
   const [fetchedFrom, setFetchedFrom] = useState<string | null>(null);
@@ -454,6 +457,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         onLogout={onLogout}
         view={phase === 'history' ? 'history' : 'new'}
         isBusy={busy !== null}
+        showComplete={completeAccess === true}
       />
 
       {phase === 'start' && (

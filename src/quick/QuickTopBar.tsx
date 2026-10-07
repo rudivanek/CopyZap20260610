@@ -9,6 +9,8 @@ interface QuickTopBarProps {
   view: 'new' | 'history';
   /** True while a process is running: New and History are disabled so a paid run is not lost. */
   isBusy: boolean;
+  /** Power users and admins get a link to the Complete interface; everyone else has Quick only. */
+  showComplete: boolean;
 }
 
 const navButton =
@@ -16,7 +18,7 @@ const navButton =
   'hover:text-primary-700 dark:hover:text-primary-300 disabled:text-gray-400 disabled:cursor-not-allowed ' +
   'focus:outline-none focus:ring-2 focus:ring-primary-500 border-b-2 ';
 
-const QuickTopBar: React.FC<QuickTopBarProps> = ({ onNew, onHistory, onLogout, view, isBusy }) => (
+const QuickTopBar: React.FC<QuickTopBarProps> = ({ onNew, onHistory, onLogout, view, isBusy, showComplete }) => (
   <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
     <div className="max-w-5xl mx-auto px-4 sm:px-6 min-h-[56px] flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
       <div className="flex items-baseline gap-2">
@@ -43,12 +45,14 @@ const QuickTopBar: React.FC<QuickTopBarProps> = ({ onNew, onHistory, onLogout, v
           History
         </button>
         {/* The Complete interface needs a desktop screen, so the link is hidden below 1024px. */}
-        <Link
-          to="/copy-maker"
-          className="hidden lg:inline-flex items-center min-h-[44px] px-3 text-gray-600 dark:text-gray-400 underline hover:text-gray-900 dark:hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
-        >
-          Open Complete
-        </Link>
+        {showComplete && (
+          <Link
+            to="/copy-maker"
+            className="hidden lg:inline-flex items-center min-h-[44px] px-3 text-gray-600 dark:text-gray-400 underline hover:text-gray-900 dark:hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            Open Complete
+          </Link>
+        )}
         <button type="button" onClick={onLogout} className={navButton + 'border-transparent'}>
           Log out
         </button>

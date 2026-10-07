@@ -24,6 +24,7 @@ import NotFound from './components/NotFound';
 import Privacy from './components/Privacy';
 import CookieConsent from './components/CookieConsent';
 import DesktopRequired from './components/DesktopRequired';
+import { useCompleteAccess } from './hooks/useCompleteAccess';
 import { AdminRoute } from './components/AdminRoute';
 import ExtensionAuthPage from './pages/ExtensionAuthPage';
 import { useIsSmallScreen } from './hooks/useIsSmallScreen';
@@ -89,6 +90,17 @@ const getSupabaseClient = () => import('./services/supabaseClient');
 // Wrapper component to enforce desktop-only access for authenticated users
 const AuthenticatedRoute: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const isSmallScreen = useIsSmallScreen(MIN_DESKTOP_WIDTH);
+  // The Complete interface (every page wrapped by this component) is for power
+  // users and admins. Everyone else is sent to Quick.
+  const completeAccess = useCompleteAccess();
+
+  // Wait until it is known which interface this user has
+  if (completeAccess === null) {
+    return null;
+  }
+  if (!completeAccess) {
+    return <Navigate to="/quick" replace />;
+  }
 
   // Wait for screen size check to complete
   if (isSmallScreen === null) {
