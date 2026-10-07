@@ -8,6 +8,7 @@ import { getAbsoluteScoreLabel, getAbsoluteScoreMarkClass } from '../utils/score
 import { deriveQuickLabel } from '../engine/buildQuickFormState';
 import { prepareQuickEdit, QuickEditDraft, validateQuickEdit } from '../engine/editQuickVersion';
 import { exportQuickReport } from '../engine/exportQuickReport';
+import { effectiveGates } from '../engine/gateRules';
 import { ORIGINAL_VERSION_ID } from '../engine/pickWinner';
 import { QUICK_SCORE_MARGIN } from '../engine/runQuickPipeline';
 import type { QuickRunResult } from '../engine/runQuickPipeline';
@@ -202,7 +203,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
     delta != null && originalTotal != null && originalTotal > 0 ? Math.round((delta / originalTotal) * 100) : null;
   const original = versions.find(version => version.id === ORIGINAL_VERSION_ID);
 
-  const gate = scores?.gateByVersion[winner.id];
+  // A repetition the original has itself is not held against a version.
+  const gates = effectiveGates(scores?.gateByVersion);
+  const gate = gates[winner.id];
   const isIncomplete = gate ? !gate.valid : false;
   const gateProblems = (gate?.flags ?? []).map(flag =>
     flag.startsWith('too_short') ? 'it is much shorter than your original' : 'it repeats a passage'
@@ -226,7 +229,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
       version,
       total: scores?.absoluteByVersion[version.id]?.total,
       // A version the structural check set aside cannot win, whatever it scores.
-      setAside: scores?.gateByVersion[version.id] ? !scores.gateByVersion[version.id].valid : false,
+      setAside: gates[version.id] ? !gates[version.id].valid : false,
     }))
     .sort((a, b) => (b.total ?? -1) - (a.total ?? -1));
   // The scorer cannot tell versions apart that are this close to the best one.
@@ -238,7 +241,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const rankingOf = (version: typeof winner) => {
     const score = scores?.absoluteByVersion[version.id];
     const row = rows.find(item => item.versionId === version.id);
-    const gate = scores?.gateByVersion[version.id];
+    const gate = gates[version.id];
     const gain = score && originalTotal != null ? score.total - originalTotal : null;
     const notes = (row?.verificationFlags ?? []).filter(flag => flag && flag.trim().length > 0);
     return {
@@ -260,6 +263,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
     );
   const unranked = generated.map(rankingOf).filter(item => !item.score || item.setAside);
   const baseline = original ? rankingOf(original) : null;
+  // The table shows whenever there are scores, also when no version could be ranked.
+  const hasRankings = !!scores && ranked.length + unranked.length > 0;
   const judgedAs = [
     scores?.comparisonResult.scoringContext?.useCaseLabel && `Judged as: ${scores.comparisonResult.scoringContext.useCaseLabel}`,
     `Goal: ${GOAL_OPTIONS.find(option => option.key === result.goalKey)?.label ?? result.goalKey}`,
@@ -332,7 +337,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 </button>
               </React.Fragment>
             ))}
-          {scores && ranked.length > 0 && (
+          {hasRankings && (
             <>
               {jumpSeparator}
               <button type="button" onClick={() => jumpTo('quick-rankings')} className={jumpLink}>
@@ -765,7 +770,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
         </div>
       </div>
 
-      {scores && ranked.length > 0 && (
+      {hasRankings && (
         <section id="quick-rankings" aria-label="Comparison and rankings" className="flex flex-col gap-3 scroll-mt-20">
           <div className="flex flex-col gap-1">
             <h2 className="text-gray-900 dark:text-white">Comparison &amp; rankings</h2>
