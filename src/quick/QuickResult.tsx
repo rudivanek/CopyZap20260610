@@ -214,6 +214,11 @@ const QuickResult: React.FC<QuickResultProps> = ({
   // The bar at the bottom of the screen: one entry per part of the result.
   const jumpTo = (id: string) => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
   const jumpToVersion = (id: string) => {
+    // The best version is the card at the top; the others open in their list.
+    if (id === winner.id) {
+      jumpTo('quick-best');
+      return;
+    }
     setOpenIds(current => (current.includes(id) ? current : [...current, id]));
     // Wait for the version to open before scrolling to it.
     window.setTimeout(() => jumpTo(`quick-version-${id}`), 60);
@@ -225,61 +230,39 @@ const QuickResult: React.FC<QuickResultProps> = ({
 
   const hasChecks = flags.length > 0 || isIncomplete || quoteFlags.length > 0 || testimonialsMoved;
   const jumpLink =
-    'shrink-0 inline-flex items-center min-h-[44px] px-2 text-xs text-gray-900 dark:text-gray-100 underline ' +
-    'hover:text-primary-800 dark:hover:text-primary-300 focus:outline-none focus:ring-2 focus:ring-primary-500';
-  const jumpSeparator = <span aria-hidden="true" className="shrink-0 text-gray-400">/</span>;
+    'shrink-0 inline-flex items-center min-h-[40px] text-xs text-gray-900 dark:text-gray-100 hover:underline ' +
+    'focus:outline-none focus:ring-2 focus:ring-primary-500';
+  const jumpSeparator = <span aria-hidden="true" className="shrink-0 text-xs text-gray-400">/</span>;
 
   return (
-    <div className="flex flex-col gap-6 pb-16">
+    <div className="flex flex-col gap-6 pb-14">
+      {/* The same bar as at the bottom of the HTML report: across the whole
+          window, the original first, then every version in the order it was
+          made, then the score. */}
       <nav
         aria-label="Jump to"
         className="fixed bottom-0 inset-x-0 z-40 bg-white dark:bg-gray-900 border-t border-gray-300 dark:border-gray-700"
       >
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 flex items-center gap-1 overflow-x-auto whitespace-nowrap">
+        <div className="px-6 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap">
           <span className="shrink-0 text-xs font-semibold text-gray-600 dark:text-gray-400 pr-1">Jump to:</span>
-          <button type="button" onClick={() => jumpTo('quick-best')} className={jumpLink}>
-            Best version
+          <button type="button" onClick={() => jumpTo('quick-original')} className={jumpLink}>
+            Your original
           </button>
+          {result.versions
+            .filter(version => version.id !== ORIGINAL_VERSION_ID)
+            .map(version => (
+              <React.Fragment key={version.id}>
+                {jumpSeparator}
+                <button type="button" onClick={() => jumpToVersion(version.id)} className={jumpLink}>
+                  {version.sourceDisplayName || 'Version'}
+                  {version.id === winner.id && <span className="text-gray-600 dark:text-gray-400">&nbsp;(best)</span>}
+                </button>
+              </React.Fragment>
+            ))}
           {jumpSeparator}
           <button type="button" onClick={() => jumpTo('quick-score')} className={jumpLink}>
             Score
           </button>
-          {whyNotes.length > 0 && (
-            <>
-              {jumpSeparator}
-              <button type="button" onClick={() => jumpTo('quick-why')} className={jumpLink}>
-                Why
-              </button>
-            </>
-          )}
-          {hasChecks && (
-            <>
-              {jumpSeparator}
-              <button type="button" onClick={() => jumpTo('quick-checks')} className={jumpLink}>
-                Check before publishing
-              </button>
-            </>
-          )}
-          {scores && scores.winnerId && (
-            <>
-              {jumpSeparator}
-              <button type="button" onClick={() => jumpTo('quick-change-panel')} className={jumpLink}>
-                What should change?
-              </button>
-            </>
-          )}
-          {jumpSeparator}
-          <button type="button" onClick={() => jumpTo('quick-original')} className={jumpLink}>
-            Your original
-          </button>
-          {others.map(({ version }) => (
-            <React.Fragment key={version.id}>
-              {jumpSeparator}
-              <button type="button" onClick={() => jumpToVersion(version.id)} className={jumpLink}>
-                {version.sourceDisplayName || 'Version'}
-              </button>
-            </React.Fragment>
-          ))}
         </div>
       </nav>
 
