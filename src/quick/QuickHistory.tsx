@@ -109,7 +109,7 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
         <button
           type="button"
           onClick={onNew}
-          className="inline-flex items-center justify-center min-h-[44px] px-6 bg-primary-500 hover:bg-primary-400 text-gray-900 font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+          className="inline-flex items-center justify-center min-h-[44px] px-6 bg-primary-500 hover:bg-primary-400 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
         >
           New
         </button>

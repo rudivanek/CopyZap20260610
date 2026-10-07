@@ -21,8 +21,17 @@ const navButton =
 const QuickTopBar: React.FC<QuickTopBarProps> = ({ onNew, onHistory, onLogout, view, isBusy, showComplete }) => (
   <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
     <div className="max-w-5xl mx-auto px-4 sm:px-6 min-h-[56px] flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
-      <div className="flex items-baseline gap-2">
-        <span className="text-lg font-semibold text-gray-900 dark:text-white">CopyZap</span>
+      {/* The same logo as in the Complete interface. It leads to a new start, like "New". */}
+      <div className="flex items-center gap-2">
+        <button
+          type="button"
+          onClick={onNew}
+          disabled={isBusy}
+          aria-label="CopyZap Quick home"
+          className="inline-flex items-center min-h-[44px] hover:opacity-80 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          <img src="/copyzap.png" alt="CopyZap" className="h-5 sm:h-6 w-auto" />
+        </button>
         <span className="text-xs font-medium text-gray-600 dark:text-gray-400">Quick</span>
       </div>
       <nav aria-label="Quick" className="flex flex-wrap items-center gap-1">

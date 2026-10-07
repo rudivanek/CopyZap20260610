@@ -584,7 +584,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               type="button"
               onClick={handleContinue}
               disabled={tooShort || tooLong || isFetching}
-              className="inline-flex items-center justify-center min-h-[48px] px-8 bg-primary-500 hover:bg-primary-400 text-gray-900 font-semibold disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+              className="inline-flex items-center justify-center min-h-[48px] px-8 bg-primary-500 hover:bg-primary-400 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
             >
               Continue
             </button>
