@@ -47,7 +47,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ onLogout, onOpenTemplateSuggestion,
           {/* Logo */}
           <div className="flex items-center">
             <Link
-              to={currentUser ? "/copy-maker" : "/"}
+              to="/"
               className="hover:opacity-80 transition-opacity duration-200"
             >
               <img src="/copyzap.png" alt="CopyZap" className="h-5 sm:h-6 w-auto" />

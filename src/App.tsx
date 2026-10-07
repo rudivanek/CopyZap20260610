@@ -99,7 +99,7 @@ const AuthenticatedRoute: React.FC<{ children: React.ReactNode }> = ({ children 
     return null;
   }
   if (!completeAccess) {
-    return <Navigate to="/quick" replace />;
+    return <Navigate to="/" replace />;
   }
 
   // Wait for screen size check to complete
@@ -695,7 +695,12 @@ const AppRouter: React.FC = () => {
           path="/"
           element={
             currentUser
-              ? <Navigate to={getLastRoute()} replace />
+              ? (
+                // Quick is the default screen: the bare address opens it directly.
+                <Suspense fallback={null}>
+                  <QuickPage currentUser={currentUser} onLogout={handleEnhancedLogout} />
+                </Suspense>
+              )
               : (window.location.hostname.startsWith('app.') ? <Navigate to="/login" replace /> : <HomePage />)
           }
         />
@@ -782,13 +787,9 @@ const AppRouter: React.FC = () => {
         <Route
           path="/quick"
           element={
-            currentUser ? (
-              <Suspense fallback={null}>
-                <QuickPage currentUser={currentUser} onLogout={handleEnhancedLogout} />
-              </Suspense>
-            ) : (
-              <Navigate to="/login" replace />
-            )
+            // The address Quick had before it became the default. Kept so that
+            // bookmarks and links to saved results (?r=...) still arrive.
+            <Navigate to={{ pathname: '/', search: location.search }} replace />
           }
         />
         <Route
