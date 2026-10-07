@@ -30,6 +30,7 @@ import {
   QUICK_MIN_WORDS,
   QUICK_SECTION,
 } from './buildQuickFormState';
+import { effectiveGates } from './gateRules';
 import { ORIGINAL_OPTION_LABEL, ORIGINAL_VERSION_ID, pickWinner } from './pickWinner';
 import {
   findUnverifiedQuotes,
@@ -363,12 +364,21 @@ export async function scoreQuickVersions(
     }
   }
 
+  // A repetition the original has itself is not held against a version (see gateRules.ts).
+  const gateByVersion = effectiveGates(unified.gateByVersion);
+  for (const row of rows) {
+    const gate = gateByVersion[row.versionId];
+    if (!gate) continue;
+    row.incomplete = !gate.valid;
+    row.gateFlags = gate.flags;
+  }
+
   const winner = pickWinner(rows);
 
   return {
     comparisonResult,
     absoluteByVersion,
-    gateByVersion: unified.gateByVersion ?? {},
+    gateByVersion,
     winnerId: winner ? winner.versionId : null,
     unscoredIds,
   };

@@ -19,6 +19,7 @@
 import { FormState, GeneratedContentItem } from '../types';
 import type { ComparisonResult } from '../services/api/comprehensiveScoring';
 import { deriveQuickLabel } from './buildQuickFormState';
+import { effectiveGates } from './gateRules';
 import { ORIGINAL_VERSION_ID } from './pickWinner';
 import type { QuickRunResult } from './runQuickPipeline';
 
@@ -38,9 +39,11 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
   if (!scores) throw new Error('This result has no scores yet. Score it before exporting a report.');
 
   const winnerId = scores.winnerId;
+  // Read the structural check the way the screen does (see gateRules.ts).
+  const gates = effectiveGates(scores.gateByVersion);
   const inReport = (versionId: string): boolean => {
     if (versionId === ORIGINAL_VERSION_ID || versionId === winnerId) return true;
-    const gate = scores.gateByVersion[versionId];
+    const gate = gates[versionId];
     const setAside = gate ? !gate.valid : false;
     return !setAside && scores.absoluteByVersion[versionId] !== undefined;
   };

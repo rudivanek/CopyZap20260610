@@ -122,6 +122,8 @@ const isRuleLine = (line: string) => /^\s*([-*_])(\s*\1){2,}\s*$/.test(line);
 
 /** How often a label must repeat before it counts as furniture. A call to action repeated two or three times stays. */
 const REPEATED_LABEL_MIN = 5;
+/** A repeated run of lines this long is a duplicate block, not a repeated call to action. */
+const REPEATED_BLOCK_MIN_WORDS = 25;
 const COOKIE_TAIL_LINES = 12;
 /** The accessibility link most sites put first: "Skip to content", in the languages Quick writes. */
 const SKIP_LINK =
@@ -138,6 +140,7 @@ const COOKIE_MAX_TOTAL_WORDS = 150;
  *  - lines with no letters or digits at all (a "%" whose number was animated in)
  *  - a counter that never started ("+ 0", "+ 0 %"): the number is animated in on the live page
  *  - a "skip to content" link at the top
+ *  - a block the page contains twice (a slider's second copy of its slides)
  *  - the same label twice in a row
  *
  * It only ever removes whole lines of that kind. Sentences are never touched.
@@ -175,6 +178,37 @@ export function stripPageFurniture(text: string): { text: string; removed: numbe
       if (/cookie|accept|acept|akzept|accetta|aceitar|consent/i.test(item.line)) last = item.index;
     }
     if (last >= 0) lines = lines.slice(last + 1);
+  }
+
+  // 2b — a block the page contains twice. A slider keeps a second copy of its
+  // slides in the page, so a row of testimonials arrives two times over. The
+  // second copy goes. Only a repeat of REPEATED_BLOCK_MIN_WORDS words or more
+  // counts: a call to action said twice is copy, not a duplicate.
+  {
+    const kept = lines.map((line, index) => ({ line, index, key: line.trim() })).filter(item => item.key !== '');
+    const gone = new Set<number>();
+    for (let i = 0; i < kept.length; i++) {
+      if (gone.has(kept[i].index)) continue;
+      for (let j = i + 1; j < kept.length; j++) {
+        if (gone.has(kept[j].index) || kept[j].key !== kept[i].key) continue;
+        let length = 0;
+        let words = 0;
+        while (
+          i + length < j &&
+          j + length < kept.length &&
+          !gone.has(kept[j + length].index) &&
+          kept[i + length].key === kept[j + length].key
+        ) {
+          words += wordsIn(kept[i + length].key);
+          length += 1;
+        }
+        if (words >= REPEATED_BLOCK_MIN_WORDS) {
+          for (let k = 0; k < length; k++) gone.add(kept[j + k].index);
+          j += length - 1;
+        }
+      }
+    }
+    if (gone.size > 0) lines = lines.filter((_, index) => !gone.has(index));
   }
 
   // 3 — labels that repeat all over the page, and ordinal counters.
