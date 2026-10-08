@@ -22,6 +22,8 @@ import {
   startQuickSession,
   withQuickResult,
 } from '../engine/runQuickPipeline';
+import QuickIntro from './QuickIntro';
+import { hasSeenIntro, markIntroSeen } from './introSeen';
 import QuickTopBar from './QuickTopBar';
 import QuickBusyModal, { QuickBusyKind } from './QuickBusyModal';
 import QuickConfirm from './QuickConfirm';
@@ -98,6 +100,11 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [result, setResult] = useState<QuickRunResult | null>(null);
   // The process currently running, if any. While one runs, a modal covers the screen.
   const [busy, setBusy] = useState<QuickBusyKind | null>(null);
+  // Counts finished processes, so the top bar reads the credits again after each.
+  const [creditsTick, setCreditsTick] = useState(0);
+  useEffect(() => {
+    if (busy === null) setCreditsTick(tick => tick + 1);
+  }, [busy]);
   const isFetching = busy === 'fetch';
   const isRescoring = busy === 'rescoring';
   const [runSeconds, setRunSeconds] = useState<number | null>(null);
@@ -111,6 +118,17 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   // Only power users and admins are offered the Complete interface.
   const completeAccess = useCompleteAccess();
   const openAtStart = useRef(searchParams.get('r'));
+  // "How it works": open on a user's first visit (not when they arrive at a
+  // saved result), and whenever they press Help.
+  const [introOpen, setIntroOpen] = useState(() => !hasSeenIntro(currentUser.id) && !openAtStart.current);
+  const closeIntro = () => {
+    markIntroSeen(currentUser.id);
+    setIntroOpen(false);
+  };
+  const openIntro = () => {
+    setIntroOpen(true);
+    window.scrollTo(0, 0);
+  };
   const [url, setUrl] = useState('');
   const [fetchedFrom, setFetchedFrom] = useState<string | null>(null);
   // The address the copy in the box was fetched from; recorded with the result.
@@ -465,7 +483,12 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         view={phase === 'history' ? 'history' : 'new'}
         isBusy={busy !== null}
         showComplete={completeAccess === true}
+        onHelp={openIntro}
+        userId={currentUser.id}
+        creditsTick={creditsTick}
       />
+
+      {introOpen && <QuickIntro onClose={closeIntro} />}
 
       {phase === 'start' && (
         <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-10 pb-16 flex flex-col gap-7">

@@ -1,5 +1,6 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useCreditsBalance } from '../hooks/useCreditsBalance';
 
 interface QuickTopBarProps {
   onNew: () => void;
@@ -11,14 +12,55 @@ interface QuickTopBarProps {
   isBusy: boolean;
   /** Power users and admins get a link to the Advanced interface (Copy Maker); everyone else has this one only. */
   showComplete: boolean;
+  /** Opens the "How it works" explanation. */
+  onHelp: () => void;
+  /** Whose credits to show. */
+  userId: string;
+  /** Changes whenever a process has finished, so the credits are read again. */
+  creditsTick: number;
 }
 
+/** The same short form Copy Maker's menu uses: 5.0M, 12.3K, 420. */
+function formatCredits(credits: number): string {
+  if (credits >= 1000000) return `${(credits / 1000000).toFixed(1)}M`;
+  if (credits >= 1000) return `${(credits / 1000).toFixed(1)}K`;
+  return String(credits);
+}
+
+/**
+ * The credits the user has left. Mounted afresh (by its key) after every
+ * process, because the shared hook reads them only when it mounts, when the
+ * window gets the focus, and every five minutes.
+ */
+const CreditsLeft: React.FC<{ userId: string }> = ({ userId }) => {
+  const { creditsAllowed, creditsRemaining, isLoading } = useCreditsBalance(userId);
+  // The hook reports 0 and 0 when it could not read them; show nothing then, not "0 credits".
+  if (isLoading || (creditsAllowed <= 0 && creditsRemaining <= 0)) return null;
+  return (
+    <span className="inline-flex items-center min-h-[44px] px-2 sm:px-3 text-xs font-medium text-gray-600 dark:text-gray-400 tabular-nums whitespace-nowrap">
+      {formatCredits(Math.max(0, creditsRemaining))} credits
+      {/* On a phone the word "left" is dropped so the bar stays two rows high. */}
+      <span className="hidden sm:inline">&nbsp;left</span>
+    </span>
+  );
+};
+
 const navButton =
-  'inline-flex items-center min-h-[44px] px-3 font-medium text-gray-900 dark:text-gray-100 ' +
+  'inline-flex items-center min-h-[44px] px-2 sm:px-3 font-medium text-gray-900 dark:text-gray-100 ' +
   'hover:text-primary-700 dark:hover:text-primary-300 disabled:text-gray-400 disabled:cursor-not-allowed ' +
   'focus:outline-none focus:ring-2 focus:ring-primary-500 border-b-2 ';
 
-const QuickTopBar: React.FC<QuickTopBarProps> = ({ onNew, onHistory, onLogout, view, isBusy, showComplete }) => (
+const QuickTopBar: React.FC<QuickTopBarProps> = ({
+  onNew,
+  onHistory,
+  onLogout,
+  view,
+  isBusy,
+  showComplete,
+  onHelp,
+  userId,
+  creditsTick,
+}) => (
   <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
     <div className="max-w-5xl mx-auto px-4 sm:px-6 min-h-[56px] flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
       {/* This is the default screen, so it carries the plain logo, the same as
@@ -53,6 +95,9 @@ const QuickTopBar: React.FC<QuickTopBarProps> = ({ onNew, onHistory, onLogout, v
         >
           History
         </button>
+        <button type="button" onClick={onHelp} className={navButton + 'border-transparent'}>
+          Help
+        </button>
         {/* The Advanced interface needs a desktop screen, so the link is hidden below 1024px. */}
         {showComplete && (
           <Link
@@ -62,6 +107,7 @@ const QuickTopBar: React.FC<QuickTopBarProps> = ({ onNew, onHistory, onLogout, v
             Advanced
           </Link>
         )}
+        <CreditsLeft key={creditsTick} userId={userId} />
         <button type="button" onClick={onLogout} className={navButton + 'border-transparent'}>
           Log out
         </button>
