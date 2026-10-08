@@ -119,8 +119,8 @@ Deno.serve(async (req: Request) => {
                 <div style="background-color: #f9fafb; border-left: 4px solid #4b5563; padding: 20px; margin: 30px 0;">
                   <h2 style="margin: 0 0 10px 0; font-size: 18px; color: #1f2937;">Your trial</h2>
                   <p style="margin: 0; color: #374151; font-size: 15px; line-height: 1.6;">
-                    <strong>10,000 credits</strong>, valid for <strong>30 days</strong>.<br>
-                    A page of about 1,000 words uses roughly 60 credits.
+                    <strong>1,000 credits</strong>, valid for <strong>30 days</strong>.<br>
+                    That is enough for about 15 pages: a page of about 1,000 words uses roughly 60 credits.
                   </p>
                 </div>
 
