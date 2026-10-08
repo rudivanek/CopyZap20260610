@@ -57,8 +57,9 @@ const HelpSearch: React.FC<HelpSearchProps> = ({
       }
 
       try {
-        const response = await fetch('/docs/search-index.json');
-        const index: SearchResult[] = await response.json();
+        // The search index is part of the app, not a public file: it is loaded only when someone searches the Help Center.
+        const raw = (await import('./data/search-index.json?raw')).default;
+        const index: SearchResult[] = JSON.parse(raw);
 
         const normalizedQuery = searchQuery.toLowerCase();
         const matches = index.filter(page => {

@@ -112,14 +112,17 @@ function extractHeadings(tsxContent) {
 function buildSearchIndex() {
   const helpPagesDir = path.join(__dirname, 'src', 'components', 'help', 'pages');
   const docsDir = path.join(__dirname, 'docs');
-  const publicDocsDir = path.join(__dirname, 'public', 'docs');
+  // The copy the app reads. It lives inside the app's source, not in the
+  // published folder: files under public/ are handed out to anyone, and the
+  // Help Center is for the Advanced interface only.
+  const appDataDir = path.join(__dirname, 'src', 'components', 'help', 'data');
 
   // Ensure output directories exist
   if (!fs.existsSync(docsDir)) {
     fs.mkdirSync(docsDir, { recursive: true });
   }
-  if (!fs.existsSync(publicDocsDir)) {
-    fs.mkdirSync(publicDocsDir, { recursive: true });
+  if (!fs.existsSync(appDataDir)) {
+    fs.mkdirSync(appDataDir, { recursive: true });
   }
 
   // Read all TSX files from help pages directory
@@ -158,9 +161,9 @@ function buildSearchIndex() {
   fs.writeFileSync(outputPath, JSON.stringify(index, null, 2));
   console.log(`✓ Created ${outputPath}`);
 
-  const publicOutputPath = path.join(publicDocsDir, 'search-index.json');
-  fs.writeFileSync(publicOutputPath, JSON.stringify(index, null, 2));
-  console.log(`✓ Created ${publicOutputPath}`);
+  const appOutputPath = path.join(appDataDir, 'search-index.json');
+  fs.writeFileSync(appOutputPath, JSON.stringify(index, null, 2));
+  console.log(`✓ Created ${appOutputPath}`);
 
   console.log(`\nIndexed ${index.length} pages with full-text content`);
 

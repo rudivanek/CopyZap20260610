@@ -40,8 +40,9 @@ const HelpSidebar: React.FC = () => {
   useEffect(() => {
     const loadTopics = async () => {
       try {
-        const response = await fetch('/docs/help-index.json');
-        const data: HelpTopic[] = await response.json();
+        // The index is part of the app, not a public file: it is loaded only when the Help Center is open.
+        const raw = (await import('./data/help-index.json?raw')).default;
+        const data: HelpTopic[] = JSON.parse(raw);
         setTopics(data);
 
         // Group topics by group field
