@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { GeneratedContentItem } from '../types';
 import FormattedContent from '../components/ui/FormattedContent';
 import { contentToText } from '../services/api/contentText';
@@ -9,6 +9,8 @@ import { deriveQuickLabel } from '../engine/buildQuickFormState';
 import { prepareQuickEdit, QuickEditDraft, validateQuickEdit } from '../engine/editQuickVersion';
 import { exportQuickReport } from '../engine/exportQuickReport';
 import { effectiveGates } from '../engine/gateRules';
+import { checkNumbers } from '../engine/numberCheck';
+import type { NumberCheck } from '../engine/numberCheck';
 import { ORIGINAL_VERSION_ID } from '../engine/pickWinner';
 import { QUICK_SCORE_MARGIN } from '../engine/runQuickPipeline';
 import type { QuickRunResult } from '../engine/runQuickPipeline';
@@ -110,6 +112,44 @@ function noteText(note: string): string {
   return kind ? `${kind.charAt(0).toUpperCase()}${kind.slice(1)}: ${words}` : words;
 }
 
+const NO_NUMBERS: NumberCheck = { added: [], dropped: [] };
+/** How many number findings of one kind are listed before "and N more". */
+const NUMBER_NOTES_SHOWN = 6;
+
+/** Numbers a version adds or leaves out, each with the sentence it stands in. */
+const NumberNotes: React.FC<{ check: NumberCheck }> = ({ check }) => (
+  <>
+    {[
+      { title: 'Numbers not in your original', items: check.added },
+      { title: 'Numbers from your original that are missing', items: check.dropped },
+    ]
+      .filter(group => group.items.length > 0)
+      .map(group => (
+        <div key={group.title}>
+          <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
+            <span className="w-1 h-4 bg-status-warning" aria-hidden="true" />
+            {group.title}
+          </p>
+          <ul className="mt-1 list-disc pl-5 text-gray-900 dark:text-gray-100">
+            {group.items.slice(0, NUMBER_NOTES_SHOWN).map((item, index) => (
+              <li key={index} className="break-words">
+                <span className="font-semibold">{item.numbers.join(', ')}</span>
+                {item.context !== item.numbers.join(', ') && (
+                  <span className="text-gray-600 dark:text-gray-400"> in “{item.context}”</span>
+                )}
+              </li>
+            ))}
+            {group.items.length > NUMBER_NOTES_SHOWN && (
+              <li className="list-none text-gray-600 dark:text-gray-400">
+                and {group.items.length - NUMBER_NOTES_SHOWN} more
+              </li>
+            )}
+          </ul>
+        </div>
+      ))}
+  </>
+);
+
 const ScoreTag: React.FC<{ total: number | undefined }> = ({ total }) => (
   <span className="inline-flex items-center gap-2 text-xs font-semibold text-gray-900 tabular-nums">
     {total != null ? (
@@ -185,6 +225,21 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const toggleOpen = (id: string) =>
     setOpenIds(current => (current.includes(id) ? current.filter(item => item !== id) : [...current, id]));
 
+  // The numbers each version adds to the original or leaves out of it. Worked
+  // out here from the two texts (no model call), so it also covers results
+  // that were saved before this check existed.
+  const numbersByVersion = useMemo(() => {
+    const byVersion: Record<string, NumberCheck> = {};
+    const source = result.versions.find(version => version.id === ORIGINAL_VERSION_ID);
+    const originalText = source ? contentToText(source.content) : '';
+    if (!originalText.trim()) return byVersion;
+    for (const version of result.versions) {
+      if (version.id === ORIGINAL_VERSION_ID) continue;
+      byVersion[version.id] = checkNumbers(contentToText(version.content), originalText);
+    }
+    return byVersion;
+  }, [result.versions]);
+
   const { scores, versions } = result;
   const generated = versions.filter(version => version.id !== ORIGINAL_VERSION_ID);
   const winner = (scores?.winnerId ? generated.find(version => version.id === scores.winnerId) : undefined) ?? generated[0];
@@ -221,6 +276,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const whyNotes = reasons(winnerScore);
   // Quoted passages in this version that are not in the original.
   const quoteFlags = result.quoteFlags[winner.id] ?? [];
+  const numberNotes = numbersByVersion[winner.id] ?? NO_NUMBERS;
+  const hasNumberNotes = numberNotes.added.length > 0 || numberNotes.dropped.length > 0;
   const testimonialsMoved = result.testimonials.movedIds.includes(winner.id);
 
   const others = generated
@@ -253,6 +310,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
       claims: notes.filter(isClaimNote).map(noteText),
       tone: notes.filter(note => !isClaimNote(note)).map(noteText),
       quotes: result.quoteFlags[version.id] ?? [],
+      numbers: numbersByVersion[version.id] ?? NO_NUMBERS,
     };
   };
   const ranked = generated
@@ -289,7 +347,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const goalName = goalOption ? goalOption.label.split(' — ')[0] : result.goalKey;
   const scoreLabel = winnerTotal != null ? getAbsoluteScoreLabel(winnerTotal) : '';
 
-  const hasChecks = flags.length > 0 || isIncomplete || quoteFlags.length > 0 || testimonialsMoved;
+  const hasChecks = flags.length > 0 || isIncomplete || quoteFlags.length > 0 || testimonialsMoved || hasNumberNotes;
   const jumpLink =
     'shrink-0 inline-flex items-center min-h-[40px] text-xs text-gray-900 dark:text-gray-100 hover:underline ' +
     'focus:outline-none focus:ring-2 focus:ring-primary-500';
@@ -684,6 +742,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 )}
               </ul>
               )}
+              <NumberNotes check={numberNotes} />
               {claimNotes.length > 0 && (
                 <div>
                   <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
@@ -831,7 +890,11 @@ const QuickResult: React.FC<QuickResultProps> = ({
                       {item.score.audience_fit}/25 · Structure {item.score.structure}/25
                     </p>
                   )}
-                  {(item.quotes.length > 0 || item.claims.length > 0 || item.tone.length > 0) && (
+                  {(item.quotes.length > 0 ||
+                    item.claims.length > 0 ||
+                    item.tone.length > 0 ||
+                    item.numbers.added.length > 0 ||
+                    item.numbers.dropped.length > 0) && (
                     <div className="pl-11 flex flex-col gap-2">
                       {item.quotes.length > 0 && (
                         <div>
@@ -846,6 +909,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                           </ul>
                         </div>
                       )}
+                      <NumberNotes check={item.numbers} />
                       {item.claims.length > 0 && (
                         <div>
                           <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">

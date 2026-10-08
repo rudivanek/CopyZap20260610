@@ -137,6 +137,14 @@ export const HELP_SECTIONS: HelpSection[] = [
         text: 'Wording that may not sound like you: figures of speech, or a tone that is stronger than your original.',
       },
       {
+        term: 'Numbers not in your original',
+        text: 'Figures a version contains that your copy does not: a price, a percentage, a year, a count. CopyZap compares the numbers itself, in every version. Check each one, or change it back.',
+      },
+      {
+        term: 'Numbers from your original that are missing',
+        text: 'Figures your copy has that a version leaves out, such as a price or a delivery time. Decide whether they should come back.',
+      },
+      {
         term: 'Quoted words not in your original',
         text: 'Words in quotation marks that do not appear in your copy. Remove them, or replace them with the exact words the person said.',
       },
