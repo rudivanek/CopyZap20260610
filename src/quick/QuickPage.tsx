@@ -5,7 +5,12 @@ import { GoalKey, User } from '../types';
 import { DEFAULT_GOAL_KEY, GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import { countWords } from '../utils/markdownUtils';
 import { playSuccessSound } from '../utils/soundEffects';
-import { QUICK_DEFAULT_VARIANTS, QUICK_MAX_WORDS, QUICK_MIN_WORDS } from '../engine/buildQuickFormState';
+import {
+  QUICK_DEFAULT_VARIANTS,
+  QUICK_MAX_INPUT_WORDS,
+  QUICK_MAX_WORDS,
+  QUICK_MIN_WORDS,
+} from '../engine/buildQuickFormState';
 import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
 import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
@@ -84,6 +89,8 @@ function messageOf(error: unknown): string {
   if (error instanceof Error && error.message) return `Something went wrong. ${error.message}`;
   return 'Something went wrong. Please try again.';
 }
+
+const asNumber = (value: number) => value.toLocaleString('en-US');
 
 function formatElapsed(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
@@ -190,20 +197,41 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   }, [isTiming]);
 
   const words = copy.trim() ? countWords(copy) : 0;
+  const tooShort = words < QUICK_MIN_WORDS;
+  // More words than Quick works on in one run. Such a page can still be brought
+  // in when it has parts: the user leaves some out on the confirm screen.
+  const overLimit = words > QUICK_MAX_WORDS;
+  const overInput = words > QUICK_MAX_INPUT_WORDS;
   // The parts of the page and what the user wants done with each. Worked out
-  // for the confirm screen only; choices the user has not made follow Quick's proposal.
-  const sections = useMemo(() => (phase === 'confirm' ? splitIntoSections(copy.trim()) : []), [phase, copy]);
+  // for the confirm screen, and on the start screen for a page over the limit
+  // (to know whether it has parts at all); choices the user has not made follow
+  // Quick's proposal.
+  const needsParts = phase === 'confirm' || (phase === 'start' && overLimit && !overInput);
+  const sections = useMemo(() => (needsParts ? splitIntoSections(copy.trim()) : []), [needsParts, copy]);
   const choices = useMemo(() => ({ ...defaultChoices(sections), ...pickedChoices }), [sections, pickedChoices]);
   const plan = useMemo(() => planSections(sections, choices), [sections, choices]);
   // Every testimonial Quick finds is a row in the list of parts now, with its
   // own choice, so there is no separate "testimonials found" line any more.
   const testimonialCount = 0;
+  // A page over the limit can go on only when it has parts to leave out, and
+  // at least one of them is of a size Quick can work on.
+  const canTrim =
+    overLimit &&
+    !overInput &&
+    sections.length > 1 &&
+    sections.some(section => section.words >= QUICK_MIN_WORDS && section.words <= QUICK_MAX_WORDS);
+  const tooLong = overInput || (overLimit && !canTrim);
+  // The words of the run: everything that is not left out. This is the text
+  // the engine is given, so it is what the limit applies to.
+  const usedWords = sections.length > 1 ? (plan.copy.trim() ? countWords(plan.copy) : 0) : words;
   const blocked =
-    phase === 'confirm' && sections.length > 1 && plan.improveWords < QUICK_MIN_WORDS
-      ? `Choose at least one part to improve (${QUICK_MIN_WORDS} words or more).`
-      : null;
-  const tooShort = words < QUICK_MIN_WORDS;
-  const tooLong = words > QUICK_MAX_WORDS;
+    phase !== 'confirm'
+      ? null
+      : usedWords > QUICK_MAX_WORDS
+        ? `${asNumber(usedWords)} words are in use. Leave out ${asNumber(usedWords - QUICK_MAX_WORDS)} or more to generate.`
+        : sections.length > 1 && plan.improveWords < QUICK_MIN_WORDS
+          ? `Choose at least one part to improve (${QUICK_MIN_WORDS} words or more).`
+          : null;
 
   /** Saves a result as a new History entry, or over its existing one, and keeps its id in the address. */
   const persist = async (run: QuickRunResult, seconds: number | null, id: string | null) => {
@@ -558,10 +586,16 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               placeholder="Paste the text you want to improve"
               className="w-full px-3.5 py-3 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 leading-relaxed resize-y focus:outline-none focus:ring-2 focus:ring-primary-500"
             />
-            <p className={tooLong ? 'text-gray-900 dark:text-gray-100 font-semibold' : 'text-gray-600 dark:text-gray-400'}>
-              {words} {words === 1 ? 'word' : 'words'}.
-              {tooLong && ` CopyZap handles up to ${QUICK_MAX_WORDS} words for now.`}
-              {!tooLong && words > 0 && tooShort && ` Paste at least ${QUICK_MIN_WORDS}.`}
+            <p className={overLimit ? 'text-gray-900 dark:text-gray-100 font-semibold' : 'text-gray-600 dark:text-gray-400'}>
+              {asNumber(words)} {words === 1 ? 'word' : 'words'}.
+              {overInput && ` CopyZap takes up to ${asNumber(QUICK_MAX_INPUT_WORDS)} words. Shorten the text.`}
+              {canTrim &&
+                ` CopyZap works on up to ${asNumber(QUICK_MAX_WORDS)} words at a time. On the next screen you choose which parts to leave out.`}
+              {overLimit && !overInput && !canTrim &&
+                ` CopyZap works on up to ${asNumber(QUICK_MAX_WORDS)} words at a time, and this text ${
+                  sections.length > 1 ? 'has no part short enough to work on' : 'has no headings to split it at'
+                }. Shorten it to ${asNumber(QUICK_MAX_WORDS)} words.`}
+              {!overLimit && words > 0 && tooShort && ` Paste at least ${QUICK_MIN_WORDS}.`}
               {fetchedFrom && !isFetching && ` Taken from ${fetchedFrom}.`}
               {fetchedFrom && !isFetching && furnitureRemoved > 0 &&
                 ` ${furnitureRemoved} ${furnitureRemoved === 1 ? 'line' : 'lines'} of page furniture left out (link bars, cookie notice, repeated labels, counters).`}
@@ -661,6 +695,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           choices={choices}
           onChoiceChange={(id, choice) => setPickedChoices(picked => ({ ...picked, [id]: choice }))}
           improveWords={plan.improveWords}
+          usedWords={usedWords}
+          maxWords={QUICK_MAX_WORDS}
           blocked={blocked}
           onGenerate={handleRun}
           onBack={() => {

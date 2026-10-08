@@ -4,7 +4,7 @@
  * same text.
  */
 import { QUICK_MAX_VERSIONS, QUICK_CHANGE_MAX_CHARS } from '../engine/changeQuickVersion';
-import { QUICK_MAX_WORDS, QUICK_MIN_WORDS } from '../engine/buildQuickFormState';
+import { QUICK_MAX_INPUT_WORDS, QUICK_MAX_WORDS, QUICK_MIN_WORDS } from '../engine/buildQuickFormState';
 import { QUICK_LANGUAGES } from '../engine/inferQuickBrief';
 import { QUICK_SCORE_MARGIN, QUICK_SCORE_SAMPLES } from '../engine/runQuickPipeline';
 
@@ -58,7 +58,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       },
       {
         term: 'Length',
-        text: `Between ${words(QUICK_MIN_WORDS)} and ${words(QUICK_MAX_WORDS)} words.`,
+        text: `CopyZap works on ${words(QUICK_MIN_WORDS)} to ${words(QUICK_MAX_WORDS)} words at a time. A longer page, up to ${words(QUICK_MAX_INPUT_WORDS)} words, can be brought in when it has headings: on the check screen you leave out parts until ${words(QUICK_MAX_WORDS)} words or fewer are in use. A long text without headings has to be shortened first.`,
       },
       {
         term: 'Goal',
@@ -187,7 +187,7 @@ export const HELP_SECTIONS: HelpSection[] = [
     title: 'What CopyZap does not do',
     items: [
       { text: 'It improves copy you already have. It does not write a page from nothing.' },
-      { text: `It does not take more than ${words(QUICK_MAX_WORDS)} words at a time. Split a longer page.` },
+      { text: `It does not work on more than ${words(QUICK_MAX_WORDS)} words in one run. For a longer page, leave parts out on the check screen and run them separately.` },
       {
         text: 'It cannot fetch a page that is behind a login or that refuses automated visits. Numbers that a page only shows through an animation arrive empty: type them in before you continue.',
       },

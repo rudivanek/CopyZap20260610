@@ -21,6 +21,10 @@ interface QuickConfirmProps {
   onChoiceChange: (id: string, choice: SectionChoice) => void;
   /** Words Quick will rewrite with the current choices. */
   improveWords: number;
+  /** Words of the run with the current choices: everything that is not left out. */
+  usedWords: number;
+  /** Most words one run works on. */
+  maxWords: number;
   /** Why generating is not possible right now, if it is not. */
   blocked: string | null;
 }
@@ -32,6 +36,7 @@ const CHOICES: { value: SectionChoice; label: string }[] = [
 ];
 
 const PREVIEW_CHARS = 220;
+const asNumber = (value: number) => value.toLocaleString('en-US');
 
 const field =
   'w-full min-h-[44px] px-3.5 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 ' +
@@ -56,11 +61,16 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
   choices,
   onChoiceChange,
   improveWords,
+  usedWords,
+  maxWords,
   blocked,
 }) => {
   const choiceOf = (section: PageSection): SectionChoice => choices[section.id] ?? 'improve';
   const count = (value: SectionChoice) => sections.filter(section => choiceOf(section) === value).length;
   const couldNotRead = !brief.product && !brief.audience;
+  // A page longer than one run works on: parts have to be left out first.
+  const overLimit = words > maxWords;
+  const stillOver = usedWords > maxWords;
 
   return (
     <main className="max-w-3xl mx-auto px-4 sm:px-6 pt-10 pb-16 flex flex-col gap-7">
@@ -79,7 +89,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
       >
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-            Your copy · {words} {words === 1 ? 'word' : 'words'} · Goal: {goalName}
+            Your copy · {asNumber(words)} {words === 1 ? 'word' : 'words'} · Goal: {goalName}
           </span>
           <button
             type="button"
@@ -171,6 +181,18 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
           <legend className="p-0 mb-1 font-semibold text-gray-900 dark:text-gray-100">
             What should CopyZap do with each part?
           </legend>
+          {overLimit && (
+            <p id="quick-over-limit" className="flex items-start gap-2.5 mb-1 text-gray-900 dark:text-gray-100">
+              <span
+                className={'w-1 h-5 mt-0.5 shrink-0 ' + (stillOver ? 'bg-status-warning' : 'bg-status-good')}
+                aria-hidden="true"
+              />
+              <span>
+                This copy has {asNumber(words)} words. CopyZap works on up to {asNumber(maxWords)} at a time. Set parts to
+                "Leave out" until {asNumber(maxWords)} words or fewer are in use. Parts kept as they are count too.
+              </span>
+            </p>
+          )}
           <ul className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
             {sections.map(section => {
               const current = choiceOf(section);
@@ -188,7 +210,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
                       {section.title}
                     </span>
                     <span className="text-xs text-gray-600 dark:text-gray-400 tabular-nums">
-                      {section.words} {section.words === 1 ? 'word' : 'words'}
+                      {asNumber(section.words)} {section.words === 1 ? 'word' : 'words'}
                     </span>
                     {section.hint && (
                       <span className="text-xs text-gray-900 dark:text-gray-100 border border-gray-400 dark:border-gray-600 px-1.5">
@@ -222,10 +244,19 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
             })}
           </ul>
           <p className="text-gray-600 dark:text-gray-400">
-            Rewrites {count('improve')} {count('improve') === 1 ? 'part' : 'parts'} ({improveWords} words) · keeps{' '}
+            Rewrites {count('improve')} {count('improve') === 1 ? 'part' : 'parts'} ({asNumber(improveWords)} words) · keeps{' '}
             {count('keep')} as {count('keep') === 1 ? 'it is' : 'they are'} · leaves out {count('leave')}. A part kept
             as it is goes into the new page unchanged, in its place. A part left out is dropped.
           </p>
+          {overLimit && (
+            <p
+              id="quick-words-in-use"
+              aria-live="polite"
+              className={stillOver ? 'font-semibold text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'}
+            >
+              In use: {asNumber(usedWords)} of {asNumber(maxWords)} words.
+            </p>
+          )}
         </fieldset>
       )}
 

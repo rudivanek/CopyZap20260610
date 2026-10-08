@@ -13,12 +13,18 @@ export const QUICK_DEFAULT_VARIANTS = 3;
 /** Shortest input Quick accepts. */
 export const QUICK_MIN_WORDS = 10;
 /**
- * Longest input Quick accepts as one piece. The writing step now sizes its
- * output to the copy and streams long versions, and the comparison reads up to
- * about 3,000 words of each version. Larger pages need section-by-section
- * handling, which is not built yet.
+ * Most words Quick works on in one run: the parts that are improved plus the
+ * parts kept as they are. The writing step sizes its output to the copy and
+ * streams long versions, and the comparison reads up to about 3,000 words of
+ * each version. Parts the user leaves out do not count: they are never read.
  */
 export const QUICK_MAX_WORDS = 3000;
+/**
+ * Longest text that can be brought to the check screen. A page above
+ * QUICK_MAX_WORDS gets there only when it has parts, so the user can leave
+ * some out until QUICK_MAX_WORDS or fewer are in use.
+ */
+export const QUICK_MAX_INPUT_WORDS = 10000;
 /** Passed to the comparison prompt as the section name. */
 export const QUICK_SECTION = 'Marketing Copy';
 
