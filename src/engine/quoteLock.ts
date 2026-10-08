@@ -20,6 +20,8 @@
 const MAX_BODY_WORDS = 400;
 const MAX_BODY_PARAGRAPHS = 10;
 const MIN_BODY_WORDS = 3;
+/** A line standing alone with at most this many words and no sentence ending reads as a heading. */
+const HEADING_LIKE_MAX_WORDS = 10;
 /** A quoted passage must be at least this long to be checked. */
 const MIN_QUOTE_WORDS = 6;
 
@@ -81,11 +83,40 @@ function isLabelLine(line: string): boolean {
   return wordCount(text) <= 4;
 }
 
+/**
+ * A short line standing alone, with no sentence ending: what a page uses as a
+ * heading even when the text carries no heading mark, for example "Lo que
+ * dicen nuestros pacientes" or "What our clients say:". Such a line is not
+ * part of what someone said, so a testimonial does not reach past it.
+ */
+function isHeadingLikeLine(lines: string[], index: number): boolean {
+  const line = lines[index];
+  if (isBlank(line) || isBlockquote(line) || isAttributionLine(line)) return false;
+  if (index > 0 && !isBlank(lines[index - 1])) return false;
+  if (index + 1 < lines.length && !isBlank(lines[index + 1])) return false;
+  const text = bare(line);
+  if (/^([-*+]|\d+[.)])\s/.test(text)) return false; // a list item
+  if (/^["“«]/.test(text) || /[.!?…"”»;]$/.test(text)) return false;
+  return wordCount(text) <= HEADING_LIKE_MAX_WORDS;
+}
+
+const startsWithQuoteMark = (line: string) => /^["“«]/.test(bare(line));
+
 interface Found {
   start: number;
   end: number;
   /** True when the form itself says "this is a quote": quotation marks or a blockquote. */
   strong: boolean;
+  /**
+   * Where each paragraph of what was said begins, nearest to the name first.
+   * Only for testimonials found by the name under them.
+   */
+  paragraphStarts?: number[];
+  /**
+   * True when nothing on the page showed where the words begin: the search ran
+   * to the top of the text, or to the most a testimonial may hold.
+   */
+  open?: boolean;
 }
 
 function findTestimonials(lines: string[]): Found[] {
@@ -103,23 +134,33 @@ function findTestimonials(lines: string[]): Found[] {
     // Walk back over the paragraphs that make up what was said.
     let start = -1;
     let words = 0;
-    let paragraphs = 0;
     let inParagraph = false;
+    const paragraphStarts: number[] = [];
+    // Open until something on the page shows where the words begin.
+    let open = floor === 0;
     for (let j = i - 1; j >= floor; j--) {
       const line = lines[j];
       // A heading, a rule or a label ("Testimonials", "Read testimonial") ends what was said.
-      if (isHeading(line) || isRule(line) || isLabelLine(line)) break;
+      // So does a line that reads as a heading, once there is something below it.
+      if (isHeading(line) || isRule(line) || isLabelLine(line) || (start !== -1 && isHeadingLikeLine(lines, j))) {
+        open = false;
+        break;
+      }
       if (isBlank(line)) {
         inParagraph = false;
         continue;
       }
-      if (!inParagraph) {
-        if (paragraphs >= MAX_BODY_PARAGRAPHS) break;
-        paragraphs += 1;
-        inParagraph = true;
-      }
       const lineWords = wordCount(line);
-      if (words + lineWords > MAX_BODY_WORDS) break;
+      if ((!inParagraph && paragraphStarts.length >= MAX_BODY_PARAGRAPHS) || words + lineWords > MAX_BODY_WORDS) {
+        open = true;
+        break;
+      }
+      if (!inParagraph) {
+        paragraphStarts.push(j);
+        inParagraph = true;
+      } else {
+        paragraphStarts[paragraphStarts.length - 1] = j;
+      }
       words += lineWords;
       start = j;
     }
@@ -128,8 +169,24 @@ function findTestimonials(lines: string[]): Found[] {
     const body = lines.slice(start, i).join(' ');
     if (wordCount(body) < MIN_BODY_WORDS) continue;
 
-    found.push({ start, end: i, strong: /^["“«]/.test(bare(lines[start])) || isBlockquote(lines[start]) });
+    found.push({ start, end: i, strong: startsWithQuoteMark(lines[start]) || isBlockquote(lines[start]), paragraphStarts, open });
     floor = i + 1;
+  }
+
+  // Where nothing showed the beginning, do not take everything above the name:
+  // that swallows the copy in front of the first testimonial. Start at an
+  // opening quotation mark when there is one. Otherwise take as many paragraphs
+  // as the page's other testimonials have, and one when there is none to go by.
+  const settled = found.filter(item => item.paragraphStarts && !item.open).map(item => (item.paragraphStarts as number[]).length);
+  const usual = settled.length > 0 ? Math.max(...settled) : 1;
+  for (const item of found) {
+    const starts = item.paragraphStarts;
+    if (!item.open || !starts || starts.length < 2) continue;
+    let quoted = starts.findIndex(index => startsWithQuoteMark(lines[index]));
+    while (quoted >= 0 && quoted + 1 < starts.length && startsWithQuoteMark(lines[starts[quoted + 1]])) quoted += 1;
+    const keep = quoted >= 0 ? quoted + 1 : Math.min(usual, starts.length);
+    item.start = starts[keep - 1];
+    item.strong = startsWithQuoteMark(lines[item.start]) || isBlockquote(lines[item.start]);
   }
 
   // Blockquotes with no name under them are still someone's words.
