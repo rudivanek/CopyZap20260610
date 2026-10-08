@@ -12,7 +12,7 @@
  *
  * A number counts as present when it appears as digits in any usual spelling
  * (1,200 = 1.200 = 1200, 3,5 = 3.5, 10K = 10,000, 28M = 28 millones) or, for
- * small numbers, as a word (five = 6, diez = 10). A number written only as a
+ * small numbers, as a word (five = 5, diez = 10). A number written only as a
  * word is never reported: words are too ambiguous ("once", "sei", "mil").
  *
  * Plain text handling: no model call, no cost. Nothing is stored; the screen
@@ -201,7 +201,7 @@ function sentenceBounds(line: string, at: number): [number, number] {
 const plain = (text: string) =>
   text
     .replace(/^\s{0,3}(?:#{1,6}\s+|>\s*|[-*+]\s+)+/, '')
-    .replace(/[*_`]/g, ' ')
+    .replace(/[*_`]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 
