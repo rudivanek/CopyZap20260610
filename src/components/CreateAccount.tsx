@@ -197,30 +197,9 @@ const CreateAccount: React.FC<CreateAccountProps> = ({ onLogin, onLoginSuccess }
               name || data.user.email?.split('@')[0] || ''
             );
 
-            // Send welcome email (non-blocking)
-            const welcomeEmailUrl = `${import.meta.env.VITE_SUPABASE_URL}/functions/v1/send-welcome-email`;
-            console.log('🔔 Sending welcome email to:', data.user.email);
-
-            fetch(welcomeEmailUrl, {
-              method: 'POST',
-              headers: {
-                'Content-Type': 'application/json',
-                'Authorization': `Bearer ${import.meta.env.VITE_SUPABASE_ANON_KEY}`,
-              },
-              body: JSON.stringify({
-                email: data.user.email,
-                name: name || data.user.email?.split('@')[0] || ''
-              }),
-            }).then(async (response) => {
-              const result = await response.json();
-              if (response.ok) {
-                console.log('✅ Welcome email sent successfully:', result);
-              } else {
-                console.error('❌ Welcome email failed:', result);
-              }
-            }).catch(err => {
-              console.error('❌ Welcome email network error:', err);
-            });
+            // The welcome email is sent by the database when the account record is
+            // created (trigger `auto_send_welcome_email` on pmc_users). It is not sent
+            // from here as well: that would deliver it twice.
 
             setMessage('Account created successfully! Signing you in...');
 
