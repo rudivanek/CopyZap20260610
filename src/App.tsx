@@ -24,6 +24,7 @@ import NotFound from './components/NotFound';
 import Privacy from './components/Privacy';
 import CookieConsent from './components/CookieConsent';
 import DesktopRequired from './components/DesktopRequired';
+import AdvancedOnly from './components/AdvancedOnly';
 import { useCompleteAccess } from './hooks/useCompleteAccess';
 import { AdminRoute } from './components/AdminRoute';
 import ExtensionAuthPage from './pages/ExtensionAuthPage';
@@ -875,7 +876,10 @@ const AppRouter: React.FC = () => {
           }
         />
 
-        {/* Help Center Routes - React components for in-app help */}
+        {/* Help Center Routes - React components for in-app help.
+            The Help Center describes the Advanced interface, so every route in
+            this block is open to power users and admins only (see AdvancedOnly). */}
+        <Route element={<AdvancedOnly signedIn={!!currentUser} />}>
         <Route path="/help" element={<Suspense fallback={<AppSpinner />}><HelpCenter /></Suspense>} />
         <Route path="/help/getting-started" element={<Suspense fallback={<AppSpinner />}><GettingStarted /></Suspense>} />
         <Route path="/help/copy-maker" element={<Suspense fallback={<AppSpinner />}><CopyMakerIndex /></Suspense>} />
@@ -916,6 +920,7 @@ const AppRouter: React.FC = () => {
         <Route path="/help/tutorials/improve-from-url" element={<Navigate to="/help/core-workflows" replace />} />
         <Route path="/help/tutorials/compare-and-select" element={<Navigate to="/help/core-workflows" replace />} />
         <Route path="/help/tutorials/improve-existing-copy-from-website" element={<Navigate to="/help/core-workflows" replace />} />
+        </Route>
 
         <Route
           path="/manage-users"

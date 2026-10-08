@@ -5,6 +5,7 @@ import ThemeToggle from './ThemeToggle';
 import { useAuth } from '../hooks/useAuth';
 import { useCreditsBalance } from '../hooks/useCreditsBalance';
 import { useIsAdmin } from '../hooks/useIsAdmin';
+import { useCompleteAccess } from '../hooks/useCompleteAccess';
 import BetaRegistrationModal from './BetaRegistrationModal';
 import TemplateSuggestionModal from './TemplateSuggestionModal';
 
@@ -21,6 +22,8 @@ const MainMenu: React.FC<MainMenuProps> = ({ onLogout, onOpenTemplateSuggestion,
   const { currentUser } = useAuth();
   const { creditsRemaining, isLoading: isLoadingCredits } = useCreditsBalance(currentUser?.id);
   const { isAdmin } = useIsAdmin(currentUser);
+  // The Help Center describes the Advanced interface; its links are shown only to those who can open it.
+  const canOpenHelp = useCompleteAccess() === true;
   const [isBetaModalOpen, setIsBetaModalOpen] = React.useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
@@ -87,7 +90,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ onLogout, onOpenTemplateSuggestion,
             {/* Help Button */}
             <Link
               to="/help"
-              className={`p-2 rounded-md transition-colors duration-200 ${
+              className={`${canOpenHelp ? '' : 'hidden '}p-2 rounded-md transition-colors duration-200 ${
                 currentPath.startsWith('/help')
                   ? 'bg-primary-500 text-white'
                   : 'hover:bg-gray-100 dark:hover:bg-gray-800'
@@ -177,7 +180,7 @@ const MainMenu: React.FC<MainMenuProps> = ({ onLogout, onOpenTemplateSuggestion,
                 </Link>
                 <Link
                   to="/help"
-                  className={`p-2 rounded-md transition-colors duration-200 ${
+                  className={`${canOpenHelp ? '' : 'hidden '}p-2 rounded-md transition-colors duration-200 ${
                     currentPath.startsWith('/help')
                       ? 'bg-primary-500 text-white'
                       : 'hover:bg-gray-100 dark:hover:bg-gray-800'

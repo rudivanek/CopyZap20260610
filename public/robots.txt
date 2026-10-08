@@ -11,6 +11,8 @@ Disallow: /login
 Disallow: /dashboard
 Disallow: /app
 Disallow: /copy-maker
+Disallow: /help
+Disallow: /docs/
 Disallow: /api/
 Disallow: /admin/
 Disallow: /_next/   # Only if using Next.js, otherwise remove

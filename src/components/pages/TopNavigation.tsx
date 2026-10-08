@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
+import { useCompleteAccess } from '../../hooks/useCompleteAccess';
 
 interface TopNavigationProps {
   onOpenBetaModal: () => void;
@@ -8,6 +9,8 @@ interface TopNavigationProps {
 
 const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenBetaModal }) => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
+  // The Help Center describes the Advanced interface; its link is shown only to those who can open it.
+  const canOpenHelp = useCompleteAccess() === true;
 
   return (
     <nav className="sticky top-0 z-50 bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800 shadow-sm">
@@ -28,7 +31,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenBetaModal }) => {
             </Link>
             <Link
               to="/help"
-              className="text-gray-700 dark:text-gray-300 hover:text-orange-500 dark:hover:text-orange-400 transition-colors font-medium"
+              className={`${canOpenHelp ? '' : 'hidden '}text-gray-700 dark:text-gray-300 hover:text-orange-500 dark:hover:text-orange-400 transition-colors font-medium`}
             >
               Help
             </Link>
@@ -66,7 +69,7 @@ const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenBetaModal }) => {
               </Link>
               <Link
                 to="/help"
-                className="text-gray-700 dark:text-gray-300 hover:text-orange-500 dark:hover:text-orange-400 transition-colors font-medium"
+                className={`${canOpenHelp ? '' : 'hidden '}text-gray-700 dark:text-gray-300 hover:text-orange-500 dark:hover:text-orange-400 transition-colors font-medium`}
                 onClick={() => setIsMobileMenuOpen(false)}
               >
                 Help

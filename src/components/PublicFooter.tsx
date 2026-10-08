@@ -1,9 +1,15 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
+import { useCompleteAccess } from '../hooks/useCompleteAccess';
 
 const PublicFooter: React.FC = () => {
+  // The Help Center describes the Advanced interface. Only those who can open it
+  // (power users and admins) get these links; on the login page nobody does.
+  const canOpenHelp = useCompleteAccess() === true;
   return (
     <footer className="mt-12 text-center text-sm text-gray-500 dark:text-gray-400">
+      {canOpenHelp && (
+        <>
       <a href="/help" target="_blank" rel="noopener noreferrer" className="hover:text-primary-500 transition">Help Center</a>
       <span className="mx-2">•</span>
       <Link to="/help/getting-started" className="hover:text-primary-500 transition">Getting Started</Link>
@@ -11,6 +17,8 @@ const PublicFooter: React.FC = () => {
       <Link to="/help/troubleshooting-faqs" className="hover:text-primary-500 transition">Troubleshooting</Link>
       <span className="mx-2">•</span>
       <a href="/sitemap.xml" className="hover:text-primary-500 transition">Sitemap</a>
+        </>
+      )}
 
       <div className="mt-4 text-xs text-gray-400">
         Powered by{' '}
