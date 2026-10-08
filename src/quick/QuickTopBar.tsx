@@ -20,11 +20,14 @@ interface QuickTopBarProps {
   creditsTick: number;
 }
 
-/** The same short form Copy Maker's menu uses: 5.0M, 12.3K, 420. */
+/**
+ * The exact number, with thousands separators: 89,082. A rounded form such as
+ * "89.1K" only moves every hundred credits, so a run of sixty looks like no
+ * change at all. Only from a million up is it shortened (5.00M).
+ */
 function formatCredits(credits: number): string {
-  if (credits >= 1000000) return `${(credits / 1000000).toFixed(1)}M`;
-  if (credits >= 1000) return `${(credits / 1000).toFixed(1)}K`;
-  return String(credits);
+  if (credits >= 1000000) return `${(credits / 1000000).toFixed(2)}M`;
+  return Math.round(credits).toLocaleString('en-US');
 }
 
 /**

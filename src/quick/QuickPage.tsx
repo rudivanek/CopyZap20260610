@@ -102,9 +102,16 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   // The process currently running, if any. While one runs, a modal covers the screen.
   const [busy, setBusy] = useState<QuickBusyKind | null>(null);
   // Counts finished processes, so the top bar reads the credits again after each.
+  // It reads twice: at once, and a few seconds later, because the last bits of
+  // usage can be recorded just after the process has finished.
   const [creditsTick, setCreditsTick] = useState(0);
   useEffect(() => {
-    if (busy === null) setCreditsTick(tick => tick + 1);
+    if (busy !== null) return;
+    setCreditsTick(tick => tick + 1);
+    const later = window.setTimeout(() => {
+      if (isMounted.current) setCreditsTick(tick => tick + 1);
+    }, 5000);
+    return () => window.clearTimeout(later);
   }, [busy]);
   const isFetching = busy === 'fetch';
   const isRescoring = busy === 'rescoring';
