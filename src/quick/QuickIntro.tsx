@@ -1,26 +1,10 @@
 import React from 'react';
+import { HELP_STEPS } from './helpContent';
 
 /**
- * How it works, in three steps. Shown once, the first time a user arrives, and
- * again whenever they press "Help" in the top bar.
+ * How it works, in three steps. Shown once, the first time a user arrives.
+ * The same steps open the help page, which "Help" in the top bar shows.
  */
-
-const STEPS: { title: string; text: string }[] = [
-  {
-    title: 'Bring your copy',
-    text: 'Paste it, or type the address of the page and let CopyZap fetch it.',
-  },
-  {
-    title: 'Check what CopyZap understood',
-    text:
-      'Correct what you sell, who it is for and the tone. Then decide for each part of the page: improve it, keep it as it is, or leave it out. Testimonials are kept as they are unless you choose otherwise.',
-  },
-  {
-    title: 'Get three versions, scored',
-    text:
-      'The best one is on top, with the reasons for its score and what to check before you publish. From there you can ask for a change, edit it yourself, or export a report.',
-  },
-];
 
 interface QuickIntroProps {
   onClose: () => void;
@@ -35,7 +19,7 @@ const QuickIntro: React.FC<QuickIntroProps> = ({ onClose }) => (
     <div className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-5 sm:p-6 flex flex-col gap-4">
       <h2 className="text-gray-900 dark:text-white">How it works</h2>
       <ol className="flex flex-col gap-3">
-        {STEPS.map((step, index) => (
+        {HELP_STEPS.map((step, index) => (
           <li key={step.title} className="flex items-start gap-3">
             <span
               aria-hidden="true"

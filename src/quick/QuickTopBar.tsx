@@ -6,13 +6,13 @@ interface QuickTopBarProps {
   onNew: () => void;
   onHistory: () => void;
   onLogout: () => void;
-  /** Which of the two main views is showing. */
-  view: 'new' | 'history';
+  /** Which of the main views is showing. */
+  view: 'new' | 'history' | 'help';
   /** True while a process is running: New and History are disabled so a paid run is not lost. */
   isBusy: boolean;
   /** Power users and admins get a link to the Advanced interface (Copy Maker); everyone else has this one only. */
   showComplete: boolean;
-  /** Opens the "How it works" explanation. */
+  /** Opens the help page, or closes it when it is open. */
   onHelp: () => void;
   /** Whose credits to show. */
   userId: string;
@@ -95,7 +95,12 @@ const QuickTopBar: React.FC<QuickTopBarProps> = ({
         >
           History
         </button>
-        <button type="button" onClick={onHelp} className={navButton + 'border-transparent'}>
+        <button
+          type="button"
+          onClick={onHelp}
+          aria-current={view === 'help' ? 'page' : undefined}
+          className={navButton + (view === 'help' ? 'border-primary-500' : 'border-transparent')}
+        >
           Help
         </button>
         {/* The Advanced interface needs a desktop screen, so the link is hidden below 1024px. */}

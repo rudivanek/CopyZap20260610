@@ -22,6 +22,7 @@ import {
   startQuickSession,
   withQuickResult,
 } from '../engine/runQuickPipeline';
+import QuickHelp from './QuickHelp';
 import QuickIntro from './QuickIntro';
 import { hasSeenIntro, markIntroSeen } from './introSeen';
 import QuickTopBar from './QuickTopBar';
@@ -125,8 +126,16 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     markIntroSeen(currentUser.id);
     setIntroOpen(false);
   };
-  const openIntro = () => {
-    setIntroOpen(true);
+  // The help page lies over whatever the user is doing. The view underneath is
+  // hidden, not removed, so a result, an open editor or a half-typed request is
+  // still there when the help is closed.
+  const [helpOpen, setHelpOpen] = useState(false);
+  const toggleHelp = () => {
+    setHelpOpen(open => !open);
+    window.scrollTo(0, 0);
+  };
+  const closeHelp = () => {
+    setHelpOpen(false);
     window.scrollTo(0, 0);
   };
   const [url, setUrl] = useState('');
@@ -477,17 +486,32 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-gray-100">
       <QuickTopBar
-        onNew={handleNew}
-        onHistory={handleHistory}
+        onNew={() => {
+          setHelpOpen(false);
+          handleNew();
+        }}
+        onHistory={() => {
+          setHelpOpen(false);
+          handleHistory();
+        }}
         onLogout={onLogout}
-        view={phase === 'history' ? 'history' : 'new'}
+        view={helpOpen ? 'help' : phase === 'history' ? 'history' : 'new'}
         isBusy={busy !== null}
         showComplete={completeAccess === true}
-        onHelp={openIntro}
+        onHelp={toggleHelp}
         userId={currentUser.id}
         creditsTick={creditsTick}
       />
 
+      {helpOpen && (
+        <QuickHelp
+          onClose={closeHelp}
+          backTo={phase === 'result' ? 'your result' : phase === 'history' ? 'History' : phase === 'confirm' ? 'your copy' : 'the start'}
+        />
+      )}
+
+      {/* Everything below is hidden, not removed, while the help is open. */}
+      <div className={helpOpen ? 'hidden' : ''}>
       {introOpen && <QuickIntro onClose={closeIntro} />}
 
       {phase === 'start' && (
@@ -661,6 +685,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       {phase === 'history' && (
         <QuickHistory currentUser={currentUser} onOpen={openSaved} onNew={handleNew} onDeleted={handleDeleted} />
       )}
+      </div>
 
       {busy && (
         <QuickBusyModal kind={busy} elapsed={elapsed} progress={progress} versions={QUICK_DEFAULT_VARIANTS} />
