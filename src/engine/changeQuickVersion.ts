@@ -35,6 +35,15 @@ export const QUICK_MAX_VERSIONS = 8;
  * longer. Until 2026-10-09 it was 1,200: the rewrite step had 4,000 tokens.
  */
 export const QUICK_CHANGE_MAX_WORDS = 6500;
+/**
+ * What a one-word request means to the rewrite step. Said out in full because
+ * "Shorter" alone was taken very freely: on 2026-10-09 it cut a version of
+ * 3,974 words down to 1,258. The version is still named after the short word.
+ */
+const FULL_REQUESTS: Record<string, string> = {
+  shorter:
+    'Make it about a quarter shorter. Keep every section, every heading and every fact: cut repetition, filler and long-winded sentences, not content.',
+};
 export const QUICK_CHANGE_MIN_CHARS = 3;
 export const QUICK_CHANGE_MAX_CHARS = 300;
 const LABEL_MAX_CHARS = 40;
@@ -145,7 +154,8 @@ export async function changeQuickVersion(
     customWordCount: lockedWords,
     specialInstructions: [keepInstructions(keepZones), testimonialInstructions(quoteZones)].filter(Boolean).join('\n\n'),
   };
-  const rewritten = await modifyContent(locked, wanted, rewriteState, user, undefined, result.formState.sessionId);
+  const request = FULL_REQUESTS[wanted.toLowerCase()] ?? wanted;
+  const rewritten = await modifyContent(locked, request, rewriteState, user, undefined, result.formState.sessionId);
   const restored = zones.length > 0 ? restoreTestimonials(contentToText(rewritten), zones) : { text: contentToText(rewritten), moved: false };
   if (!restored.text.trim()) throw new Error('The change came back empty. Try again.');
   onProgress?.({ stage: 'writing', done: 1, total: 1 });

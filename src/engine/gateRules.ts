@@ -10,23 +10,34 @@
  * version is set aside and the check says nothing at all.
  *
  * So: a repetition the original has itself is not held against a version.
- * Other findings (a version cut short) are untouched.
+ *
+ * The check also flags a version that is much shorter than the original
+ * ("too_short"), which catches a first version that was cut off. It is wrong
+ * for a version the user asked for: a change ("Shorter") or the user's own
+ * edit is short on purpose. Such a version is made from another version and
+ * carries that version's id (sourceId); its length is not held against it.
  */
 import type { GateResult } from '../utils/structuralGate';
 import { ORIGINAL_VERSION_ID } from './pickWinner';
 
 const REPEATED = 'repeated_passage';
+const TOO_SHORT = 'too_short';
 
 export function effectiveGates(
-  gateByVersion: Record<string, GateResult> | null | undefined
+  gateByVersion: Record<string, GateResult> | null | undefined,
+  /** The versions of the result. Needed to know which ones the user asked for; without them only the repetition rule applies. */
+  versions?: { id: string; sourceId?: string }[]
 ): Record<string, GateResult> {
   const gates = gateByVersion ?? {};
-  const original = gates[ORIGINAL_VERSION_ID];
-  if (!original || !original.flags.includes(REPEATED)) return gates;
+  const originalRepeats = !!gates[ORIGINAL_VERSION_ID]?.flags.includes(REPEATED);
+  const askedFor = new Set((versions ?? []).filter(version => version.sourceId).map(version => version.id));
+  if (!originalRepeats && askedFor.size === 0) return gates;
 
   const result: Record<string, GateResult> = {};
   for (const [id, gate] of Object.entries(gates)) {
-    const flags = gate.flags.filter(flag => flag !== REPEATED);
+    const flags = gate.flags.filter(
+      flag => !(originalRepeats && flag === REPEATED) && !(askedFor.has(id) && flag.startsWith(TOO_SHORT))
+    );
     result[id] = { ...gate, flags, valid: flags.length === 0 };
   }
   return result;

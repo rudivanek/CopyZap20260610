@@ -40,7 +40,7 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
 
   const winnerId = scores.winnerId;
   // Read the structural check the way the screen does (see gateRules.ts).
-  const gates = effectiveGates(scores.gateByVersion);
+  const gates = effectiveGates(scores.gateByVersion, result.versions);
   const inReport = (versionId: string): boolean => {
     if (versionId === ORIGINAL_VERSION_ID || versionId === winnerId) return true;
     const gate = gates[versionId];

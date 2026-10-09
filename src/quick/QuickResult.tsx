@@ -267,7 +267,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const original = versions.find(version => version.id === ORIGINAL_VERSION_ID);
 
   // A repetition the original has itself is not held against a version.
-  const gates = effectiveGates(scores?.gateByVersion);
+  const gates = effectiveGates(scores?.gateByVersion, versions);
   const gate = gates[winner.id];
   const isIncomplete = gate ? !gate.valid : false;
   const gateProblems = (gate?.flags ?? []).map(flag =>

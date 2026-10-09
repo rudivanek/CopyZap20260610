@@ -380,7 +380,8 @@ export async function scoreQuickVersions(
   }
 
   // A repetition the original has itself is not held against a version (see gateRules.ts).
-  const gateByVersion = effectiveGates(unified.gateByVersion);
+  // ...and a version the user asked for is not set aside for being short.
+  const gateByVersion = effectiveGates(unified.gateByVersion, versions);
   for (const row of rows) {
     const gate = gateByVersion[row.versionId];
     if (!gate) continue;
@@ -388,7 +389,13 @@ export async function scoreQuickVersions(
     row.gateFlags = gate.flags;
   }
 
-  const winner = pickWinner(rows);
+  // On a tie the version that was best before stays best: adding a version
+  // must not reshuffle the ones the user already had.
+  let winner = pickWinner(rows);
+  const before = keepScores?.winnerId ? rows.find(row => row.versionId === keepScores.winnerId) : undefined;
+  if (winner && before && before !== winner && !before.incomplete && before.absoluteTotal === winner.absoluteTotal) {
+    winner = before;
+  }
 
   return {
     comparisonResult,
