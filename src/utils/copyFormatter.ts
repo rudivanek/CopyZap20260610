@@ -282,12 +282,16 @@ export const markdownToHtml = (
     return tableHtml;
   });
   
-  // Convert headers with proper styling (### H3, ## H2, # H1)
+  // Convert headers with proper styling (### H3, ## H2, # H1).
+  // Smaller headings (#### to ######) first: they used to stay in the text with
+  // their hash marks, because the rules below only know up to three.
   if (inline) {
+    html = html.replace(/^#{4,6} (.+)$/gm, '<h4 style="font-size: 15px; font-weight: 600; color: #374151; margin: 16px 0 8px 0;">$1</h4>');
     html = html.replace(/^### (.+)$/gm, '<div style="border-top: 2px solid #d1d5db; margin: 24px 0 16px 0; padding-top: 16px;"></div>\n<h3 style="font-size: 16px; font-weight: 600; color: #374151; margin: 0 0 12px 0;">$1</h3>');
     html = html.replace(/^## (.+)$/gm, '<h2 style="font-size: 18px; font-weight: 700; color: #111827; margin: 24px 0 12px 0;">$1</h2>');
     html = html.replace(/^# (.+)$/gm, '<h1 style="font-size: 20px; font-weight: 700; color: #111827; margin: 32px 0 16px 0; border-bottom: 2px solid #e5e7eb; padding-bottom: 12px;">$1</h1>');
   } else {
+    html = html.replace(/^#{4,6} (.+)$/gm, '<h4 class="md-h3">$1</h4>');
     html = html.replace(/^### (.+)$/gm, '<h3 class="md-h3">$1</h3>');
     html = html.replace(/^## (.+)$/gm, '<h2 class="md-h2">$1</h2>');
     html = html.replace(/^# (.+)$/gm, '<h1 class="md-h1">$1</h1>');

@@ -38,8 +38,12 @@ const CHOICES: { value: SectionChoice; label: string }[] = [
 const PREVIEW_CHARS = 220;
 /** From this many words on, the screen says how long the run will take. */
 const LONG_RUN_FROM_WORDS = 2000;
-/** Measured on 2026-10-08: a run takes about a minute for every 600 words. */
-const WORDS_PER_MINUTE = 600;
+/**
+ * Measured on 2026-10-08 and 10-09: a run takes about a minute for every 500 to
+ * 670 words (German slowest, English fastest). 550 keeps the estimate from
+ * being too low.
+ */
+const WORDS_PER_MINUTE = 550;
 const asNumber = (value: number) => value.toLocaleString('en-US');
 
 const field =

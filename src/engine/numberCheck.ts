@@ -254,13 +254,31 @@ function missingFrom(
   return findings.map(({ numbers, context }) => ({ numbers, context }));
 }
 
+/**
+ * The numbers that are stuck to a word. A fetched page often arrives with its
+ * words run together ("Oct9Keeping TrackFriday"), and a version then writes
+ * "Oct 9" properly. Such a number is not read as a number of its own (it could
+ * be part of a name, like "B2B"), but it is there: it counts as present in the
+ * text, so the other text is not reported for having it. Never reported itself.
+ */
+function gluedValuesIn(text: string): string[] {
+  const values: string[] = [];
+  for (const line of (text || '').replace(/\r\n?/g, '\n').split('\n')) {
+    for (const match of maskLine(line).matchAll(/(?<=\p{L})\d+(?:[.,]\d+)*|\d+(?:[.,]\d+)*(?=\p{L})/gu)) {
+      values.push(...valuesOf(match[0]));
+    }
+  }
+  return values;
+}
+
 export function checkNumbers(versionText: string, originalText: string): NumberCheck {
   const version = numbersIn(versionText);
   const original = numbersIn(originalText);
-  const keysOf = (tokens: NumberToken[]) => new Set(tokens.flatMap(token => token.keys));
+  const keysOf = (tokens: NumberToken[], text: string) =>
+    new Set([...tokens.flatMap(token => token.keys), ...gluedValuesIn(text)]);
 
   return {
-    added: missingFrom(version, keysOf(original.tokens), wordValuesIn(originalText)),
-    dropped: missingFrom(original, keysOf(version.tokens), wordValuesIn(versionText)),
+    added: missingFrom(version, keysOf(original.tokens, originalText), wordValuesIn(originalText)),
+    dropped: missingFrom(original, keysOf(version.tokens, versionText), wordValuesIn(versionText)),
   };
 }

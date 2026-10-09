@@ -265,6 +265,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const deltaPercent =
     delta != null && originalTotal != null && originalTotal > 0 ? Math.round((delta / originalTotal) * 100) : null;
   const original = versions.find(version => version.id === ORIGINAL_VERSION_ID);
+  // The best version scores so close to the original that the scorer cannot
+  // tell them apart: that is not shown as an improvement.
+  const nearOriginal = delta != null && Math.abs(delta) <= QUICK_SCORE_MARGIN;
 
   // A repetition the original has itself is not held against a version.
   const gates = effectiveGates(scores?.gateByVersion, versions);
@@ -510,7 +513,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
               <span className="text-xs font-semibold text-gray-600">
                 Best version <span className="font-normal tabular-nums">· {wordsLabel(winner.content)}</span>
               </span>
-              {scores && !isIncomplete && (
+              {scores && !isIncomplete && !nearOriginal && (
                 <span className="inline-flex items-center gap-2 text-xs font-semibold text-gray-900">
                   <span className="w-1 h-5 bg-status-good" aria-hidden="true" />
                   Recommended
@@ -655,17 +658,20 @@ const QuickResult: React.FC<QuickResultProps> = ({
                   {delta != null && originalTotal != null ? (
                     <div className="flex flex-col gap-1">
                       <p className="font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
-                        {delta > 0 && `+${delta} ${delta === 1 ? 'point' : 'points'}`}
-                        {delta < 0 && `−${Math.abs(delta)} ${delta === -1 ? 'point' : 'points'}`}
-                        {delta === 0 && 'Same score'}
-                        {delta !== 0 && deltaPercent != null && ` (${delta > 0 ? '+' : '−'}${Math.abs(deltaPercent)}%)`}
-                        {delta !== 0 ? ' vs your original' : ' as your original'}
+                        {nearOriginal && 'About the same as your original'}
+                        {!nearOriginal && delta > 0 && `+${delta} points`}
+                        {!nearOriginal && delta < 0 && `−${Math.abs(delta)} points`}
+                        {!nearOriginal && deltaPercent != null && ` (${delta > 0 ? '+' : '−'}${Math.abs(deltaPercent)}%)`}
+                        {!nearOriginal && ' vs your original'}
                       </p>
-                      <p className="text-gray-600 dark:text-gray-400">Your original scored {originalTotal} / 100.</p>
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Your original scored {originalTotal} / 100.
+                        {nearOriginal && ` Scores within ${QUICK_SCORE_MARGIN} points cannot be told apart.`}
+                      </p>
                       {closeCount > 0 && (
                         <p className="text-gray-600 dark:text-gray-400">
                           {closeCount === 1 ? '1 other version scores' : `${closeCount} other versions score`} about the
-                          same. Scores within {QUICK_SCORE_MARGIN} points cannot be told apart.
+                          same.{!nearOriginal && ` Scores within ${QUICK_SCORE_MARGIN} points cannot be told apart.`}
                         </p>
                       )}
                     </div>
