@@ -93,12 +93,13 @@ export async function compareVersionsRelatively(
   // The admin model toggle controls generation and reports (both streaming-safe).
   const actualModel: Model = 'claude-sonnet-4-6';
 
-  // How much of each version the comparison reads. This was a flat 3,000
-  // characters (roughly 450 words). Now all versions share a 120,000-character
-  // budget: up to 20,000 characters each, and never less than the old 3,000.
+  // How much of each version the comparison reads. All versions share a
+  // 160,000-character budget: up to 40,000 characters each (a page of about
+  // 5,000 words that came back a fifth longer), and never less than 3,000.
+  // Until 2026-10-08 it was 20,000 each out of 120,000, about 3,000 words.
   const maxCharsPerVersion = Math.max(
     3000,
-    Math.min(20000, Math.floor(120000 / Math.max(versions.length, 1)))
+    Math.min(40000, Math.floor(160000 / Math.max(versions.length, 1)))
   );
 
   // Build version blocks for the prompt

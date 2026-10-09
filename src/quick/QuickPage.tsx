@@ -200,7 +200,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const tooShort = words < QUICK_MIN_WORDS;
   // More words than Quick works on in one run. Such a page can still be brought
   // in when it has parts: the user leaves some out on the confirm screen.
-  // The limit in force: 3,000, unless this browser was given a higher one for a test.
+  // The limit in force: QUICK_MAX_WORDS, unless this browser was given a higher one for a test.
   const maxWords = quickMaxWords();
   const overLimit = words > maxWords;
   const overInput = words > QUICK_MAX_INPUT_WORDS;

@@ -36,6 +36,10 @@ const CHOICES: { value: SectionChoice; label: string }[] = [
 ];
 
 const PREVIEW_CHARS = 220;
+/** From this many words on, the screen says how long the run will take. */
+const LONG_RUN_FROM_WORDS = 2000;
+/** Measured on 2026-10-08: a run takes about a minute for every 600 words. */
+const WORDS_PER_MINUTE = 600;
 const asNumber = (value: number) => value.toLocaleString('en-US');
 
 const field =
@@ -296,6 +300,8 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
         ) : (
           <p className="text-gray-600 dark:text-gray-400">
             Writes {QUICK_DEFAULT_VARIANTS} versions and scores them. Uses credits.
+            {usedWords >= LONG_RUN_FROM_WORDS &&
+              ` A page of this length takes about ${Math.round(usedWords / WORDS_PER_MINUTE)} minutes. Keep this tab open.`}
           </p>
         )}
       </div>

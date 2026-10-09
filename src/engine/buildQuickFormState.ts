@@ -14,11 +14,16 @@ export const QUICK_DEFAULT_VARIANTS = 3;
 export const QUICK_MIN_WORDS = 10;
 /**
  * Most words Quick works on in one run: the parts that are improved plus the
- * parts kept as they are. The writing step sizes its output to the copy and
- * streams long versions, and the comparison reads up to about 3,000 words of
- * each version. Parts the user leaves out do not count: they are never read.
+ * parts kept as they are. Parts the user leaves out do not count: they are
+ * never read.
+ *
+ * 5,000 since 2026-10-08. Measured that day with the normal writing step: an
+ * English page of 5,520 words and a Spanish one of 4,378 came back complete,
+ * 1 to 19 percent longer than the original, in eight to nine minutes. The
+ * writing step's output budget (outputBudget.ts) and the comparison step's
+ * reading length (comparativeScoring.ts) are sized for this number.
  */
-export const QUICK_MAX_WORDS = 3000;
+export const QUICK_MAX_WORDS = 5000;
 /**
  * Longest text that can be brought to the check screen. A page above
  * QUICK_MAX_WORDS gets there only when it has parts, so the user can leave

@@ -4,6 +4,7 @@ import FormattedContent from '../components/ui/FormattedContent';
 import { contentToText } from '../services/api/contentText';
 import type { AbsoluteScoreBreakdown } from '../services/api/absoluteScoring';
 import { GOAL_OPTIONS } from '../utils/scoringContextStorage';
+import { countWords } from '../utils/markdownUtils';
 import { getAbsoluteScoreLabel, getAbsoluteScoreMarkClass } from '../utils/scoreColors';
 import { deriveQuickLabel } from '../engine/buildQuickFormState';
 import { prepareQuickEdit, QuickEditDraft, validateQuickEdit } from '../engine/editQuickVersion';
@@ -110,6 +111,13 @@ function noteText(note: string): string {
   if (isClaimNote(note) || cut < 0) return words;
   const kind = note.slice(0, cut).split(' — ')[0].trim();
   return kind ? `${kind.charAt(0).toUpperCase()}${kind.slice(1)}: ${words}` : words;
+}
+
+/** The length of a text as shown next to it: "1,240 words". */
+function wordsLabel(content: GeneratedContentItem['content']): string {
+  const text = contentToText(content).trim();
+  const count = text ? countWords(text) : 0;
+  return `${count.toLocaleString('en-US')} ${count === 1 ? 'word' : 'words'}`;
 }
 
 const NO_NUMBERS: NumberCheck = { added: [], dropped: [] };
@@ -499,7 +507,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
         <div className="flex flex-col gap-5 min-w-0 lg:col-start-1 lg:row-start-1">
           <article id="quick-best" className={`${paper} p-5 sm:p-8 flex flex-col gap-4 scroll-mt-20`}>
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <span className="text-xs font-semibold text-gray-600">Best version</span>
+              <span className="text-xs font-semibold text-gray-600">
+                Best version <span className="font-normal tabular-nums">· {wordsLabel(winner.content)}</span>
+              </span>
               {scores && !isIncomplete && (
                 <span className="inline-flex items-center gap-2 text-xs font-semibold text-gray-900">
                   <span className="w-1 h-5 bg-status-good" aria-hidden="true" />
@@ -775,7 +785,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
           {original && (
             <article id="quick-original" className={`${paper} p-5 flex flex-col gap-3 scroll-mt-20`}>
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                <span className="text-xs font-semibold text-gray-600">Your original</span>
+                <span className="text-xs font-semibold text-gray-600">
+                  Your original <span className="font-normal tabular-nums">· {wordsLabel(original.content)}</span>
+                </span>
                 <ScoreTag total={originalTotal} />
               </div>
               <FormattedContent content={original.content} className={copyText} colorScores={false} />
@@ -797,6 +809,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                     >
                       <span className="flex flex-wrap items-baseline gap-x-2">
                         <span className="font-semibold text-gray-900">{version.sourceDisplayName || 'Version'}</span>
+                        <span className="text-xs text-gray-600 tabular-nums">{wordsLabel(version.content)}</span>
                         {setAside && (
                           <span className="text-xs text-gray-600">Set aside: repeats a paragraph or is cut short</span>
                         )}
@@ -865,6 +878,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
                           Winner
                         </span>
                       )}
+                      <span className="text-xs text-gray-600 dark:text-gray-400 tabular-nums">
+                        {wordsLabel(item.version.content)}
+                      </span>
                       {isBaseline && <span className="text-xs text-gray-600 dark:text-gray-400">baseline</span>}
                       {item.setAside && (
                         <span className="text-xs text-gray-600 dark:text-gray-400">

@@ -14,10 +14,17 @@
 export const LONG_COPY_WORDS = 1250;
 /** The budget every writing call had before, and still has for normal copy. */
 export const DEFAULT_OUTPUT_TOKENS = 4000;
-/** Ceiling for one writing call. */
-export const MAX_OUTPUT_TOKENS = 16000;
-/** Generous on purpose: Spanish and German need about twice as many tokens per word as English. */
-const TOKENS_PER_WORD = 3.2;
+/**
+ * Ceiling for one writing call. 20,000 covers a German version of about 6,000
+ * words: a 5,000-word original that comes back a fifth longer.
+ */
+export const MAX_OUTPUT_TOKENS = 20000;
+/**
+ * Generous on purpose. Measured: English needs about 1.5 tokens per word,
+ * Spanish 2.2, German 2.9, and a version comes back up to a fifth longer than
+ * the copy it was made from (2.9 x 1.19 = 3.45).
+ */
+const TOKENS_PER_WORD = 3.6;
 
 export interface OutputBudget {
   isLongCopy: boolean;
