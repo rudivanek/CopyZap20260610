@@ -734,7 +734,11 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       </div>
 
       {/* The version of the app, from src/lib/version.ts. Shown under every Quick screen. */}
-      <footer id="quick-version" className="pb-8 text-center text-xs text-gray-600 dark:text-gray-400">
+      {/* On a result, the "Jump to" bar is fixed to the bottom of the window: leave room below the version so the bar does not cover it. */}
+      <footer
+        id="quick-version"
+        className={(phase === 'result' && !helpOpen ? 'pb-20' : 'pb-8') + ' text-center text-xs text-gray-600 dark:text-gray-400'}
+      >
         CopyZap {APP_VERSION}
       </footer>
 
