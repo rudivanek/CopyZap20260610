@@ -28,8 +28,13 @@ import type { QuickProgress } from './runQuickPipeline';
 
 /** Versions one result can hold besides the original. The comparison reads them all together. */
 export const QUICK_MAX_VERSIONS = 8;
-/** The rewrite step returns at most about this much text in one piece. */
-export const QUICK_CHANGE_MAX_WORDS = 1200;
+/**
+ * Most words a change rewrites. The rewrite step sizes its room to the text and
+ * streams long copy (contentModification.ts), like the writing step, so this
+ * covers the best version of a page at the word limit that came back a fifth
+ * longer. Until 2026-10-09 it was 1,200: the rewrite step had 4,000 tokens.
+ */
+export const QUICK_CHANGE_MAX_WORDS = 6500;
 export const QUICK_CHANGE_MIN_CHARS = 3;
 export const QUICK_CHANGE_MAX_CHARS = 300;
 const LABEL_MAX_CHARS = 40;
@@ -44,6 +49,19 @@ export interface QuickChangeOutcome {
   becameBest: boolean;
 }
 
+const wordsToRewriteOf = new WeakMap<GeneratedContentItem, number>();
+
+/** The words a change has to rewrite: the best version without its protected parts. Worked out once per version. */
+function wordsToRewrite(result: QuickRunResult): number {
+  const base = result.versions.find(version => version.id === result.scores?.winnerId);
+  if (!base) return 0;
+  const known = wordsToRewriteOf.get(base);
+  if (known !== undefined) return known;
+  const words = countWords(lockVersion(contentToText(base.content), result.keptTexts).locked);
+  wordsToRewriteOf.set(base, words);
+  return words;
+}
+
 /** Why a change cannot be made right now, or null when it can. */
 export function validateQuickChange(result: QuickRunResult, instruction: string): string | null {
   const text = (instruction || '').trim();
@@ -52,6 +70,11 @@ export function validateQuickChange(result: QuickRunResult, instruction: string)
   if (text.length > QUICK_CHANGE_MAX_CHARS) return `Keep it under ${QUICK_CHANGE_MAX_CHARS} characters.`;
   if (result.versions.length - 1 >= QUICK_MAX_VERSIONS) {
     return `This result already has ${QUICK_MAX_VERSIONS} versions. Start a new one to keep changing.`;
+  }
+  // Said here, before anything starts, and not after the modal has opened.
+  const words = wordsToRewrite(result);
+  if (words > QUICK_CHANGE_MAX_WORDS) {
+    return `The best version has ${words.toLocaleString('en-US')} words to rewrite. A change handles up to ${QUICK_CHANGE_MAX_WORDS.toLocaleString('en-US')}. Use "Edit it myself" for this one.`;
   }
   return null;
 }

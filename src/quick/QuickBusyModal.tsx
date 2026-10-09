@@ -22,7 +22,7 @@ const TEXT: Record<QuickBusyKind, { title: string; detail: string }> = {
   running: { title: 'Writing and scoring', detail: 'This can take a few minutes.' },
   rescoring: { title: 'Scoring again', detail: 'Scoring every version against your goal.' },
   opening: { title: 'Opening your result', detail: 'Loading the saved versions and scores.' },
-  changing: { title: 'Changing your copy', detail: 'Rewriting the best version, then scoring it. About a minute.' },
+  changing: { title: 'Changing your copy', detail: 'Rewriting the best version, then scoring it. About a minute; several minutes for a long page.' },
   editing: { title: 'Scoring your edit', detail: 'Nothing is rewritten. Your version is scored against your goal. About a minute.' },
 };
 

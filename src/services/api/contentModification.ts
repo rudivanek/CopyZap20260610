@@ -2,9 +2,10 @@
  * Content modification functionality
  */
 import { FormState, User } from '../../types';
-import { makeApiRequestWithFallback, storePrompts, calculateTargetWordCount, extractWordCount, cleanJsonResponse } from './utils';
+import { makeApiRequestWithFallback, makeStreamingReportRequest, storePrompts, calculateTargetWordCount, extractWordCount, cleanJsonResponse } from './utils';
 import { trackTokenUsage, extractTokenBreakdown } from './tokenTracking';
 import { reviseContentForWordCount } from './contentRefinement';
+import { canStream, getOutputBudget } from '../../utils/ai-pipeline/outputBudget';
 
 /**
  * Modify content based on user instructions
@@ -42,8 +43,14 @@ export async function modifyContent(
   const targetWordCountInfo = calculateTargetWordCount(formState);
   const targetWordCount = targetWordCountInfo.target;
 
-  // Max tokens for output (edge function handles all API configuration)
-  const maxTokens = 4000;
+  // Max tokens for output (edge function handles all API configuration).
+  // Normal copy keeps the 4,000 it always had. Long copy, with a model that can
+  // be streamed, gets room in proportion to its length and is streamed, as in
+  // the writing step (see outputBudget.ts): at 4,000 tokens a long text came
+  // back cut off, and a normal request that writes this much can time out.
+  const budget = getOutputBudget(extractWordCount(textContent));
+  const streamLongCopy = budget.isLongCopy && canStream(formState.model);
+  const maxTokens = streamLongCopy ? budget.maxTokens : 4000;
   
   // Progress reporting if callback provided
   if (progressCallback) {
@@ -134,20 +141,32 @@ Apply the requested changes while maintaining the quality and effectiveness of t
   storePrompts(systemPrompt, userPrompt);
 
   try {
-    // Make the API request with fallback (always plain text, never JSON)
-    const data = await makeApiRequestWithFallback(
-      formState.model,
-      [
-        { role: 'system', content: systemPrompt },
-        { role: 'user', content: userPrompt }
-      ],
-      0.7,
-      maxTokens,
-      undefined, // No JSON format - always return plain text
-      currentUser?.email,
-      'modify_content',
-      sessionId
-    );
+    // Make the API request with fallback (always plain text, never JSON).
+    // Long copy is streamed; its usage is recorded server-side.
+    const messages = [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: userPrompt }
+    ];
+    const data = streamLongCopy
+      ? {
+          choices: [{
+            message: {
+              content: await makeStreamingReportRequest(formState.model, messages, 0.7, maxTokens, 'modify_content', sessionId)
+            }
+          }],
+          usage: undefined,
+          model_used: formState.model
+        }
+      : await makeApiRequestWithFallback(
+          formState.model,
+          messages,
+          0.7,
+          maxTokens,
+          undefined, // No JSON format - always return plain text
+          currentUser?.email,
+          'modify_content',
+          sessionId
+        );
 
     // Extract token usage
     const tokenUsage = data.usage?.total_tokens || 0;
