@@ -3,3 +3,12 @@ verify_jwt = true
 
 [functions.analyze-url-firecrawl]
 verify_jwt = true
+
+[functions.analyze-url]
+verify_jwt = true
+
+[functions.analyze-brand-voice]
+verify_jwt = true
+
+[functions.extract-brand-voice-from-url]
+verify_jwt = true

@@ -1,5 +1,6 @@
 import { makeApiRequestWithFallback, cleanJsonResponse } from './utils';
 import { AdvancedBrandVoiceStyle } from '../../types';
+import { supabase } from '../supabaseClient';
 
 interface GeneratedBrandVoice {
   description: string;
@@ -34,10 +35,13 @@ export async function analyzePastedBrandVoice(
 
     const apiUrl = `${supabaseUrl}/functions/v1/analyze-brand-voice`;
 
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token ?? supabaseAnonKey;
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
@@ -93,10 +97,13 @@ export async function generateBrandVoice(
 
     const apiUrl = `${supabaseUrl}/functions/v1/analyze-brand-voice`;
 
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token ?? supabaseAnonKey;
+
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

@@ -1,3 +1,5 @@
+import { supabase } from '../supabaseClient';
+
 interface ExtractedBrandVoice {
   description: string;
   personality_traits: string[];
@@ -29,11 +31,14 @@ async function fetchBrandVoiceFromUrl(url: string, scanAbout: boolean, userId?: 
   const edgeFunctionUrl = `${supabaseUrl}/functions/v1/extract-brand-voice-from-url`;
 
   try {
+    const { data: sessionData } = await supabase.auth.getSession();
+    const accessToken = sessionData.session?.access_token ?? supabaseAnonKey;
+
     const response = await fetch(edgeFunctionUrl, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Authorization': `Bearer ${accessToken}`,
       },
       body: JSON.stringify({
         url,

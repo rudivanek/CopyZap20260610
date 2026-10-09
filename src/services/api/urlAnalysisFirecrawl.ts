@@ -4,6 +4,7 @@
  */
 
 import { Model } from '../../types';
+import { supabase } from '../supabaseClient';
 
 type ExtractMode = 'context' | 'fullCopy';
 
@@ -61,6 +62,10 @@ export async function analyzeUrlWithFirecrawl(
 ): Promise<UrlAnalysisFirecrawlResponse> {
   const apiUrl = `${supabaseUrl}/functions/v1/analyze-url-firecrawl`;
 
+  // Use the signed-in user's session access token for authorization
+  const { data: sessionData } = await supabase.auth.getSession();
+  const accessToken = sessionData.session?.access_token ?? supabaseAnonKey;
+
   // Create abort controller for timeout (3 minutes for full copy, 90 seconds for context)
   const timeoutMs = mode === 'fullCopy' ? 180000 : 90000;
   const controller = new AbortController();
@@ -72,7 +77,7 @@ export async function analyzeUrlWithFirecrawl(
     const response = await fetch(apiUrl, {
       method: 'POST',
       headers: {
-        'Authorization': `Bearer ${supabaseAnonKey}`,
+        'Authorization': `Bearer ${accessToken}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({

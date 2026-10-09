@@ -41,6 +41,32 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // ── Authenticate the caller from the JWT ──
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing Authorization header' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    const { createClient: createClientAuth } = await import('npm:@supabase/supabase-js@2');
+    const supabaseAuth = createClientAuth(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
     const firecrawlKey = Deno.env.get('FIRECRAWL_API_KEY');
 
     if (!firecrawlKey) {
@@ -54,8 +80,8 @@ Deno.serve(async (req) => {
     }
 
     const sb = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      supabaseUrl,
+      supabaseServiceKey,
       {
         auth: { autoRefreshToken: false, persistSession: false }
       }
@@ -63,16 +89,19 @@ Deno.serve(async (req) => {
 
     const {
       url,
-      user_id,
-      user_email,
+      user_id: _ignored_user_id,
+      user_email: _ignored_user_email,
       extractMode = 'context',
       model = 'gpt-4o',
       session_id
     }: FirecrawlRequest = await req.json();
 
-    if (!url || !user_id) {
+    // Use the authenticated user's id; ignore any user_id from the body
+    const userId = user.id;
+
+    if (!url) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: url and user_id' }),
+        JSON.stringify({ error: 'Missing required field: url' }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400
@@ -162,17 +191,17 @@ Deno.serve(async (req) => {
 
     console.log(`Scraped content: ${markdown.length} characters`);
 
-    // Track Firecrawl credit usage
+    // Track Firecrawl credit usage (always, even without a session_id)
     // Firecrawl costs $0.015 per scrape = 2 credits at $0.01 per credit
-    if (session_id) {
+    {
       const firecrawlCost = 0.015;
       const firecrawlCredits = Math.ceil((firecrawlCost * 1.30) / 0.01); // Apply 1.30x multiplier, round up
 
       const { error: trackError } = await sb
         .from('pmc_user_tokens_used')
         .insert({
-          user_id,
-          session_id,
+          user_id: userId,
+          session_id: session_id || null,
           model: 'FireCrawl',
           operation_type: 'firecrawl-scrape',
           cost_usd: firecrawlCost,
@@ -314,8 +343,8 @@ Return a JSON object with:
         );
       }
 
-      // Track token usage
-      if (session_id && tokensUsed > 0) {
+      // Track token usage (always, even without a session_id)
+      if (tokensUsed > 0) {
         const modelUsed = openaiKey ? 'gpt-4o' : 'deepseek-chat';
         const costUsd = modelUsed === 'deepseek-chat'
           ? (tokensUsed / 1000) * 0.0025
@@ -323,8 +352,8 @@ Return a JSON object with:
         const billableUnits = Math.ceil((costUsd * 1.30) / 0.01); // Apply 1.30x multiplier, round up
 
         await sb.from('pmc_user_tokens_used').insert({
-          user_id,
-          session_id,
+          user_id: userId,
+          session_id: session_id || null,
           model: modelUsed,
           cost_usd: costUsd,
           billable_units: billableUnits,
@@ -434,8 +463,8 @@ Example format:
         );
       }
 
-      // Track token usage
-      if (session_id && tokensUsed > 0) {
+      // Track token usage (always, even without a session_id)
+      if (tokensUsed > 0) {
         const modelUsed = openaiKey ? 'gpt-4o' : 'deepseek-chat';
         const costUsd = modelUsed === 'deepseek-chat'
           ? (tokensUsed / 1000) * 0.0025
@@ -443,8 +472,8 @@ Example format:
         const billableUnits = Math.ceil((costUsd * 1.30) / 0.01); // Apply 1.30x multiplier, round up
 
         await sb.from('pmc_user_tokens_used').insert({
-          user_id,
-          session_id,
+          user_id: userId,
+          session_id: session_id || null,
           model: modelUsed,
           cost_usd: costUsd,
           billable_units: billableUnits,

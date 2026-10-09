@@ -182,19 +182,48 @@ Deno.serve(async (req) => {
   }
 
   try {
+    // ── Authenticate the caller from the JWT ──
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing Authorization header' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    const { createClient: createClientAuth } = await import('npm:@supabase/supabase-js@2');
+    const supabaseAuth = createClientAuth(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
     const sb = createClient(
-      Deno.env.get('SUPABASE_URL') ?? '',
-      Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
+      supabaseUrl,
+      supabaseServiceKey,
       {
         auth: { autoRefreshToken: false, persistSession: false }
       }
     );
 
-    const { url, user_id, user_email, extractMode = 'context', session_id }: UrlAnalysisRequest = await req.json();
+    const { url, user_id: _ignored_user_id, user_email: _ignored_user_email, extractMode = 'context', session_id }: UrlAnalysisRequest = await req.json();
 
-    if (!url || !user_id) {
+    // Use the authenticated user's id; ignore any user_id from the body
+    const userId = user.id;
+
+    if (!url) {
       return new Response(
-        JSON.stringify({ error: 'Missing required fields: url and user_id' }),
+        JSON.stringify({ error: 'Missing required field: url' }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
           status: 400
@@ -587,7 +616,7 @@ Use GENERIC section names (Hero, Introduction, Features, Benefits, How It Works,
         await sb
           .from('pmc_user_tokens_used')
           .insert({
-            user_id,
+            user_id: userId,
             operation_type: 'url_copy_extraction',
             model: metadataResult.model_used,
             tokens_used: tokensUsed,
@@ -705,7 +734,7 @@ Return JSON:
       await sb
         .from('pmc_user_tokens_used')
         .insert({
-          user_id,
+          user_id: userId,
           operation_type: 'url_copy_extraction',
           model: copyResult.model_used,
           tokens_used: tokensUsed,
@@ -792,7 +821,7 @@ Return ONLY valid JSON with these exact keys. Be concise and specific.`;
     await sb
       .from('pmc_user_tokens_used')
       .insert({
-        user_id,
+        user_id: userId,
         operation_type: 'url_analysis',
         model: analysisResult.model_used,
         tokens_used: tokensUsed,

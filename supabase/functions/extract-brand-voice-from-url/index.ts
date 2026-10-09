@@ -255,7 +255,34 @@ Deno.serve(async (req: Request) => {
   }
 
   try {
-    const { url, scanAbout, user_id, session_id } = await req.json();
+    // ── Authenticate the caller from the JWT ──
+    const authHeader = req.headers.get('Authorization');
+    if (!authHeader) {
+      return new Response(
+        JSON.stringify({ error: 'Missing Authorization header' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const supabaseUrl = Deno.env.get('SUPABASE_URL') ?? '';
+    const supabaseAnonKey = Deno.env.get('SUPABASE_ANON_KEY') ?? '';
+    const supabaseServiceKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '';
+
+    const { createClient: createClientAuth } = await import('npm:@supabase/supabase-js@2');
+    const supabaseAuth = createClientAuth(supabaseUrl, supabaseAnonKey, {
+      global: { headers: { Authorization: authHeader } }
+    });
+
+    const { data: { user }, error: userError } = await supabaseAuth.auth.getUser();
+    if (userError || !user) {
+      return new Response(
+        JSON.stringify({ error: 'Unauthorized' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 401 }
+      );
+    }
+
+    const { url, scanAbout, user_id: _ignored_user_id, session_id } = await req.json();
+    const userId = user.id;
 
     // Validate URL
     if (!url || !url.trim()) {
@@ -306,47 +333,45 @@ Deno.serve(async (req: Request) => {
     // Analyze brand voice with AI
     const brandVoice = await analyzeBrandVoice(combinedText);
 
-    // Track token usage if user_id is provided
-    if (user_id) {
-      try {
-        const sb = createClient(
-          Deno.env.get('SUPABASE_URL') ?? '',
-          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? '',
-          {
-            auth: { autoRefreshToken: false, persistSession: false }
-          }
-        );
+    // Track token usage (always, using the authenticated user's id)
+    try {
+      const sb = createClient(
+        supabaseUrl,
+        supabaseServiceKey,
+        {
+          auth: { autoRefreshToken: false, persistSession: false }
+        }
+      );
 
-        // Estimate tokens (rough estimate: 1 token ≈ 4 characters)
-        const systemPromptLength = 1700; // Approximate length of system prompt
-        const estimatedPromptTokens = Math.ceil((systemPromptLength + combinedText.length) / 4);
-        const estimatedCompletionTokens = Math.ceil((JSON.stringify(brandVoice).length) / 4);
-        const tokensUsed = estimatedPromptTokens + estimatedCompletionTokens;
+      // Estimate tokens (rough estimate: 1 token ≈ 4 characters)
+      const systemPromptLength = 1700; // Approximate length of system prompt
+      const estimatedPromptTokens = Math.ceil((systemPromptLength + combinedText.length) / 4);
+      const estimatedCompletionTokens = Math.ceil((JSON.stringify(brandVoice).length) / 4);
+      const tokensUsed = estimatedPromptTokens + estimatedCompletionTokens;
 
-        // Determine which model was used
-        const openaiKey = Deno.env.get('OPENAI_API_KEY');
-        const deepseekKey = Deno.env.get('DEEPSEEK_API_KEY');
-        const modelUsed = openaiKey ? 'gpt-4o' : 'deepseek-chat';
-        const costUsd = modelUsed === 'deepseek-chat'
-          ? (tokensUsed / 1000) * 0.0025
-          : (tokensUsed / 1000) * 0.0003;
+      // Determine which model was used
+      const openaiKey = Deno.env.get('OPENAI_API_KEY');
+      const deepseekKey = Deno.env.get('DEEPSEEK_API_KEY');
+      const modelUsed = openaiKey ? 'gpt-4o' : 'deepseek-chat';
+      const costUsd = modelUsed === 'deepseek-chat'
+        ? (tokensUsed / 1000) * 0.0025
+        : (tokensUsed / 1000) * 0.0003;
 
-        await sb
-          .from('pmc_user_tokens_used')
-          .insert({
-            user_id,
-            operation_type: 'brand_voice_url_extraction',
-            model: modelUsed,
-            tokens_used: tokensUsed,
-            cost_usd: costUsd,
-            session_id: session_id || null
-          });
+      await sb
+        .from('pmc_user_tokens_used')
+        .insert({
+          user_id: userId,
+          operation_type: 'brand_voice_url_extraction',
+          model: modelUsed,
+          tokens_used: tokensUsed,
+          cost_usd: costUsd,
+          session_id: session_id || null
+        });
 
-        console.log(`Tracked token usage: ${tokensUsed} tokens for user ${user_id}`);
-      } catch (trackingError) {
-        console.error('Error tracking tokens:', trackingError);
-        // Don't fail the request if token tracking fails
-      }
+      console.log(`Tracked token usage: ${tokensUsed} tokens for user ${userId}`);
+    } catch (trackingError) {
+      console.error('Error tracking tokens:', trackingError);
+      // Don't fail the request if token tracking fails
     }
 
     return new Response(
