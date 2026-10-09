@@ -35,6 +35,7 @@ import QuickBusyModal, { QuickBusyKind } from './QuickBusyModal';
 import QuickConfirm from './QuickConfirm';
 import QuickHistory from './QuickHistory';
 import QuickResult from './QuickResult';
+import { APP_VERSION } from '../lib/version';
 
 interface QuickPageProps {
   currentUser: User;
@@ -731,6 +732,11 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         <QuickHistory currentUser={currentUser} onOpen={openSaved} onNew={handleNew} onDeleted={handleDeleted} />
       )}
       </div>
+
+      {/* The version of the app, from src/lib/version.ts. Shown under every Quick screen. */}
+      <footer id="quick-version" className="pb-8 text-center text-xs text-gray-600 dark:text-gray-400">
+        CopyZap {APP_VERSION}
+      </footer>
 
       {busy && (
         <QuickBusyModal kind={busy} elapsed={elapsed} progress={progress} versions={QUICK_DEFAULT_VARIANTS} />

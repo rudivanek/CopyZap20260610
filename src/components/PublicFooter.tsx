@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useCompleteAccess } from '../hooks/useCompleteAccess';
+import { APP_VERSION } from '../lib/version';
 
 const PublicFooter: React.FC = () => {
   // The Help Center describes the Advanced interface. Only those who can open it
@@ -33,7 +34,7 @@ const PublicFooter: React.FC = () => {
       </div>
       <div className="mt-1 text-xs" style={{ color: '#ff6b35' }}>
   <span>CopyZap</span>
-  <span className="text-[8px] sm:text-[10px] font-normal ml-1">55.0</span>
+  <span className="text-[8px] sm:text-[10px] font-normal ml-1">{APP_VERSION}</span>
 </div>
     </footer>
   );
