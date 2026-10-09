@@ -254,11 +254,45 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     }
   };
 
+  // The process that is running, so that its working window can stop it.
+  const processRef = useRef<AbortController | null>(null);
+  /**
+   * Starts a process the user can stop. Inside a process, `alive` stands in for
+   * `isMounted`: it also turns false once the process is stopped, so whatever a
+   * stopped process still returns never reaches the screen. `signal` tells the
+   * engine not to start further steps.
+   */
+  const startProcess = () => {
+    const controller = new AbortController();
+    processRef.current = controller;
+    return {
+      signal: controller.signal,
+      alive: {
+        get current() {
+          return isMounted.current && !controller.signal.aborted;
+        },
+      },
+    };
+  };
+  /**
+   * Stops the running process, after the user has confirmed. The screen goes
+   * back at once, as it was before the process started. A step that is already
+   * with the model still finishes (and is charged); nothing follows it.
+   */
+  const stopProcess = () => {
+    processRef.current?.abort();
+    processRef.current = null;
+    // A result that was being opened from its address: forget the address too.
+    if (busy === 'opening') setSearchParams({}, { replace: true });
+    setBusy(null);
+  };
+
   /** Opens a saved result exactly as it was: versions, scores and findings. */
   const openSaved = async (id: string) => {
     if (busy) return;
     setError(null);
     setBusy('opening');
+    const { alive: isMounted } = startProcess();
     try {
       const loaded = await loadQuickResult(id);
       if (!isMounted.current) return;
@@ -313,6 +347,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     }
 
     setBusy('fetch');
+    const { alive: isMounted } = startProcess();
     try {
       const id = await ensureSession(new URL(target).hostname);
       const page = await fetchQuickPage(target, currentUser, id);
@@ -342,6 +377,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     }
 
     setBusy('reading');
+    const { alive: isMounted } = startProcess();
     try {
       const id = await ensureSession(copy);
       const understood = await inferQuickBrief(copy, currentUser, id);
@@ -367,6 +403,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setError(null);
     setProgress({ stage: 'checking' });
     setBusy('running');
+    const { alive: isMounted, signal } = startProcess();
     const startedAt = Date.now();
 
     try {
@@ -387,6 +424,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           source: fetchedFrom && fetchedUrl ? { url: fetchedUrl, host: fetchedFrom } : undefined,
           goalKey,
           sessionId: sessionId ?? undefined,
+          signal,
           brief: brief
             ? { product: brief.product, audience: brief.audience, tone: brief.tone, language: brief.language }
             : undefined,
@@ -419,8 +457,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const handleRescore = async () => {
     if (!result || busy) return;
     setBusy('rescoring');
+    const { alive: isMounted, signal } = startProcess();
     try {
-      const scores = await scoreQuickVersions(result.formState, result.versions, result.goalKey, currentUser);
+      const scores = await scoreQuickVersions(result.formState, result.versions, result.goalKey, currentUser, undefined, undefined, signal);
       if (!isMounted.current) return;
       const rescored: QuickRunResult = {
         ...result,
@@ -445,8 +484,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setChangeNotice(null);
     setProgress({ stage: 'checking' });
     setBusy('changing');
+    const { alive: isMounted, signal } = startProcess();
     try {
-      const outcome = await changeQuickVersion(result, instruction, currentUser, setProgress);
+      const outcome = await changeQuickVersion(result, instruction, currentUser, setProgress, signal);
       if (!isMounted.current) return;
       setResult(outcome.result);
       setChangeNotice(outcomeNotice('Your change', outcome));
@@ -467,8 +507,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setChangeNotice(null);
     setProgress({ stage: 'checking' });
     setBusy('editing');
+    const { alive: isMounted, signal } = startProcess();
     try {
-      const outcome = await scoreQuickEdit(result, draft, text, currentUser, setProgress);
+      const outcome = await scoreQuickEdit(result, draft, text, currentUser, setProgress, signal);
       if (!isMounted.current) return;
       setResult(outcome.result);
       setChangeNotice(outcomeNotice('Your edit', outcome));
@@ -744,7 +785,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       </footer>
 
       {busy && (
-        <QuickBusyModal kind={busy} elapsed={elapsed} progress={progress} versions={QUICK_DEFAULT_VARIANTS} />
+        <QuickBusyModal kind={busy} elapsed={elapsed} progress={progress} versions={QUICK_DEFAULT_VARIANTS} onStop={stopProcess} />
       )}
     </div>
   );

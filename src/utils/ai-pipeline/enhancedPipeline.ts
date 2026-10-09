@@ -13,6 +13,7 @@ import { expandInputs, ExpandedInputs } from './expandInputs';
 import { refineOutput } from './refineOutput';
 import { getEnhancedModelSettings } from './modelSettings';
 import { canStream, getOutputBudget } from './outputBudget';
+import { stopMark, throwIfSessionStopped } from '../../engine/quickStop';
 import { v4 as uuidv4 } from 'uuid';
 
 /**
@@ -338,6 +339,10 @@ export async function runEnhancedPipeline(
     );
   }
   const actualSessionId = sessionId;
+  // Quick lets the user stop a run. Before each of the next steps the writer
+  // asks whether its session was stopped since this point. Copy Maker never
+  // stops a session, so nothing changes there.
+  const startedAt = stopMark();
 
   // Calculate target word count
   const targetWordCount = calculateTargetWordCount(formState);
@@ -374,6 +379,8 @@ export async function runEnhancedPipeline(
     }
     brandVoice = await fetchBrandVoice(formState.brandVoiceId);
   }
+
+  throwIfSessionStopped(actualSessionId, startedAt);
 
   // STEP 2: Enhanced Generation with New System Prompt
   if (progressCallback) {
@@ -461,6 +468,8 @@ export async function runEnhancedPipeline(
     if (!generatedContent) {
       throw new Error('No content in response');
     }
+
+    throwIfSessionStopped(actualSessionId, startedAt);
 
     // STEP 3: Editorial Refinement Pass
     if (progressCallback) {

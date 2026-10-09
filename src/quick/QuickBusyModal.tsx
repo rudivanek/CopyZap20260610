@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import type { QuickProgress, QuickStage } from '../engine/runQuickPipeline';
 
 /** The processes that show the modal. */
@@ -12,6 +12,8 @@ interface QuickBusyModalProps {
   progress?: QuickProgress;
   /** How many versions a run writes. */
   versions: number;
+  /** Stops the process. Called after the user has confirmed. */
+  onStop: () => void;
 }
 
 const STAGE_ORDER: QuickStage[] = ['checking', 'writing', 'scoring'];
@@ -26,14 +28,36 @@ const TEXT: Record<QuickBusyKind, { title: string; detail: string }> = {
   editing: { title: 'Scoring your edit', detail: 'Nothing is rewritten. Your version is scored against your goal. About a minute.' },
 };
 
+/** What the user is asked before a process is stopped. Opening a result uses no credits. */
+const STOP_QUESTION: Record<QuickBusyKind, string> = {
+  fetch: 'Stop now? Credits already used are not returned.',
+  reading: 'Stop now? Credits already used are not returned.',
+  running: 'Stop now? Nothing is saved. Credits already used are not returned.',
+  rescoring: 'Stop now? Your result stays as it is. Credits already used are not returned.',
+  opening: 'Stop opening this result?',
+  changing: 'Stop now? Your result stays as it is. Credits already used are not returned.',
+  editing: 'Stop now? Your result stays as it is. Credits already used are not returned.',
+};
+
+const stopButton =
+  'inline-flex items-center justify-center min-h-[44px] px-5 border font-medium ' +
+  'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ';
+const stopButtonPlain =
+  stopButton +
+  'bg-white border-gray-400 text-gray-900 hover:bg-gray-100 dark:bg-gray-900 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-800';
+const stopButtonStrong =
+  stopButton + 'bg-gray-900 border-gray-900 text-white hover:bg-gray-700 dark:bg-gray-100 dark:border-gray-100 dark:text-gray-900';
+
 function formatElapsed(seconds: number): string {
   const minutes = Math.floor(seconds / 60);
   const rest = seconds % 60;
   return `${minutes}:${rest < 10 ? '0' : ''}${rest}`;
 }
 
-const QuickBusyModal: React.FC<QuickBusyModalProps> = ({ kind, elapsed, progress, versions }) => {
+const QuickBusyModal: React.FC<QuickBusyModalProps> = ({ kind, elapsed, progress, versions, onStop }) => {
   const { title, detail } = TEXT[kind];
+  // Cancel asks first. The process keeps running while the question is open.
+  const [asking, setAsking] = useState(false);
   // Scoring an edit has no writing step.
   const stages = kind === 'editing' ? STAGE_ORDER.filter(stage => stage !== 'writing') : STAGE_ORDER;
   const activeStage = progress ? Math.max(0, stages.indexOf(progress.stage)) : 0;
@@ -60,7 +84,7 @@ const QuickBusyModal: React.FC<QuickBusyModalProps> = ({ kind, elapsed, progress
         role="dialog"
         aria-modal="true"
         aria-labelledby="quick-busy-title"
-        className="w-full max-w-md bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-6 sm:p-8 flex flex-col gap-5"
+        className="w-full max-w-md max-h-full overflow-y-auto bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-6 sm:p-8 flex flex-col gap-5"
       >
         <div className="flex flex-col gap-1">
           <h2 id="quick-busy-title" className="text-gray-900 dark:text-white">
@@ -113,6 +137,28 @@ const QuickBusyModal: React.FC<QuickBusyModalProps> = ({ kind, elapsed, progress
             <span className="text-xs text-gray-600 dark:text-gray-400 mt-1">Time running · keep this tab open</span>
           </div>
         </div>
+
+        {asking ? (
+          <div className="flex flex-col gap-3 border-t border-gray-200 dark:border-gray-700 pt-4">
+            <p id="quick-stop-question" role="alert" className="font-semibold text-gray-900 dark:text-gray-100">
+              {STOP_QUESTION[kind]}
+            </p>
+            <div className="flex flex-wrap gap-3">
+              <button type="button" onClick={onStop} className={stopButtonStrong}>
+                Yes, stop
+              </button>
+              <button type="button" autoFocus onClick={() => setAsking(false)} className={stopButtonPlain}>
+                No, continue
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
+            <button type="button" onClick={() => setAsking(true)} className={stopButtonPlain}>
+              Cancel
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

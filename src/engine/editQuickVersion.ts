@@ -83,7 +83,9 @@ export async function scoreQuickEdit(
   draft: QuickEditDraft,
   editedText: string,
   user: User,
-  onProgress?: (progress: QuickProgress) => void
+  onProgress?: (progress: QuickProgress) => void,
+  /** Set when the user can stop the scoring: after a stop, no further scoring call is started. */
+  signal?: AbortSignal
 ): Promise<QuickChangeOutcome> {
   const problem = validateQuickEdit(result, editedText, draft.text);
   if (problem) throw new Error(problem);
@@ -118,7 +120,7 @@ export async function scoreQuickEdit(
   const versions = [...result.versions, item];
 
   // Versions scored before keep their score; only the edit gets a new one.
-  const newScores = await scoreQuickVersions(result.formState, versions, result.goalKey, user, onProgress, scores);
+  const newScores = await scoreQuickVersions(result.formState, versions, result.goalKey, user, onProgress, scores, signal);
 
   const flagged = findUnverifiedQuotes(restored.text, original);
   const quoteFlags = flagged.length > 0 ? { ...result.quoteFlags, [item.id]: flagged } : result.quoteFlags;

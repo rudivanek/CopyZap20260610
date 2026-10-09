@@ -180,6 +180,10 @@ export const HELP_SECTIONS: HelpSection[] = [
         text: 'Writing and scoring. A full run on a page of about 1,000 words uses roughly 60 credits and takes two to three minutes. A page of 5,000 words uses roughly 160 to 230 credits and takes eight to ten minutes. A change, or scoring your own edit, uses less.',
       },
       { term: 'What does not', text: 'Opening results, History, copying and exporting.' },
+      {
+        term: 'Stopping a run',
+        text: 'Every working window has a Cancel button, and asks before it stops. Steps that have not started yet are not run and cost nothing. Credits already used are not returned, and the step that is running at that moment still counts.',
+      },
     ],
   },
   {

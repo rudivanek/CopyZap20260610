@@ -25,6 +25,7 @@ import {
 import type { TestimonialZone } from './quoteLock';
 import { QuickRunResult, scoreQuickVersions, withQuickResult } from './runQuickPipeline';
 import type { QuickProgress } from './runQuickPipeline';
+import { throwIfStopped } from './quickStop';
 
 /** Versions one result can hold besides the original. The comparison reads them all together. */
 export const QUICK_MAX_VERSIONS = 8;
@@ -116,7 +117,9 @@ export async function changeQuickVersion(
   result: QuickRunResult,
   instruction: string,
   user: User,
-  onProgress?: (progress: QuickProgress) => void
+  onProgress?: (progress: QuickProgress) => void,
+  /** Set when the user can stop the change: after a stop, no further step is started. */
+  signal?: AbortSignal
 ): Promise<QuickChangeOutcome> {
   const problem = validateQuickChange(result, instruction);
   if (problem) throw new Error(problem);
@@ -145,6 +148,7 @@ export async function changeQuickVersion(
   }
 
   // 1 — rewrite
+  throwIfStopped(signal);
   onProgress?.({ stage: 'writing', done: 0, total: 1 });
   const keepZones = zones.filter(zone => zone.marker.startsWith('[[KEEP'));
   const quoteZones = zones.filter(zone => !zone.marker.startsWith('[[KEEP'));
@@ -156,6 +160,7 @@ export async function changeQuickVersion(
   };
   const request = FULL_REQUESTS[wanted.toLowerCase()] ?? wanted;
   const rewritten = await modifyContent(locked, request, rewriteState, user, undefined, result.formState.sessionId);
+  throwIfStopped(signal);
   const restored = zones.length > 0 ? restoreTestimonials(contentToText(rewritten), zones) : { text: contentToText(rewritten), moved: false };
   if (!restored.text.trim()) throw new Error('The change came back empty. Try again.');
   onProgress?.({ stage: 'writing', done: 1, total: 1 });
@@ -175,7 +180,7 @@ export async function changeQuickVersion(
   const versions = [...result.versions, item];
 
   // 2 — score. Versions scored before keep their score; only the new one is new.
-  const newScores = await scoreQuickVersions(result.formState, versions, result.goalKey, user, onProgress, scores);
+  const newScores = await scoreQuickVersions(result.formState, versions, result.goalKey, user, onProgress, scores, signal);
 
   const flagged = findUnverifiedQuotes(restored.text, original);
   const quoteFlags = flagged.length > 0 ? { ...result.quoteFlags, [item.id]: flagged } : result.quoteFlags;

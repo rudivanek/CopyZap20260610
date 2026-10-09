@@ -31,6 +31,7 @@ import {
   quickMaxWords,
 } from './buildQuickFormState';
 import { effectiveGates } from './gateRules';
+import { stopSessionWith, throwIfStopped } from './quickStop';
 import { ORIGINAL_OPTION_LABEL, ORIGINAL_VERSION_ID, pickWinner } from './pickWinner';
 import {
   findUnverifiedQuotes,
@@ -123,6 +124,8 @@ export interface QuickRunInput {
      */
     autoLock?: boolean;
   };
+  /** Set when the user can stop the run: after a stop, no further step is started (see quickStop.ts). */
+  signal?: AbortSignal;
   /** The page the copy was fetched from, when it was fetched. Recorded with the result. */
   source?: QuickSource;
 }
@@ -266,8 +269,11 @@ export async function scoreQuickVersions(
    * against a fixed bar, so scoring the same text again would only add noise
    * and could change a number the user has already seen.
    */
-  keepScores?: QuickScores | null
+  keepScores?: QuickScores | null,
+  /** Set when the user can stop the process: after a stop, no further scoring call is started. */
+  signal?: AbortSignal
 ): Promise<QuickScores> {
+  throwIfStopped(signal);
   onProgress?.({ stage: 'scoring' });
 
   // The gate compares each version with the whole original, testimonials included.
@@ -298,6 +304,7 @@ export async function scoreQuickVersions(
   // above; the others are asked for here. A reading that failed is left out, so
   // a failed call never reaches the screen as "0 / 100". Versions that keep an
   // earlier score are not read again.
+  throwIfStopped(signal);
   const context = buildQuickScoringContext(goalKey);
   const fresh = versions.filter(version => !isUsableScore(keepScores?.absoluteByVersion[version.id]));
   const unscoredIds: string[] = [];
@@ -470,6 +477,8 @@ export async function runQuickPipeline(
   onProgress?.({ stage: 'checking' });
   await assertQuickAccess(user);
 
+  throwIfStopped(input.signal);
+
   // 2 — settings and tracking session (the engine refuses to run without one).
   // Testimonials are taken out first: the engine rewrites the page around a
   // marker line and never sees, and so never edits, what customers said.
@@ -499,9 +508,13 @@ export async function runQuickPipeline(
     sessionId = await createQuickSession(user, formState.projectDescription || 'Quick', formState);
   }
   formState = { ...formState, sessionId };
+  // The writer only knows the session: a stop is passed on to it by session.
+  stopSessionWith(input.signal, sessionId);
+  throwIfStopped(input.signal);
 
   // 3 — write the versions
   const written = await generateQuickVersions(formState, user, sessionId, onProgress);
+  throwIfStopped(input.signal);
   if (written.items.length === 0) {
     throw new QuickPipelineError(
       'generation_failed',
@@ -540,7 +553,7 @@ export async function runQuickPipeline(
   let scores: QuickScores | null = null;
   let scoringError: string | undefined;
   try {
-    scores = await scoreQuickVersions(formState, versions, input.goalKey, user, onProgress);
+    scores = await scoreQuickVersions(formState, versions, input.goalKey, user, onProgress, undefined, input.signal);
   } catch (error) {
     scoringError = errorMessage(error);
   }
