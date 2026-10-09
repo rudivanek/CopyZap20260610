@@ -40,7 +40,6 @@ import {
   testimonialInstructions,
 } from './quoteLock';
 import type { TestimonialZone } from './quoteLock';
-import { cutIntoPieces, writeQuickVersionsInPieces, writesInPieces } from './writeInPieces';
 import { contentToText } from '../services/api/contentText';
 
 /** How many times each version is scored; the middle reading is used. */
@@ -147,12 +146,8 @@ export interface QuickRunResult {
   };
   /** Per version: quoted passages that are not in the original. */
   quoteFlags: Record<string, string[]>;
-  /**
-   * Parts of the page the user kept as they are, and parts left out. `pieces`
-   * is set when the page was written piece by piece (see writeInPieces.ts):
-   * how many pieces it was cut into.
-   */
-  parts: { kept: number; leftOut: number; pieces?: number };
+  /** Parts of the page the user kept as they are, and parts left out. */
+  parts: { kept: number; leftOut: number };
   /** The page the copy was fetched from. Absent for pasted copy. */
   source?: QuickSource;
   /**
@@ -497,33 +492,8 @@ export async function runQuickPipeline(
   }
   formState = { ...formState, sessionId };
 
-  // 3 — write the versions. With the switch on, a long page is cut into pieces
-  // and written piece by piece; a page of one piece is written as before.
-  const pieces = writesInPieces() ? cutIntoPieces(lock.lockedCopy) : [];
-  const inPieces = pieces.length > 1;
-  let written: { items: GeneratedContentItem[]; failed: number; firstError?: string };
-  let movedInPieces: string[] = [];
-  if (inPieces) {
-    const outcome = await writeQuickVersionsInPieces(
-      formState,
-      pieces,
-      { keep: keepZones, testimonials: lock.zones },
-      user,
-      sessionId,
-      formState.numberOfVariants ?? QUICK_DEFAULT_VARIANTS,
-      onProgress
-    );
-    written = outcome;
-    movedInPieces = outcome.movedIds;
-    // Each piece stored its own settings with the session: store the page's again. Best effort.
-    try {
-      await sessionManager.updateSession(sessionId, formState.projectDescription || 'Quick', formState);
-    } catch {
-      // keep going with the session as it is
-    }
-  } else {
-    written = await generateQuickVersions(formState, user, sessionId, onProgress);
-  }
+  // 3 — write the versions
+  const written = await generateQuickVersions(formState, user, sessionId, onProgress);
   if (written.items.length === 0) {
     throw new QuickPipelineError(
       'generation_failed',
@@ -533,13 +503,10 @@ export async function runQuickPipeline(
 
   // Put the testimonials back, word for word, and check every version for
   // quoted passages that are not in the original.
-  const movedIds: string[] = [...movedInPieces];
+  const movedIds: string[] = [];
   const quoteFlags: Record<string, string[]> = {};
   for (const item of written.items) {
-    if (zones.length > 0 && inPieces) {
-      // Written piece by piece: the kept parts are already back, each in its piece.
-      item.sourceText = fullCopy;
-    } else if (zones.length > 0) {
+    if (zones.length > 0) {
       const restored = restoreTestimonials(contentToText(item.content), zones);
       item.content = restored.text;
       item.sourceText = fullCopy;
@@ -579,11 +546,7 @@ export async function runQuickPipeline(
     failedVersions: written.failed,
     testimonials: { count: lock.count + (input.keep?.testimonialsKept ?? 0), movedIds },
     quoteFlags,
-    parts: {
-      kept: input.keep?.kept ?? keepZones.length,
-      leftOut: input.keep?.leftOut ?? 0,
-      ...(inPieces ? { pieces: pieces.length } : {}),
-    },
+    parts: { kept: input.keep?.kept ?? keepZones.length, leftOut: input.keep?.leftOut ?? 0 },
     ...(input.source ? { source: input.source } : {}),
     keptTexts: keepZones.map(zone => zone.text),
   };
