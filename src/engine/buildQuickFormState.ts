@@ -25,6 +25,23 @@ export const QUICK_MAX_WORDS = 3000;
  * some out until QUICK_MAX_WORDS or fewer are in use.
  */
 export const QUICK_MAX_INPUT_WORDS = 10000;
+/** One browser can be given a higher limit for a test: localStorage cz_quick_max_words = a number of words. */
+export const QUICK_MAX_WORDS_STORAGE_KEY = 'cz_quick_max_words';
+
+/**
+ * The limit in force: QUICK_MAX_WORDS, unless this browser has been given a
+ * higher one for a test. A stored value counts only when it is a number above
+ * QUICK_MAX_WORDS and not above QUICK_MAX_INPUT_WORDS.
+ */
+export function quickMaxWords(): number {
+  try {
+    const stored = typeof localStorage !== 'undefined' ? Number(localStorage.getItem(QUICK_MAX_WORDS_STORAGE_KEY)) : NaN;
+    if (Number.isFinite(stored) && stored > QUICK_MAX_WORDS && stored <= QUICK_MAX_INPUT_WORDS) return Math.floor(stored);
+  } catch {
+    // Storage not available: use the limit for all users.
+  }
+  return QUICK_MAX_WORDS;
+}
 /** Passed to the comparison prompt as the section name. */
 export const QUICK_SECTION = 'Marketing Copy';
 

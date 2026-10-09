@@ -26,9 +26,9 @@ import {
   deriveQuickLabel,
   QuickBriefInput,
   QUICK_DEFAULT_VARIANTS,
-  QUICK_MAX_WORDS,
   QUICK_MIN_WORDS,
   QUICK_SECTION,
+  quickMaxWords,
 } from './buildQuickFormState';
 import { effectiveGates } from './gateRules';
 import { ORIGINAL_OPTION_LABEL, ORIGINAL_VERSION_ID, pickWinner } from './pickWinner';
@@ -170,10 +170,11 @@ export function validateQuickCopy(copy: string): void {
   if (!copy || !copy.trim() || words < QUICK_MIN_WORDS) {
     throw new QuickPipelineError('too_short', `Please paste at least ${QUICK_MIN_WORDS} words.`);
   }
-  if (words > QUICK_MAX_WORDS) {
+  const maxWords = quickMaxWords();
+  if (words > maxWords) {
     throw new QuickPipelineError(
       'too_long',
-      `This copy has ${words} words. CopyZap handles up to ${QUICK_MAX_WORDS} words for now.`
+      `This copy has ${words} words. CopyZap handles up to ${maxWords} words for now.`
     );
   }
 }

@@ -8,8 +8,8 @@ import { playSuccessSound } from '../utils/soundEffects';
 import {
   QUICK_DEFAULT_VARIANTS,
   QUICK_MAX_INPUT_WORDS,
-  QUICK_MAX_WORDS,
   QUICK_MIN_WORDS,
+  quickMaxWords,
 } from '../engine/buildQuickFormState';
 import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
@@ -200,7 +200,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const tooShort = words < QUICK_MIN_WORDS;
   // More words than Quick works on in one run. Such a page can still be brought
   // in when it has parts: the user leaves some out on the confirm screen.
-  const overLimit = words > QUICK_MAX_WORDS;
+  // The limit in force: 3,000, unless this browser was given a higher one for a test.
+  const maxWords = quickMaxWords();
+  const overLimit = words > maxWords;
   const overInput = words > QUICK_MAX_INPUT_WORDS;
   // The parts of the page and what the user wants done with each. Worked out
   // for the confirm screen, and on the start screen for a page over the limit
@@ -219,7 +221,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     overLimit &&
     !overInput &&
     sections.length > 1 &&
-    sections.some(section => section.words >= QUICK_MIN_WORDS && section.words <= QUICK_MAX_WORDS);
+    sections.some(section => section.words >= QUICK_MIN_WORDS && section.words <= maxWords);
   const tooLong = overInput || (overLimit && !canTrim);
   // The words of the run: everything that is not left out. This is the text
   // the engine is given, so it is what the limit applies to.
@@ -227,8 +229,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const blocked =
     phase !== 'confirm'
       ? null
-      : usedWords > QUICK_MAX_WORDS
-        ? `${asNumber(usedWords)} words are in use. Leave out ${asNumber(usedWords - QUICK_MAX_WORDS)} or more to generate.`
+      : usedWords > maxWords
+        ? `${asNumber(usedWords)} words are in use. Leave out ${asNumber(usedWords - maxWords)} or more to generate.`
         : sections.length > 1 && plan.improveWords < QUICK_MIN_WORDS
           ? `Choose at least one part to improve (${QUICK_MIN_WORDS} words or more).`
           : null;
@@ -590,11 +592,11 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               {asNumber(words)} {words === 1 ? 'word' : 'words'}.
               {overInput && ` CopyZap takes up to ${asNumber(QUICK_MAX_INPUT_WORDS)} words. Shorten the text.`}
               {canTrim &&
-                ` CopyZap works on up to ${asNumber(QUICK_MAX_WORDS)} words at a time. On the next screen you choose which parts to leave out.`}
+                ` CopyZap works on up to ${asNumber(maxWords)} words at a time. On the next screen you choose which parts to leave out.`}
               {overLimit && !overInput && !canTrim &&
-                ` CopyZap works on up to ${asNumber(QUICK_MAX_WORDS)} words at a time, and this text ${
+                ` CopyZap works on up to ${asNumber(maxWords)} words at a time, and this text ${
                   sections.length > 1 ? 'has no part short enough to work on' : 'has no headings to split it at'
-                }. Shorten it to ${asNumber(QUICK_MAX_WORDS)} words.`}
+                }. Shorten it to ${asNumber(maxWords)} words.`}
               {!overLimit && words > 0 && tooShort && ` Paste at least ${QUICK_MIN_WORDS}.`}
               {fetchedFrom && !isFetching && ` Taken from ${fetchedFrom}.`}
               {fetchedFrom && !isFetching && furnitureRemoved > 0 &&
@@ -696,7 +698,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           onChoiceChange={(id, choice) => setPickedChoices(picked => ({ ...picked, [id]: choice }))}
           improveWords={plan.improveWords}
           usedWords={usedWords}
-          maxWords={QUICK_MAX_WORDS}
+          maxWords={maxWords}
           blocked={blocked}
           onGenerate={handleRun}
           onBack={() => {
