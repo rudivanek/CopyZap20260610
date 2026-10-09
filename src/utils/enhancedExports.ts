@@ -2,6 +2,7 @@ import { FormState, GeneratedContentItem, GeneratedContentItemType, StructuredCo
 import { PromptEvaluation } from '../types';
 import { ComparisonResult } from '../services/api/comprehensiveScoring';
 import { structuredToPlainText, markdownToHtml } from './copyFormatter';
+import { contentToText } from '../services/api/contentText';
 import { getScoreLabel } from './scoreColors';
 import { stripMarkdown } from './markdownUtils';
 import { buildReportStyles, getGoogleFontLinkTag, DEFAULT_THEME_VARS } from './exportReportTheme';
@@ -620,6 +621,16 @@ const truncateWordsAtSentence = (text: string, maxWords: number): string => {
 
 const countWords = (s?: string) => (s ? (s.match(/\S+/g) || []).length : 0);
 
+/**
+ * The length of a version as Quick's result screen shows it: "1,240 words".
+ * Same text and same way of counting as the screen, so the report and the
+ * screen never disagree. English, like the rest of the report's own text.
+ */
+const wordsLabelOf = (content: GeneratedContentItem['content']): string => {
+  const count = countWords(contentToText(content).trim());
+  return `${count.toLocaleString('en-US')} ${count === 1 ? 'word' : 'words'}`;
+};
+
 const EXPORT_I18N = {
   en: {
     original: 'ORIGINAL',
@@ -840,7 +851,8 @@ export const generateFullHtmlExportForCard = (
   scoringContext?: ScoringContext,
   allComparison?: ComparisonResult,
   previewPercent?: number,
-  exportLangCode?: 'en' | 'es'
+  exportLangCode?: 'en' | 'es',
+  showWordCount?: boolean
 ): string => {
   const t = EXPORT_I18N[exportLangCode || 'en'];
   let html = '';
@@ -893,7 +905,7 @@ export const generateFullHtmlExportForCard = (
   html += '<div class="v-head">\n';
   html += '<div class="t">\n';
   html += `<h3>${escapeHtml(copyLabel)}${isWinner ? `<span class="win">${t.winner}</span>` : ''}</h3>\n`;
-  html += `<div class="role">${variantTypeLabel}${card.persona ? ` &middot; ${escapeHtml(card.persona)}` : ''}</div>\n`;
+  html += `<div class="role">${variantTypeLabel}${card.persona ? ` &middot; ${escapeHtml(card.persona)}` : ''}${showWordCount ? ` &middot; ${wordsLabelOf(card.content)}` : ''}</div>\n`;
   html += '</div>\n';
   if (card.score) {
     html += '<div class="v-scores">\n';
@@ -2955,7 +2967,9 @@ export const exportAsFormattedHtml = (
   comparisonDeepAnalysisMeta?: ComparisonDeepAnalysisMeta,
   loadingVersionIds?: Set<string>,
   previewPercent?: number,
-  extraSummaryRows?: [string, string][]
+  extraSummaryRows?: [string, string][],
+  /** Quick: show the length of the original and of every version, as its result screen does. */
+  showWordCounts?: boolean
 ): void => {
   try {
     
@@ -3168,7 +3182,7 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
 
     if (sourceText) {
       htmlContent += '<div class="preview-box">\n';
-      htmlContent += `<div class="sec-lbl">${escapeHtml(sourceLabel)}</div>\n`;
+      htmlContent += `<div class="sec-lbl">${escapeHtml(sourceLabel)}${showWordCounts ? ` &middot; ${wordsLabelOf(sourceText)}` : ''}</div>\n`;
       htmlContent += `<div class="preview-text">${markdownToHtml(sourceText, { inlineStyles: false })}</div>\n`;
       htmlContent += '</div>\n';
     }
@@ -3287,7 +3301,7 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
       };
 
       contentCards.forEach((card) => {
-        htmlContent += generateFullHtmlExportForCard(card, targetWordCount, winnerVersionId, exportScoringContext, comparisonResult, previewPercent, exportLangCode);
+        htmlContent += generateFullHtmlExportForCard(card, targetWordCount, winnerVersionId, exportScoringContext, comparisonResult, previewPercent, exportLangCode, showWordCounts);
       });
     }
 
@@ -3370,7 +3384,9 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
 
           const winTag = isWinner ? ` <span class="win" style="display:inline-block;margin-left:8px;">${t.winner}</span>` : '';
           const incompleteTag = (row as any).incomplete ? ` <span class="win" style="display:inline-block;margin-left:6px;background:var(--warn-soft);color:var(--warn);">${t.incompleteLabel}</span>` : '';
-          const subName = isOriginal ? t.original : (matchedCard?.persona || '');
+          const subParts = [isOriginal ? t.original : (matchedCard?.persona || '')];
+          if (showWordCounts && matchedCard) subParts.push(wordsLabelOf(matchedCard.content));
+          const subName = subParts.filter(Boolean).join(' &middot; ');
 
           htmlContent += `<div class="${rowClasses.join(' ')}">\n`;
           htmlContent += `<div class="pos">${idx + 1}</div>\n`;

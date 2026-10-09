@@ -12,7 +12,9 @@
  *
  * The report's own text is always English, whatever the copy's language; the
  * report generator decides that for every caller. Quick adds a few rows to the
- * input summary: where the copy came from and what was kept or left out.
+ * input summary: where the copy came from and what was kept or left out. It
+ * also asks for the length of the original and of every version to be shown,
+ * as on the result screen.
  *
  * The report code is large, so it is loaded only when a report is exported.
  */
@@ -99,6 +101,7 @@ export async function exportQuickReport(result: QuickRunResult, title?: string):
     undefined,
     undefined,
     undefined,
-    input.extraRows
+    input.extraRows,
+    true
   );
 }
