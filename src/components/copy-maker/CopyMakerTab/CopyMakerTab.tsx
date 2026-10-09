@@ -432,6 +432,13 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
       // to match the new IDs that will be assigned to the loaded generatedVersions
       let processedOutputData = outputData;
 
+      // A Quick result opened here becomes a separate Advanced project (one way).
+      // It gets a name of its own, and what only Quick uses is left behind, so
+      // saving it here makes a new entry and never touches the Quick result.
+      const quickProjectName = outputData?.quick
+        ? `${String(savedOutput.title || inputData.projectDescription || 'Quick result').trim()} (Advanced)`
+        : null;
+
       if (outputData?.comparisonResult?.comparisonDetails && outputData?.generatedVersions) {
         console.log('🔄 Remapping comparison versionIds to match loaded cards');
 
@@ -479,7 +486,7 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
         ...prevState,
         ...inputData,
         // Load the generated output with the saved results (with remapped IDs if applicable)
-        copyResult: processedOutputData,
+        copyResult: quickProjectName ? { ...processedOutputData, quick: undefined } : processedOutputData,
         // IMPORTANT: Clear session ID so a new session is created on next generation
         // This ensures credit tracking appears as a new entry
         sessionId: undefined,
@@ -494,6 +501,8 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
         outputType: inputData.outputType || prevState.outputType,
         keywordsExplicit: !!(inputData.keywords?.trim())
       };
+
+      if (quickProjectName) restoredState.projectDescription = quickProjectName;
 
       console.log('✅ Saved output state restored');
 

@@ -536,6 +536,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         view={helpOpen ? 'help' : phase === 'history' ? 'history' : 'new'}
         isBusy={busy !== null}
         showComplete={completeAccess === true}
+        openResultId={phase === 'result' && !helpOpen && saveState === 'saved' ? savedId : null}
         onHelp={toggleHelp}
         userId={currentUser.id}
         creditsTick={creditsTick}

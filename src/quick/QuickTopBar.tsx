@@ -12,6 +12,12 @@ interface QuickTopBarProps {
   isBusy: boolean;
   /** Power users and admins get a link to the Advanced interface (Copy Maker); everyone else has this one only. */
   showComplete: boolean;
+  /**
+   * The saved result that is open, if one is. The Advanced link then opens that
+   * result in Copy Maker (as a separate project) and says so; otherwise it
+   * opens Copy Maker empty.
+   */
+  openResultId: string | null;
   /** Opens the help page, or closes it when it is open. */
   onHelp: () => void;
   /** Whose credits to show. */
@@ -60,6 +66,7 @@ const QuickTopBar: React.FC<QuickTopBarProps> = ({
   view,
   isBusy,
   showComplete,
+  openResultId,
   onHelp,
   userId,
   creditsTick,
@@ -109,10 +116,10 @@ const QuickTopBar: React.FC<QuickTopBarProps> = ({
         {/* The Advanced interface needs a desktop screen, so the link is hidden below 1024px. */}
         {showComplete && (
           <Link
-            to="/copy-maker"
+            to={openResultId ? `/copy-maker?savedOutputId=${openResultId}` : '/copy-maker'}
             className="hidden lg:inline-flex items-center min-h-[44px] px-3 text-gray-600 dark:text-gray-400 underline hover:text-gray-900 dark:hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
-            Advanced
+            {openResultId ? 'Open in Advanced' : 'Advanced'}
           </Link>
         )}
         <CreditsLeft key={creditsTick} userId={userId} />
