@@ -3,7 +3,7 @@ import { ComparisonResult } from './comprehensiveScoring';
 // phase 2 scoring cleanup: comparative scoring is now the only scoring path
 import { compareVersionsRelatively, mapToComparisonResult } from './comparativeScoring';
 import { structuralGate, GateResult } from '../../utils/structuralGate';
-import { generateAbsoluteScore, AbsoluteScoreBreakdown } from './absoluteScoring';
+import { generateAbsoluteScore, recallAbsoluteScore, rememberAbsoluteScore, AbsoluteScoreBreakdown } from './absoluteScoring';
 
 export interface UnifiedComparisonResult {
   comparisonResult: ComparisonResult;
@@ -51,7 +51,14 @@ export async function generateUnifiedComparison(
   scoringContext?: ScoringContext,
   section?: string,
   method?: ScoringMethod,
-  targetWords?: number // optional word target for the structural gate (too-short check)
+  targetWords?: number, // optional word target for the structural gate (too-short check)
+  /**
+   * 'new' method only. When true (the default), a version whose text already
+   * has a quality score for this goal keeps it, and only new or changed texts
+   * are read (see "Remembered scores" in absoluteScoring.ts). Quick passes
+   * false: it keeps scores itself and reads every new version three times.
+   */
+  keepEarlierScores: boolean = true
 ): Promise<UnifiedComparisonResult> {
   const resolvedMethod: ScoringMethod = method ?? scoringContext?.method ?? 'current';
   console.log(`🔄 Using comparative scoring engine (method: ${resolvedMethod})`);
@@ -109,9 +116,17 @@ export async function generateUnifiedComparison(
   // Goal-aware absolute score, computed in PARALLEL to stay within the
   // edge-function time limit (sequential calls risk the 150s Supabase timeout).
   const absoluteByVersion: Record<string, AbsoluteScoreBreakdown> = {};
+  const readScore = (content: unknown): Promise<AbsoluteScoreBreakdown> => {
+    const known = keepEarlierScores ? recallAbsoluteScore(content, goalKey, goalLabel) : null;
+    if (known) return Promise.resolve(known);
+    return generateAbsoluteScore(content, currentUser, sessionId, goalKey, goalLabel).then(score => {
+      if (keepEarlierScores) rememberAbsoluteScore(content, goalKey, goalLabel, score);
+      return score;
+    });
+  };
   const scored = await Promise.all(
     generatedVersions.map((v) =>
-      generateAbsoluteScore(v.content, currentUser, sessionId, goalKey, goalLabel)
+      readScore(v.content)
         .then((score) => ({ id: v.id, score: score as AbsoluteScoreBreakdown | null }))
         .catch(() => ({ id: v.id, score: null as AbsoluteScoreBreakdown | null }))
     )

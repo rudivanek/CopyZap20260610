@@ -53,7 +53,10 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
   const source = scores.comparisonResult;
   const rows = source.rows
     .filter(row => inReport(row.versionId))
-    .map(row => ({ ...row, isWinner: row.versionId === winnerId }));
+    .map(row => ({ ...row, isWinner: row.versionId === winnerId }))
+    // Quick's best version first: with equal scores the report marks the first
+    // row it meets, and that has to be the version the screen shows as best.
+    .sort((a, b) => Number(b.isWinner) - Number(a.isWinner));
   const winnerRow = rows.find(row => row.isWinner);
 
   const comparisonResult = { ...source, rows } as ComparisonResult & Record<string, unknown>;

@@ -3301,7 +3301,10 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
       };
 
       contentCards.forEach((card) => {
-        htmlContent += generateFullHtmlExportForCard(card, targetWordCount, winnerVersionId, exportScoringContext, comparisonResult, previewPercent, exportLangCode, showWordCounts);
+        // The "Winner" mark on a version's own section follows the same rule as the
+        // contents list and the rankings (highest quality score), not the comparison
+        // step's own pick, so the report never names two winners.
+        htmlContent += generateFullHtmlExportForCard(card, targetWordCount, tocWinnerId ?? winnerVersionId, exportScoringContext, comparisonResult, previewPercent, exportLangCode, showWordCounts);
       });
     }
 

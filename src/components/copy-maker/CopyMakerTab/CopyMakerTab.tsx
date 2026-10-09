@@ -418,6 +418,13 @@ const CopyMakerTab: React.FC<CopyMakerTabProps> = ({
       return;
     }
 
+    // The quality scores saved with this result are remembered, so that comparing
+    // again (after adding a blend, a voice…) keeps them instead of reading the
+    // same texts once more and coming back a point or two apart.
+    import('../../../services/api/absoluteScoring')
+      .then(scoring => scoring.rememberScoresOfResult(savedOutput.output_data, savedOutput.input_data?.originalCopy))
+      .catch(() => undefined);
+
     console.log('📥 Loading saved output:', {
       outputId: savedOutput.id,
       hasInputData: !!savedOutput.input_data,

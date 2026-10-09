@@ -291,7 +291,9 @@ export async function scoreQuickVersions(
     buildQuickScoringContext(goalKey),
     QUICK_SECTION,
     'new',
-    targetWords
+    targetWords,
+    // Quick keeps earlier scores itself (keepScores, below) and "Score again" must read afresh.
+    false
   );
 
   const comparisonResult = unified.comparisonResult;

@@ -156,6 +156,90 @@ export async function generateAbsoluteScore(
   }
 }
 
+// ── Remembered scores ─────────────────────────────────────────────────────────
+// The score is measured against a fixed standard, so the same text, scored for
+// the same goal, should show the same number. The scorer itself is not exact:
+// read twice, a text can come back two or three points apart. So a score that
+// was given once (or was stored with a saved result) is remembered here, by the
+// exact text and the goal, and a comparison that runs again uses it instead of
+// reading the text once more. A changed text, or another goal, is a new entry.
+// Kept in memory only: it lasts until the page is reloaded.
+const rememberedScores = new Map<string, AbsoluteScoreBreakdown>();
+
+function scoreKey(content: unknown, goalKey?: GoalKey, goalLabel?: string): string | null {
+  const text = extractText(content).slice(0, ABSOLUTE_SCORE_MAX_CHARS).trim();
+  if (!text) return null;
+  // Only a custom goal is judged by its wording; every other goal by its key.
+  const goal = goalKey === 'custom' ? `custom:${(goalLabel || '').trim()}` : goalKey || '';
+  return JSON.stringify([goal, text]);
+}
+
+/** The score this text was given before for this goal, if any. */
+export function recallAbsoluteScore(content: unknown, goalKey?: GoalKey, goalLabel?: string): AbsoluteScoreBreakdown | null {
+  const key = scoreKey(content, goalKey, goalLabel);
+  return (key && rememberedScores.get(key)) || null;
+}
+
+/** Remembers a score for this text and goal. A failed reading (0) is never remembered. */
+export function rememberAbsoluteScore(
+  content: unknown,
+  goalKey: GoalKey | undefined,
+  goalLabel: string | undefined,
+  score: AbsoluteScoreBreakdown | null | undefined
+): void {
+  if (!score || !(score.total > 0)) return;
+  const key = scoreKey(content, goalKey, goalLabel);
+  if (key) rememberedScores.set(key, score);
+}
+
+/** What a saved result holds, as far as its quality scores are concerned. */
+interface SavedScores {
+  generatedVersions?: ({ id?: string; content?: unknown } | null)[] | null;
+  comparisonResult?: {
+    scoringContext?: { goalKey?: GoalKey; goalLabel?: string } | null;
+    rows?:
+      | (({
+          versionId?: string;
+          absoluteTotal?: number;
+          absoluteSub?: { clarity: number; persuasion: number; audience_fit: number; structure: number } | null;
+          absoluteNotes?: string[] | null;
+        } | null)[])
+      | null;
+  } | null;
+}
+
+/**
+ * Remembers the quality scores stored with a saved result (Copy Maker's or
+ * Quick's), so that comparing again after the result is opened keeps them.
+ */
+export function rememberScoresOfResult(outputData: SavedScores | null | undefined, originalCopy?: string): void {
+  const comparison = outputData?.comparisonResult;
+  const rows = Array.isArray(comparison?.rows) ? comparison.rows : [];
+  const versions = Array.isArray(outputData?.generatedVersions) ? outputData.generatedVersions : [];
+  const goalKey = comparison?.scoringContext?.goalKey;
+  const goalLabel = comparison?.scoringContext?.goalLabel;
+  for (const row of rows) {
+    const sub = row?.absoluteSub;
+    const total = row?.absoluteTotal ?? 0;
+    if (!row || !sub || !(total > 0)) continue;
+    const version = versions.find(item => item?.id === row.versionId);
+    const content = version ? version.content : row.versionId === '__original__' ? originalCopy : undefined;
+    if (!content) continue;
+    const notes = Array.isArray(row.absoluteNotes) ? row.absoluteNotes : [];
+    rememberAbsoluteScore(content, goalKey, goalLabel, {
+      clarity: sub.clarity,
+      persuasion: sub.persuasion,
+      audience_fit: sub.audience_fit,
+      structure: sub.structure,
+      total,
+      clarity_note: notes[0] || '',
+      persuasion_note: notes[1] || '',
+      audience_fit_note: notes[2] || '',
+      structure_note: notes[3] || '',
+    });
+  }
+}
+
 function fallbackScore(reason: string): AbsoluteScoreBreakdown {
   return {
     clarity: 0, persuasion: 0, audience_fit: 0, structure: 0, total: 0,
