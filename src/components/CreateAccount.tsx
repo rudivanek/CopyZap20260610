@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, Lock, AlertCircle, User, Chrome, ArrowLeft, CheckCircle, X } from 'lucide-react';
-import { getSupabaseClient, createNewUser, checkUserExists } from '../services/supabaseClient';
+import { getSupabaseClient, createNewUser } from '../services/supabaseClient';
 import { useTheme } from '../context/ThemeContext';
 import PublicFooter from './PublicFooter';
 import { useNavigate } from 'react-router-dom';
@@ -148,19 +148,6 @@ const CreateAccount: React.FC<CreateAccountProps> = ({ onLogin, onLoginSuccess }
         setError('Authentication service is not configured. Please contact the administrator.');
         setIsLoading(false);
         return;
-      }
-
-      // First check if the user already exists
-      try {
-        const existingUser = await checkUserExists(email);
-        if (existingUser) {
-          setError('An account with this email already exists. Please sign in instead.');
-          setIsLoading(false);
-          return;
-        }
-      } catch (err) {
-        console.error('Error checking if user exists:', err);
-        // Continue with signup attempt even if check fails
       }
 
       // Sign up with email and password - REQUIRES EMAIL VERIFICATION
@@ -476,7 +463,7 @@ const CreateAccount: React.FC<CreateAccountProps> = ({ onLogin, onLoginSuccess }
               </button>
 
               <p className="text-xs text-gray-500 dark:text-gray-500 mt-4">
-                Didn't receive the email? Check your spam folder or try registering again.
+                Didn't receive the email? Check your spam folder. If you already have an account, sign in instead.
               </p>
             </div>
           </div>

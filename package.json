@@ -24,7 +24,7 @@
     "docx": "^9.7.1",
     "dompurify": "^3.4.16",
     "framer-motion": "^11.0.0",
-    "jspdf": "^3.0.3",
+    "jspdf": "^4.2.1",
     "lucide-react": "^0.344.0",
     "openai": "^4.43.0",
     "react": "^18.3.1",

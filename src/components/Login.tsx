@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Mail, Lock, AlertCircle, RefreshCw, ArrowLeft, Chrome } from 'lucide-react';
-import { getSupabaseClient, createNewUser, checkUserExists, ensureUserExists } from '../services/supabaseClient';
+import { getSupabaseClient, createNewUser, ensureUserExists } from '../services/supabaseClient';
 import { useTheme } from '../context/ThemeContext';
 import PublicFooter from './PublicFooter';
 
@@ -194,19 +194,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, onLoginSuccess }) => {
         return;
       }
 
-      // First check if the user exists in our pmc_users table
-      const userExists = await checkUserExists(email);
-      if (!userExists) {
-        // User doesn't exist in our system, redirect to create account
-        setMessage('No account found with this email. Redirecting you to create an account...');
-        setTimeout(() => {
-          window.location.href = `/create-account?email=${encodeURIComponent(email)}`;
-        }, 2000);
-        setIsLoading(false);
-        return;
-      }
-
-      // User exists in pmc_users, now attempt Supabase Auth login
+      // Attempt Supabase Auth login
       const { data, error } = await supabase.auth.signInWithPassword({
         email,
         password,
@@ -214,9 +202,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onLoginSuccess }) => {
 
       if (error) {
         // If auth fails, it might be wrong password, unconfirmed email, or account not in Supabase Auth
-        if (error.message.includes('Invalid login credentials')) {
-          throw new Error('Invalid password. Please check your password and try again.');
-        }
         if (error.message.includes('Email not confirmed')) {
           throw new Error('Please verify your email address before signing in. Check your inbox for the confirmation email.');
         }

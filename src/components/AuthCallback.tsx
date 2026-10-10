@@ -68,21 +68,6 @@ const AuthCallback: React.FC = () => {
           throw new Error('No user found in session');
         }
 
-        // Check if user is registered in pmc_users table
-        const { checkUserExists } = await import('../services/supabaseClient');
-        const userExists = await checkUserExists(user.email || '');
-
-        if (!userExists) {
-          console.log('User not registered in pmc_users, redirecting to create account');
-
-          // Sign them out of Supabase Auth
-          await supabase.auth.signOut();
-
-          // Redirect to create account with email pre-filled
-          navigate(`/create-account?email=${encodeURIComponent(user.email || '')}`, { replace: true });
-          return;
-        }
-
         // Ensure the user exists in pmc_users table
         await ensureUserExists(
           user.id,

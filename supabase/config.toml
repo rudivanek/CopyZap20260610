@@ -15,3 +15,6 @@ verify_jwt = true
 
 [functions.ai-completion]
 verify_jwt = true
+
+[functions.send-help-email]
+verify_jwt = true
