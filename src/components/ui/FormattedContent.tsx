@@ -1,6 +1,7 @@
 import React from 'react';
 import { StructuredCopyOutput } from '../../types';
 import { markdownToHtml } from '../../utils/copyFormatter';
+import { sanitizeHtml } from '../../utils/sanitizeHtml';
 
 interface FormattedContentProps {
   content: string | StructuredCopyOutput | any;
@@ -19,7 +20,7 @@ interface FormattedContentProps {
  */
 const FormattedContent: React.FC<FormattedContentProps> = ({ content, className = '', colorScores = true }) => {
   // Passed to every markdownToHtml call below.
-  const render = (text: string) => markdownToHtml(text, { colorScores });
+  const render = (text: string) => sanitizeHtml(markdownToHtml(text, { colorScores }));
   // Handle empty content
   if (content === null || content === undefined) {
     return null;
