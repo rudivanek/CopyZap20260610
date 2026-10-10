@@ -1,7 +1,27 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.41
-Last Updated: 2026-09-18T00:00:00Z
+Version: 1.42
+Last Updated: 2026-10-10T00:00:00Z
+
+---
+
+## Quick Help — Step-by-Step Guide Links Added (2026-10-10)
+
+**Feature:** The Quick Help overlay (`src/quick/QuickHelp.tsx`) now includes links to the step-by-step guide on the home site (`https://copyzap.app/help/`). A general link appears at the top of the help page under the subtitle, opening the full guide in a new tab. Each help section that has a matching part in the guide also gets a section-specific link that opens the guide at the relevant anchor.
+
+**`GUIDE_URL` and `GUIDE_ANCHORS`:** Two module-level constants were added above the component. `GUIDE_URL` is `'https://copyzap.app/help/'`. `GUIDE_ANCHORS` is a `Record<string, string>` mapping help section ids to guide anchor fragments: `copy` → `copy`, `check` → `check`, `score` → `result`, `after` → `change`, `credits` → `credits`, `trouble` → `problems`. Sections not listed in the map (e.g., `start`) have no matching part and do not render a link.
+
+**`guideLink` class string:** A shared class string for all guide links, providing inline-flex layout, a 44px minimum touch target, underline, gray text with primary hover, and a focus ring.
+
+**Top-of-page link:** Below the subtitle paragraph ("How CopyZap works, and what each thing on the screen means."), an `<a>` tag opens `GUIDE_URL` in a new tab with the text "Open the step-by-step guide with screenshots (new tab)".
+
+**Per-section links:** Inside the `HELP_SECTIONS.map` loop, after the closing `</dl>` tag and before the closing `</section>` tag, a conditional link renders only when `GUIDE_ANCHORS[section.id]` is truthy. The link opens `{GUIDE_URL}#{GUIDE_ANCHORS[section.id]}` in a new tab with the text "See this in the step-by-step guide (new tab)".
+
+**Files touched:** `src/quick/QuickHelp.tsx` only. No changes to `src/quick/helpContent.ts` or any help page component.
+
+**Verification:**
+- `npm run build` passes.
+- The Quick Help overlay shows the general guide link under the subtitle, and each section with a matching anchor shows its own guide link below the definition list.
 
 ---
 

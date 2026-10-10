@@ -19,6 +19,21 @@ const backButton =
   'text-gray-900 dark:text-gray-100 font-medium hover:border-gray-900 dark:hover:border-gray-100 ' +
   'focus:outline-none focus:ring-2 focus:ring-primary-500';
 
+/** The step-by-step guide on the home site. Opens in a new tab. */
+const GUIDE_URL = 'https://copyzap.app/help/';
+/** Help section id -> the part of the guide that covers it. Sections not listed have no matching part. */
+const GUIDE_ANCHORS: Record<string, string> = {
+  copy: 'copy',
+  check: 'check',
+  score: 'result',
+  after: 'change',
+  credits: 'credits',
+  trouble: 'problems',
+};
+const guideLink =
+  'inline-flex items-center self-start min-h-[44px] text-gray-900 dark:text-gray-100 underline hover:text-primary-800 dark:hover:text-primary-300 ' +
+  'focus:outline-none focus:ring-2 focus:ring-primary-500';
+
 const QuickHelp: React.FC<QuickHelpProps> = ({ onClose, backTo }) => {
   const jumpTo = (id: string) =>
     document.getElementById(`help-${id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -29,6 +44,9 @@ const QuickHelp: React.FC<QuickHelpProps> = ({ onClose, backTo }) => {
         <div className="flex flex-col gap-1">
           <h1 className="text-gray-900 dark:text-white">Help</h1>
           <p className="text-gray-600 dark:text-gray-400">How CopyZap works, and what each thing on the screen means.</p>
+          <a href={GUIDE_URL} target="_blank" rel="noopener noreferrer" className={guideLink}>
+            Open the step-by-step guide with screenshots (new tab)
+          </a>
         </div>
         <button type="button" onClick={onClose} className={backButton}>
           Back to {backTo}
@@ -85,6 +103,16 @@ const QuickHelp: React.FC<QuickHelpProps> = ({ onClose, backTo }) => {
               </div>
             ))}
           </dl>
+          {GUIDE_ANCHORS[section.id] && (
+            <a
+              href={`${GUIDE_URL}#${GUIDE_ANCHORS[section.id]}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={guideLink}
+            >
+              See this in the step-by-step guide (new tab)
+            </a>
+          )}
         </section>
       ))}
 
