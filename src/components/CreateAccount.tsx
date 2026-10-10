@@ -137,8 +137,8 @@ const CreateAccount: React.FC<CreateAccountProps> = ({ onLogin, onLoginSuccess }
       return;
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
+    if (password.length < 8) {
+      setError('Password must be at least 8 characters long');
       setIsLoading(false);
       return;
     }
@@ -384,10 +384,10 @@ const CreateAccount: React.FC<CreateAccountProps> = ({ onLogin, onLoginSuccess }
                 onChange={(e) => setPassword(e.target.value)}
                 className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white pl-10 pr-4 py-2 focus:ring-gray-500 focus:border-gray-500 block w-full"
                 placeholder="Create password"
-                minLength={6}
+                minLength={8}
               />
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Password must be at least 6 characters</p>
+            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Password must be at least 8 characters</p>
           </div>
 
           <button
