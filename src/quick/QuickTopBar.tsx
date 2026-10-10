@@ -67,7 +67,6 @@ const QuickTopBar: React.FC<QuickTopBarProps> = ({
   isBusy,
   showComplete,
   openResultId,
-  onHelp,
   userId,
   creditsTick,
 }) => (
@@ -105,14 +104,14 @@ const QuickTopBar: React.FC<QuickTopBarProps> = ({
         >
           History
         </button>
-        <button
-          type="button"
-          onClick={onHelp}
-          aria-current={view === 'help' ? 'page' : undefined}
-          className={navButton + (view === 'help' ? 'border-primary-500' : 'border-transparent')}
+        <a
+          href="https://copyzap.app/help/"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={navButton + 'border-transparent'}
         >
           Help
-        </button>
+        </a>
         {/* The Advanced interface needs a desktop screen, so the link is hidden below 1024px. */}
         {showComplete && (
           <Link

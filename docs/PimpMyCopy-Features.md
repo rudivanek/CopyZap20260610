@@ -1,7 +1,21 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.42
+Version: 1.43
 Last Updated: 2026-10-10T00:00:00Z
+
+---
+
+## Quick Top Bar — Help Button Now Opens External Guide (2026-10-10)
+
+**Feature:** The "Help" button in the Quick interface top bar (`src/quick/QuickTopBar.tsx`) is now an external link that opens the step-by-step guide on the home site (`https://copyzap.app/help/`) in a new tab, instead of toggling the in-app Quick Help overlay. The link uses `target="_blank"` and `rel="noopener noreferrer"` for security. The `border-transparent` class is always applied since the link no longer tracks an active view state.
+
+**Props change:** The `onHelp` prop was removed from the destructured props of the `QuickTopBar` component (it is no longer used inside the component). The `onHelp: () => void;` field is kept in the `QuickTopBarProps` interface, so callers that still pass it (e.g., `QuickPage.tsx`) continue to compile without error — the prop is simply ignored at runtime.
+
+**Files touched:** `src/quick/QuickTopBar.tsx` only. No changes to `src/quick/QuickPage.tsx`, `src/quick/QuickHelp.tsx`, or any other file.
+
+**Verification:**
+- `npm run build` passes.
+- The Quick top bar "Help" link opens `https://copyzap.app/help/` in a new tab; the in-app Quick Help overlay is no longer triggered from the top bar.
 
 ---
 
