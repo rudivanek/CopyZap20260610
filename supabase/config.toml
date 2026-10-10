@@ -12,3 +12,6 @@ verify_jwt = true
 
 [functions.extract-brand-voice-from-url]
 verify_jwt = true
+
+[functions.ai-completion]
+verify_jwt = true

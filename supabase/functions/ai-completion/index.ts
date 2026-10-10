@@ -33,6 +33,11 @@ async function recordUsage(
         (params.outputTokens / 1000) * Number(pricing.output_usd_per_1k || 0);
       cost_source = 'db_pricing';
       pricing_row_id = pricing.id;
+    } else {
+      // No price row found: charge at the highest listed rate instead of nothing.
+      cost_usd =
+        (params.inputTokens / 1000) * 0.015 +
+        (params.outputTokens / 1000) * 0.075;
     }
     if (!Number.isFinite(cost_usd) || cost_usd < 0) cost_usd = 0;
 
@@ -118,16 +123,11 @@ Deno.serve(async (req: Request) => {
     // ============================================
     const authHeader = req.headers.get('Authorization');
     if (!authHeader) {
-// Log details server-side only; never return internal error info to the client
-      console.error('Access check failed (no user data):', {
-        userId: user.id,
-        errorCode: accessError?.code,
-      });
       return new Response(
-        JSON.stringify({ error: 'Access denied: your subscription has expired or you have consumed all your available credits. Please update your plan.' }),
+        JSON.stringify({ error: 'Unauthorized' }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-          status: 403
+          status: 401
         }
       );
     }
@@ -173,19 +173,9 @@ Deno.serve(async (req: Request) => {
       console.error('User ID:', user.id);
       console.error('User data:', userData);
 
-      // Include detailed error for debugging
       return new Response(
         JSON.stringify({
-          error: 'Access denied: your subscription has expired or you have consumed all your available credits. Please update your plan.',
-          debug: {
-            userId: user.id,
-            email: user.email,
-            hasUserData: !!userData,
-            errorMessage: accessError?.message,
-            errorDetails: accessError?.details,
-            errorHint: accessError?.hint,
-            errorCode: accessError?.code
-          }
+          error: 'Access denied: your subscription has expired or you have consumed all your available credits. Please update your plan.'
         }),
         {
           headers: { ...corsHeaders, 'Content-Type': 'application/json' },
@@ -261,21 +251,23 @@ Deno.serve(async (req: Request) => {
       creditsGraceUnits
     });
 
-    // Query usage in current period
-    const { data: usageData, error: usageError } = await supabase
-      .from('pmc_user_tokens_used')
-      .select('billable_units')
-      .eq('user_id', user.id)
-      .gte('created_at', periodStart.toISOString());
+    // Sum usage in the current period inside the database (no row cap)
+    const { data: usedData, error: usageError } = await supabase.rpc('get_user_credits_used_since', {
+      p_user_id: user.id,
+      p_since: periodStart.toISOString()
+    });
 
-    let creditsUsed = 0;
-    if (usageError) {
-      console.warn('⚠️ Warning: Failed to fetch usage data:', usageError);
-      // Fail open: allow access if we can't check usage (transient DB issue)
-      console.log('⚠️ Allowing access due to transient DB error (fail-open policy)');
-    } else {
-      creditsUsed = usageData?.reduce((sum, row) => sum + (row.billable_units || 0), 0) || 0;
+    if (usageError || usedData === null || usedData === undefined) {
+      console.error('Credits usage could not be read:', usageError);
+      return new Response(
+        JSON.stringify({ error: 'Your credits could not be checked right now. Please try again in a moment.' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 503
+        }
+      );
     }
+    const creditsUsed = Number(usedData) || 0;
 
     const creditsRemaining = creditsAllowed - creditsUsed;
     const creditsEffectiveRemaining = creditsRemaining + creditsGraceUnits;
@@ -345,9 +337,52 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    const MAX_OUTPUT_TOKENS = 32000;
+    const MAX_REQUEST_CHARS = 600000;
+
     const useModel = model || 'gpt-4o';
     const useTemperature = temperature ?? 0.7;
-    const useMaxTokens = maxTokens || 4000;
+    const requestedMaxTokens = Number(maxTokens);
+    const useMaxTokens = Math.min(
+      Number.isFinite(requestedMaxTokens) && requestedMaxTokens > 0 ? Math.floor(requestedMaxTokens) : 4000,
+      MAX_OUTPUT_TOKENS
+    );
+
+    if (typeof useModel !== 'string' || JSON.stringify(messages).length > MAX_REQUEST_CHARS) {
+      return new Response(
+        JSON.stringify({ error: 'This request is too large. Please shorten the text and try again.' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 413
+        }
+      );
+    }
+
+    // Only models that have an active price can be used, so every call is charged.
+    const { data: modelPricing, error: modelPricingError } = await supabase.rpc('get_active_model_pricing', {
+      p_model_key: useModel,
+      p_pricing_tier: 'standard'
+    });
+    if (modelPricingError) {
+      console.error('Model price could not be read:', modelPricingError);
+      return new Response(
+        JSON.stringify({ error: 'The AI service could not be reached right now. Please try again in a moment.' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 503
+        }
+      );
+    }
+    if (!modelPricing || modelPricing.length === 0) {
+      console.error('Model refused, no active price:', useModel);
+      return new Response(
+        JSON.stringify({ error: 'This AI model is not available.' }),
+        {
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+          status: 400
+        }
+      );
+    }
 
     let content = '';
     let usage: any = null;
@@ -399,19 +434,20 @@ Deno.serve(async (req: Request) => {
       const writer = writable.getWriter();
       const encoder = new TextEncoder();
 
-      (async () => {
+      const pump = (async () => {
         const reader = anthropicResponse.body!.getReader();
         const decoder = new TextDecoder();
         let streamInputTokens = 0;
         let streamOutputTokens = 0;
+        let gotFinalUsage = false;
+        let streamedChars = 0;
         let lineBuffer = '';
+        let clientGone = false;
         try {
           while (true) {
             const { done, value } = await reader.read();
             if (done) break;
-            // Forward each chunk verbatim — client will parse Anthropic SSE format
-            await writer.write(value);
-            // Parse alongside for token tracking (decode a copy)
+            // Read the usage figures first, so they are known even if the browser has gone
             const text = decoder.decode(value, { stream: true });
             lineBuffer += text;
             const lines = lineBuffer.split('\n');
@@ -422,28 +458,50 @@ Deno.serve(async (req: Request) => {
                 const evt = JSON.parse(line.slice(5).trim());
                 if (evt.type === 'message_start') {
                   streamInputTokens = evt.message?.usage?.input_tokens || 0;
+                } else if (evt.type === 'content_block_delta' && typeof evt.delta?.text === 'string') {
+                  streamedChars += evt.delta.text.length;
                 } else if (evt.type === 'message_delta' && evt.usage?.output_tokens !== undefined) {
                   streamOutputTokens = evt.usage.output_tokens;
+                  gotFinalUsage = true;
                 }
               } catch { /* ignore parse failures */ }
             }
+            // Forward each chunk verbatim — client will parse Anthropic SSE format
+            try {
+              await writer.write(value);
+            } catch {
+              clientGone = true;
+              break;
+            }
           }
-          await recordUsage(supabase, {
-            userId: user.id,
-            model: useModel,
-            inputTokens: streamInputTokens,
-            outputTokens: streamOutputTokens,
-            operationType,
-            sessionId
-          });
-          // Send a terminal marker so the client knows the stream ended cleanly
-          await writer.write(encoder.encode('\n'));
         } catch (e) {
           console.error('Streaming pipe error:', e);
         } finally {
-          await writer.close();
+          if (clientGone) {
+            // The browser disconnected: stop the generation
+            try { await reader.cancel(); } catch { /* already closed */ }
+          }
+          // Charge for what was produced. When the final count never arrived, estimate it from the text.
+          const outputTokens = gotFinalUsage ? streamOutputTokens : Math.ceil(streamedChars / 3);
+          if (streamInputTokens > 0 || outputTokens > 0) {
+            await recordUsage(supabase, {
+              userId: user.id,
+              model: useModel,
+              inputTokens: streamInputTokens,
+              outputTokens,
+              operationType,
+              sessionId
+            });
+          }
+          if (!clientGone) {
+            // Send a terminal marker so the client knows the stream ended cleanly
+            try { await writer.write(encoder.encode('\n')); } catch { /* browser gone */ }
+          }
+          try { await writer.close(); } catch { /* already closed */ }
         }
       })();
+      // Keep the function alive until usage is recorded, even if the browser disconnects
+      try { (globalThis as any).EdgeRuntime?.waitUntil?.(pump); } catch { /* not available */ }
 
       return new Response(readable, {
         headers: {
