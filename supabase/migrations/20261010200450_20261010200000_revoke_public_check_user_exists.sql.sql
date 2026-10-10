@@ -1,0 +1,1 @@
+revoke all on function public.public_check_user_exists(text) from public, anon, authenticated;
