@@ -513,7 +513,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onLoginSuccess }) => {
                 minLength={6}
               />
             </div>
-            <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">Password must be at least 6 characters</p>
           </div>
 
           <div className="flex justify-end">
