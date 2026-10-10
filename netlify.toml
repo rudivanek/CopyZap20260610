@@ -14,6 +14,7 @@ X-Frame-Options = "DENY"
 X-Content-Type-Options = "nosniff"
 X-XSS-Protection = "1; mode=block"
 Referrer-Policy = "strict-origin-when-cross-origin"
+Content-Security-Policy-Report-Only = "default-src 'self'; script-src 'self' https://www.googletagmanager.com https://script.supademo.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' data: https://fonts.gstatic.com; img-src 'self' data: blob: https:; media-src 'self' data: blob:; connect-src 'self' https://gsismfzlmmtxmuzommya.supabase.co wss://gsismfzlmmtxmuzommya.supabase.co https://www.googletagmanager.com https://www.google-analytics.com https://*.google-analytics.com https://*.analytics.google.com https://stats.g.doubleclick.net; frame-src https://www.youtube.com https://player.vimeo.com; worker-src 'self' blob:; object-src 'none'; base-uri 'self'; form-action 'self'; frame-ancestors 'none'"
 
 [[headers]]
 for = "/assets/*"

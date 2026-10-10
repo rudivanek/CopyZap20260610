@@ -9,13 +9,7 @@
 
     <!-- Google tag (gtag.js) -->
     <script async src="https://www.googletagmanager.com/gtag/js?id=G-LEMLSR6SM2"></script>
-    <script>
-      window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
-      gtag('js', new Date());
-
-      gtag('config', 'G-LEMLSR6SM2');
-    </script>
+    <script src="/gtag-init.js"></script>
 
     <!-- SEO Meta Tags -->
     <meta name="description" content="Generate high-converting marketing copy with AI. Create, improve & score content using GPT-4o & DeepSeek. Voice styles, templates & more." />
@@ -319,15 +313,7 @@
         </div>
       </div>
     </div>
-    <script>
-      // Only show loader on /copy-maker page
-      (function() {
-        const loader = document.getElementById('initial-loader');
-        if (loader && window.location.pathname !== '/copy-maker') {
-          loader.style.display = 'none';
-        }
-      })();
-    </script>
+    <script src="/initial-loader.js"></script>
     <script type="module" src="/src/main.tsx"></script>
     <!-- Supademo: interactive demo overlay -->
     <script src="https://script.supademo.com/supademo.js"></script>
