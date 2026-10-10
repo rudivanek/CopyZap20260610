@@ -281,6 +281,25 @@ Deno.serve(async (req: Request) => {
       );
     }
 
+    // Refuse when the subscription has ended or the credits are used up
+    const accessClient = createClientAuth(supabaseUrl, supabaseServiceKey, {
+      auth: { autoRefreshToken: false, persistSession: false }
+    });
+    const { data: hasAccess, error: accessCheckError } = await accessClient.rpc('user_has_access', { p_user_id: user.id });
+    if (accessCheckError) {
+      console.error('Access could not be checked:', accessCheckError);
+      return new Response(
+        JSON.stringify({ error: 'Your credits could not be checked right now. Please try again in a moment.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 503 }
+      );
+    }
+    if (hasAccess !== true) {
+      return new Response(
+        JSON.stringify({ error: 'Access denied: your subscription has expired or you have consumed all your available credits. Please update your plan.' }),
+        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+      );
+    }
+
     const { url, scanAbout, user_id: _ignored_user_id, session_id } = await req.json();
     const userId = user.id;
 
