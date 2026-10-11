@@ -1,7 +1,26 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.47
+Version: 1.48
 Last Updated: 2026-10-12T00:00:00Z
+
+---
+
+## Quick Newsletter — Planning Now Asks for Plain Lines, Not JSON (2026-10-12)
+
+**Feature:** Fixes the first live run, where all three newsletters came out as the same email (a round-up of every offer on the page). The cause was in the planning step: it asked the model for a JSON object, the model wrote a page name in quotation marks inside a value without escaping them (e.g. `"focus": "Diplomado "Humanismo y Sentido": …"`), the JSON was invalid, and the whole plan was silently dropped — so every version fell back to the same unassigned topic. The planning step now asks for plain lines (`FOCUS:`, `ACTION:`, `OPEN:`) and reads them line by line, so there is nothing to escape. A reply that comes back as a valid JSON object is still read, so an older or compliant model is not broken.
+
+**File changed — `src/engine/writeQuickFormat.ts` (whole file replaced):**
+- `planPrompt(request)`: rewritten to ask for plain text, not JSON. The reply layout is three lines per version (`FOCUS:` / `ACTION:` / `OPEN:`) with an empty line between versions, and the labels and OPEN choices are given literally so the model copies them. The rules now say "do not make one newsletter about all of them together" (the round-up failure mode) and keep the OPEN choices as given.
+- New `anglesFromLines(raw)`: reads the plain-line plan. A regex matches an optional bullet or number, optional emphasis/quotation marks around the key, the key (`focus`/`action`/`open`), a colon, and the value. A `FOCUS` line starts a new angle; `ACTION`/`OPEN` fill the current one only when its slot is empty. Values are cleaned with `planValue` (strips trailing commas, surrounding `*`/`**` emphasis, and matching `"`/`"`/`«`/`»` quotation marks; treats `none`/`n/a`/`-`/`—`/`(none)`/`(empty)` as empty).
+- `parseAngles(raw, count)`: now tries the JSON form first (a valid object with an `angles` array) and falls back to `anglesFromLines` for everything else. Angles without a `focus` are dropped; if none survive, the fallback angles are returned. Fewer angles than versions: the remaining versions reuse the angles with a different opening.
+- `planQuickAngles`: the `makeApiRequestWithFallback` call now passes `undefined` as the response-format argument where it previously passed `{ type: 'json_object' }`, so the model is free to reply in plain lines.
+
+**No other file changed.** The `writePrompt`, `writeUserPrompt`, `parseFormatReply`, `writeOne`, and `writeQuickFormat` functions are unchanged from the prior version. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- The planning call no longer requests JSON; a reply in the plain-line layout is parsed by `anglesFromLines`; a valid JSON reply is still read.
+- Each version now gets its own angle (its own offer or topic) when the source presents several, instead of all three becoming the same round-up.
 
 ---
 

@@ -91,18 +91,46 @@ export function fallbackAngles(count: number): QuickAngle[] {
   return Array.from({ length: count }, (_, index) => ({ focus: '', action: '', open: OPENINGS[index % OPENINGS.length] }));
 }
 
+/** A value as the model wrote it, without the quotation marks, comma or emphasis marks around it. */
+function planValue(text: string): string {
+  let value = text.trim().replace(/,\s*$/, '').trim();
+  value = value.replace(/^\*{1,2}(.*)\*{1,2}$/, '$1').trim();
+  if (/^["“«].*["”»]$/.test(value) && value.length >= 2) value = value.slice(1, -1).trim();
+  return /^(none|n\/a|-|—|\(none\)|\(empty\))$/i.test(value) ? '' : value;
+}
+
+/**
+ * Reads the plan line by line: "FOCUS: …", "ACTION: …", "OPEN: …", a new FOCUS
+ * line starting the next version. It also reads the same three keys written as
+ * JSON with one key per line, valid or not.
+ */
+function anglesFromLines(raw: string): QuickAngle[] {
+  const angles: QuickAngle[] = [];
+  for (const line of (raw || '').split(/\r?\n/)) {
+    const match = line.match(/^\s*(?:[-*•]|\d+[.)])?\s*["*_]*\s*(focus|action|open)\s*["*_]*\s*:\s*[*_]{0,2}\s*(.*)$/i);
+    if (!match) continue;
+    const key = match[1].toLowerCase() as keyof QuickAngle;
+    const value = clean(planValue(match[2]), FOCUS_MAX_CHARS);
+    if (key === 'focus') angles.push({ focus: value, action: '', open: '' });
+    else if (angles.length > 0 && !angles[angles.length - 1][key]) angles[angles.length - 1][key] = value;
+  }
+  return angles;
+}
+
 /** Turns the plan's reply into exactly `count` angles. Anything missing or invalid falls back. */
 export function parseAngles(raw: string, count: number): QuickAngle[] {
   const fallback = fallbackAngles(count);
+  // A reply that came back as a valid JSON object after all is read as one.
   const list = parseJson(raw)?.angles;
-  if (!Array.isArray(list)) return fallback;
-  const angles = list
-    .filter(item => item && typeof item === 'object')
-    .map(item => {
-      const entry = item as Record<string, unknown>;
-      return { focus: clean(entry.focus, FOCUS_MAX_CHARS), action: clean(entry.action, FOCUS_MAX_CHARS), open: clean(entry.open, FOCUS_MAX_CHARS) };
-    })
-    .filter(angle => angle.focus);
+  const read: QuickAngle[] = Array.isArray(list)
+    ? list
+        .filter(item => item && typeof item === 'object')
+        .map(item => {
+          const entry = item as Record<string, unknown>;
+          return { focus: clean(entry.focus, FOCUS_MAX_CHARS), action: clean(entry.action, FOCUS_MAX_CHARS), open: clean(entry.open, FOCUS_MAX_CHARS) };
+        })
+    : anglesFromLines(raw);
+  const angles = read.filter(angle => angle.focus);
   if (angles.length === 0) return fallback;
   // Fewer angles than versions: the remaining versions take the angles again, with another opening.
   return fallback.map((spare, index) => {
@@ -112,24 +140,27 @@ export function parseAngles(raw: string, count: number): QuickAngle[] {
   });
 }
 
+/**
+ * The plan is asked for as plain lines, not as JSON. Asked for JSON, the model
+ * wrote a name from the page in quotation marks inside a value without escaping
+ * them ("focus": "Diplomado "Humanismo y Sentido": …"). That is not valid JSON,
+ * so the whole plan was dropped and all three versions became the same email
+ * (first live run, 2026-10-10). Plain lines have nothing to escape.
+ */
 function planPrompt(request: QuickFormatRequest): string {
   const { format, variants, focus } = request;
-  return `You read a source text, a page or a piece of copy from a business, and plan ${variants} different ${format.nounPlural} that can be written from it. You do not write them. Reply with one JSON object and nothing else:
+  return `You read a source text, a page or a piece of copy from a business, and plan ${variants} different ${format.nounPlural} that can be written from it. You do not write them.
 
-{
-  "angles": [
-    { "focus": "...", "action": "...", "open": "..." }
-  ]
-}
+Reply with the plan and nothing else, as plain text: three lines for each ${format.noun} and an empty line between ${format.nounPlural}, in exactly this layout.
 
-- "focus": the one thing this ${format.noun} is about, in 15 words or fewer: one offer, product, event or topic that the source itself presents.
-- "action": the one thing the reader is asked to do about it, as the source puts it, in 10 words or fewer. An empty string when the source asks for nothing.
-- "open": how the ${format.noun} starts. One of: ${OPENINGS.map(opening => `"${opening}"`).join(', ')}.
+FOCUS: the one thing this ${format.noun} is about, in 15 words or fewer: one offer, product, event or topic that the source itself presents
+ACTION: the one thing the reader is asked to do about it, as the source puts it, in 10 words or fewer; leave it empty after the colon when the source asks for nothing
+OPEN: how the ${format.noun} starts, one of: ${OPENINGS.join(' / ')}
 
 Rules:
-- Give exactly ${variants} angles, and make them ${variants} different ${format.nounPlural}. When the source presents several offers or topics, give each angle a different one, the most important first. When it presents only one, keep that focus and vary "open".
-${focus ? `- The sender wants the ${format.nounPlural} to be about this: "${focus}". Every angle stays on it. Vary which part of it leads, and vary "open".\n` : ''}- Use only what the source says. Do not invent offers, dates, prices or actions.
-- Write "focus" and "action" in the language of the source.`;
+- Give exactly ${variants} of these, and make them ${variants} different ${format.nounPlural}. When the source presents several offers or topics, give each one a different offer or topic, the most important first, and do not make one ${format.noun} about all of them together. When the source presents only one, keep that focus and vary OPEN.
+${focus ? `- The sender wants the ${format.nounPlural} to be about this: "${focus}". Every one stays on it. Vary which part of it leads, and vary OPEN.\n` : ''}- Use only what the source says. Do not invent offers, dates, prices or actions.
+- Write what follows FOCUS and ACTION in the language of the source. Keep the three labels and the OPEN choices exactly as given here.`;
 }
 
 /** One call: the different versions that can be made from this source. Never throws. */
@@ -143,7 +174,7 @@ export async function planQuickAngles(request: QuickFormatRequest, user: User): 
       ],
       0.2,
       PLAN_MAX_TOKENS,
-      { type: 'json_object' },
+      undefined,
       user.email,
       'quick_format_plan',
       request.sessionId
