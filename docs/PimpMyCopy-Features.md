@@ -1,7 +1,60 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.45
+Version: 1.46
 Last Updated: 2026-10-12T00:00:00Z
+
+---
+
+## Quick — "Turn it into an email newsletter": the Result Screen (2026-10-12)
+
+**Feature:** The Quick result screen (`src/quick/QuickResult.tsx`) now knows how to display a result written in a format (the email newsletter from the engine change above). When the result's `formState.quickFormat` is set, the screen labels the source copy "Source" instead of "Your original", closes it behind a Show/Hide toggle, does not score it, shows no "gain vs your original", labels each version with what it is about, adds the format's own checks (subject line, preview line, body length) to the "Check before publishing" card and the rankings table, and hides the "Export report" button (the report compares every version with the original, and a format result has no original to compare with). A result of an ordinary "improve" run looks exactly as before, except that a link inside the copy is now underlined.
+
+**Import:** Added `import { checkFormatText, formatBodyWords, formatTitle, getQuickFormat } from '../engine/quickFormats';` next to the existing `pickWinner` import.
+
+**Format-aware values (component body):**
+- `format = getQuickFormat(result.formState.quickFormat)` — the format of this result, or `null` for an ordinary run.
+- `originalName = format ? 'your source' : 'your original'` — the phrase used wherever the source is named ("Quoted words not in your source", "Numbers not in your source", etc.).
+- `formatNotesOf(version)` — for a format result, returns `checkFormatText(format, …)` (the format's line and length checks) for a generated version, and `[]` for the source and for an ordinary run.
+- `formatNotes = formatNotesOf(winner)` — the format checks for the best version.
+- `lengthOf(version)` — for a format result, the word count of the version's body (`formatBodyWords`); otherwise the usual `wordsLabel`. Used wherever a version's length is shown (best version, other versions, rankings).
+
+**Numbers (a format leaves most of its source out on purpose):** The `numbersByVersion` memo now clears `dropped` for a format result (only what a version *adds* is a finding; leaving source out is the point), and depends on `format`. The `NumberNotes` component gained an `original?: string` prop (default `'your original'`) so its headings read "Numbers not in your source" / "Numbers not in your original" as appropriate.
+
+**"Too short" wording:** The gate-flag message now reads "it is much shorter than a newsletter should be" for a format, and "it is much shorter than your original" otherwise.
+
+**Rankings:**
+- `rankingOf` now includes `formatNotes: formatNotesOf(version)` on each row.
+- The baseline (the source as a comparison row) is suppressed for a format result: `baseline = original && !format ? rankingOf(original) : null`.
+- The line under the "Comparison & rankings" heading reads `Format: Email newsletter` for a format result instead of the use-case label.
+- The rankings row's length uses `lengthOf(item.version)`.
+- The notes block under a row now opens when there are format notes too (`item.formatNotes.length > 0`), and renders a "Format" group listing them.
+- "Quoted words not in your original" → `Quoted words not in {originalName}`.
+- The `NumberNotes` in the rankings passes `original={originalName}`.
+
+**Jump bar:** The "Your original" link now reads "Source" for a format result, and on click opens the source section (which is closed by default) before scrolling to it.
+
+**Result heading:** The `<h1>` now uses `formatTitle(result.formState.quickFormat, deriveQuickLabel(...))` so a format result is named after its format ("Newsletter: …"). The line under the heading prepends `{format.label} · ` and appends `· About: {quickFocus}` when a focus was given. The "left out" count reads "N parts of the source left out" for a format (vs "N left out" for an ordinary run).
+
+**Toolbar:** The "Export report" button is wrapped in `{!format && (...)}` so it is hidden for a format result (no original to compare with).
+
+**Best version card:** The length uses `lengthOf(winner)`. When the winner has a `sourceNote` (the angle's focus), an "About: …" line is shown above the copy.
+
+**Link styling:** The `copyText` class gained `[&_a]:underline` so links in the copy read as links (the main action of an email is a link; the app's base style renders links as plain text). This applies to all results, format or ordinary.
+
+**Score card:** For a format result, the gain block is replaced with a note: "Scored as it stands, against your goal. Your source is another kind of text, so it is not scored and there is no gain to show." (plus the "N other versions score about the same" line when relevant). The ordinary delta-vs-original block is unchanged.
+
+**Check before publishing:** The card now opens when there are format notes (`formatNotes.length > 0`), and the format notes are listed as warning items alongside the quotes/testimonials/incomplete notes. "Quoted words that are not in your original" → `… in {originalName}`. The `NumberNotes` passes `original={originalName}`.
+
+**Source section:** For a format result, the source is rendered as a closed card with a Show/Hide toggle (labelled "Source", with "What the newsletters were written from. Not scored."); the copy is shown only when open. For an ordinary run, the source section is unchanged (always open, labelled "Your original", with its score tag).
+
+**Other versions:** Each version's length uses `lengthOf(version)`, and when a version has a `sourceNote`, an "About: …" line is shown in the header.
+
+**Files touched:** `src/quick/QuickResult.tsx` only. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- All 29 find-and-replace edits applied exactly once to `src/quick/QuickResult.tsx`.
+- An ordinary "improve" result looks as before (except links in the copy are underlined); a format result shows the source closed and unscored, no gain, format checks, and no Export-report button.
 
 ---
 

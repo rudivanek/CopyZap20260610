@@ -13,6 +13,7 @@ import { effectiveGates } from '../engine/gateRules';
 import { checkNumbers } from '../engine/numberCheck';
 import type { NumberCheck } from '../engine/numberCheck';
 import { ORIGINAL_VERSION_ID } from '../engine/pickWinner';
+import { checkFormatText, formatBodyWords, formatTitle, getQuickFormat } from '../engine/quickFormats';
 import { QUICK_SCORE_MARGIN } from '../engine/runQuickPipeline';
 import type { QuickRunResult } from '../engine/runQuickPipeline';
 
@@ -45,7 +46,8 @@ const card = 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-
 // The copy itself always sits on a white "paper" surface, in light and dark theme:
 // the shared markdown renderer writes dark text colours inline.
 const paper = 'bg-white border border-gray-200 dark:border-gray-600';
-const copyText = 'text-gray-700 [&_ul]:list-disc [&_ol]:list-decimal';
+// A link is underlined: the main action of an email is one, and the app's base style shows links as plain text.
+const copyText = 'text-gray-700 [&_ul]:list-disc [&_ol]:list-decimal [&_a]:underline';
 const primaryButton =
   'inline-flex items-center justify-center min-h-[44px] px-6 bg-primary-500 hover:bg-primary-400 ' +
   'text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed ' +
@@ -125,10 +127,10 @@ const NO_NUMBERS: NumberCheck = { added: [], dropped: [] };
 const NUMBER_NOTES_SHOWN = 6;
 
 /** Numbers a version adds or leaves out, each with the sentence it stands in. */
-const NumberNotes: React.FC<{ check: NumberCheck }> = ({ check }) => (
+const NumberNotes: React.FC<{ check: NumberCheck; original?: string }> = ({ check, original = 'your original' }) => (
   <>
     {[
-      { title: 'Numbers not in your original', items: check.added },
+      { title: `Numbers not in ${original}`, items: check.added },
       { title: 'Numbers from your original that are missing', items: check.dropped },
     ]
       .filter(group => group.items.length > 0)
@@ -185,6 +187,10 @@ const QuickResult: React.FC<QuickResultProps> = ({
   changeNotice,
   onScoreEdit,
 }) => {
+  // "Turn it into…": the format this result was written in. null for an ordinary run.
+  const format = getQuickFormat(result.formState.quickFormat);
+  // What the copy the versions were made from is called on this screen.
+  const originalName = format ? 'your source' : 'your original';
   // Editing by hand: the best version as plain text, protected parts as bracketed lines.
   const [draft, setDraft] = useState<QuickEditDraft | null>(null);
   const [editText, setEditText] = useState('');
@@ -243,10 +249,12 @@ const QuickResult: React.FC<QuickResultProps> = ({
     if (!originalText.trim()) return byVersion;
     for (const version of result.versions) {
       if (version.id === ORIGINAL_VERSION_ID) continue;
-      byVersion[version.id] = checkNumbers(contentToText(version.content), originalText);
+      const check = checkNumbers(contentToText(version.content), originalText);
+      // A format leaves most of its source out on purpose: only what it adds is a finding.
+      byVersion[version.id] = format ? { added: check.added, dropped: [] } : check;
     }
     return byVersion;
-  }, [result.versions]);
+  }, [result.versions, format]);
 
   const { scores, versions } = result;
   const generated = versions.filter(version => version.id !== ORIGINAL_VERSION_ID);
@@ -274,7 +282,11 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const gate = gates[winner.id];
   const isIncomplete = gate ? !gate.valid : false;
   const gateProblems = (gate?.flags ?? []).map(flag =>
-    flag.startsWith('too_short') ? 'it is much shorter than your original' : 'it repeats a passage'
+    flag.startsWith('too_short')
+      ? format
+        ? `it is much shorter than a ${format.noun} should be`
+        : 'it is much shorter than your original'
+      : 'it repeats a passage'
   );
   const incompleteNote =
     gateProblems.length > 0
@@ -290,6 +302,16 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const numberNotes = numbersByVersion[winner.id] ?? NO_NUMBERS;
   const hasNumberNotes = numberNotes.added.length > 0 || numberNotes.dropped.length > 0;
   const testimonialsMoved = result.testimonials.movedIds.includes(winner.id);
+  // What the format itself asks for: its labelled lines and its length.
+  const formatNotesOf = (version: GeneratedContentItem): string[] =>
+    format && version.id !== ORIGINAL_VERSION_ID ? checkFormatText(format, contentToText(version.content)) : [];
+  const formatNotes = formatNotesOf(winner);
+  // A version's length as shown next to it. For a format: the words of its body, which is what its length rule is about.
+  const lengthOf = (version: GeneratedContentItem): string => {
+    if (!format || version.id === ORIGINAL_VERSION_ID) return wordsLabel(version.content);
+    const count = formatBodyWords(format, contentToText(version.content));
+    return `${count.toLocaleString('en-US')} ${count === 1 ? 'word' : 'words'}`;
+  };
 
   const others = generated
     .filter(version => version.id !== winner.id)
@@ -322,6 +344,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
       tone: notes.filter(note => !isClaimNote(note)).map(noteText),
       quotes: result.quoteFlags[version.id] ?? [],
       numbers: numbersByVersion[version.id] ?? NO_NUMBERS,
+      formatNotes: formatNotesOf(version),
     };
   };
   const ranked = generated
@@ -331,11 +354,14 @@ const QuickResult: React.FC<QuickResultProps> = ({
       a.version.id === winner.id ? -1 : b.version.id === winner.id ? 1 : (b.score?.total ?? 0) - (a.score?.total ?? 0)
     );
   const unranked = generated.map(rankingOf).filter(item => !item.score || item.setAside);
-  const baseline = original ? rankingOf(original) : null;
+  // A format result has no baseline: its source is another kind of text and is not scored.
+  const baseline = original && !format ? rankingOf(original) : null;
   // The table shows whenever there are scores, also when no version could be ranked.
   const hasRankings = !!scores && ranked.length + unranked.length > 0;
   const judgedAs = [
-    scores?.comparisonResult.scoringContext?.useCaseLabel && `Judged as: ${scores.comparisonResult.scoringContext.useCaseLabel}`,
+    format
+      ? `Format: ${format.label}`
+      : scores?.comparisonResult.scoringContext?.useCaseLabel && `Judged as: ${scores.comparisonResult.scoringContext.useCaseLabel}`,
     `Goal: ${GOAL_OPTIONS.find(option => option.key === result.goalKey)?.label ?? result.goalKey}`,
   ]
     .filter(Boolean)
@@ -358,7 +384,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const goalName = goalOption ? goalOption.label.split(' — ')[0] : result.goalKey;
   const scoreLabel = winnerTotal != null ? getAbsoluteScoreLabel(winnerTotal) : '';
 
-  const hasChecks = flags.length > 0 || isIncomplete || quoteFlags.length > 0 || testimonialsMoved || hasNumberNotes;
+  const hasChecks =
+    flags.length > 0 || isIncomplete || quoteFlags.length > 0 || testimonialsMoved || hasNumberNotes || formatNotes.length > 0;
   const jumpLink =
     'shrink-0 inline-flex items-center min-h-[40px] text-xs text-gray-900 dark:text-gray-100 hover:underline ' +
     'focus:outline-none focus:ring-2 focus:ring-primary-500';
@@ -383,8 +410,16 @@ const QuickResult: React.FC<QuickResultProps> = ({
             Top
           </button>
           {jumpSeparator}
-          <button type="button" onClick={() => jumpTo('quick-original')} className={jumpLink}>
-            Your original
+          <button
+            type="button"
+            onClick={() => {
+              // In a format result the source is closed until asked for.
+              if (format) setOpenIds(current => (current.includes(ORIGINAL_VERSION_ID) ? current : [...current, ORIGINAL_VERSION_ID]));
+              jumpTo('quick-original');
+            }}
+            className={jumpLink}
+          >
+            {format ? 'Source' : 'Your original'}
           </button>
           {result.versions
             .filter(version => version.id !== ORIGINAL_VERSION_ID)
@@ -418,7 +453,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
       </nav>
 
       <div className="flex flex-col gap-1">
-        <h1 className="text-gray-900 dark:text-white">{title || deriveQuickLabel(result.formState.originalCopy || '')}</h1>
+        <h1 className="text-gray-900 dark:text-white">
+          {title || formatTitle(result.formState.quickFormat, deriveQuickLabel(result.formState.originalCopy || ''))}
+        </h1>
         {result.source && /^https?:\/\//i.test(result.source.url) && (
           <p className="text-gray-600 dark:text-gray-400 break-words">
             Source:{' '}
@@ -433,13 +470,17 @@ const QuickResult: React.FC<QuickResultProps> = ({
           </p>
         )}
         <p className="text-gray-600 dark:text-gray-400">
-          Goal: {goalName} · {result.formState.language}
+          {format && `${format.label} · `}Goal: {goalName} · {result.formState.language}
+          {format && result.formState.quickFocus && ` · About: ${result.formState.quickFocus}`}
           {elapsedLabel && ` · Finished in ${elapsedLabel}`}
           {result.testimonials.count > 0 &&
             ` · ${result.testimonials.count} ${result.testimonials.count === 1 ? 'testimonial' : 'testimonials'} kept word for word`}
           {result.parts.kept > 0 &&
             ` · ${result.parts.kept} ${result.parts.kept === 1 ? 'part kept as it is' : 'parts kept as they are'}`}
-          {result.parts.leftOut > 0 && ` · ${result.parts.leftOut} left out`}
+          {result.parts.leftOut > 0 &&
+            (format
+              ? ` · ${result.parts.leftOut} ${result.parts.leftOut === 1 ? 'part' : 'parts'} of the source left out`
+              : ` · ${result.parts.leftOut} left out`)}
           {saveState === 'saved' && ' · Saved'}
           {saveState === 'saving' && ' · Saving…'}
         </p>
@@ -468,14 +509,17 @@ const QuickResult: React.FC<QuickResultProps> = ({
       >
         <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
           <CopyButton content={winner.content} className={`${primaryButton} shrink-0`} />
-          <button
-            type="button"
-            onClick={handleExport}
-            disabled={!scores || exportState === 'working'}
-            className={`${secondaryButton} shrink-0`}
-          >
-            {exportState === 'working' ? 'Building report…' : 'Export report'}
-          </button>
+          {/* The report compares every version with the original. A format result has no original to compare with, so it has no report yet. */}
+          {!format && (
+            <button
+              type="button"
+              onClick={handleExport}
+              disabled={!scores || exportState === 'working'}
+              className={`${secondaryButton} shrink-0`}
+            >
+              {exportState === 'working' ? 'Building report…' : 'Export report'}
+            </button>
+          )}
           <button
             type="button"
             onClick={openEditor}
@@ -511,7 +555,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
           <article id="quick-best" className={`${paper} p-5 sm:p-8 flex flex-col gap-4 scroll-mt-20`}>
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <span className="text-xs font-semibold text-gray-600">
-                Best version <span className="font-normal tabular-nums">· {wordsLabel(winner.content)}</span>
+                Best version <span className="font-normal tabular-nums">· {lengthOf(winner)}</span>
               </span>
               {scores && !isIncomplete && !nearOriginal && (
                 <span className="inline-flex items-center gap-2 text-xs font-semibold text-gray-900">
@@ -520,6 +564,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 </span>
               )}
             </div>
+            {format && winner.sourceNote && <p className="text-xs text-gray-600 break-words">About: {winner.sourceNote}</p>}
             <FormattedContent content={winner.content} className={copyText} colorScores={false} />
           </article>
 
@@ -655,7 +700,20 @@ const QuickResult: React.FC<QuickResultProps> = ({
                       <span className="font-semibold text-gray-900 dark:text-gray-100">{scoreLabel}</span>
                     )}
                   </div>
-                  {delta != null && originalTotal != null ? (
+                  {format ? (
+                    <div className="flex flex-col gap-1">
+                      <p className="text-gray-600 dark:text-gray-400">
+                        Scored as it stands, against your goal. Your source is another kind of text, so it is not scored
+                        and there is no gain to show.
+                      </p>
+                      {closeCount > 0 && (
+                        <p className="text-gray-600 dark:text-gray-400">
+                          {closeCount === 1 ? '1 other version scores' : `${closeCount} other versions score`} about the
+                          same. Scores within {QUICK_SCORE_MARGIN} points cannot be told apart.
+                        </p>
+                      )}
+                    </div>
+                  ) : delta != null && originalTotal != null ? (
                     <div className="flex flex-col gap-1">
                       <p className="font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
                         {nearOriginal && 'About the same as your original'}
@@ -730,13 +788,13 @@ const QuickResult: React.FC<QuickResultProps> = ({
           {hasChecks && (
             <section id="quick-checks" aria-label="Check before publishing" className={`${card} p-6 flex flex-col gap-3 scroll-mt-20`}>
               <h2 className="text-gray-900 dark:text-white">Check before publishing</h2>
-              {(quoteFlags.length > 0 || testimonialsMoved || isIncomplete) && (
+              {(quoteFlags.length > 0 || testimonialsMoved || isIncomplete || formatNotes.length > 0) && (
               <ul className="flex flex-col gap-3 text-gray-700 dark:text-gray-300">
                 {quoteFlags.map((quote, index) => (
                   <li key={`quote-${index}`} className="flex items-start gap-2.5">
                     <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-critical" aria-hidden="true" />
                     <span className="break-words">
-                      Quoted words that are not in your original. Remove them or replace them with the exact words:
+                      Quoted words that are not in {originalName}. Remove them or replace them with the exact words:
                       “{quote}”
                     </span>
                   </li>
@@ -756,9 +814,15 @@ const QuickResult: React.FC<QuickResultProps> = ({
                     <span>{incompleteNote}</span>
                   </li>
                 )}
+                {formatNotes.map((note, index) => (
+                  <li key={`format-${index}`} className="flex items-start gap-2.5">
+                    <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-warning" aria-hidden="true" />
+                    <span className="break-words">{note}</span>
+                  </li>
+                ))}
               </ul>
               )}
-              <NumberNotes check={numberNotes} />
+              <NumberNotes check={numberNotes} original={originalName} />
               {claimNotes.length > 0 && (
                 <div>
                   <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
@@ -788,7 +852,30 @@ const QuickResult: React.FC<QuickResultProps> = ({
 
         {/* Below the best version: the original (always shown) and the other versions (closed) */}
         <div className="flex flex-col gap-5 min-w-0 lg:col-start-1 lg:row-start-2">
-          {original && (
+          {original && format && (
+            <article id="quick-original" className={`${paper} scroll-mt-20`}>
+              <button
+                type="button"
+                onClick={() => toggleOpen(ORIGINAL_VERSION_ID)}
+                aria-expanded={openIds.includes(ORIGINAL_VERSION_ID)}
+                className="w-full min-h-[52px] px-5 py-2 flex flex-wrap items-center justify-between gap-x-4 gap-y-1 text-left hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                <span className="flex flex-wrap items-baseline gap-x-2">
+                  <span className="font-semibold text-gray-900">Source</span>
+                  <span className="text-xs text-gray-600 tabular-nums">{wordsLabel(original.content)}</span>
+                  <span className="text-xs text-gray-600">What the {format.nounPlural} were written from. Not scored.</span>
+                </span>
+                <span className="text-xs text-primary-800 underline">{openIds.includes(ORIGINAL_VERSION_ID) ? 'Hide' : 'Show'}</span>
+              </button>
+              {openIds.includes(ORIGINAL_VERSION_ID) && (
+                <div className="px-5 pt-4 pb-5 border-t border-gray-200">
+                  <FormattedContent content={original.content} className={copyText} colorScores={false} />
+                </div>
+              )}
+            </article>
+          )}
+
+          {original && !format && (
             <article id="quick-original" className={`${paper} p-5 flex flex-col gap-3 scroll-mt-20`}>
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                 <span className="text-xs font-semibold text-gray-600">
@@ -815,7 +902,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
                     >
                       <span className="flex flex-wrap items-baseline gap-x-2">
                         <span className="font-semibold text-gray-900">{version.sourceDisplayName || 'Version'}</span>
-                        <span className="text-xs text-gray-600 tabular-nums">{wordsLabel(version.content)}</span>
+                        <span className="text-xs text-gray-600 tabular-nums">{lengthOf(version)}</span>
+                        {format && version.sourceNote && <span className="text-xs text-gray-600">About: {version.sourceNote}</span>}
                         {setAside && (
                           <span className="text-xs text-gray-600">Set aside: repeats a paragraph or is cut short</span>
                         )}
@@ -885,7 +973,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                         </span>
                       )}
                       <span className="text-xs text-gray-600 dark:text-gray-400 tabular-nums">
-                        {wordsLabel(item.version.content)}
+                        {lengthOf(item.version)}
                       </span>
                       {isBaseline && <span className="text-xs text-gray-600 dark:text-gray-400">baseline</span>}
                       {item.setAside && (
@@ -913,6 +1001,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                     </p>
                   )}
                   {(item.quotes.length > 0 ||
+                    item.formatNotes.length > 0 ||
                     item.claims.length > 0 ||
                     item.tone.length > 0 ||
                     item.numbers.added.length > 0 ||
@@ -922,7 +1011,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                         <div>
                           <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
                             <span className="w-1 h-4 bg-status-critical" aria-hidden="true" />
-                            Quoted words not in your original
+                            Quoted words not in {originalName}
                           </p>
                           <ul className="mt-1 list-disc pl-5 text-gray-900 dark:text-gray-100">
                             {item.quotes.map((quote, n) => (
@@ -931,7 +1020,20 @@ const QuickResult: React.FC<QuickResultProps> = ({
                           </ul>
                         </div>
                       )}
-                      <NumberNotes check={item.numbers} />
+                      <NumberNotes check={item.numbers} original={originalName} />
+                      {item.formatNotes.length > 0 && (
+                        <div>
+                          <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
+                            <span className="w-1 h-4 bg-status-warning" aria-hidden="true" />
+                            Format
+                          </p>
+                          <ul className="mt-1 list-disc pl-5 text-gray-900 dark:text-gray-100">
+                            {item.formatNotes.map((note, n) => (
+                              <li key={n} className="break-words">{note}</li>
+                            ))}
+                          </ul>
+                        </div>
+                      )}
                       {item.claims.length > 0 && (
                         <div>
                           <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
