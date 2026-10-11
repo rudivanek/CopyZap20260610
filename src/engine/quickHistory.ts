@@ -21,7 +21,6 @@ import type { AbsoluteScoreBreakdown } from '../services/api/absoluteScoring';
 import type { GateResult } from '../utils/structuralGate';
 import { deriveQuickLabel } from './buildQuickFormState';
 import { ORIGINAL_VERSION_ID } from './pickWinner';
-import { formatTitle } from './quickFormats';
 import type { QuickRunResult } from './runQuickPipeline';
 
 const TABLE = 'pmc_saved_outputs';
@@ -122,8 +121,7 @@ export async function saveQuickResult(result: QuickRunResult, user: User, runSec
       {
         ...toRow(result, runSeconds),
         user_id: user.id,
-        // A format run is named after its format: "Newsletter: <the copy's first heading>".
-        title: cleanTitle(formatTitle(result.formState.quickFormat, deriveQuickLabel(result.formState.originalCopy || ''))),
+        title: cleanTitle(deriveQuickLabel(result.formState.originalCopy || '')),
         description: 'Quick',
         tags: [QUICK_TAG],
         saved_mode: 'advanced',
