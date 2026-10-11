@@ -15,6 +15,7 @@ import { GeneratedContentItem, Model, ScoringContext } from '../../types';
 import { makeApiRequestWithFallback, cleanJsonResponse } from './utils';
 import { SCORING_MODEL } from '../../constants';
 import { calculateMultiScoreDisplay } from '../../utils/multiScoreDisplay';
+import { keepOwnFlags } from './flagOwnership';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES
@@ -757,8 +758,11 @@ export function mapToComparisonResult(
       overMarketingPenalty: item.overMarketingPenalty,
       brandFit: item.brandFit,
 
-      // NEW: Verification flags — claims that need human review before publishing
-      verificationFlags: item.verificationFlags || []
+      // Verification flags — claims that need human review before publishing.
+      // A note stays only when the phrase it quotes stands in this version's own
+      // text: the model sometimes lists one version's phrases under another
+      // (see flagOwnership.ts).
+      verificationFlags: keepOwnFlags(item.verificationFlags, contentText)
     };
   });
 

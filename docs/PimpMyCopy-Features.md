@@ -1,7 +1,31 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.43
-Last Updated: 2026-10-10T00:00:00Z
+Version: 1.44
+Last Updated: 2026-10-11T00:00:00Z
+
+---
+
+## Comparative Scoring — Review Notes Kept Under the Version They Quote (2026-10-11)
+
+**Feature:** In a comparison report, the per-version review notes ("Claims to verify", "Brand voice and tone to review", tone-intensity flags) sometimes appeared under the wrong version. The comparison step reads every version in one LLM call, and the model occasionally listed one version's phrases under another — on 2026-10-10 a report showed six notes under "Generated Copy 2" whose quoted phrases stood only in "Generated Copy 3". This change keeps a note under a version only when the phrase it quotes is actually present in that version's own text. No model call, no credits, no change to scores.
+
+**New file — `src/services/api/flagOwnership.ts`:** A pure, dependency-free module that checks note ownership locally:
+- `normalise(text)`: NFKC-normalises, lowercases, and collapses non-letter/non-number runs to single spaces, so the check is language-agnostic and insensitive to punctuation and case differences.
+- `flagPhrase(flag)`: extracts the phrase a note is about — the text that follows the first `": "` in the note string. Returns empty when the note has no such part.
+- `isOwnFlag(flag, versionText)`: returns `true` when the note's phrase (after normalisation) is found in the version's text (also normalised, padded with spaces for word-boundary matching). A note with no phrase cannot be checked and counts as owned. When the model shortened a long phrase with an ellipsis (`…` or `...`), every piece of the split must be present.
+- `keepOwnFlags(flags, versionText)`: filters a note array down to those whose phrase stands in the given version text, preserving order. Empty/non-array input returns `[]`; empty version text returns all non-empty notes unchanged (no filtering when there is nothing to check against).
+
+**Edit — `src/services/api/comparativeScoring.ts`:** Two changes, both in/around the `mapToComparisonResult` function:
+- Added `import { keepOwnFlags } from './flagOwnership';` next to the existing `calculateMultiScoreDisplay` import.
+- Replaced `verificationFlags: item.verificationFlags || []` with `verificationFlags: keepOwnFlags(item.verificationFlags, contentText)`, where `contentText` is the variable already defined a few lines above in the same function (the version's text content as a string). The old `// NEW:` comment was replaced with a comment explaining the ownership filter and pointing to `flagOwnership.ts`.
+
+**Effect:** On the two reports measured on 2026-10-10, all 42 correctly-placed notes stay and all 7 misplaced notes are removed. The filter only removes notes in the wrong place — it cannot add notes the model omitted for a version. Scores, ranking, winner selection, and all other fields are untouched.
+
+**Files touched:** `src/services/api/flagOwnership.ts` (new), `src/services/api/comparativeScoring.ts` (import + one line). No other source file, prompt text, or scoring logic changed. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- The `verificationFlags` array on each comparison row now contains only notes whose quoted phrase is found in that row's own version text.
 
 ---
 
