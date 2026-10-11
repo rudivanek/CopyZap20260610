@@ -3,6 +3,7 @@ import { Language, Tone } from '../types';
 import { QUICK_DEFAULT_VARIANTS } from '../engine/buildQuickFormState';
 import { QUICK_LANGUAGES, QUICK_TONES, QuickBrief } from '../engine/inferQuickBrief';
 import type { PageSection, SectionChoice } from '../engine/pageSections';
+import { TEXT_KIND_OTHER_MAX_CHARS, TEXT_KINDS, TextKindKey } from '../services/api/textKinds';
 import { stripMarkdown } from '../utils/markdownUtils';
 
 interface QuickConfirmProps {
@@ -182,6 +183,48 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
             ))}
           </select>
         </div>
+      </div>
+
+      <div className="flex flex-col gap-1.5">
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-[1_1_240px] min-w-0 flex flex-col gap-1.5">
+            <label htmlFor="quick-kind" className={label}>
+              Kind of text
+            </label>
+            <select
+              id="quick-kind"
+              value={brief.kind}
+              onChange={event => onBriefChange({ ...brief, kind: event.target.value as TextKindKey })}
+              aria-describedby="quick-kind-note"
+              className={field}
+            >
+              {TEXT_KINDS.map(kind => (
+                <option key={kind.key} value={kind.key}>
+                  {kind.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          {brief.kind === 'other' && (
+            <div className="flex-[2_1_240px] min-w-0 flex flex-col gap-1.5">
+              <label htmlFor="quick-kind-other" className={label}>
+                What is it? <span className="font-normal text-gray-600 dark:text-gray-400">Optional</span>
+              </label>
+              <input
+                id="quick-kind-other"
+                type="text"
+                value={brief.kindOther}
+                maxLength={TEXT_KIND_OTHER_MAX_CHARS}
+                onChange={event => onBriefChange({ ...brief, kindOther: event.target.value })}
+                placeholder="For example: flyer, product description"
+                className={field}
+              />
+            </div>
+          )}
+        </div>
+        <p id="quick-kind-note" className="text-gray-600 dark:text-gray-400">
+          CopyZap writes and scores the copy as this kind of text.
+        </p>
       </div>
 
       {sections.length > 1 && (

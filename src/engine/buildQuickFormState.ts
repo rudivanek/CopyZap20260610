@@ -64,7 +64,7 @@ export function deriveQuickLabel(copy: string): string {
   const clean = firstLine
     .replace(/^#{1,6}\s+/, '')
     .replace(/^[-*>]\s+/, '')
-    .replace(/[*_`]/g, ' ')
+    .replace(/[*_`]/g, '')
     .replace(/\s+/g, ' ')
     .trim();
 

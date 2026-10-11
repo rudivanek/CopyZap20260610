@@ -382,7 +382,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       const id = await ensureSession(copy);
       const understood = await inferQuickBrief(copy, currentUser, id);
       if (!isMounted.current) return;
-      setBrief(understood);
+      // Copy fetched from a web address is a web page, whatever the reading step made of it.
+      setBrief(fetchedFrom && fetchedUrl ? { ...understood, kind: 'web_page', kindOther: '' } : understood);
       setBriefCopy(copy);
       setPickedChoices({});
       setPhase('confirm');
@@ -426,7 +427,14 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           sessionId: sessionId ?? undefined,
           signal,
           brief: brief
-            ? { product: brief.product, audience: brief.audience, tone: brief.tone, language: brief.language }
+            ? {
+                product: brief.product,
+                audience: brief.audience,
+                tone: brief.tone,
+                language: brief.language,
+                kind: brief.kind,
+                kindOther: brief.kindOther,
+              }
             : undefined,
         },
         currentUser,

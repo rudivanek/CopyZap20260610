@@ -1,6 +1,7 @@
 /**
- * Quick — reads pasted copy and reports what it sells, who it is for, its tone
- * and its language, so the user can confirm in one line instead of filling a form.
+ * Quick — reads pasted copy and reports what it sells, who it is for, its tone,
+ * its language and what kind of text it is, so the user can confirm in one line
+ * instead of filling a form.
  *
  * One small model call. It never throws: on any failure it returns a fallback
  * brief with empty text fields, and the user can fill them in or just generate.
@@ -8,6 +9,7 @@
 import { Language, Tone, User } from '../types';
 import { cleanJsonResponse, makeApiRequestWithFallback } from '../services/api/utils';
 import { convertLanguageCodeToFormDataLanguage, detectLanguage } from '../utils/languageDetection';
+import { DEFAULT_TEXT_KIND, getTextKind, TEXT_KINDS, TextKindKey } from '../services/api/textKinds';
 
 export const QUICK_TONES: Tone[] = ['Professional', 'Friendly', 'Bold', 'Minimalist', 'Creative', 'Persuasive'];
 export const QUICK_LANGUAGES: Language[] = ['English', 'Spanish', 'French', 'German', 'Italian', 'Portuguese'];
@@ -25,16 +27,24 @@ export interface QuickBrief {
   language: Language;
   /** Set when the copy is in a language the engine cannot write yet. */
   unsupportedLanguage?: string;
+  /** What kind of text the copy is (see services/api/textKinds.ts). The user can change it. */
+  kind: TextKindKey;
+  /** For the kind "other": what the user typed. Never filled in by the reading step. */
+  kindOther: string;
 }
 
-const SYSTEM_PROMPT = `You read a piece of marketing copy and report four facts about it. Reply with one JSON object and nothing else.
+const SYSTEM_PROMPT = `You read a piece of marketing copy and report five facts about it. Reply with one JSON object and nothing else.
 
 {
   "product": "the product or service the copy is selling, 8 words or fewer",
   "audience": "who the copy is written for, 12 words or fewer",
   "tone": "the closest of: ${QUICK_TONES.join(', ')}",
-  "language": "the language the copy is written in, as an English word, for example English or Spanish"
+  "language": "the language the copy is written in, as an English word, for example English or Spanish",
+  "kind": "what kind of text the copy is, exactly one of: ${TEXT_KINDS.map(kind => kind.key).join(', ')}"
 }
+
+The kinds:
+${TEXT_KINDS.map(kind => `- ${kind.key}: ${kind.hint}`).join('\n')}
 
 Rules:
 - Write "product" and "audience" in the same language as the copy.
@@ -58,6 +68,8 @@ export function fallbackQuickBrief(copy: string): QuickBrief {
     audience: '',
     tone: 'Professional',
     language: convertLanguageCodeToFormDataLanguage(detectLanguage(copy)),
+    kind: DEFAULT_TEXT_KIND,
+    kindOther: '',
   };
 }
 
@@ -81,6 +93,9 @@ export function parseQuickBrief(raw: string, copy: string): QuickBrief {
     tone: matchOption(parsed.tone, QUICK_TONES) ?? fallback.tone,
     language: language ?? fallback.language,
     ...(reportedLanguage && !language ? { unsupportedLanguage: reportedLanguage } : {}),
+    // "Social post" or "web-page" is read as the key it means.
+    kind: getTextKind(clean(parsed.kind).toLowerCase().replace(/[\s-]+/g, '_'))?.key ?? fallback.kind,
+    kindOther: '',
   };
 }
 

@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.44
-Last Updated: 2026-10-11T18:00:00Z
+Version: 1.45
+Last Updated: 2026-10-11T20:00:00Z
 
 ---
 
@@ -65,6 +65,39 @@ Last Updated: 2026-10-11T18:00:00Z
 **Verification:**
 - `npm run build` passes.
 - Without a kind set (the only state this stage can reach), every run behaves identically to before this change: no scoring note, no writing note, no change note, no content-type change, same cache keys.
+
+---
+
+## Text Kinds — The Check-Screen Control (2026-10-11)
+
+**Feature:** The second stage of the text-kinds work. The reading step now reports what kind of text the copy is, the check screen ("Here is what I understood") shows a "Kind of text" selector with the six kinds, and the Quick help page explains the new line. Copy fetched from a web address is always taken to be a web page, whatever the reading step made of it. With a kind now set on a run, the engine added in the first stage is switched on: the scorer judges the copy as that kind, the writer is told, and the rewrite step respects it. Backward compatibility is unchanged — a result saved before kinds existed still has no kind, and every kind function returns empty/null for it.
+
+**Replaced file — `src/engine/inferQuickBrief.ts`:** The reading step now reports the kind as a fifth fact:
+- `QuickBrief` gained two fields: `kind: TextKindKey` and `kindOther: string` (always empty from the reading step; only the user can fill it in, for "other").
+- The system prompt now asks the model for a `kind` field and lists the six kinds with their hints, so the model picks one.
+- `fallbackQuickBrief` returns `kind: DEFAULT_TEXT_KIND` (`'other'`) and `kindOther: ''`.
+- `parseQuickBrief` reads `kind` from the model's reply: it normalises the string (lowercase, spaces/hyphens to underscores) and resolves it with `getTextKind`, falling back to `DEFAULT_TEXT_KIND` when the value is missing or unknown. `kindOther` is always `''` from parsing.
+- Imports added: `DEFAULT_TEXT_KIND`, `getTextKind`, `TEXT_KINDS`, `TextKindKey` from `services/api/textKinds`.
+
+**Edit — `src/engine/buildQuickFormState.ts`:** A one-character fix in `deriveQuickLabel`: the regex that strips markdown emphasis was `.replace(/[*_`]/g, ' ')` (replacing each mark with a space, which could glue words together oddly); it is now `.replace(/[*_`]/g, '')` so the marks are removed without inserting a space. This is the only behaviour change in this file for this stage.
+
+**Edit — `src/quick/QuickConfirm.tsx`:** The check screen gains the "Kind of text" control:
+- Added `import { TEXT_KIND_OTHER_MAX_CHARS, TEXT_KINDS, TextKindKey } from '../services/api/textKinds';`.
+- A new block under the Selling/For/Tone/Language row renders a "Kind of text" `<select>` with one `<option>` per kind (using each kind's `label`), bound to `brief.kind`. When the kind is `'other'`, an optional "What is it?" text input appears next to it, bound to `brief.kindOther` and capped at `TEXT_KIND_OTHER_MAX_CHARS` characters. A helper line under both controls reads "CopyZap writes and scores the copy as this kind of text."
+
+**Edit — `src/quick/QuickPage.tsx`:** Two changes that carry the kind into a run:
+- After the reading step returns, when the copy was fetched from a web address (`fetchedFrom && fetchedUrl`), the brief's `kind` is forced to `'web_page'` and `kindOther` to `''`, overriding whatever the model guessed — a fetched page is always a web page.
+- The `runQuickPipeline` call's `brief` object now includes `kind: brief.kind` and `kindOther: brief.kindOther` alongside the existing product/audience/tone/language fields, so the engine receives the kind the user confirmed.
+
+**Edit — `src/quick/helpContent.ts`:** A new "Kind of text" entry was added to the "Checking what CopyZap understood" help section, placed after the "Language" entry and before "Improve". It explains the six kinds, that a short text is not marked down for having no call to action and a social post keeps its hashtags, that CopyZap makes a guess the user can change, that a fetched page is always "Web page", and that "Other" lets the user type a few words about what the copy is.
+
+**Effect on existing results:** Unchanged from the first stage. A result saved before kinds existed has no `kind`/`kindOther` in its settings or scoring context; `getTextKind` returns null and every kind function returns empty/null, so the scorer, writer, comparison, and rewrite steps behave exactly as before. The score cache key for such results is unchanged, so cached scores are still hit.
+
+**Files touched:** `src/engine/inferQuickBrief.ts` (replaced), `src/engine/buildQuickFormState.ts` (1-char fix), `src/quick/QuickConfirm.tsx` (import + UI block), `src/quick/QuickPage.tsx` (2 edits), `src/quick/helpContent.ts` (1 help entry). `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- The check screen shows the "Kind of text" selector with six options; choosing "Other" reveals the "What is it?" field; the help page explains the new line; a fetched page is forced to "Web page".
 
 ---
 

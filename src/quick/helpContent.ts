@@ -78,6 +78,10 @@ export const HELP_SECTIONS: HelpSection[] = [
         text: `The versions are written in the language you choose: ${languages}. This screen and the report are always in English.`,
       },
       {
+        term: 'Kind of text',
+        text: 'What the copy is: a web page, a short text such as a USP, headline or slogan, an email or newsletter, a social post, or an ad. CopyZap writes and scores it as that kind. A short text is not marked down for having no call to action, and a social post keeps its hashtags. CopyZap makes a guess; change it if it is wrong. For copy fetched from a web address it chooses "Web page". With "Other" you can say in a few words what it is.',
+      },
+      {
         term: 'Improve',
         text: 'The part is rewritten. This is the starting choice for most parts.',
       },
