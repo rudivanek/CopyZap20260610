@@ -1,7 +1,37 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.48
+Version: 1.49
 Last Updated: 2026-10-12T00:00:00Z
+
+---
+
+## Quick Newsletter — Three Versions of One Newsletter, Not One per Offer (2026-10-12)
+
+**Feature:** Changes what the three newsletter versions cover. Until now, when the "about" line was left empty and the page had several offers, each version was written about a different offer — one email per product. That was wrong: the versions are alternatives to each other (the user compares them and sends one), so three emails about three different products cannot be compared. Now every version covers the same thing — what the page covers, or what the user typed into the "about" line — and the versions differ only in how they are written: each gets its own angle and its own opening. The `sourceNote` field (which showed each version's topic under its name) is removed, since all versions now share the same topic.
+
+**File replaced — `src/engine/writeQuickFormat.ts` (whole file replaced):**
+- `QuickAngle` changed from `{ focus, action, open }` to `{ angle, open }`. The `focus` (what the version covers) and `action` (what it asks the reader to do) are no longer per-version: every version covers the same thing and takes its action from the source.
+- New `coverage(request)` helper: returns `what the sender asked for: "…"` when a focus is given, or `what the source covers: all of its main offers or topics together, as the source presents them` when it is not. Used by both `planPrompt` and `writeUserPrompt`.
+- `planPrompt`: now asks for two lines per version (`ANGLE:` / `OPEN:`) instead of three (`FOCUS:` / `ACTION:` / `OPEN:`). The rules now say "Do not give each version its own offer, product or topic. When the source presents several, every version presents all of them, and an angle is a way of looking at all of them together."
+- `anglesFromLines` / `parseAngles`: read `angle`/`open` keys instead of `focus`/`action`/`open`. A reply that comes back as valid JSON with an `angles` array is still read.
+- `writePrompt`: the main-action guidance now says "When the newsletter covers several offers, the action leads to all of them and not to one."
+- `writeUserPrompt`: tells the writer what this newsletter covers (`coverage(request)`), instructs it to present several offers together briefly rather than picking one, gives the angle and opening, and adds: "Other versions of this same newsletter are being written with other angles and other openings, and the sender will choose between them. Follow your angle and your opening closely, in the subject line too, so that the versions differ in how they are written and not in what they cover."
+- `writeOne`: the `sourceNote` field is no longer set on the `GeneratedContentItem` (all versions share the same coverage, so a per-version topic label is no longer meaningful).
+
+**Edits — `src/engine/quickFormats.ts` (2 find-and-replace edits):**
+- The newsletter `description` changed from "A short email written from this copy: one topic, one action." to "A short email written from this copy, with one main action." (no longer promises one topic).
+- The first writing rule changed from "One topic and one main action. An email that covers everything on the page is skimmed and not acted on, so write about the focus you are given and leave the rest of the source out, however good it is." to "One main action. Cover what you are told to cover, and say each thing briefly: an email that repeats the page in full is skimmed and not acted on, so leave the detail to the page." (no longer tells the writer to leave offers out).
+
+**Edit — `src/quick/QuickPage.tsx` (1 find-and-replace edit):**
+- The help text under the optional "about" field changed from "Leave it empty and each version takes a different offer or topic from your copy. The newsletter uses only what your copy says." to "Leave it empty and the newsletter covers what your copy covers. You get three versions of it, written differently. It uses only what your copy says."
+
+**Files touched:** `src/engine/writeQuickFormat.ts` (replaced whole), `src/engine/quickFormats.ts` (2 edits), `src/quick/QuickPage.tsx` (1 edit). `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes (exit 0).
+- `src/engine/writeQuickFormat.ts` no longer contains the words `FOCUS:` or `sourceNote`.
+- All 3 find-and-replace edits applied, each exactly once.
+- The three newsletter versions now cover the same subject and differ in angle and opening, so they can be compared and one chosen.
 
 ---
 

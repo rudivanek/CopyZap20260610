@@ -758,8 +758,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
                 className="w-full min-h-[44px] px-3.5 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
               />
               <p className="text-gray-600 dark:text-gray-400">
-                Leave it empty and each version takes a different offer or topic from your copy. The {format.noun} uses
-                only what your copy says.
+                Leave it empty and the {format.noun} covers what your copy covers. You get three versions of it,
+                written differently. It uses only what your copy says.
               </p>
             </div>
           )}

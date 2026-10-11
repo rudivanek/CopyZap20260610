@@ -7,16 +7,23 @@
  * here, where the one firm rule is that nothing may be in the email that is
  * not in the source.
  *
- *   plan   one call: which different emails can be made from this source
- *          (a page with four offers gives up to three emails, one offer each)
+ *   plan   one call: how the versions of this one email will differ. Every
+ *          version covers the same thing: what the source covers, or what the
+ *          user asked for. Each gets its own angle and its own opening.
  *   write  one call per version, in parallel, each with its own angle
+ *
+ * The versions are alternatives to each other: the user compares them and
+ * sends one. So they must never differ in what they are about. (Until
+ * 2026-10-11 a page with several offers gave one email per offer. Three emails
+ * about three products cannot be compared, and the user had asked for no
+ * split; that rule was removed.)
  *
  * So writing three versions takes four calls. Both steps use the model the
  * other short Quick steps use (reading the copy, scoring): the calls are
  * ordinary requests and have to finish inside the 150-second limit.
  *
- * A failed plan is not a failed run: the versions are then told apart by how
- * they open, and each picks the source's main topic itself.
+ * A failed plan is not a failed run: the versions are then told apart only by
+ * how they open.
  */
 import { v4 as uuidv4 } from 'uuid';
 import { GeneratedContentItem, GeneratedContentItemType, GoalKey, Language, Tone, User } from '../types';
@@ -30,7 +37,6 @@ const PLAN_MAX_TOKENS = 700;
 /** Tokens per word of output, generous for any supported language (see outputBudget.ts), plus room for the labelled lines. */
 const TOKENS_PER_WORD = 3.6;
 const FOCUS_MAX_CHARS = 200;
-const NOTE_MAX_CHARS = 90;
 /** A labelled line longer than this is cut: it is a line, not a paragraph. */
 const LINE_MAX_CHARS = 300;
 
@@ -56,10 +62,13 @@ export interface QuickFormatRequest {
   signal?: AbortSignal;
 }
 
-/** One planned version: what it is about, what it asks for, how it opens. */
+/**
+ * One planned version: the idea it is built around and how it opens. Not what
+ * it covers and not what it asks the reader to do: those are the same for all
+ * versions, and the writer takes them from the source.
+ */
 export interface QuickAngle {
-  focus: string;
-  action: string;
+  angle: string;
   open: string;
 }
 
@@ -86,9 +95,9 @@ function parseJson(raw: string): Record<string, unknown> | null {
   }
 }
 
-/** The angles used when the plan could not be made: no assigned topic, a different opening each. */
+/** The angles used when the plan could not be made: no angle, a different opening each. */
 export function fallbackAngles(count: number): QuickAngle[] {
-  return Array.from({ length: count }, (_, index) => ({ focus: '', action: '', open: OPENINGS[index % OPENINGS.length] }));
+  return Array.from({ length: count }, (_, index) => ({ angle: '', open: OPENINGS[index % OPENINGS.length] }));
 }
 
 /** A value as the model wrote it, without the quotation marks, comma or emphasis marks around it. */
@@ -100,18 +109,18 @@ function planValue(text: string): string {
 }
 
 /**
- * Reads the plan line by line: "FOCUS: …", "ACTION: …", "OPEN: …", a new FOCUS
- * line starting the next version. It also reads the same three keys written as
- * JSON with one key per line, valid or not.
+ * Reads the plan line by line: "ANGLE: …", "OPEN: …", a new ANGLE line starting
+ * the next version. It also reads the same two keys written as JSON with one
+ * key per line, valid or not. Any other line is passed over.
  */
 function anglesFromLines(raw: string): QuickAngle[] {
   const angles: QuickAngle[] = [];
   for (const line of (raw || '').split(/\r?\n/)) {
-    const match = line.match(/^\s*(?:[-*•]|\d+[.)])?\s*["*_]*\s*(focus|action|open)\s*["*_]*\s*:\s*[*_]{0,2}\s*(.*)$/i);
+    const match = line.match(/^\s*(?:[-*•]|\d+[.)])?\s*["*_]*\s*(angle|open)\s*["*_]*\s*:\s*[*_]{0,2}\s*(.*)$/i);
     if (!match) continue;
     const key = match[1].toLowerCase() as keyof QuickAngle;
     const value = clean(planValue(match[2]), FOCUS_MAX_CHARS);
-    if (key === 'focus') angles.push({ focus: value, action: '', open: '' });
+    if (key === 'angle') angles.push({ angle: value, open: '' });
     else if (angles.length > 0 && !angles[angles.length - 1][key]) angles[angles.length - 1][key] = value;
   }
   return angles;
@@ -127,40 +136,49 @@ export function parseAngles(raw: string, count: number): QuickAngle[] {
         .filter(item => item && typeof item === 'object')
         .map(item => {
           const entry = item as Record<string, unknown>;
-          return { focus: clean(entry.focus, FOCUS_MAX_CHARS), action: clean(entry.action, FOCUS_MAX_CHARS), open: clean(entry.open, FOCUS_MAX_CHARS) };
+          return { angle: clean(entry.angle, FOCUS_MAX_CHARS), open: clean(entry.open, FOCUS_MAX_CHARS) };
         })
     : anglesFromLines(raw);
-  const angles = read.filter(angle => angle.focus);
+  const angles = read.filter(item => item.angle);
   if (angles.length === 0) return fallback;
   // Fewer angles than versions: the remaining versions take the angles again, with another opening.
   return fallback.map((spare, index) => {
     const planned = angles[index % angles.length];
     const reused = index >= angles.length;
-    return { focus: planned.focus, action: planned.action, open: reused || !planned.open ? spare.open : planned.open };
+    return { angle: planned.angle, open: reused || !planned.open ? spare.open : planned.open };
   });
+}
+
+/** What every version covers: what the user asked for, or else what the source covers. */
+function coverage(request: QuickFormatRequest): string {
+  return request.focus
+    ? `what the sender asked for: "${request.focus}"`
+    : 'what the source covers: all of its main offers or topics together, as the source presents them';
 }
 
 /**
  * The plan is asked for as plain lines, not as JSON. Asked for JSON, the model
  * wrote a name from the page in quotation marks inside a value without escaping
  * them ("focus": "Diplomado "Humanismo y Sentido": …"). That is not valid JSON,
- * so the whole plan was dropped and all three versions became the same email
+ * so the whole plan was dropped and the versions came out nearly identical
  * (first live run, 2026-10-10). Plain lines have nothing to escape.
  */
 function planPrompt(request: QuickFormatRequest): string {
-  const { format, variants, focus } = request;
-  return `You read a source text, a page or a piece of copy from a business, and plan ${variants} different ${format.nounPlural} that can be written from it. You do not write them.
+  const { format, variants } = request;
+  return `You read a source text, a page or a piece of copy from a business, and plan ${variants} versions of one ${format.noun} that will be written from it. You do not write them.
 
-Reply with the plan and nothing else, as plain text: three lines for each ${format.noun} and an empty line between ${format.nounPlural}, in exactly this layout.
+Every version covers the same thing: ${coverage(request)}. The versions are alternatives to each other: the sender compares them and sends one. So they differ in how they are written, never in what they are about.
 
-FOCUS: the one thing this ${format.noun} is about, in 15 words or fewer: one offer, product, event or topic that the source itself presents
-ACTION: the one thing the reader is asked to do about it, as the source puts it, in 10 words or fewer; leave it empty after the colon when the source asks for nothing
-OPEN: how the ${format.noun} starts, one of: ${OPENINGS.join(' / ')}
+Reply with the plan and nothing else, as plain text: two lines for each version and an empty line between versions, in exactly this layout.
+
+ANGLE: the idea this version leads with and is built around, in 15 words or fewer: a way of presenting the whole subject, taken from the source
+OPEN: how this version starts, one of: ${OPENINGS.join(' / ')}
 
 Rules:
-- Give exactly ${variants} of these, and make them ${variants} different ${format.nounPlural}. When the source presents several offers or topics, give each one a different offer or topic, the most important first, and do not make one ${format.noun} about all of them together. When the source presents only one, keep that focus and vary OPEN.
-${focus ? `- The sender wants the ${format.nounPlural} to be about this: "${focus}". Every one stays on it. Vary which part of it leads, and vary OPEN.\n` : ''}- Use only what the source says. Do not invent offers, dates, prices or actions.
-- Write what follows FOCUS and ACTION in the language of the source. Keep the three labels and the OPEN choices exactly as given here.`;
+- Give exactly ${variants} versions. Make the ${variants} angles clearly different from each other, and vary OPEN.
+- Do not give each version its own offer, product or topic. When the source presents several, every version presents all of them, and an angle is a way of looking at all of them together: for example who each one is for, what they have in common, or the reason to care now.
+- Use only what the source says. Do not invent offers, dates or prices.
+- Write what follows ANGLE in the language of the source. Keep the two labels and the OPEN choices exactly as given here.`;
 }
 
 /** One call: the different versions that can be made from this source. Never throws. */
@@ -200,6 +218,7 @@ ${format.writingRules.map(rule => `- ${rule}`).join('\n')}
 - The body has ${format.minWords} to ${format.maxWords} words; aim for about ${format.targetWords}. It is never longer than the source: when the source is short, write a shorter ${format.noun} and do not pad it.
 
 The main action:
+- It is the one thing the source asks its reader to do about what this ${format.noun} covers, in the source's own words where it has them. When the ${format.noun} covers several offers, the action leads to all of them and not to one.
 - Write it as a link when a page address is given to you: [the action in a few words](the address). Use that address exactly, and only once.
 - When no address is given, write the action as one bold line. Never make up a web address, an email address or a phone number.
 
@@ -216,17 +235,14 @@ Language and voice:
 
 export function writeUserPrompt(request: QuickFormatRequest, angle: QuickAngle): string {
   const { format, brief, focus, pageUrl, source, goalKey } = request;
-  // Without a plan the version has no assigned topic: it takes what the sender asked for, or picks the source's main one.
-  const about = angle.focus
-    ? angle.focus
-    : focus
-      ? focus
-      : 'choose the most important offer or topic of the source, and stay on it.';
   const lines = [
-    `What this ${format.noun} is about: ${about}`,
-    angle.action ? `The one action the reader is asked to take: ${angle.action}` : '',
+    `What this ${format.noun} covers: ${coverage(request)}.`,
+    focus
+      ? 'Stay within that.'
+      : 'When the source presents several offers or topics, present them together, each one briefly; do not pick one and leave the others out.',
+    angle.angle ? `The angle of this version: ${angle.angle}` : '',
     `How it opens: with ${angle.open}.`,
-    focus && angle.focus ? `The sender asked for it to be about: "${focus}". Stay within that.` : '',
+    `Other versions of this same ${format.noun} are being written with other angles and other openings, and the sender will choose between them. Follow your angle and your opening closely, in the subject line too, so that the versions differ in how they are written and not in what they cover.`,
     GOAL_LINES[goalKey] ?? '',
     brief.product ? `What the business sells: ${brief.product}` : '',
     pageUrl ? `The page address for the main action: ${pageUrl}` : 'No page address is given.',
@@ -280,10 +296,6 @@ async function writeOne(request: QuickFormatRequest, angle: QuickAngle, index: n
     sourceText: request.source,
     generatedAt: new Date().toISOString(),
     sourceDisplayName: `${format.titlePrefix} ${index + 1}`,
-    // Shown under the version's name: what this version is about.
-    ...(angle.focus
-      ? { sourceNote: angle.focus.length > NOTE_MAX_CHARS ? `${angle.focus.slice(0, NOTE_MAX_CHARS).trim()}…` : angle.focus }
-      : {}),
     analysisMode: 'on_demand',
   };
 }

@@ -68,7 +68,7 @@ export const QUICK_FORMATS: QuickFormat[] = [
     noun: 'newsletter',
     nounPlural: 'newsletters',
     titlePrefix: 'Newsletter',
-    description: 'A short email written from this copy: one topic, one action.',
+    description: 'A short email written from this copy, with one main action.',
     minWords: 150,
     maxWords: 350,
     targetWords: 250,
@@ -89,7 +89,7 @@ export const QUICK_FORMATS: QuickFormat[] = [
       },
     ],
     writingRules: [
-      'One topic and one main action. An email that covers everything on the page is skimmed and not acted on, so write about the focus you are given and leave the rest of the source out, however good it is.',
+      'One main action. Cover what you are told to cover, and say each thing briefly: an email that repeats the page in full is skimmed and not acted on, so leave the detail to the page.',
       'Open with the point. Do not call the email a newsletter, an edition or a bulletin, and do not announce what it contains.',
       'Short paragraphs. At most one short list and at most one sub-heading; neither is needed. No FAQ, no table, no row of links.',
       'End with the main action on a line of its own.',
