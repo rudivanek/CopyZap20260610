@@ -1,7 +1,50 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.44
-Last Updated: 2026-10-11T00:00:00Z
+Version: 1.45
+Last Updated: 2026-10-12T00:00:00Z
+
+---
+
+## Quick — "Turn it into an email newsletter": the Engine (2026-10-12)
+
+**Feature:** A new kind of Quick run that writes a different kind of text from the source copy instead of improving it. The first format is the email newsletter: the user pastes a page (or fetches one), picks "Turn it into an email newsletter", and the engine plans angles for the newsletter, then writes one version per angle — each a complete newsletter with a subject line, preview text, and markdown body. The result has the same shape as an ordinary Quick run, so History, saving, changing, and editing work as they already do; the source copy sits in the place of the "original" version, and the written newsletters are the generated versions.
+
+**New file — `src/engine/quickFormats.ts`:** The format registry and helpers. A `QuickFormat` describes one kind of text the engine can write from copy:
+- `key` (a `QuickFormatKey`, currently `'email_newsletter'`), `noun` (human name, e.g. "newsletter"), `targetWords` (the length the scoring gate judges against), `minSourceWords` (below this there is too little to write from), and `lines` — the labelled top lines each version carries (`**Subject:**`, `**Preview:**`), each a `QuickFormatLine` with a `label` and `max` length.
+- `QUICK_FORMATS` array holds one entry (the newsletter), built from a `formatBodyWords` target (~300 words) and the line definitions.
+- `getQuickFormat(key)` returns the matching format or `undefined`; `formatTitle(key, base)` prefixes a saved result's title ("Newsletter: …"); `formatChangeInstructions(format)` returns the special instructions appended on a change so the rewritten version keeps the format's shape; `joinFormatText`/`splitFormatText` convert between the single stored string (labelled lines + blank line + body) and the structured `QuickFormatParts`; `checkFormatText` validates a written version against the format's line and body-word limits.
+- Exports `QUICK_FOCUS_MAX_CHARS = 200`, the cap on the optional "what should it be about" focus field.
+
+**New file — `src/engine/writeQuickFormat.ts`:** The plan-then-write writer. Pinned to `FORMAT_MODEL = 'claude-sonnet-4-6'` to stay inside the 150-second edge-function timeout.
+- `planQuickAngles(request, user)`: one LLM call that reads the source and the goal and returns 1–`variants` distinct angles (each a `QuickAngle` with a `name`, one-line `approach`, and `subject`/`preview` suggestions). Falls back to `fallbackAngles` when the call fails or parses badly, so a planning failure never blocks the run.
+- `writeOne` per angle, run in parallel: `writePrompt`/`writeUserPrompt` build the system and user prompts (the format's lines, body-word target, the angle, the goal, the brief, the focus, and the source), then a single LLM call produces the version text. `parseFormatReply` splits the reply into `QuickFormatParts`, and `checkFormatText` validates it; an invalid reply is discarded.
+- `writeQuickFormat(request, user, onProgress)` orchestrates: plan → parallel writes → collect the `GeneratedContentItem`s (each typed `Improved`, with the source as `sourceText` and the angle name as `sourceDisplayName`). Returns `{ items, failed, firstError }`, the same shape `generateQuickVersions` returns for an ordinary run.
+
+**Edit — `src/types/index.ts`:** Added two optional fields to `FormData`, after `sessionId`:
+- `quickFormat?: string` — the format key of the run (a `QUICK_FORMATS` key), absent for an ordinary "improve" run.
+- `quickFocus?: string` — what the user asked the versions to be about, capped at `QUICK_FOCUS_MAX_CHARS`.
+
+**Edits — `src/engine/runQuickPipeline.ts`:**
+- Added imports of `getQuickFormat`, `QUICK_FOCUS_MAX_CHARS`, `QuickFormat`, `QuickFormatKey` from `./quickFormats`, and `writeQuickFormat` from `./writeQuickFormat`.
+- `QuickRunInput` gained an optional `format?: { key: QuickFormatKey; focus?: string; leftOut?: number }` field. In a format run the `copy` is the source to write from; `keep` is not used.
+- `validateQuickCopy(copy, formatKey?)` now takes the format key and throws `too_short` with the format's own minimum (`format.minSourceWords`) when the source is too short for that format.
+- `scoreQuickVersions` is now format-aware: when `formState.quickFormat` is set, the source ("original") is left out of the comparison (`scored` = generated versions only) and the gate's `targetWords` is the format's target rather than the source's word count. The `fresh` filter (for repeat readings) now uses `scored` instead of `versions`.
+- New `runQuickFormat(format, input, user, onProgress)` function: builds the form state with `quickFormat`/`quickFocus`, starts the tracking session, calls `writeQuickFormat`, checks each version for unverified quotes against the source, assembles the source as the "original" version, scores, and returns a `QuickRunResult` with empty testimonials/keptTexts and `parts.leftOut` from the input.
+- `runQuickPipeline` now calls `validateQuickCopy(input.copy, input.format?.key)`, and after the access check and stop check, dispatches to `runQuickFormat` when `getQuickFormat(input.format?.key)` returns a format — otherwise the ordinary improve path runs unchanged.
+
+**Edits — `src/engine/changeQuickVersion.ts`:**
+- Added `import { formatChangeInstructions, getQuickFormat } from './quickFormats';`.
+- The `rewriteState` for a change now keeps the format: when `getQuickFormat(result.formState.quickFormat)` is set, `includeSectionTitles: false` is set (the format has its own shape) and `formatChangeInstructions(format)` is prepended to `specialInstructions`, ahead of the keep/testimonial instructions. A non-format change is unchanged.
+
+**Edits — `src/engine/quickHistory.ts`:**
+- Added `import { formatTitle } from './quickFormats';`.
+- The saved result title is now `cleanTitle(formatTitle(result.formState.quickFormat, deriveQuickLabel(...)))`, so a format run is named after its format ("Newsletter: …") instead of the source's first heading. An ordinary run (no `quickFormat`) is unchanged because `formatTitle` returns the base unchanged when the key is absent.
+
+**Files touched:** `src/engine/quickFormats.ts` (new), `src/engine/writeQuickFormat.ts` (new), `src/types/index.ts`, `src/engine/runQuickPipeline.ts`, `src/engine/changeQuickVersion.ts`, `src/engine/quickHistory.ts`. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- The two new files exist with the specified content, unchanged; all 11 find-and-replace edits applied exactly once across the four existing files.
 
 ---
 

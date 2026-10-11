@@ -42,6 +42,9 @@ import {
 } from './quoteLock';
 import type { TestimonialZone } from './quoteLock';
 import { contentToText } from '../services/api/contentText';
+import { getQuickFormat, QUICK_FOCUS_MAX_CHARS } from './quickFormats';
+import type { QuickFormat, QuickFormatKey } from './quickFormats';
+import { writeQuickFormat } from './writeQuickFormat';
 
 /** How many times each version is scored; the middle reading is used. */
 export const QUICK_SCORE_SAMPLES = 3;
@@ -128,6 +131,18 @@ export interface QuickRunInput {
   signal?: AbortSignal;
   /** The page the copy was fetched from, when it was fetched. Recorded with the result. */
   source?: QuickSource;
+  /**
+   * "Turn it into…": write this format from the copy instead of improving the
+   * copy (see quickFormats.ts). `copy` is then the source the versions are
+   * written from. Nothing is kept as it is in such a run, so `keep` is not used.
+   */
+  format?: {
+    key: QuickFormatKey;
+    /** What the versions should be about. Optional. */
+    focus?: string;
+    /** Parts of the page the user left out of the source. */
+    leftOut?: number;
+  };
 }
 
 export interface QuickRunResult {
@@ -168,8 +183,16 @@ function errorMessage(error: unknown): string {
 }
 
 /** Throws QuickPipelineError when the copy is too short or too long. */
-export function validateQuickCopy(copy: string): void {
+export function validateQuickCopy(copy: string, formatKey?: string): void {
   const words = countWords((copy || '').trim());
+  // A format is written from the copy: below its minimum there is too little to write from.
+  const format = getQuickFormat(formatKey);
+  if (format && words < format.minSourceWords) {
+    throw new QuickPipelineError(
+      'too_short',
+      `A ${format.noun} needs at least ${format.minSourceWords} words to be written from. This copy has ${words}.`
+    );
+  }
   if (!copy || !copy.trim() || words < QUICK_MIN_WORDS) {
     throw new QuickPipelineError('too_short', `Please paste at least ${QUICK_MIN_WORDS} words.`);
   }
@@ -276,12 +299,20 @@ export async function scoreQuickVersions(
   throwIfStopped(signal);
   onProgress?.({ stage: 'scoring' });
 
-  // The gate compares each version with the whole original, testimonials included.
-  const targetWords = countWords(formState.originalCopy || '') || calculateTargetWordCount({ ...formState }).target;
+  // A format run ("Turn it into…") has no original in the comparison. Its
+  // source is another kind of text, so a score for it next to the versions
+  // would show a gain that means nothing. Only the written versions are scored.
+  const format = getQuickFormat(formState.quickFormat);
+  const scored = format ? versions.filter(version => version.id !== ORIGINAL_VERSION_ID) : versions;
+  // The gate compares each version with the whole original, testimonials
+  // included; in a format run, with the length the format aims at.
+  const targetWords = format
+    ? format.targetWords
+    : countWords(formState.originalCopy || '') || calculateTargetWordCount({ ...formState }).target;
 
   const unified = await generateUnifiedComparison(
     formState.originalCopy,
-    versions,
+    scored,
     user,
     formState.sessionId,
     undefined,
@@ -308,7 +339,7 @@ export async function scoreQuickVersions(
   // earlier score are not read again.
   throwIfStopped(signal);
   const context = buildQuickScoringContext(goalKey);
-  const fresh = versions.filter(version => !isUsableScore(keepScores?.absoluteByVersion[version.id]));
+  const fresh = scored.filter(version => !isUsableScore(keepScores?.absoluteByVersion[version.id]));
   const unscoredIds: string[] = [];
 
   const settled = await Promise.all(
@@ -468,18 +499,127 @@ export async function startQuickSession(user: User, label: string): Promise<stri
   return createQuickSession(user, `Quick: ${deriveQuickLabel(label)}`);
 }
 
+/**
+ * "Turn it into…": the run for a format. The copy is the source and is not
+ * rewritten, so nothing is locked or put back. The versions are written by
+ * writeQuickFormat and scored without the source (see scoreQuickVersions).
+ * The result has the same shape as an ordinary run's, with the source in the
+ * place of the original, so saving, History, changing and editing work as they are.
+ */
+async function runQuickFormat(
+  format: QuickFormat,
+  input: QuickRunInput,
+  user: User,
+  onProgress?: ProgressFn
+): Promise<QuickRunResult> {
+  const source = input.copy.trim();
+  const focus = (input.format?.focus || '').replace(/\s+/g, ' ').trim().slice(0, QUICK_FOCUS_MAX_CHARS);
+  let formState: FormState = {
+    ...buildQuickFormState({ copy: source, variants: input.variants, brief: input.brief }),
+    quickFormat: format.key,
+    ...(focus ? { quickFocus: focus } : {}),
+  };
+
+  // The tracking session, as in an ordinary run.
+  let sessionId = input.sessionId;
+  if (sessionId) {
+    try {
+      await sessionManager.updateSession(sessionId, formState.projectDescription || 'Quick', formState);
+    } catch {
+      // keep going with the session as it is
+    }
+  } else {
+    sessionId = await createQuickSession(user, formState.projectDescription || 'Quick', formState);
+  }
+  formState = { ...formState, sessionId };
+  throwIfStopped(input.signal);
+
+  // Write the versions
+  const written = await writeQuickFormat(
+    {
+      format,
+      source,
+      goalKey: input.goalKey,
+      brief: {
+        product: formState.productServiceName,
+        audience: formState.targetAudience,
+        tone: formState.tone,
+        language: formState.language,
+      },
+      focus: focus || undefined,
+      pageUrl: input.source?.url,
+      variants: formState.numberOfVariants ?? QUICK_DEFAULT_VARIANTS,
+      sessionId,
+      signal: input.signal,
+    },
+    user,
+    (done, total) => onProgress?.({ stage: 'writing', done, total })
+  );
+  throwIfStopped(input.signal);
+  if (written.items.length === 0) {
+    throw new QuickPipelineError(
+      'generation_failed',
+      written.firstError || `No ${format.noun} could be written. Please try again.`
+    );
+  }
+
+  // Quoted passages that are not in the source.
+  const quoteFlags: Record<string, string[]> = {};
+  for (const item of written.items) {
+    const flagged = findUnverifiedQuotes(contentToText(item.content), source);
+    if (flagged.length > 0) quoteFlags[item.id] = flagged;
+  }
+
+  const original: GeneratedContentItem = {
+    id: ORIGINAL_VERSION_ID,
+    type: GeneratedContentItemType.Original,
+    content: source,
+    generatedAt: new Date().toISOString(),
+    sourceDisplayName: ORIGINAL_OPTION_LABEL,
+    analysisMode: 'on_demand',
+  };
+  const versions = [original, ...written.items];
+
+  // Score and pick. A scoring failure keeps the versions.
+  let scores: QuickScores | null = null;
+  let scoringError: string | undefined;
+  try {
+    scores = await scoreQuickVersions(formState, versions, input.goalKey, user, onProgress, undefined, input.signal);
+  } catch (error) {
+    scoringError = errorMessage(error);
+  }
+
+  return {
+    formState: withQuickResult(formState, versions, scores),
+    versions,
+    goalKey: input.goalKey,
+    scores,
+    scoringError,
+    failedVersions: written.failed,
+    testimonials: { count: 0, movedIds: [] },
+    quoteFlags,
+    parts: { kept: 0, leftOut: input.format?.leftOut ?? 0 },
+    ...(input.source ? { source: input.source } : {}),
+    keptTexts: [],
+  };
+}
+
 export async function runQuickPipeline(
   input: QuickRunInput,
   user: User,
   onProgress?: ProgressFn
 ): Promise<QuickRunResult> {
-  validateQuickCopy(input.copy);
+  validateQuickCopy(input.copy, input.format?.key);
 
   // 1 — access
   onProgress?.({ stage: 'checking' });
   await assertQuickAccess(user);
 
   throwIfStopped(input.signal);
+
+  // "Turn it into…": the copy is a source to write from, not a text to improve.
+  const format = getQuickFormat(input.format?.key);
+  if (format) return runQuickFormat(format, input, user, onProgress);
 
   // 2 — settings and tracking session (the engine refuses to run without one).
   // Testimonials are taken out first: the engine rewrites the page around a

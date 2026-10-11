@@ -134,6 +134,11 @@ export interface FormData {
   languageStyleConstraints?: string[];
   selectedPersona?: string; // Add selected persona to FormData
   sessionId?: string; // Session ID for tracking
+  // Quick, "Turn it into…": the output format of the run (a key of QUICK_FORMATS
+  // in engine/quickFormats.ts) and what the user asked it to be about. Both are
+  // absent for an ordinary "improve" run.
+  quickFormat?: string;
+  quickFocus?: string;
   loadedSessionName?: string; // Original session name when loaded (used to detect rename/fork)
   // Generation options
   generateScores?: boolean; // New field for generating scores

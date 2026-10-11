@@ -26,6 +26,7 @@ import type { TestimonialZone } from './quoteLock';
 import { QuickRunResult, scoreQuickVersions, withQuickResult } from './runQuickPipeline';
 import type { QuickProgress } from './runQuickPipeline';
 import { throwIfStopped } from './quickStop';
+import { formatChangeInstructions, getQuickFormat } from './quickFormats';
 
 /** Versions one result can hold besides the original. The comparison reads them all together. */
 export const QUICK_MAX_VERSIONS = 8;
@@ -152,11 +153,21 @@ export async function changeQuickVersion(
   onProgress?.({ stage: 'writing', done: 0, total: 1 });
   const keepZones = zones.filter(zone => zone.marker.startsWith('[[KEEP'));
   const quoteZones = zones.filter(zone => !zone.marker.startsWith('[[KEEP'));
+  // A version of a format ("Turn it into…") keeps that format when it is changed.
+  const format = getQuickFormat(result.formState.quickFormat);
   const rewriteState: FormState = {
     ...result.formState,
     wordCount: 'Custom',
     customWordCount: lockedWords,
-    specialInstructions: [keepInstructions(keepZones), testimonialInstructions(quoteZones)].filter(Boolean).join('\n\n'),
+    // The rewrite step gives every section a heading unless told not to; a format has its own shape.
+    ...(format ? { includeSectionTitles: false } : {}),
+    specialInstructions: [
+      format ? formatChangeInstructions(format) : '',
+      keepInstructions(keepZones),
+      testimonialInstructions(quoteZones),
+    ]
+      .filter(Boolean)
+      .join('\n\n'),
   };
   const request = FULL_REQUESTS[wanted.toLowerCase()] ?? wanted;
   const rewritten = await modifyContent(locked, request, rewriteState, user, undefined, result.formState.sessionId);
