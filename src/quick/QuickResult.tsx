@@ -509,17 +509,14 @@ const QuickResult: React.FC<QuickResultProps> = ({
       >
         <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
           <CopyButton content={winner.content} className={`${primaryButton} shrink-0`} />
-          {/* The report compares every version with the original. A format result has no original to compare with, so it has no report yet. */}
-          {!format && (
-            <button
-              type="button"
-              onClick={handleExport}
-              disabled={!scores || exportState === 'working'}
-              className={`${secondaryButton} shrink-0`}
-            >
-              {exportState === 'working' ? 'Building report…' : 'Export report'}
-            </button>
-          )}
+          <button
+            type="button"
+            onClick={handleExport}
+            disabled={!scores || exportState === 'working'}
+            className={`${secondaryButton} shrink-0`}
+          >
+            {exportState === 'working' ? 'Building report…' : 'Export report'}
+          </button>
           <button
             type="button"
             onClick={openEditor}

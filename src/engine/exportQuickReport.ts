@@ -16,13 +16,20 @@
  * also asks for the length of the original and of every version to be shown,
  * as on the result screen.
  *
+ * A format result ("Turn it into…", for example an email newsletter) has no
+ * original: the copy it was written from is a source. Its report shows that
+ * source in the input summary only. It is not a version, it has no score, and
+ * nothing is compared with it, so the report has no baseline and no gain.
+ *
  * The report code is large, so it is loaded only when a report is exported.
  */
 import { FormState, GeneratedContentItem } from '../types';
 import type { ComparisonResult } from '../services/api/comprehensiveScoring';
+import type { FormatReportOptions } from '../utils/enhancedExports';
 import { deriveQuickLabel } from './buildQuickFormState';
 import { effectiveGates } from './gateRules';
 import { ORIGINAL_VERSION_ID } from './pickWinner';
+import { formatBodyWords, formatTitle, getQuickFormat } from './quickFormats';
 import type { QuickRunResult } from './runQuickPipeline';
 
 export interface QuickReportInput {
@@ -31,6 +38,8 @@ export interface QuickReportInput {
   comparisonResult: ComparisonResult;
   /** Rows added to the report's input summary: the source page and what was kept or left out. */
   extraRows: [string, string][];
+  /** Set for a format result: the report then has no baseline. */
+  formatReport?: FormatReportOptions;
 }
 
 /** The written verdict of the comparison step. It names one version; it only applies when that version won. */
@@ -40,11 +49,16 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
   const scores = result.scores;
   if (!scores) throw new Error('This result has no scores yet. Score it before exporting a report.');
 
+  // "Turn it into…": the format this result was written in. null for an ordinary run.
+  const format = getQuickFormat(result.formState.quickFormat);
+
   const winnerId = scores.winnerId;
   // Read the structural check the way the screen does (see gateRules.ts).
   const gates = effectiveGates(scores.gateByVersion, result.versions);
   const inReport = (versionId: string): boolean => {
-    if (versionId === ORIGINAL_VERSION_ID || versionId === winnerId) return true;
+    // In a format result the original is the source: shown in the input summary, not as a version.
+    if (versionId === ORIGINAL_VERSION_ID) return !format;
+    if (versionId === winnerId) return true;
     const gate = gates[versionId];
     const setAside = gate ? !gate.valid : false;
     return !setAside && scores.absoluteByVersion[versionId] !== undefined;
@@ -69,24 +83,42 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
   }
 
   const extraRows: [string, string][] = [];
+  if (format) {
+    extraRows.push(['Format', format.label]);
+    if (result.formState.quickFocus) extraRows.push(['About', result.formState.quickFocus]);
+  }
   if (result.source?.url) extraRows.push(['Source', result.source.url]);
   if (result.testimonials.count > 0) {
     extraRows.push(['Testimonials', `${result.testimonials.count} kept word for word`]);
   }
-  if (result.parts.kept > 0 || result.parts.leftOut > 0) {
+  if (format) {
+    if (result.parts.leftOut > 0) {
+      extraRows.push(['Parts of the page', `${result.parts.leftOut} left out of the source`]);
+    }
+  } else if (result.parts.kept > 0 || result.parts.leftOut > 0) {
     const kept = result.parts.kept === 1 ? '1 kept as it is' : `${result.parts.kept} kept as they are`;
     extraRows.push(['Parts of the page', `${kept}, ${result.parts.leftOut} left out`]);
   }
 
+  const label = deriveQuickLabel(result.formState.originalCopy || '');
   return {
     // The report takes its title and file name from the project description.
     formState: {
       ...result.formState,
-      projectDescription: (title || deriveQuickLabel(result.formState.originalCopy || '')).trim() || 'CopyZap report',
+      projectDescription: (title || formatTitle(result.formState.quickFormat, label)).trim() || 'CopyZap report',
     },
     cards: result.versions.filter(version => inReport(version.id)),
     comparisonResult,
     extraRows,
+    ...(format
+      ? {
+          formatReport: {
+            label: format.label,
+            length: `${format.minWords} to ${format.maxWords} words`,
+            countWords: (text: string) => formatBodyWords(format, text),
+          },
+        }
+      : {}),
   };
 }
 
@@ -105,6 +137,7 @@ export async function exportQuickReport(result: QuickRunResult, title?: string):
     undefined,
     undefined,
     input.extraRows,
-    true
+    true,
+    input.formatReport
   );
 }

@@ -631,6 +631,28 @@ const wordsLabelOf = (content: GeneratedContentItem['content']): string => {
   return `${count.toLocaleString('en-US')} ${count === 1 ? 'word' : 'words'}`;
 };
 
+/**
+ * Quick, "Turn it into…": what the report needs to know about a format result
+ * (an email newsletter written from a page). Such a result has no original:
+ * the copy it was written from is a source, shown but not scored, so the
+ * report names no baseline and shows no gain. Absent for every other report.
+ */
+export interface FormatReportOptions {
+  /** The format's name: "Email newsletter". */
+  label: string;
+  /** The length the format aims at, for the input summary: "150 to 350 words". */
+  length: string;
+  /** How long a version is, counted the way the result screen counts it (for an email: its body, without the subject and preview lines). */
+  countWords: (text: string) => number;
+}
+
+/** The length of a version: counted the format's way in a format report, as wordsLabelOf otherwise. */
+const versionWordsLabel = (content: GeneratedContentItem['content'], formatReport?: FormatReportOptions): string => {
+  if (!formatReport) return wordsLabelOf(content);
+  const count = formatReport.countWords(contentToText(content).trim());
+  return `${count.toLocaleString('en-US')} ${count === 1 ? 'word' : 'words'}`;
+};
+
 const EXPORT_I18N = {
   en: {
     original: 'ORIGINAL',
@@ -852,7 +874,9 @@ export const generateFullHtmlExportForCard = (
   allComparison?: ComparisonResult,
   previewPercent?: number,
   exportLangCode?: 'en' | 'es',
-  showWordCount?: boolean
+  showWordCount?: boolean,
+  /** Quick, "Turn it into…": set for the report of a format result. */
+  formatReport?: FormatReportOptions
 ): string => {
   const t = EXPORT_I18N[exportLangCode || 'en'];
   let html = '';
@@ -905,7 +929,11 @@ export const generateFullHtmlExportForCard = (
   html += '<div class="v-head">\n';
   html += '<div class="t">\n';
   html += `<h3>${escapeHtml(copyLabel)}${isWinner ? `<span class="win">${t.winner}</span>` : ''}</h3>\n`;
-  html += `<div class="role">${variantTypeLabel}${card.persona ? ` &middot; ${escapeHtml(card.persona)}` : ''}${showWordCount ? ` &middot; ${wordsLabelOf(card.content)}` : ''}</div>\n`;
+  html += `<div class="role">${variantTypeLabel}${card.persona ? ` &middot; ${escapeHtml(card.persona)}` : ''}${showWordCount ? ` &middot; ${versionWordsLabel(card.content, formatReport)}` : ''}</div>\n`;
+  // A format result: what this version is about (each version takes its own topic).
+  if (formatReport && card.sourceNote) {
+    html += `<div class="role">About: ${escapeHtml(card.sourceNote)}</div>\n`;
+  }
   html += '</div>\n';
   if (card.score) {
     html += '<div class="v-scores">\n';
@@ -2969,7 +2997,9 @@ export const exportAsFormattedHtml = (
   previewPercent?: number,
   extraSummaryRows?: [string, string][],
   /** Quick: show the length of the original and of every version, as its result screen does. */
-  showWordCounts?: boolean
+  showWordCounts?: boolean,
+  /** Quick, "Turn it into…": set for the report of a format result. No baseline, no gain. */
+  formatReport?: FormatReportOptions
 ): void => {
   try {
     
@@ -3042,7 +3072,8 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
       }
     }
 
-    const baselineScore = (() => {
+    // A format report has no baseline: without this, the lowest-scoring version would be shown as "ORIGINAL".
+    const baselineScore = formatReport ? null : (() => {
       if (jAnyAbs) {
         if (jOriginalRow && jAbsOf(jOriginalRow) != null) return jAbsOf(jOriginalRow);
         const lowestAbs = [...(comparisonResult?.rows ?? [])]
@@ -3178,7 +3209,7 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
     const sourceText = formState.tab === 'create'
       ? (formState.businessDescription || '')
       : (formState.originalCopy || '');
-    const sourceLabel = formState.tab === 'create' ? t.businessDescription : t.originalCopyLabel;
+    const sourceLabel = formatReport ? 'Source' : formState.tab === 'create' ? t.businessDescription : t.originalCopyLabel;
 
     if (sourceText) {
       htmlContent += '<div class="preview-box">\n';
@@ -3191,7 +3222,7 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
     const configRows: [string, string][] = [
       [t.languageLabel, formState.language || '—'],
       [t.toneLabel, formState.tone || '—'],
-      [t.wordCount, `${formState.wordCount || '—'}${formState.wordCount === 'Custom' ? ` (${formState.customWordCount})` : (formState.wordCount ? (exportLangCode === 'es' ? ' (por sección)' : ' (per section)') : '')}`],
+      [t.wordCount, formatReport ? formatReport.length : `${formState.wordCount || '—'}${formState.wordCount === 'Custom' ? ` (${formState.customWordCount})` : (formState.wordCount ? (exportLangCode === 'es' ? ' (por sección)' : ' (per section)') : '')}`],
     ];
     if (formState.targetAudience) configRows.push([t.targetAudienceLabel, formState.targetAudience]);
     if (formState.geoRegions) configRows.push([t.targetRegionLabel, formState.geoRegions]);
@@ -3237,7 +3268,7 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
     htmlContent += '<section id="llm-evaluation-data" data-purpose="llm-copy-extraction" data-evaluation-scope="copy-only" style="display: none;">\n';
 
     // Add original copy if in improve mode
-    if (formState.tab === 'improve' && formState.originalCopy?.trim()) {
+    if (!formatReport && formState.tab === 'improve' && formState.originalCopy?.trim()) {
       const normalizedOriginal = normalizeCopyForLLMExport(formState.originalCopy);
       htmlContent += '  <article data-copy-id="__original__" data-copy="original" data-copy-kind="original" data-copy-label="Original Copy">\n';
       htmlContent += '    <h2>Original Copy</h2>\n';
@@ -3304,7 +3335,7 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
         // The "Winner" mark on a version's own section follows the same rule as the
         // contents list and the rankings (highest quality score), not the comparison
         // step's own pick, so the report never names two winners.
-        htmlContent += generateFullHtmlExportForCard(card, targetWordCount, tocWinnerId ?? winnerVersionId, exportScoringContext, comparisonResult, previewPercent, exportLangCode, showWordCounts);
+        htmlContent += generateFullHtmlExportForCard(card, targetWordCount, tocWinnerId ?? winnerVersionId, exportScoringContext, comparisonResult, previewPercent, exportLangCode, showWordCounts, formatReport);
       });
     }
 
@@ -3348,18 +3379,18 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
         }
 
         // Scoring context — what bar these scores were judged against.
-        const ctxFormat = comparisonResult.scoringContext?.useCaseLabel ?? null;
+        const ctxFormat = formatReport ? formatReport.label : comparisonResult.scoringContext?.useCaseLabel ?? null;
         const ctxGoal = comparisonResult.scoringContext?.goalLabel ?? null;
         if (ctxFormat || ctxGoal) {
           let ctxLine = '';
-          if (ctxFormat) ctxLine += `<strong>${t.judgedAsLabel}:</strong> ${escapeHtml(ctxFormat)}`;
+          if (ctxFormat) ctxLine += `<strong>${formatReport ? 'Format' : t.judgedAsLabel}:</strong> ${escapeHtml(ctxFormat)}`;
           if (ctxGoal) ctxLine += `${ctxFormat ? ' &middot; ' : ''}<strong>${t.goalWordLabel}:</strong> ${escapeHtml(ctxGoal)}`;
           htmlContent += `<p style="margin:0 0 4px 0;font-size:13px;color:var(--ink-soft);">${ctxLine}</p>\n`;
         }
 
         // Rankings table — single Absolute quality score column.
         htmlContent += '<div class="rank">\n';
-        htmlContent += `<div class="rank-row head"><div class="pos">#</div><div class="nm">${t.versionLabel}</div><div class="dl">${t.deltaLabel}</div><div class="tot">${anyAbs ? t.qualityTotalLabel : t.totalLabel}</div></div>\n`;
+        htmlContent += `<div class="rank-row head"><div class="pos">#</div><div class="nm">${t.versionLabel}</div><div class="dl">${formatReport ? '' : t.deltaLabel}</div><div class="tot">${anyAbs ? t.qualityTotalLabel : t.totalLabel}</div></div>\n`;
 
         sortedRows.forEach((row, idx) => {
           const matchedCard = contentCards.find(c => c.id === row.versionId)
@@ -3388,7 +3419,7 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
           const winTag = isWinner ? ` <span class="win" style="display:inline-block;margin-left:8px;">${t.winner}</span>` : '';
           const incompleteTag = (row as any).incomplete ? ` <span class="win" style="display:inline-block;margin-left:6px;background:var(--warn-soft);color:var(--warn);">${t.incompleteLabel}</span>` : '';
           const subParts = [isOriginal ? t.original : (matchedCard?.persona || '')];
-          if (showWordCounts && matchedCard) subParts.push(wordsLabelOf(matchedCard.content));
+          if (showWordCounts && matchedCard) subParts.push(versionWordsLabel(matchedCard.content, formatReport));
           const subName = subParts.filter(Boolean).join(' &middot; ');
 
           htmlContent += `<div class="${rowClasses.join(' ')}">\n`;

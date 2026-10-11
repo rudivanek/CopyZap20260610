@@ -1,7 +1,37 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.49
+Version: 1.50
 Last Updated: 2026-10-12T00:00:00Z
+
+---
+
+## Quick Newsletter — Export Report for a Newsletter Result (2026-10-12)
+
+**Feature:** "Export report" is now available for a newsletter result (a "Turn it into an email newsletter" run). The report shows the source page in the input summary only, not as a version: there is no "ORIGINAL baseline", no gain figure, and no "vs. Original" column in the rankings. Each newsletter shows what it is about (when a per-version topic was set) and its length, counted the same way the result screen counts it (the body words, without the subject and preview lines). The report of an ordinary "improve" result is unchanged.
+
+**File replaced — `src/engine/exportQuickReport.ts` (whole file replaced):**
+- The `QuickReportInput` interface gained an optional `formatReport?: FormatReportOptions` field, set for a format result.
+- `buildQuickReportInput`: for a format result, the original (the source the newsletters were written from) is excluded from the report's versions (`inReport` returns `false` for `ORIGINAL_VERSION_ID` when `format` is set), so it appears only in the input summary. The input-summary `extraRows` gain a "Format" row (the format's label) and an "About" row (when a focus was given); the "Parts of the page" row reads "N left out of the source" for a format (vs "N kept, M left out" for an ordinary run). When a format is set, a `formatReport` object is attached (label, length range, word-count function).
+- `exportQuickReport`: passes the `formatReport` through to `exportAsFormattedHtml` as the new last argument.
+
+**Edits — `src/utils/enhancedExports.ts` (13 find-and-replace edits):**
+- New exported `FormatReportOptions` interface and `versionWordsLabel` helper, added after `wordsLabelOf`. The helper counts a version's length the format's way (body words) in a format report, and falls back to `wordsLabelOf` otherwise.
+- `generateFullHtmlExportForCard` (the one-version renderer) gained a `formatReport?: FormatReportOptions` parameter. The version's length line uses `versionWordsLabel` when a format report is set, and an "About: …" line is added below the role line when the card has a `sourceNote`.
+- `exportAsFormattedHtml` (the report assembler) gained a `formatReport?: FormatReportOptions` parameter, threaded through to the one-version renderer and used throughout the cover and rankings.
+- Cover: `baselineScore` is `null` in a format report (no baseline, no gain journey).
+- Input summary: the source label reads "Source" in a format report (vs the business description or "Your original"); the word-count row shows the format's length range instead of the form's word-count setting.
+- Hidden LLM evaluation data: the original-copy article is suppressed in a format report (a source is not an original).
+- Rankings: the line under the heading shows the format's label (e.g. "Email newsletter") instead of the use-case label; the label reads "Format:" rather than "Judged as:"; the "vs. Original" (`delta`) column heading is blank in a format report; each row's length uses `versionWordsLabel`.
+
+**Edit — `src/quick/QuickResult.tsx` (1 find-and-replace edit):**
+- The "Export report" button is no longer wrapped in `{!format && (…)}`. The button is now always shown (for both ordinary and format results), with the comment about it being hidden for format results removed.
+
+**Files touched:** `src/engine/exportQuickReport.ts` (replaced whole), `src/utils/enhancedExports.ts` (13 edits), `src/quick/QuickResult.tsx` (1 edit). `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes (exit 0).
+- All 14 find-and-replace edits applied, each exactly once.
+- On a newsletter result, the "Export report" button is shown again; the report has no baseline, no gain, and no "vs. Original" column; the source appears in the input summary as "Source"; each version's length is counted as body words.
 
 ---
 
