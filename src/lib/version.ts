@@ -5,4 +5,4 @@
  * Copy Maker (and every page that uses PublicFooter) and at the bottom of Quick.
  * To change it, change the text between the quotation marks.
  */
-export const APP_VERSION = 'beta 60.0';
+export const APP_VERSION = 'beta 61.0';
