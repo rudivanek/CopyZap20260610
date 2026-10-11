@@ -10,6 +10,8 @@ import { Language, Tone, User } from '../types';
 import { cleanJsonResponse, makeApiRequestWithFallback } from '../services/api/utils';
 import { convertLanguageCodeToFormDataLanguage, detectLanguage } from '../utils/languageDetection';
 import { DEFAULT_TEXT_KIND, getTextKind, TEXT_KINDS, TextKindKey } from '../services/api/textKinds';
+import { countWords } from '../utils/markdownUtils';
+import { QUICK_FEW_WORDS } from './buildQuickFormState';
 
 export const QUICK_TONES: Tone[] = ['Professional', 'Friendly', 'Bold', 'Minimalist', 'Creative', 'Persuasive'];
 export const QUICK_LANGUAGES: Language[] = ['English', 'Spanish', 'French', 'German', 'Italian', 'Portuguese'];
@@ -68,9 +70,20 @@ export function fallbackQuickBrief(copy: string): QuickBrief {
     audience: '',
     tone: 'Professional',
     language: convertLanguageCodeToFormDataLanguage(detectLanguage(copy)),
-    kind: DEFAULT_TEXT_KIND,
+    kind: kindForLength(DEFAULT_TEXT_KIND, copy),
     kindOther: '',
   };
+}
+
+/**
+ * A text of a few words cannot be a page. When the reading step calls it a
+ * page, or cannot tell, it is a short text: judged as a page, a slogan would
+ * be marked down for everything a page has and a slogan has not. An ad or a
+ * social post of a few words stays what it is.
+ */
+function kindForLength(kind: TextKindKey, copy: string): TextKindKey {
+  const fewWords = countWords((copy || '').trim()) < QUICK_FEW_WORDS;
+  return fewWords && (kind === 'web_page' || kind === 'other') ? 'short_text' : kind;
 }
 
 /** Turns the model's reply into a brief. Anything missing or invalid falls back. */
@@ -94,7 +107,10 @@ export function parseQuickBrief(raw: string, copy: string): QuickBrief {
     language: language ?? fallback.language,
     ...(reportedLanguage && !language ? { unsupportedLanguage: reportedLanguage } : {}),
     // "Social post" or "web-page" is read as the key it means.
-    kind: getTextKind(clean(parsed.kind).toLowerCase().replace(/[\s-]+/g, '_'))?.key ?? fallback.kind,
+    kind: kindForLength(
+      getTextKind(clean(parsed.kind).toLowerCase().replace(/[\s-]+/g, '_'))?.key ?? fallback.kind,
+      copy
+    ),
     kindOther: '',
   };
 }

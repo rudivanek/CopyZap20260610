@@ -22,8 +22,10 @@ import { findUnverifiedQuotes, restoreTestimonials } from './quoteLock';
 import type { TestimonialZone } from './quoteLock';
 import { QuickRunResult, scoreQuickVersions, withQuickResult } from './runQuickPipeline';
 import type { QuickProgress } from './runQuickPipeline';
+import { QUICK_MIN_WORDS } from './buildQuickFormState';
 
-export const QUICK_EDIT_MIN_WORDS = 10;
+/** Shortest edit that can be scored: the same as the shortest input. */
+export const QUICK_EDIT_MIN_WORDS = QUICK_MIN_WORDS;
 
 export interface QuickEditDraft {
   /** The best version as editable text, with one bracketed line per protected part. */

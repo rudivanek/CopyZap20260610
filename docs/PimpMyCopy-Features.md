@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.45
-Last Updated: 2026-10-11T20:00:00Z
+Version: 1.46
+Last Updated: 2026-10-11T22:00:00Z
 
 ---
 
@@ -98,6 +98,37 @@ Last Updated: 2026-10-11T20:00:00Z
 **Verification:**
 - `npm run build` passes.
 - The check screen shows the "Kind of text" selector with six options; choosing "Other" reveals the "What is it?" field; the help page explains the new line; a fetched page is forced to "Web page".
+
+---
+
+## Text Kinds — Short Texts from 3 Words (2026-10-11)
+
+**Feature:** The third stage of the text-kinds work. CopyZap now accepts copy from 3 words on (it was 10), so a slogan or a headline can be improved and scored. A text of fewer than 10 words is never read as a web page: it is a short text unless it is an ad, a social post or an email. The writer gets more room around the length of such a text, and gives a short text back as plain text, without bold type. An edit by hand has the same minimum of 3 words. Nothing changes for copy of 10 words or more, except that a short text no longer comes back in bold.
+
+**Edit — `src/engine/buildQuickFormState.ts`:** Two changes:
+- `QUICK_MIN_WORDS` changed from 10 to 3, with a comment explaining the reasoning: a slogan or headline is a text of its own kind and is often only a few words long; measured on texts of 2 to 8 words, the reading step called every one a short text and three readings of the scorer stayed within 2 points of each other.
+- New exported constant `QUICK_FEW_WORDS = 10`: below this many words a text cannot be a page. It is read as a short text (see `inferQuickBrief.ts`), and the writer is given more room around the length of the original.
+- `buildQuickFormState` now sets `adhereToLittleWordCount: true` and `littleWordCountTolerancePercentage: 50` when the input has fewer than `QUICK_FEW_WORDS` words. Without this, a four-word answer to a three-word slogan would be sent back to be cut. With it, a version is only corrected when it is outside half to one-and-a-half times the original's length.
+
+**Edit — `src/engine/editQuickVersion.ts`:** An edit by hand now has the same minimum as the shortest input:
+- `QUICK_EDIT_MIN_WORDS` changed from a hardcoded `10` to `QUICK_MIN_WORDS` (imported from `buildQuickFormState`), so it tracks the input minimum automatically. The message shown to the user reads from the constant, so it now says "at least 3 words".
+
+**Edit — `src/engine/inferQuickBrief.ts`:** Three changes that stop a short text from being read as a page:
+- Added imports for `countWords` (from `utils/markdownUtils`) and `QUICK_FEW_WORDS` (from `buildQuickFormState`).
+- New `kindForLength(kind, copy)`: when the copy has fewer than `QUICK_FEW_WORDS` words and the kind is `web_page` or `other`, it returns `short_text`; otherwise it returns the kind unchanged. An ad or a social post of a few words stays what it is.
+- `fallbackQuickBrief` now passes its `kind` through `kindForLength`, so even the fallback (used when the reading step fails) does not call a few-word text a page.
+- `parseQuickBrief` now passes the model's guessed `kind` through `kindForLength`, so a model that calls a slogan a "web page" is corrected to "short text".
+
+**Edit — `src/services/api/textKinds.ts`:** The `short_text` kind's writing note now tells the writer to give the statement back "as plain text without bold type and without quotation marks around it." The sentence was added to the existing writing paragraph; no other part of the kind's scoring or writing text changed.
+
+**Effect on existing results:** Unchanged. A result saved before this change has no kind in its settings, so `kindForLength` never runs on it. The lowered minimum only affects new runs. The `QUICK_FEW_WORDS` threshold and the `adhereToLittleWordCount` flag only apply when the input has fewer than 10 words; longer copy is unaffected.
+
+**Files touched:** `src/engine/buildQuickFormState.ts` (2 edits), `src/engine/editQuickVersion.ts` (1 edit), `src/engine/inferQuickBrief.ts` (3 edits), `src/services/api/textKinds.ts` (1 edit). `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- On the Quick start form, a text of 3 words can be continued; with 2 words the form says "Paste at least 3."
+- A text of fewer than 10 words is read as a short text (not a web page) unless it is an ad, a social post, or an email; the writer gives a short text back as plain text without bold; an edit by hand needs at least 3 words.
 
 ---
 

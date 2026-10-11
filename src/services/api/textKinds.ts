@@ -57,7 +57,7 @@ export const TEXT_KINDS: TextKind[] = [
     scoring:
       'The copy is a short stand-alone statement: a value proposition, headline, slogan or tagline. It is complete at one or two sentences and is not a page. Do not take points off for anything a statement of this length cannot hold: a call to action, urgency, proof, a named pain point, sections, or a progression from problem to solution. Judge Persuasion by the promise itself: is it specific, believable and worth something to the reader, or could any competitor say exactly the same? Judge Structure by how the statement is built: the strongest idea in the strongest place, a clear rhythm, no wasted or repeated words.',
     writing:
-      'This text is a short stand-alone statement (a value proposition, headline or slogan), not a page. Give back one statement of about the same length as the original. Do not add a heading, a list, a second paragraph, or a call to action that the original does not have.',
+      'This text is a short stand-alone statement (a value proposition, headline or slogan), not a page. Give back one statement of about the same length as the original, as plain text without bold type and without quotation marks around it. Do not add a heading, a list, a second paragraph, or a call to action that the original does not have.',
     noun: 'a short stand-alone statement (a value proposition, headline or slogan), not a page',
   },
   {

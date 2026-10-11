@@ -11,8 +11,20 @@ import { cleanTextKindOther, getTextKind, TextKindChoice, textKindLabel } from '
 
 /** How many versions one Quick run writes. */
 export const QUICK_DEFAULT_VARIANTS = 3;
-/** Shortest input Quick accepts. */
-export const QUICK_MIN_WORDS = 10;
+/**
+ * Shortest input Quick accepts. 3 since 2026-10-11 (it was 10): a slogan or a
+ * headline is a text of its own kind (see services/api/textKinds.ts) and is
+ * often only a few words long. Measured that day on texts of 2 to 8 words: the
+ * reading step called every one a short text, and three readings of the scorer
+ * stayed within 2 points of each other.
+ */
+export const QUICK_MIN_WORDS = 3;
+/**
+ * Below this many words a text cannot be a page. It is read as a short text
+ * (see inferQuickBrief.ts), and the writer is given more room around the
+ * length of the original (see buildQuickFormState below).
+ */
+export const QUICK_FEW_WORDS = 10;
 /**
  * Most words Quick works on in one run: the parts that are improved plus the
  * parts kept as they are. Parts the user leaves out do not count: they are
@@ -119,6 +131,11 @@ export function buildQuickFormState(input: QuickFormInput): FormState {
     wordCount: 'Custom',
     customWordCount: words,
     prioritizeWordCount: false,
+    // A text of a few words: one word more or less is a third of it. Without
+    // this, a four-word answer to a three-word slogan is sent back to be cut.
+    // With it, a version is only corrected when it is outside half to one and
+    // a half times the original's length.
+    ...(words < QUICK_FEW_WORDS ? { adhereToLittleWordCount: true, littleWordCountTolerancePercentage: 50 } : {}),
     // Session and history name. Not used in any prompt.
     projectDescription: `Quick: ${deriveQuickLabel(copy)}`,
     createVariants: variants > 1,
