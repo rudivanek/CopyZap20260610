@@ -28,6 +28,7 @@ import { QuickRunResult, scoreQuickVersions, withQuickResult } from './runQuickP
 import type { QuickProgress } from './runQuickPipeline';
 import { throwIfStopped } from './quickStop';
 import { quickTextKindOf } from './buildQuickFormState';
+import { KEEP_TO_ORIGINAL_CHANGE_NOTE } from './keepToOriginal';
 
 /** Versions one result can hold besides the original. The comparison reads them all together. */
 export const QUICK_MAX_VERSIONS = 8;
@@ -162,7 +163,12 @@ export async function changeQuickVersion(
     wordCount: 'Custom',
     customWordCount: lockedWords,
     ...(kindNote ? { includeSectionTitles: false } : {}),
-    specialInstructions: [kindNote, keepInstructions(keepZones), testimonialInstructions(quoteZones)]
+    specialInstructions: [
+      KEEP_TO_ORIGINAL_CHANGE_NOTE,
+      kindNote,
+      keepInstructions(keepZones),
+      testimonialInstructions(quoteZones),
+    ]
       .filter(Boolean)
       .join('\n\n'),
   };

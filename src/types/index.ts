@@ -177,6 +177,8 @@ export interface FormData {
   // Quick: the kind of text the copy is (a key of TEXT_KINDS in services/api/textKinds.ts), and for "other" what the user typed
   quickTextKind?: string;
   quickTextKindOther?: string;
+  // Quick: the writer's second pass (refineOutput.ts) may not add or remove facts. Set by buildQuickFormState; Copy Maker never sets it.
+  keepToOriginal?: boolean;
   // Section titles for structured output
   includeSectionTitles?: boolean; // Generate AI titles for each section in structured output (default: true)
   // AI Engine Mode for A/B testing

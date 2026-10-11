@@ -32,6 +32,7 @@ import {
   quickTextKindOf,
 } from './buildQuickFormState';
 import { textKindWritingNote } from '../services/api/textKinds';
+import { KEEP_TO_ORIGINAL_NOTE } from './keepToOriginal';
 import { effectiveGates } from './gateRules';
 import { stopSessionWith, throwIfStopped } from './quickStop';
 import { ORIGINAL_OPTION_LABEL, ORIGINAL_VERSION_ID, pickWinner } from './pickWinner';
@@ -495,9 +496,11 @@ export async function runQuickPipeline(
   const lock = input.keep?.autoLock === false ? { lockedCopy: base, zones: [], count: 0 } : lockTestimonials(base);
   const zones = [...lock.zones, ...keepZones];
   let formState = buildQuickFormState({ copy: lock.lockedCopy, variants: input.variants, brief: input.brief });
-  // What the writer is told on top of its own rules: the kind of text when it
-  // is not a page (see textKinds.ts), and the parts it must not touch.
+  // What the writer is told on top of its own rules: to keep to the facts of
+  // the original (see keepToOriginal.ts), the kind of text when it is not a
+  // page (see textKinds.ts), and the parts it must not touch.
   const writerNotes = [
+    KEEP_TO_ORIGINAL_NOTE,
     textKindWritingNote(quickTextKindOf(formState)),
     keepInstructions(keepZones),
     testimonialInstructions(lock.zones),

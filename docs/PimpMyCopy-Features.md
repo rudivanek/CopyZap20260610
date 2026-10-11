@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.46
-Last Updated: 2026-10-11T22:00:00Z
+Version: 1.47
+Last Updated: 2026-10-11T23:00:00Z
 
 ---
 
@@ -129,6 +129,44 @@ Last Updated: 2026-10-11T22:00:00Z
 - `npm run build` passes.
 - On the Quick start form, a text of 3 words can be continued; with 2 words the form says "Paste at least 3."
 - A text of fewer than 10 words is read as a short text (not a web page) unless it is an ad, a social post, or an email; the writer gives a short text back as plain text without bold; an edit by hand needs at least 3 words.
+
+---
+
+## Quick — The Writer Keeps to the Facts of the Original (2026-10-11)
+
+**Feature:** In Quick, the writer is now told to improve how the copy says things, not what it says: it may not add facts, numbers, offers, guarantees, deadlines or limited availability that the original does not state, and it keeps the facts the original states. The writer's second pass gets one rule to the same effect, and so does a change by request ("Warmer", "Stronger call to action"). Copy Maker is not changed: the new rule in the second pass only applies when a setting is on that only Quick switches on. Nothing changes on screen.
+
+**Why:** The writing engine Quick shares with Copy Maker is told to "add at least one fresh insight or angle not present in the user input", and a step before it infers benefits, differentiators and credibility points for the writer to emphasise. For a tool that improves copy a client will publish, that goes too far. Seen on 2026-10-11: "espacios limitados" (limited places) in an email that offered no such thing, "sin facturas sorpresa" in another, and a four-word headline that lost "sin plantillas", the one fact it had. Measured that day against the live model, six texts, three versions each: claims added 12 without the note, 2 with note and rule; facts dropped 20 without, 3 to 6 with; the average score moved by less than one point.
+
+**New file — `src/engine/keepToOriginal.ts`:** A plain-text module (no model call, no cost) that holds two strings:
+- `KEEP_TO_ORIGINAL_NOTE`: told to the writer on every Quick run. Five sentences: improve how it says things, not what it says; every fact must come from the original, and do not add numbers, prices, offers, guarantees, deadlines, limited availability, results, customers, awards, features or services the original does not state, and do not make a claim stronger than the original makes it; keep the facts the original states; the benefits, differentiators and credibility elements listed earlier are ideas for emphasis, use one only where the original itself says it; a fresh angle means a new way of saying what is already there, not new information.
+- `KEEP_TO_ORIGINAL_CHANGE_NOTE`: told to the rewrite step when a version is changed by request. The request comes first — "add our guarantee" or "shorter" is the user's decision. Apart from what the request asks for, change how the text says things, not what it says: do not add numbers, offers, guarantees, deadlines, limited availability, results or customers that the text does not state, and keep the facts it states.
+
+**Edit — `src/types/index.ts`:** `FormData` gained one optional field: `keepToOriginal?: boolean`, with a comment noting it is set by `buildQuickFormState` and that Copy Maker never sets it.
+
+**Edit — `src/utils/ai-pipeline/refineOutput.ts`:** The writer's second pass (the editorial refinement pass) now has one more rule when the setting is on:
+- A new `KEEP_TO_ORIGINAL_RULE` constant was added after the `outputBudget` import: a one-line rule that tells the pass not to add facts, numbers, offers, guarantees or claims the copy does not already state, and not to remove any that it states. A comment notes that this pass, asked to raise "persuasive power", added a claim of its own to about one version in six, and that without the setting the instructions are what they always were.
+- The "Do NOT add new sections or remove existing ones" line in the system prompt now appends `KEEP_TO_ORIGINAL_RULE` when `formState.keepToOriginal` is true, and nothing when it is false (Copy Maker's path).
+
+**Edit — `src/engine/buildQuickFormState.ts`:** `buildQuickFormState` now sets `keepToOriginal: true` on the form state, so every Quick run switches the second-pass rule on. The setting sits between the text-kind block and the word-count block, with a comment pointing to `keepToOriginal.ts`.
+
+**Edit — `src/engine/runQuickPipeline.ts`:** The writer is now told to keep to the facts of the original on every Quick run:
+- Added `import { KEEP_TO_ORIGINAL_NOTE } from './keepToOriginal';` next to the existing `textKinds` import.
+- The `writerNotes` array now starts with `KEEP_TO_ORIGINAL_NOTE`, followed by the kind-of-text note and the keep/testimonial instructions. The comment above the array was rewritten to name the new note first. When no note is added and there are no zones, `specialInstructions` stays empty as before — `KEEP_TO_ORIGINAL_NOTE` is always a non-empty string, so it is always included on a Quick run.
+
+**Edit — `src/engine/changeQuickVersion.ts`:** A change by request now keeps to the facts too:
+- Added `import { KEEP_TO_ORIGINAL_CHANGE_NOTE } from './keepToOriginal';` next to the existing `buildQuickFormState` import.
+- The `specialInstructions` array on the rewrite form state now starts with `KEEP_TO_ORIGINAL_CHANGE_NOTE`, followed by the kind note, the keep instructions, and the testimonial instructions. The array was reformatted to one entry per line for readability; the `.filter(Boolean).join('\n\n')` that follows is unchanged, so a change on copy with no kind note and no protected parts still sends only the keep-to-original note.
+
+**Effect on Copy Maker:** Copy Maker never sets `keepToOriginal`, so `formState.keepToOriginal` is falsy there. The second-pass rule in `refineOutput.ts` is not appended; the writer's notes in `runQuickPipeline.ts` and `changeQuickVersion.ts` are not used by Copy Maker (they are Quick-only files). Copy Maker writes as before.
+
+**Effect on existing results:** A result saved before this change has no `keepToOriginal` in its settings. The setting only affects new runs and new changes; it does not change how saved results are read or shown.
+
+**Files touched:** `src/engine/keepToOriginal.ts` (new), `src/types/index.ts` (1 edit), `src/utils/ai-pipeline/refineOutput.ts` (2 edits), `src/engine/buildQuickFormState.ts` (1 edit), `src/engine/runQuickPipeline.ts` (2 edits), `src/engine/changeQuickVersion.ts` (2 edits). `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- On a Quick run, the writer receives the keep-to-original note; the second pass receives the keep-to-original rule; a change by request receives the keep-to-original change note. Copy Maker receives none of these.
 
 ---
 

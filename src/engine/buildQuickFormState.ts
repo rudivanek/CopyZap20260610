@@ -127,6 +127,8 @@ export function buildQuickFormState(input: QuickFormInput): FormState {
           quickTextKindOther: brief.kind === 'other' ? cleanTextKindOther(brief.kindOther) : '',
         }
       : {}),
+    // The writer's second pass may not add or remove facts (see keepToOriginal.ts).
+    keepToOriginal: true,
     // Improve keeps the length of the original.
     wordCount: 'Custom',
     customWordCount: words,

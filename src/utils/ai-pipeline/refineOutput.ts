@@ -8,6 +8,16 @@ import { countWords } from '../markdownUtils';
 import { canStream, getOutputBudget } from './outputBudget';
 
 /**
+ * One more rule for a run that must keep to the facts of the original
+ * (formState.keepToOriginal, set by Quick; see engine/keepToOriginal.ts).
+ * Measured on 2026-10-11: this pass, asked to raise "persuasive power", added
+ * a claim of its own to about one version in six. Without the setting the
+ * instructions are what they always were.
+ */
+const KEEP_TO_ORIGINAL_RULE =
+  '\n- Do NOT add facts, numbers, offers, guarantees or claims that the copy does not already state, and do not remove any that it states';
+
+/**
  * Applies editorial refinement to generated content
  */
 export async function refineOutput(
@@ -37,7 +47,7 @@ CRITICAL RULES:
 - Maintain the same word count (±5%)
 - Preserve all structural elements (headings, sections, formatting)
 - Keep the same tone and voice
-- Do NOT add new sections or remove existing ones
+- Do NOT add new sections or remove existing ones${formState.keepToOriginal ? KEEP_TO_ORIGINAL_RULE : ''}
 - Return ONLY the refined content, no explanations or meta-commentary`;
 
   const userPrompt = `Refine the following marketing copy. Improve its clarity, specificity, emotional impact, narrative flow, and persuasive power while maintaining its structure and approximate word count:
