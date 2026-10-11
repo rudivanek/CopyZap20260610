@@ -13,6 +13,7 @@
 import { FormState, GeneratedContentItem, GeneratedContentItemType, User } from '../types';
 import { modifyContent } from '../services/api/contentModification';
 import { contentToText } from '../services/api/contentText';
+import { textKindChangeNote } from '../services/api/textKinds';
 import { checkUserAccess } from '../services/supabaseClient';
 import { countWords } from '../utils/markdownUtils';
 import {
@@ -26,6 +27,7 @@ import type { TestimonialZone } from './quoteLock';
 import { QuickRunResult, scoreQuickVersions, withQuickResult } from './runQuickPipeline';
 import type { QuickProgress } from './runQuickPipeline';
 import { throwIfStopped } from './quickStop';
+import { quickTextKindOf } from './buildQuickFormState';
 
 /** Versions one result can hold besides the original. The comparison reads them all together. */
 export const QUICK_MAX_VERSIONS = 8;
@@ -152,11 +154,17 @@ export async function changeQuickVersion(
   onProgress?.({ stage: 'writing', done: 0, total: 1 });
   const keepZones = zones.filter(zone => zone.marker.startsWith('[[KEEP'));
   const quoteZones = zones.filter(zone => !zone.marker.startsWith('[[KEEP'));
+  // A text that is not a page (see textKinds.ts) is told so, and the rewrite
+  // step's rule "every section must have a heading" is switched off for it.
+  const kindNote = textKindChangeNote(quickTextKindOf(result.formState));
   const rewriteState: FormState = {
     ...result.formState,
     wordCount: 'Custom',
     customWordCount: lockedWords,
-    specialInstructions: [keepInstructions(keepZones), testimonialInstructions(quoteZones)].filter(Boolean).join('\n\n'),
+    ...(kindNote ? { includeSectionTitles: false } : {}),
+    specialInstructions: [kindNote, keepInstructions(keepZones), testimonialInstructions(quoteZones)]
+      .filter(Boolean)
+      .join('\n\n'),
   };
   const request = FULL_REQUESTS[wanted.toLowerCase()] ?? wanted;
   const rewritten = await modifyContent(locked, request, rewriteState, user, undefined, result.formState.sessionId);

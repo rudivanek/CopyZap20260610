@@ -42,6 +42,10 @@ export interface ScoringContext {
   goalKey?: GoalKey;
   goalLabel?: string;
   method?: ScoringMethod;
+  /** The kind of text the copy is, when known: a key of TEXT_KINDS (services/api/textKinds.ts). */
+  textKind?: string;
+  /** For the kind "other": what the user typed. */
+  textKindOther?: string;
 }
 
 // New enum for different types of generated content items
@@ -170,6 +174,9 @@ export interface FormData {
   originalCopyGuidance?: string; // Specific instructions for the "Original Copy" field based on prefill context
   // Special instructions field
   specialInstructions?: string; // Free-form instructions that will be appended to the prompt
+  // Quick: the kind of text the copy is (a key of TEXT_KINDS in services/api/textKinds.ts), and for "other" what the user typed
+  quickTextKind?: string;
+  quickTextKindOther?: string;
   // Section titles for structured output
   includeSectionTitles?: boolean; // Generate AI titles for each section in structured output (default: true)
   // AI Engine Mode for A/B testing

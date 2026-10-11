@@ -16,6 +16,7 @@ import { makeApiRequestWithFallback, cleanJsonResponse } from './utils';
 import { SCORING_MODEL } from '../../constants';
 import { calculateMultiScoreDisplay } from '../../utils/multiScoreDisplay';
 import { keepOwnFlags } from './flagOwnership';
+import { textKindContextLabel } from './textKinds';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
 // TYPES
@@ -140,7 +141,11 @@ ${sanitizedContent}
 
   // Build context information
   const audienceInfo = scoringContext?.audienceTone || 'Not specified';
-  const contentTypeInfo = scoringContext?.contentType || 'Marketing copy';
+  // The kind of text, when it is known and is not a page (see textKinds.ts).
+  const contentTypeInfo =
+    textKindContextLabel({ key: scoringContext?.textKind, other: scoringContext?.textKindOther }) ||
+    scoringContext?.contentType ||
+    'Marketing copy';
   const keywordsInfo = keywords.length > 0
     ? keywords.map(k => `"${k}"`).join(', ')
     : 'None provided';

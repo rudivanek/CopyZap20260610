@@ -1,7 +1,70 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.44
-Last Updated: 2026-10-11T00:00:00Z
+Last Updated: 2026-10-11T18:00:00Z
+
+---
+
+## Text Kinds — Copy Judged and Written by What It Is, Not Always as a Page (2026-10-11)
+
+**Feature:** CopyZap learns that copy can be something other than a web page: a short text (USP, headline, slogan), an email or newsletter, a social post, or an ad. The scorer's rubric was written for pages: a 20-word value proposition scored low for "no CTA" and "no progression", and a social post lost points for "a bare URL without a button" — both judged as pages that are too short. With this change, the kind of text is told to the scorer and to the writer as one more note, so each kind is judged by what is normal for it. The four scoring dimensions (Clarity, Persuasion, Audience Fit, Structure), the 0–25 range, and the calibration scale do not change. Nothing on screen changes with this stage, and every run behaves exactly as before, because nothing sets a kind yet — a later stage adds the check-screen control that switches it on.
+
+**New file — `src/services/api/textKinds.ts`:** A plain-text handling module (no model call, no cost) that defines everything a kind needs:
+- `TextKindKey` union: `'web_page' | 'short_text' | 'email' | 'social_post' | 'ad' | 'other'`.
+- `TextKind` interface: `key`, `label` (check-screen and "Judged as:"), `hint` (how the kind is recognised), `scoring` (added to the scorer's instructions; empty for kinds that add nothing), `writing` (told to the writer; empty when nothing is added), `noun` (for the rewrite step's change note).
+- `TEXT_KINDS` array: six entries. `web_page` and `other` (with nothing typed) have empty `scoring`/`writing`/`noun` — they add no note, so such copy is judged and written exactly as before. `short_text`, `email`, `social_post`, and `ad` each carry a tailored scoring paragraph and writing paragraph. The `other` kind lets the user type a free-text description (up to `TEXT_KIND_OTHER_MAX_CHARS = 40` characters) of what the copy is.
+- `cleanTextKindOther(value)`: makes the user's "Other" text safe to stand inside an instruction — one line, no double quotation marks, no colon, no full stop at the end, at most 40 characters (counted as characters so an emoji is never cut in half).
+- `getTextKind(key)`: returns the `TextKind` for a key, or null for a missing key or a key from a newer version.
+- `textKindLabel(choice)`: what stands after "Judged as:". Returns null when the result has no kind (saved before kinds existed) — the caller then keeps the label it had. For "Other" with text, returns `Other: <text>`; for "Other" with no text, returns `General marketing copy`.
+- `textKindScoringGuidance(choice)`: the note added to the scorer's instructions, starting with two line breaks. Empty when the kind adds none. For "Other" with text, tells the scorer to judge the copy as that kind. Each note ends with a closing line: where the kind note and the goal context disagree about what the copy must contain, the kind note decides; the four dimensions, the 0–25 range, and the calibration scale stay as they are.
+- `textKindWritingNote(choice)`: what the writer is told about the kind. Empty when the kind adds nothing.
+- `textKindChangeNote(choice)`: what the rewrite step is told when a version is changed by request ("shorter", "warmer"). The request comes first — "add a call to action" on a slogan is the user's decision.
+- `textKindContextLabel(choice)`: one short text for the comparison step's context line. Null when that step keeps its own wording.
+- `textKindId(choice)`: one short text that is the same for two choices exactly when they are judged the same way — used in the score cache key so the same text scored for the same goal and kind keeps its score, while a different kind is a new entry.
+
+**Replaced file — `src/engine/buildQuickFormState.ts`:** Carries the kind from the check screen through to the engine:
+- `QuickBriefInput` gained two optional fields: `kind?: string` (a key of `TEXT_KINDS`) and `kindOther?: string` (for "other": what the user typed).
+- `buildQuickFormState` now sets `quickTextKind` and `quickTextKindOther` on the form state when `brief.kind` is a known kind. For "other", the free text is cleaned via `cleanTextKindOther`. When the kind is not known, neither field is set — the run behaves as before.
+- New `quickTextKindOf(formState)`: returns a `TextKindChoice` from a run's settings. Empty for a result saved before kinds existed.
+- `buildQuickScoringContext(goalKey, kind?)` now accepts an optional kind. When a kind is known and has a label, the scoring context carries `textKind`, `textKindOther`, and the label as `useCaseLabel` (shown after "Judged as:"). Without a kind, the context is exactly as before.
+
+**Edit — `src/types/index.ts`:**
+- `ScoringContext` gained two optional fields: `textKind?: string` and `textKindOther?: string`.
+- `FormData` gained two optional fields: `quickTextKind?: string` and `quickTextKindOther?: string` (the kind stored with a run's settings).
+
+**Edit — `src/services/api/absoluteScoring.ts`:** The scorer and its score cache now know about kinds:
+- The old `buildAbsoluteSystemPrompt(goalKey, goalLabel)` was renamed `buildGoalSystemPrompt(goalKey, goalLabel)` — it builds the fixed rubric plus the goal context, unchanged.
+- New exported `buildAbsoluteSystemPrompt(goalKey, goalLabel, kind?)` returns `buildGoalSystemPrompt(...)` + `textKindScoringGuidance(kind)`. Without a kind, or with a kind that adds no note, the prompt is identical to before.
+- `generateAbsoluteScore` gained an optional `kind?: TextKindChoice | null` parameter, passed to `buildAbsoluteSystemPrompt`.
+- The score cache (`rememberedScores`) now keys by goal + text + kind. `scoreKey`, `recallAbsoluteScore`, and `rememberAbsoluteScore` all gained the `kind` parameter. A kind that adds no scoring note (`textKindId` returns empty) gives the same key the text had before kinds existed, so cached scores from before this change are still hit.
+- `rememberScoresOfResult` (which restores scores stored with a saved result) now reads `textKind` and `textKindOther` from the saved `scoringContext` and passes them as the `kind` when remembering each score. The `SavedScores` interface's `scoringContext` type was widened to include `textKind?` and `textKindOther?`.
+
+**Edit — `src/services/api/unifiedComparison.ts`:** The comparison step reads the kind from the scoring context and passes it to the absolute scorer:
+- After reading `goalLabel`, the code now builds `kind` from `scoringContext.textKind` and `scoringContext.textKindOther`.
+- `recallAbsoluteScore`, `generateAbsoluteScore`, and `rememberAbsoluteScore` calls now pass `kind`.
+
+**Edit — `src/services/api/comparativeScoring.ts`:** The comparison prompt's content-type line now names the kind when it is known:
+- Added `import { textKindContextLabel } from './textKinds';`.
+- `contentTypeInfo` now uses `textKindContextLabel({ key, other })` first, falling back to `scoringContext?.contentType` and then `'Marketing copy'`. A kind that adds no note (web page, or "Other" with nothing typed) returns null from `textKindContextLabel`, so the fallback applies and the line is unchanged.
+
+**Edit — `src/engine/runQuickPipeline.ts`:** The pipeline carries the kind to the scorer and the writer:
+- Added imports for `quickTextKindOf` and `textKindWritingNote`.
+- The comparison's scoring context now calls `buildQuickScoringContext(goalKey, quickTextKindOf(formState))`.
+- The further-score readings now build `kind = quickTextKindOf(formState)`, use it in the scoring context, and pass it to each `generateAbsoluteScore` call.
+- The writer's special instructions now start with `textKindWritingNote(quickTextKindOf(formState))` (when it adds a note), followed by the keep-zone and testimonial-lock instructions. When no note is added and there are no zones, `specialInstructions` stays empty as before.
+
+**Edit — `src/engine/changeQuickVersion.ts`:** The change-by-request step now respects the kind:
+- Added imports for `textKindChangeNote` and `quickTextKindOf`.
+- After computing `quoteZones`, the code builds `kindNote = textKindChangeNote(quickTextKindOf(result.formState))`.
+- The rewrite form state now sets `includeSectionTitles: false` when a `kindNote` is present (the rewrite step's "every section must have a heading" rule is switched off for non-page copy), and `specialInstructions` now starts with `kindNote` followed by the keep and testimonial instructions.
+
+**Effect on existing results:** A result saved before this change has no kind in its settings or scoring context. `getTextKind` returns null, `textKindScoringGuidance` returns empty, `textKindWritingNote` returns empty, `textKindChangeNote` returns empty, `textKindContextLabel` returns null, and `textKindId` returns empty — so the scorer, writer, comparison, and rewrite steps all behave exactly as before. The score cache key is the same as before for such results, so cached scores are still hit.
+
+**Files touched:** `src/services/api/textKinds.ts` (new), `src/engine/buildQuickFormState.ts` (replaced), `src/types/index.ts` (2 edits), `src/services/api/absoluteScoring.ts` (11 edits), `src/services/api/unifiedComparison.ts` (2 edits), `src/services/api/comparativeScoring.ts` (2 edits), `src/engine/runQuickPipeline.ts` (6 edits), `src/engine/changeQuickVersion.ts` (4 edits). No other source file, prompt text, styling, or wording changed. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- Without a kind set (the only state this stage can reach), every run behaves identically to before this change: no scoring note, no writing note, no change note, no content-type change, same cache keys.
 
 ---
 

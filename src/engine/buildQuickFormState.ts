@@ -7,6 +7,7 @@ import { DEFAULT_FORM_STATE } from '../constants';
 import { detectLanguage, convertLanguageCodeToFormDataLanguage } from '../utils/languageDetection';
 import { countWords } from '../utils/markdownUtils';
 import { buildContextFromKey } from '../utils/scoringContextStorage';
+import { cleanTextKindOther, getTextKind, TextKindChoice, textKindLabel } from '../services/api/textKinds';
 
 /** How many versions one Quick run writes. */
 export const QUICK_DEFAULT_VARIANTS = 3;
@@ -63,7 +64,7 @@ export function deriveQuickLabel(copy: string): string {
   const clean = firstLine
     .replace(/^#{1,6}\s+/, '')
     .replace(/^[-*>]\s+/, '')
-    .replace(/[*_`]/g, '')
+    .replace(/[*_`]/g, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 
@@ -81,6 +82,10 @@ export interface QuickBriefInput {
   audience?: string;
   tone?: Tone;
   language?: Language;
+  /** The kind of text: a key of TEXT_KINDS (services/api/textKinds.ts). */
+  kind?: string;
+  /** For the kind "other": what the user typed. */
+  kindOther?: string;
 }
 
 export interface QuickFormInput {
@@ -103,6 +108,13 @@ export function buildQuickFormState(input: QuickFormInput): FormState {
     tone: brief.tone ?? DEFAULT_FORM_STATE.tone,
     productServiceName: (brief.product ?? '').trim(),
     targetAudience: (brief.audience ?? '').trim(),
+    // The kind of text, as confirmed on the check screen. Left out when it is not known.
+    ...(getTextKind(brief.kind)
+      ? {
+          quickTextKind: brief.kind,
+          quickTextKindOther: brief.kind === 'other' ? cleanTextKindOther(brief.kindOther) : '',
+        }
+      : {}),
     // Improve keeps the length of the original.
     wordCount: 'Custom',
     customWordCount: words,
@@ -116,7 +128,24 @@ export function buildQuickFormState(input: QuickFormInput): FormState {
   };
 }
 
-/** Quick always scores with the goal-aware Absolute method. */
-export function buildQuickScoringContext(goalKey: GoalKey): ScoringContext {
-  return { ...buildContextFromKey('general_improve', goalKey), method: 'new' };
+/** The kind of text stored with a run's settings. Empty for a result saved before kinds existed. */
+export function quickTextKindOf(formState: Pick<FormState, 'quickTextKind' | 'quickTextKindOther'>): TextKindChoice {
+  return { key: formState.quickTextKind, other: formState.quickTextKindOther };
+}
+
+/**
+ * Quick always scores with the goal-aware Absolute method. With a kind of
+ * text, the context carries it to the scorers and "Judged as" shows its name.
+ * Without one (a result saved before kinds existed) the context is as before.
+ */
+export function buildQuickScoringContext(goalKey: GoalKey, kind?: TextKindChoice | null): ScoringContext {
+  const context: ScoringContext = { ...buildContextFromKey('general_improve', goalKey), method: 'new' };
+  const label = textKindLabel(kind);
+  if (!label || !kind?.key) return context;
+  return {
+    ...context,
+    useCaseLabel: label,
+    textKind: kind.key,
+    textKindOther: kind.key === 'other' ? cleanTextKindOther(kind.other) : '',
+  };
 }

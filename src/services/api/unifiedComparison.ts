@@ -105,6 +105,8 @@ export async function generateUnifiedComparison(
   addProgressMessage?.('New method: goal-aware absolute scoring…');
   const goalKey = scoringContext?.goalKey;
   const goalLabel = scoringContext?.goalLabel;
+  // The kind of text, when the caller knows it (Quick does; see textKinds.ts).
+  const kind = scoringContext ? { key: scoringContext.textKind, other: scoringContext.textKindOther } : null;
 
   // Structural gate (deterministic, language-independent). Always flags repeated
   // passages; also flags too-short versions when a caller passes targetWords.
@@ -117,10 +119,10 @@ export async function generateUnifiedComparison(
   // edge-function time limit (sequential calls risk the 150s Supabase timeout).
   const absoluteByVersion: Record<string, AbsoluteScoreBreakdown> = {};
   const readScore = (content: unknown): Promise<AbsoluteScoreBreakdown> => {
-    const known = keepEarlierScores ? recallAbsoluteScore(content, goalKey, goalLabel) : null;
+    const known = keepEarlierScores ? recallAbsoluteScore(content, goalKey, goalLabel, kind) : null;
     if (known) return Promise.resolve(known);
-    return generateAbsoluteScore(content, currentUser, sessionId, goalKey, goalLabel).then(score => {
-      if (keepEarlierScores) rememberAbsoluteScore(content, goalKey, goalLabel, score);
+    return generateAbsoluteScore(content, currentUser, sessionId, goalKey, goalLabel, kind).then(score => {
+      if (keepEarlierScores) rememberAbsoluteScore(content, goalKey, goalLabel, score, kind);
       return score;
     });
   };

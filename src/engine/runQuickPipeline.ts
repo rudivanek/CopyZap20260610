@@ -29,7 +29,9 @@ import {
   QUICK_MIN_WORDS,
   QUICK_SECTION,
   quickMaxWords,
+  quickTextKindOf,
 } from './buildQuickFormState';
+import { textKindWritingNote } from '../services/api/textKinds';
 import { effectiveGates } from './gateRules';
 import { stopSessionWith, throwIfStopped } from './quickStop';
 import { ORIGINAL_OPTION_LABEL, ORIGINAL_VERSION_ID, pickWinner } from './pickWinner';
@@ -100,7 +102,7 @@ export interface QuickRunInput {
   copy: string;
   goalKey: GoalKey;
   variants?: number;
-  /** What the user confirmed about the copy (product, audience, tone, language). */
+  /** What the user confirmed about the copy (product, audience, tone, language, kind of text). */
   brief?: QuickBriefInput;
   /** A tracking session already started by startQuickSession. One is created when missing. */
   sessionId?: string;
@@ -288,7 +290,7 @@ export async function scoreQuickVersions(
     formState.model,
     undefined,
     [],
-    buildQuickScoringContext(goalKey),
+    buildQuickScoringContext(goalKey, quickTextKindOf(formState)),
     QUICK_SECTION,
     'new',
     targetWords,
@@ -307,7 +309,8 @@ export async function scoreQuickVersions(
   // a failed call never reaches the screen as "0 / 100". Versions that keep an
   // earlier score are not read again.
   throwIfStopped(signal);
-  const context = buildQuickScoringContext(goalKey);
+  const kind = quickTextKindOf(formState);
+  const context = buildQuickScoringContext(goalKey, kind);
   const fresh = versions.filter(version => !isUsableScore(keepScores?.absoluteByVersion[version.id]));
   const unscoredIds: string[] = [];
 
@@ -322,7 +325,8 @@ export async function scoreQuickVersions(
               user,
               formState.sessionId,
               context.goalKey,
-              context.goalLabel
+              context.goalLabel,
+              kind
             );
           } catch {
             return null;
@@ -491,11 +495,17 @@ export async function runQuickPipeline(
   const lock = input.keep?.autoLock === false ? { lockedCopy: base, zones: [], count: 0 } : lockTestimonials(base);
   const zones = [...lock.zones, ...keepZones];
   let formState = buildQuickFormState({ copy: lock.lockedCopy, variants: input.variants, brief: input.brief });
-  if (zones.length > 0) {
-    formState = {
-      ...formState,
-      specialInstructions: [keepInstructions(keepZones), testimonialInstructions(lock.zones)].filter(Boolean).join('\n\n'),
-    };
+  // What the writer is told on top of its own rules: the kind of text when it
+  // is not a page (see textKinds.ts), and the parts it must not touch.
+  const writerNotes = [
+    textKindWritingNote(quickTextKindOf(formState)),
+    keepInstructions(keepZones),
+    testimonialInstructions(lock.zones),
+  ]
+    .filter(Boolean)
+    .join('\n\n');
+  if (writerNotes) {
+    formState = { ...formState, specialInstructions: writerNotes };
   }
   let sessionId = input.sessionId;
   if (sessionId) {

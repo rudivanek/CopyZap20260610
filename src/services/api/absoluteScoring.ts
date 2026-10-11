@@ -9,6 +9,7 @@
 import { User, GoalKey, Model } from '../../types';
 import { makeApiRequestWithFallback, cleanJsonResponse } from './utils';
 import { trackTokenUsage, extractTokenBreakdown } from './tokenTracking';
+import { TextKindChoice, textKindId, textKindScoringGuidance } from './textKinds';
 // Absolute scoring is pinned to claude-sonnet-4-6, matching comparativeScoring.
 // The shared SCORING_MODEL constant is 'gpt-4o', which routes to OpenAI and fails
 // (invalid key); the app's scoring is Claude-based. sonnet-4-6 also stays within
@@ -70,7 +71,7 @@ const GOAL_GUIDANCE: Record<string, string> = {
   brand: `\n\nGOAL CONTEXT — BRAND: This copy exists to build trust and identity, not to close immediately. Weight Audience Fit (tone and voice match) and Clarity most heavily and reward a distinct, consistent, credible voice. Treat hype, exaggeration and aggressive CTAs as OFF-brand and score them down; do not reward urgency.`,
 };
 
-function buildAbsoluteSystemPrompt(goalKey?: GoalKey, goalLabel?: string): string {
+function buildGoalSystemPrompt(goalKey?: GoalKey, goalLabel?: string): string {
   // Custom goal: the user typed a free-text objective. Feed it into the rubric so the
   // score reflects THAT goal instead of falling back to the plain (goal-agnostic) prompt.
   if (goalKey === 'custom') {
@@ -83,12 +84,23 @@ function buildAbsoluteSystemPrompt(goalKey?: GoalKey, goalLabel?: string): strin
   return ABSOLUTE_SCORE_SYSTEM_PROMPT + guidance;
 }
 
+/**
+ * The scorer's instructions: the fixed rubric and the goal, then the kind of
+ * text (see textKinds.ts). Without a kind, or with a kind that adds no note,
+ * the text is what it was before kinds existed.
+ */
+export function buildAbsoluteSystemPrompt(goalKey?: GoalKey, goalLabel?: string, kind?: TextKindChoice | null): string {
+  return buildGoalSystemPrompt(goalKey, goalLabel) + textKindScoringGuidance(kind);
+}
+
 export async function generateAbsoluteScore(
   content: unknown,
   currentUser?: User,
   sessionId?: string,
   goalKey?: GoalKey,
-  goalLabel?: string
+  goalLabel?: string,
+  /** The kind of text, when known (see textKinds.ts). */
+  kind?: TextKindChoice | null
 ): Promise<AbsoluteScoreBreakdown> {
   const text = extractText(content).slice(0, ABSOLUTE_SCORE_MAX_CHARS).trim();
 
@@ -100,7 +112,7 @@ export async function generateAbsoluteScore(
     const response = await makeApiRequestWithFallback(
       ABSOLUTE_SCORE_MODEL,
       [
-        { role: 'system', content: buildAbsoluteSystemPrompt(goalKey, goalLabel) },
+        { role: 'system', content: buildAbsoluteSystemPrompt(goalKey, goalLabel, kind) },
         { role: 'user', content: `Score this copy:\n\n"""\n${text}\n"""` }
       ],
       0.3,
@@ -161,34 +173,43 @@ export async function generateAbsoluteScore(
 // the same goal, should show the same number. The scorer itself is not exact:
 // read twice, a text can come back two or three points apart. So a score that
 // was given once (or was stored with a saved result) is remembered here, by the
-// exact text and the goal, and a comparison that runs again uses it instead of
-// reading the text once more. A changed text, or another goal, is a new entry.
+// exact text, the goal and the kind of text, and a comparison that runs again
+// uses it instead of reading the text once more. A changed text, another goal
+// or another kind is a new entry.
 // Kept in memory only: it lasts until the page is reloaded.
 const rememberedScores = new Map<string, AbsoluteScoreBreakdown>();
 
-function scoreKey(content: unknown, goalKey?: GoalKey, goalLabel?: string): string | null {
+function scoreKey(content: unknown, goalKey?: GoalKey, goalLabel?: string, kind?: TextKindChoice | null): string | null {
   const text = extractText(content).slice(0, ABSOLUTE_SCORE_MAX_CHARS).trim();
   if (!text) return null;
   // Only a custom goal is judged by its wording; every other goal by its key.
   const goal = goalKey === 'custom' ? `custom:${(goalLabel || '').trim()}` : goalKey || '';
-  return JSON.stringify([goal, text]);
+  // A kind that adds no note to the scorer gives the key it had before kinds existed.
+  const kindId = textKindId(kind);
+  return JSON.stringify(kindId ? [goal, text, kindId] : [goal, text]);
 }
 
-/** The score this text was given before for this goal, if any. */
-export function recallAbsoluteScore(content: unknown, goalKey?: GoalKey, goalLabel?: string): AbsoluteScoreBreakdown | null {
-  const key = scoreKey(content, goalKey, goalLabel);
+/** The score this text was given before for this goal and kind, if any. */
+export function recallAbsoluteScore(
+  content: unknown,
+  goalKey?: GoalKey,
+  goalLabel?: string,
+  kind?: TextKindChoice | null
+): AbsoluteScoreBreakdown | null {
+  const key = scoreKey(content, goalKey, goalLabel, kind);
   return (key && rememberedScores.get(key)) || null;
 }
 
-/** Remembers a score for this text and goal. A failed reading (0) is never remembered. */
+/** Remembers a score for this text, goal and kind. A failed reading (0) is never remembered. */
 export function rememberAbsoluteScore(
   content: unknown,
   goalKey: GoalKey | undefined,
   goalLabel: string | undefined,
-  score: AbsoluteScoreBreakdown | null | undefined
+  score: AbsoluteScoreBreakdown | null | undefined,
+  kind?: TextKindChoice | null
 ): void {
   if (!score || !(score.total > 0)) return;
-  const key = scoreKey(content, goalKey, goalLabel);
+  const key = scoreKey(content, goalKey, goalLabel, kind);
   if (key) rememberedScores.set(key, score);
 }
 
@@ -196,7 +217,7 @@ export function rememberAbsoluteScore(
 interface SavedScores {
   generatedVersions?: ({ id?: string; content?: unknown } | null)[] | null;
   comparisonResult?: {
-    scoringContext?: { goalKey?: GoalKey; goalLabel?: string } | null;
+    scoringContext?: { goalKey?: GoalKey; goalLabel?: string; textKind?: string; textKindOther?: string } | null;
     rows?:
       | (({
           versionId?: string;
@@ -218,6 +239,10 @@ export function rememberScoresOfResult(outputData: SavedScores | null | undefine
   const versions = Array.isArray(outputData?.generatedVersions) ? outputData.generatedVersions : [];
   const goalKey = comparison?.scoringContext?.goalKey;
   const goalLabel = comparison?.scoringContext?.goalLabel;
+  const kind: TextKindChoice = {
+    key: comparison?.scoringContext?.textKind,
+    other: comparison?.scoringContext?.textKindOther,
+  };
   for (const row of rows) {
     const sub = row?.absoluteSub;
     const total = row?.absoluteTotal ?? 0;
@@ -236,7 +261,7 @@ export function rememberScoresOfResult(outputData: SavedScores | null | undefine
       persuasion_note: notes[1] || '',
       audience_fit_note: notes[2] || '',
       structure_note: notes[3] || '',
-    });
+    }, kind);
   }
 }
 
