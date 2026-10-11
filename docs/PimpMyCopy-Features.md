@@ -1,7 +1,45 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.46
+Version: 1.47
 Last Updated: 2026-10-12T00:00:00Z
+
+---
+
+## Quick — "Turn it into an email newsletter": the Form and the Check Screen (2026-10-12)
+
+**Feature:** The Quick start form gains a new question, "What do you want back?", with two choices: "Improved copy" (selected by default, the run as it is today) and "Email newsletter". When the newsletter is chosen, an optional field asks what the newsletter should be about. On the check screen, a part of the page can then only be used or left out (not kept as it is), and the texts speak of newsletters. "Start over" resets the format and focus. This switches the new mode on; the engine (prompt 2) and the result screen (prompt 3) had to be in place first.
+
+**Edits — `src/quick/QuickPage.tsx`:**
+- Added imports of `getQuickFormat`, `QUICK_FOCUS_MAX_CHARS`, `QUICK_FORMATS`, and the `QuickFormatKey` type from `../engine/quickFormats`.
+- New state: `formatKey` (`QuickFormatKey | null`, default `null`), `format = getQuickFormat(formatKey)`, and `focus` (string, the optional "what should it be about" field).
+- The minimum source length is now format-aware: `minWords = format ? format.minSourceWords : QUICK_MIN_WORDS`; `tooShort = words < minWords`.
+- The `blocked` computation for the confirm screen now checks the format's `minSourceWords` against `usedWords` first (for a format run), then falls back to the existing improve-words check for an ordinary run.
+- The run's `keep` is now suppressed for a format run: `keep: usesParts && !format ? { … } : undefined` (nothing is kept as it is in a format run).
+- The run passes the format: `format: format ? { key: format.key, focus: focus.trim() || undefined, leftOut: usesParts ? plan.leftOut : 0 } : undefined`.
+- `handleNew` resets `formatKey` and `focus` alongside the rest of the state.
+- The word line under the box: for a format, `A newsletter needs at least N words to be written from.`; for an ordinary run, `Paste at least N.` (both use `minWords`).
+- The start form: the goal fieldset's legend now reads "What do you want back?" and offers the two format buttons (Improved copy / Email newsletter) above the existing goal fieldset, which now reads `What is the {format.noun} for?` / `What is this copy for?` as appropriate. When a format is chosen, the optional "What should the newsletter be about?" field appears.
+- The `QuickConfirm` element now receives `format={format}` and `focus={focus.trim()}`.
+
+**Edits — `src/quick/QuickConfirm.tsx`:**
+- Added `import type { QuickFormat } from '../engine/quickFormats';`.
+- The props interface gained `format?: QuickFormat | null` and `focus?: string`.
+- New `FORMAT_CHOICES` constant: `[{ value: 'improve', label: 'Use' }, { value: 'leave', label: 'Leave out' }]` — in a format run a part is used or left out, never kept as it is.
+- The component destructures `format = null` and `focus = ''`, and computes `used` (parts not left out).
+- The input line reads `{format.label} from your copy` for a format run, `Your copy` otherwise.
+- When a format and a focus are set, an "About: …" line is shown under the copy preview.
+- The question above the parts reads `Which parts should the newsletter be written from?` for a format.
+- The over-limit line drops "Parts kept as they are count too." for a format run.
+- Each part's choice buttons use `FORMAT_CHOICES` in a format run; "Use" is selected for any part that is not "Leave out".
+- The line under the parts: for a format, `Uses N parts (M words) · leaves out K. The newsletter is written only from the parts in use.`; for an ordinary run, the existing rewrites/keeps/leaves-out text.
+- The line under the generate button: `Writes 3 newsletters` for a format (using `format.nounPlural`), `Writes 3 versions` otherwise; the long-run time estimate is shown only for an ordinary run.
+
+**Files touched:** `src/quick/QuickPage.tsx`, `src/quick/QuickConfirm.tsx`. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- All 21 find-and-replace edits applied exactly once (10 in QuickPage, 11 in QuickConfirm).
+- On the Quick start form, "What do you want back?" shows "Improved copy" (selected) and "Email newsletter".
 
 ---
 

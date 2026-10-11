@@ -13,6 +13,8 @@ import {
 } from '../engine/buildQuickFormState';
 import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
+import { getQuickFormat, QUICK_FOCUS_MAX_CHARS, QUICK_FORMATS } from '../engine/quickFormats';
+import type { QuickFormatKey } from '../engine/quickFormats';
 import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
 import { changeQuickVersion, QuickChangeOutcome, validateQuickChange } from '../engine/changeQuickVersion';
 import { QuickEditDraft, scoreQuickEdit } from '../engine/editQuickVersion';
@@ -103,6 +105,11 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [phase, setPhase] = useState<Phase>('start');
   const [copy, setCopy] = useState('');
   const [goalKey, setGoalKey] = useState<GoalKey>(DEFAULT_GOAL_KEY);
+  // "Turn it into…": the format to write from the copy. null improves the copy itself.
+  const [formatKey, setFormatKey] = useState<QuickFormatKey | null>(null);
+  const format = getQuickFormat(formatKey);
+  // What the format's versions should be about. Optional.
+  const [focus, setFocus] = useState('');
   const [progress, setProgress] = useState<QuickProgress>({ stage: 'checking' });
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -198,7 +205,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   }, [isTiming]);
 
   const words = copy.trim() ? countWords(copy) : 0;
-  const tooShort = words < QUICK_MIN_WORDS;
+  // A format is written from the copy and needs more of it than an improvement does.
+  const minWords = format ? format.minSourceWords : QUICK_MIN_WORDS;
+  const tooShort = words < minWords;
   // More words than Quick works on in one run. Such a page can still be brought
   // in when it has parts: the user leaves some out on the confirm screen.
   // The limit in force: QUICK_MAX_WORDS, unless this browser was given a higher one for a test.
@@ -232,9 +241,11 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       ? null
       : usedWords > maxWords
         ? `${asNumber(usedWords)} words are in use. Leave out ${asNumber(usedWords - maxWords)} or more to generate.`
-        : sections.length > 1 && plan.improveWords < QUICK_MIN_WORDS
-          ? `Choose at least one part to improve (${QUICK_MIN_WORDS} words or more).`
-          : null;
+        : format && usedWords < format.minSourceWords
+          ? `${asNumber(usedWords)} words are in use. A ${format.noun} needs at least ${format.minSourceWords} to be written from.`
+          : !format && sections.length > 1 && plan.improveWords < QUICK_MIN_WORDS
+            ? `Choose at least one part to improve (${QUICK_MIN_WORDS} words or more).`
+            : null;
 
   /** Saves a result as a new History entry, or over its existing one, and keeps its id in the address. */
   const persist = async (run: QuickRunResult, seconds: number | null, id: string | null) => {
@@ -411,7 +422,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         {
           // With parts kept or left out, "the copy" is the page without the left-out parts.
           copy: usesParts ? plan.copy : copy,
-          keep: usesParts
+          keep: usesParts && !format
             ? {
                 lockedCopy: plan.lockedCopy,
                 zones: plan.zones,
@@ -422,6 +433,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               }
             : undefined,
           source: fetchedFrom && fetchedUrl ? { url: fetchedUrl, host: fetchedFrom } : undefined,
+          format: format
+            ? { key: format.key, focus: focus.trim() || undefined, leftOut: usesParts ? plan.leftOut : 0 }
+            : undefined,
           goalKey,
           sessionId: sessionId ?? undefined,
           signal,
@@ -542,6 +556,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setBriefCopy(null);
     setPickedChoices({});
     setCopy('');
+    setFormatKey(null);
+    setFocus('');
     setPhase('start');
     window.scrollTo(0, 0);
   };
@@ -640,7 +656,10 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
                 ` CopyZap works on up to ${asNumber(maxWords)} words at a time, and this text ${
                   sections.length > 1 ? 'has no part short enough to work on' : 'has no headings to split it at'
                 }. Shorten it to ${asNumber(maxWords)} words.`}
-              {!overLimit && words > 0 && tooShort && ` Paste at least ${QUICK_MIN_WORDS}.`}
+              {!overLimit && words > 0 && tooShort &&
+                (format
+                  ? ` A ${format.noun} needs at least ${minWords} words to be written from.`
+                  : ` Paste at least ${minWords}.`)}
               {fetchedFrom && !isFetching && ` Taken from ${fetchedFrom}.`}
               {fetchedFrom && !isFetching && furnitureRemoved > 0 &&
                 ` ${furnitureRemoved} ${furnitureRemoved === 1 ? 'line' : 'lines'} of page furniture left out (link bars, cookie notice, repeated labels, counters).`}
@@ -682,7 +701,73 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           </div>
 
           <fieldset className="m-0 p-0 border-0">
-            <legend className="p-0 mb-2.5 font-semibold text-gray-900 dark:text-gray-100">What is this copy for?</legend>
+            <legend className="p-0 mb-2.5 font-semibold text-gray-900 dark:text-gray-100">What do you want back?</legend>
+            <div className="flex flex-wrap gap-2">
+              {[
+                {
+                  key: null as QuickFormatKey | null,
+                  name: 'Improved copy',
+                  description: 'Better versions of the same copy, scored against your original.',
+                },
+                ...QUICK_FORMATS.map(item => ({
+                  key: item.key as QuickFormatKey | null,
+                  name: item.label,
+                  description: item.description,
+                })),
+              ].map(option => {
+                const selected = option.key === formatKey;
+                return (
+                  <button
+                    key={option.key ?? 'improve'}
+                    type="button"
+                    aria-pressed={selected}
+                    onClick={() => setFormatKey(option.key)}
+                    className={
+                      'flex-[1_1_240px] min-h-[60px] px-3.5 py-2.5 flex flex-col items-start gap-0.5 text-left border ' +
+                      'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ' +
+                      (selected
+                        ? 'bg-gray-900 border-gray-900 dark:bg-gray-100 dark:border-gray-100'
+                        : 'bg-white border-gray-400 hover:bg-gray-100 dark:bg-gray-900 dark:border-gray-600 dark:hover:bg-gray-800')
+                    }
+                  >
+                    <span className={selected ? 'font-semibold text-white dark:text-gray-900' : 'font-semibold text-gray-900 dark:text-gray-100'}>
+                      {option.name}
+                    </span>
+                    <span className={selected ? 'text-xs text-gray-300 dark:text-gray-700' : 'text-xs text-gray-600 dark:text-gray-400'}>
+                      {option.description}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </fieldset>
+
+          {format && (
+            <div className="flex flex-col gap-2">
+              <label htmlFor="quick-focus" className="font-semibold text-gray-900 dark:text-gray-100">
+                What should the {format.noun} be about? <span className="font-normal text-gray-600 dark:text-gray-400">(optional)</span>
+              </label>
+              <input
+                id="quick-focus"
+                type="text"
+                autoComplete="off"
+                value={focus}
+                maxLength={QUICK_FOCUS_MAX_CHARS}
+                onChange={event => setFocus(event.target.value)}
+                placeholder="For example: the October workshop"
+                className="w-full min-h-[44px] px-3.5 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+              />
+              <p className="text-gray-600 dark:text-gray-400">
+                Leave it empty and each version takes a different offer or topic from your copy. The {format.noun} uses
+                only what your copy says.
+              </p>
+            </div>
+          )}
+
+          <fieldset className="m-0 p-0 border-0">
+            <legend className="p-0 mb-2.5 font-semibold text-gray-900 dark:text-gray-100">
+              {format ? `What is the ${format.noun} for?` : 'What is this copy for?'}
+            </legend>
             <div className="flex flex-wrap gap-2">
               {GOALS.map(goal => {
                 const selected = goal.key === goalKey;
@@ -733,6 +818,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           copy={copy}
           words={words}
           goalName={GOALS.find(goal => goal.key === goalKey)?.name ?? goalKey}
+          format={format}
+          focus={focus.trim()}
           brief={brief}
           onBriefChange={setBrief}
           testimonialCount={testimonialCount}

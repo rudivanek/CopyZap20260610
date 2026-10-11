@@ -3,6 +3,7 @@ import { Language, Tone } from '../types';
 import { QUICK_DEFAULT_VARIANTS } from '../engine/buildQuickFormState';
 import { QUICK_LANGUAGES, QUICK_TONES, QuickBrief } from '../engine/inferQuickBrief';
 import type { PageSection, SectionChoice } from '../engine/pageSections';
+import type { QuickFormat } from '../engine/quickFormats';
 import { stripMarkdown } from '../utils/markdownUtils';
 
 interface QuickConfirmProps {
@@ -27,11 +28,20 @@ interface QuickConfirmProps {
   maxWords: number;
   /** Why generating is not possible right now, if it is not. */
   blocked: string | null;
+  /** "Turn it into…": the format the versions are written in. Absent or null: the copy is improved. */
+  format?: QuickFormat | null;
+  /** What the user asked the format's versions to be about. */
+  focus?: string;
 }
 
 const CHOICES: { value: SectionChoice; label: string }[] = [
   { value: 'improve', label: 'Improve' },
   { value: 'keep', label: 'Keep as is' },
+  { value: 'leave', label: 'Leave out' },
+];
+/** In a format run ("Turn it into…") a part is written from or left out; nothing is kept as it is. */
+const FORMAT_CHOICES: { value: SectionChoice; label: string }[] = [
+  { value: 'improve', label: 'Use' },
   { value: 'leave', label: 'Leave out' },
 ];
 
@@ -72,8 +82,11 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
   usedWords,
   maxWords,
   blocked,
+  format = null,
+  focus = '',
 }) => {
   const choiceOf = (section: PageSection): SectionChoice => choices[section.id] ?? 'improve';
+  const used = sections.filter(section => choiceOf(section) !== 'leave').length;
   const count = (value: SectionChoice) => sections.filter(section => choiceOf(section) === value).length;
   const couldNotRead = !brief.product && !brief.audience;
   // A page longer than one run works on: parts have to be left out first.
@@ -97,7 +110,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
       >
         <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
           <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-            Your copy · {asNumber(words)} {words === 1 ? 'word' : 'words'} · Goal: {goalName}
+            {format ? `${format.label} from your copy` : 'Your copy'} · {asNumber(words)} {words === 1 ? 'word' : 'words'} · Goal: {goalName}
           </span>
           <button
             type="button"
@@ -108,6 +121,11 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
           </button>
         </div>
         <p className="text-gray-900 dark:text-gray-100 break-words">{preview(copy)}</p>
+        {format && focus && (
+          <p className="text-gray-900 dark:text-gray-100 break-words">
+            <span className="font-semibold">About:</span> {focus}
+          </p>
+        )}
         {testimonialCount > 0 && (
           <p className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
             <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-good" aria-hidden="true" />
@@ -187,7 +205,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
       {sections.length > 1 && (
         <fieldset className="m-0 p-0 border-0 flex flex-col gap-2">
           <legend className="p-0 mb-1 font-semibold text-gray-900 dark:text-gray-100">
-            What should CopyZap do with each part?
+            {format ? `Which parts should the ${format.noun} be written from?` : 'What should CopyZap do with each part?'}
           </legend>
           {overLimit && (
             <p id="quick-over-limit" className="flex items-start gap-2.5 mb-1 text-gray-900 dark:text-gray-100">
@@ -197,7 +215,8 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
               />
               <span>
                 This copy has {asNumber(words)} words. CopyZap works on up to {asNumber(maxWords)} at a time. Set parts to
-                "Leave out" until {asNumber(maxWords)} words or fewer are in use. Parts kept as they are count too.
+                "Leave out" until {asNumber(maxWords)} words or fewer are in use.
+                {!format && ' Parts kept as they are count too.'}
               </span>
             </p>
           )}
@@ -227,8 +246,9 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
                     )}
                   </div>
                   <div role="group" aria-label={`What to do with ${section.title}`} className="flex flex-wrap gap-1">
-                    {CHOICES.map(option => {
-                      const selected = current === option.value;
+                    {(format ? FORMAT_CHOICES : CHOICES).map(option => {
+                      // In a format run "Use" covers every part that is not left out.
+                      const selected = format ? (option.value === 'leave') === (current === 'leave') : current === option.value;
                       return (
                         <button
                           key={option.value}
@@ -251,11 +271,18 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
               );
             })}
           </ul>
-          <p className="text-gray-600 dark:text-gray-400">
-            Rewrites {count('improve')} {count('improve') === 1 ? 'part' : 'parts'} ({asNumber(improveWords)} words) · keeps{' '}
-            {count('keep')} as {count('keep') === 1 ? 'it is' : 'they are'} · leaves out {count('leave')}. A part kept
-            as it is goes into the new page unchanged, in its place. A part left out is dropped.
-          </p>
+          {format ? (
+            <p className="text-gray-600 dark:text-gray-400">
+              Uses {used} {used === 1 ? 'part' : 'parts'} ({asNumber(usedWords)} words) · leaves out {count('leave')}. The{' '}
+              {format.noun} is written only from the parts in use.
+            </p>
+          ) : (
+            <p className="text-gray-600 dark:text-gray-400">
+              Rewrites {count('improve')} {count('improve') === 1 ? 'part' : 'parts'} ({asNumber(improveWords)} words) · keeps{' '}
+              {count('keep')} as {count('keep') === 1 ? 'it is' : 'they are'} · leaves out {count('leave')}. A part kept
+              as it is goes into the new page unchanged, in its place. A part left out is dropped.
+            </p>
+          )}
           {overLimit && (
             <p
               id="quick-words-in-use"
@@ -303,8 +330,8 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
           </p>
         ) : (
           <p className="text-gray-600 dark:text-gray-400">
-            Writes {QUICK_DEFAULT_VARIANTS} versions and scores them. Uses credits.
-            {usedWords >= LONG_RUN_FROM_WORDS &&
+            Writes {QUICK_DEFAULT_VARIANTS} {format ? format.nounPlural : 'versions'} and scores them. Uses credits.
+            {!format && usedWords >= LONG_RUN_FROM_WORDS &&
               ` A page of this length takes about ${Math.round(usedWords / WORDS_PER_MINUTE)} minutes. Keep this tab open.`}
           </p>
         )}
