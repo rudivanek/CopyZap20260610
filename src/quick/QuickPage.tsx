@@ -35,6 +35,7 @@ import QuickBusyModal, { QuickBusyKind } from './QuickBusyModal';
 import QuickConfirm from './QuickConfirm';
 import QuickHistory from './QuickHistory';
 import QuickResult from './QuickResult';
+import SquareRadio from './SquareRadio';
 import { APP_VERSION } from '../lib/version';
 
 interface QuickPageProps {
@@ -690,33 +691,21 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           </div>
 
           <fieldset className="m-0 p-0 border-0">
-            <legend className="p-0 mb-2.5 font-semibold text-gray-900 dark:text-gray-100">What is this copy for?</legend>
-            <div className="flex flex-wrap gap-2">
-              {GOALS.map(goal => {
-                const selected = goal.key === goalKey;
-                return (
-                  <button
-                    key={goal.key}
-                    type="button"
-                    aria-pressed={selected}
-                    onClick={() => setGoalKey(goal.key)}
-                    className={
-                      'flex-[1_1_180px] min-h-[60px] px-3.5 py-2.5 flex flex-col items-start gap-0.5 text-left border ' +
-                      'focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2 ' +
-                      (selected
-                        ? 'bg-gray-900 border-gray-900 dark:bg-gray-100 dark:border-gray-100'
-                        : 'bg-white border-gray-400 hover:bg-gray-100 dark:bg-gray-900 dark:border-gray-600 dark:hover:bg-gray-800')
-                    }
-                  >
-                    <span className={selected ? 'font-semibold text-white dark:text-gray-900' : 'font-semibold text-gray-900 dark:text-gray-100'}>
-                      {goal.name}
-                    </span>
-                    <span className={selected ? 'text-xs text-gray-300 dark:text-gray-700' : 'text-xs text-gray-600 dark:text-gray-400'}>
-                      {goal.description}
-                    </span>
-                  </button>
-                );
-              })}
+            <legend className="p-0 mb-1 font-semibold text-gray-900 dark:text-gray-100">What is this copy for?</legend>
+            <div className="flex flex-col">
+              {GOALS.map(goal => (
+                <SquareRadio
+                  key={goal.key}
+                  name="quick-goal"
+                  checked={goal.key === goalKey}
+                  onChange={() => setGoalKey(goal.key)}
+                >
+                  <span className="flex flex-wrap items-baseline gap-x-3">
+                    <span className="min-w-[5rem] font-semibold text-gray-900 dark:text-gray-100">{goal.name}</span>
+                    <span className="text-gray-600 dark:text-gray-400">{goal.description}</span>
+                  </span>
+                </SquareRadio>
+              ))}
             </div>
           </fieldset>
 

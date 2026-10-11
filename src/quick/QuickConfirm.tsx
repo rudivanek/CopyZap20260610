@@ -5,6 +5,7 @@ import { QUICK_LANGUAGES, QUICK_TONES, QuickBrief } from '../engine/inferQuickBr
 import type { PageSection, SectionChoice } from '../engine/pageSections';
 import { TEXT_KIND_OTHER_MAX_CHARS, TEXT_KINDS, TextKindKey } from '../services/api/textKinds';
 import { stripMarkdown } from '../utils/markdownUtils';
+import SquareRadio from './SquareRadio';
 
 interface QuickConfirmProps {
   copy: string;
@@ -269,26 +270,21 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
                       </span>
                     )}
                   </div>
-                  <div role="group" aria-label={`What to do with ${section.title}`} className="flex flex-wrap gap-1">
-                    {CHOICES.map(option => {
-                      const selected = current === option.value;
-                      return (
-                        <button
-                          key={option.value}
-                          type="button"
-                          aria-pressed={selected}
-                          onClick={() => onChoiceChange(section.id, option.value)}
-                          className={
-                            'min-h-[44px] px-3 border focus:outline-none focus:ring-2 focus:ring-primary-500 ' +
-                            (selected
-                              ? 'bg-gray-900 border-gray-900 text-white dark:bg-gray-100 dark:border-gray-100 dark:text-gray-900'
-                              : 'bg-white border-gray-400 text-gray-900 hover:bg-gray-100 dark:bg-gray-900 dark:border-gray-600 dark:text-gray-100 dark:hover:bg-gray-800')
-                          }
-                        >
-                          {option.label}
-                        </button>
-                      );
-                    })}
+                  <div
+                    role="radiogroup"
+                    aria-label={`What to do with ${section.title}`}
+                    className="flex flex-wrap gap-x-5"
+                  >
+                    {CHOICES.map(option => (
+                      <SquareRadio
+                        key={option.value}
+                        name={`quick-part-${section.id}`}
+                        checked={current === option.value}
+                        onChange={() => onChoiceChange(section.id, option.value)}
+                      >
+                        <span className="text-gray-900 dark:text-gray-100 whitespace-nowrap">{option.label}</span>
+                      </SquareRadio>
+                    ))}
                   </div>
                 </li>
               );

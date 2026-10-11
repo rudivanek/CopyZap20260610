@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.47
-Last Updated: 2026-10-11T23:00:00Z
+Version: 1.48
+Last Updated: 2026-10-11T23:30:00Z
 
 ---
 
@@ -167,6 +167,37 @@ Last Updated: 2026-10-11T23:00:00Z
 **Verification:**
 - `npm run build` passes.
 - On a Quick run, the writer receives the keep-to-original note; the second pass receives the keep-to-original rule; a change by request receives the keep-to-original change note. Copy Maker receives none of these.
+
+---
+
+## Quick — Square Choices Instead of Large Buttons (2026-10-11)
+
+**Feature:** Two rows of large buttons in Quick become plain choices with a small square marker, orange when chosen. On the start form, "What is this copy for?" is a list of five lines (Convert, Nurture, Inform, Educate, Brand), each with its short description beside it. On the check screen, each part of a page has three choices in one line: Improve, Keep as is, Leave out. They behave as before: one choice per group, and the same values are passed on. Nothing else on these screens changes.
+
+**New file — `src/quick/SquareRadio.tsx`:** A reusable radio-button component shown with a square marker instead of a large button:
+- A real `<input type="radio">` under the square (visually hidden with `sr-only`), so arrow keys move between the choices of one group and a screen reader announces "1 of 5". The `name` prop is the same for all choices of one group.
+- The marker is an 18px square drawn by a `<span>` with `bg-clip-content` and 3px padding: unchecked it shows a border-only frame; checked (via the `peer-checked:` variant) it fills with an orange square inside the frame. A focus ring appears on keyboard focus.
+- A checked marker is orange at `primary-600` (one step darker than the main button's `primary-500`): on white, `primary-500` has a contrast of 2.8:1, too low for a mark this small; `primary-600` has 3.5:1. In dark mode the marker uses `primary-400`.
+- The label has a 44px minimum height for touch targets, and the children (the choice text) sit to the right of the marker.
+
+**Edit — `src/quick/QuickPage.tsx`:** The goal selector on the start form:
+- Added `import SquareRadio from './SquareRadio';` next to the existing `QuickResult` import.
+- Replaced the five large buttons (`<button>` with `aria-pressed`, dark background when selected) with five `SquareRadio` components in a vertical list (`flex flex-col`). Each shows the goal name (minimum 5rem width, semibold) and its short description beside it. The legend's bottom margin changed from `mb-2.5` to `mb-1` to tighten the list. The `name="quick-goal"` is shared by all five. The same `setGoalKey(goal.key)` callback is used; the same `GOALS` array is mapped; the same values are passed on.
+
+**Edit — `src/quick/QuickConfirm.tsx`:** The per-part choices on the check screen:
+- Added `import SquareRadio from './SquareRadio';` next to the existing `stripMarkdown` import.
+- Replaced the three large buttons (`<button>` with `aria-pressed`, dark background when selected) with three `SquareRadio` components in a horizontal row (`flex flex-wrap gap-x-5`). The container's `role` changed from `group` to `radiogroup` (matching the radio semantics). Each `SquareRadio` uses `name={`quick-part-${section.id}`}` so the three choices of one part form one radio group, and `checked={current === option.value}` with the same `onChoiceChange(section.id, option.value)` callback. The choice label sits in a `whitespace-nowrap` span. The same `CHOICES` array and the same values are passed on.
+
+**Accessibility:** Each group of choices is now a real radio group: arrow keys move between choices, a screen reader announces "1 of N", and the marker's focus ring is visible on keyboard navigation. The previous large buttons used `aria-pressed` (toggle button semantics), which is less precise for a mutually-exclusive group.
+
+**Effect on existing results:** None. This is a UI-only change to the start form and the check screen. No data, settings, or stored values changed.
+
+**Files touched:** `src/quick/SquareRadio.tsx` (new), `src/quick/QuickPage.tsx` (2 edits), `src/quick/QuickConfirm.tsx` (2 edits). `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- On the Quick start form, "What is this copy for?" shows five lines with square markers; the marker of the chosen line is filled orange.
+- On the check screen, each part of a page shows three choices (Improve, Keep as is, Leave out) in one line with square markers; the marker of the chosen option is filled orange.
 
 ---
 
