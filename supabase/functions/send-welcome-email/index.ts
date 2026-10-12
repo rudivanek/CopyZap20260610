@@ -78,7 +78,7 @@ Deno.serve(async (req: Request) => {
       .update({ welcome_email_sent_at: new Date().toISOString() })
       .eq('id', user_id)
       .is('welcome_email_sent_at', null)
-      .select('name');
+      .select('name, credits_allowed, until_date');
     if (claimError) {
       console.error('Welcome email skipped: the account record could not be updated:', claimError);
       return notSent();
@@ -216,6 +216,63 @@ Deno.serve(async (req: Request) => {
 
     const resendData = await resendResponse.json();
     console.log('Welcome email sent successfully:', resendData);
+
+    // Tell the CopyZap team about the new account. This runs only after the
+    // welcome email went out, so it is sent once per account. If it fails, it
+    // is only logged: the user's welcome email has already been sent.
+    // The addresses come from the function secret SIGNUP_NOTIFY_TO
+    // (comma-separated), so they are not in the code.
+    const noticeTo = (Deno.env.get('SIGNUP_NOTIFY_TO') || '')
+      .split(',')
+      .map((address) => address.trim())
+      .filter((address) => address.length > 0);
+    if (noticeTo.length === 0) {
+      console.warn('Sign-up notice skipped: SIGNUP_NOTIFY_TO is not set.');
+    } else try {
+      const provider = String(authUser.app_metadata?.provider || 'email');
+      const method = provider === 'google' ? 'Google' : provider === 'email' ? 'Email and password' : provider;
+      const signedUpAt = new Date(authUser.created_at).toLocaleString('en-US', {
+        timeZone: 'America/Mexico_City',
+        year: 'numeric', month: 'short', day: 'numeric',
+        hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+      }) + ' (Mexico City time)';
+      const account = claimed[0] as { name?: string | null; credits_allowed?: number | null; until_date?: string | null };
+      const details: [string, string][] = [
+        ['Name', String(account?.name || '(no name)')],
+        ['Email', email],
+        ['Signed up with', method],
+        ['Signed up', signedUpAt],
+        ['Trial', `${account?.credits_allowed ?? '?'} credits, until ${account?.until_date ?? '?'}`],
+        ['Account id', user_id],
+      ];
+      const rowsHtml = details
+        .map(([label, value]) => `<tr><td style="padding: 4px 16px 4px 0; color: #6b7280;">${escapeHtml(label)}</td><td style="padding: 4px 0; color: #111827;">${escapeHtml(value)}</td></tr>`)
+        .join('');
+      const rowsText = details.map(([label, value]) => `${label}: ${value}`).join('\n');
+
+      const noticeResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${resendApiKey}`,
+        },
+        body: JSON.stringify({
+          from: 'CopyZap <hi@copyzap.app>',
+          to: noticeTo,
+          subject: `New CopyZap sign-up: ${email}`,
+          html: `<div style="font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Arial, sans-serif; font-size: 15px;"><p style="margin: 0 0 12px 0; color: #111827;">A new account was created on CopyZap.</p><table style="border-collapse: collapse;">${rowsHtml}</table></div>`,
+          text: `A new account was created on CopyZap.\n\n${rowsText}`,
+        }),
+      });
+      if (!noticeResponse.ok) {
+        const noticeError = await noticeResponse.json().catch(() => null);
+        console.error('Sign-up notice to the team failed:', noticeError);
+      } else {
+        console.log('Sign-up notice sent to the team for', user_id);
+      }
+    } catch (noticeError) {
+      console.error('Sign-up notice to the team could not be sent:', noticeError);
+    }
 
     return json({
       message: 'Welcome email sent successfully',
