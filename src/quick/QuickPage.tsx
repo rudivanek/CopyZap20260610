@@ -17,6 +17,7 @@ import {
 } from '../engine/buildQuickFormState';
 import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
+import { getTextKind } from '../services/api/textKinds';
 import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
 import { changeQuickVersion, QuickChangeOutcome, QuickChangeParts, validateQuickChange } from '../engine/changeQuickVersion';
 import { QuickEditDraft, scoreQuickEdit } from '../engine/editQuickVersion';
@@ -177,6 +178,10 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [briefCopy, setBriefCopy] = useState<string | null>(null);
   // What the user chose for parts of the page; reset whenever the copy changes.
   const [pickedChoices, setPickedChoices] = useState<Record<string, SectionChoice>>({});
+  // True while the copy, goal and corrections above are the ones the result on
+  // screen was run with: right after a run from this page. False for a result
+  // opened from History or from its address.
+  const inputsFromRun = useRef(false);
   const isMounted = useRef(true);
 
   useEffect(() => {
@@ -315,6 +320,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         return;
       }
       setResult(loaded.result);
+      inputsFromRun.current = false;
       setChangeNotice(null);
       setRunSeconds(loaded.runSeconds);
       setSavedId(loaded.id);
@@ -459,6 +465,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       const seconds = Math.round((Date.now() - startedAt) / 1000);
       setRunSeconds(seconds);
       setResult(run);
+      inputsFromRun.current = true;
       setSavedId(null);
       setSavedTitle(null);
       setPhase('result');
@@ -551,6 +558,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   };
 
   const handleNew = () => {
+    inputsFromRun.current = false;
     setChangeNotice(null);
     setResult(null);
     setRunSeconds(null);
@@ -568,6 +576,58 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setBriefCopy(null);
     setPickedChoices({});
     setCopy('');
+    setPhase('start');
+    window.scrollTo(0, 0);
+  };
+
+  /**
+   * "Start over" on a result: back to the start form with the same copy and
+   * goal, to change something and run again. The reading and the corrections
+   * of the check screen come along, so Continue costs nothing. The result stays
+   * in History; a new run is saved as a new entry.
+   */
+  const handleStartOver = () => {
+    if (!result || busy) return;
+    // A result opened from History: take its copy and settings from the result.
+    // Parts that were left out are not in it; a result saved before kinds of
+    // text existed is read again on Continue.
+    if (!inputsFromRun.current) {
+      const form = result.formState;
+      const runCopy = (form.originalCopy || '').trim();
+      setCopy(runCopy);
+      setGoalKey(result.goalKey);
+      setGoalOther(result.goalKey === 'custom' ? form.quickGoalLabel ?? '' : '');
+      setUrl(result.source?.url ?? '');
+      setFetchedFrom(result.source?.host ?? null);
+      setFetchedUrl(result.source?.url ?? null);
+      setFurnitureRemoved(0);
+      const kind = getTextKind(form.quickTextKind);
+      if (kind) {
+        setBrief({
+          product: form.productServiceName ?? '',
+          audience: form.targetAudience ?? '',
+          tone: form.tone,
+          language: form.language,
+          kind: kind.key,
+          kindOther: form.quickTextKindOther ?? '',
+        });
+        setBriefCopy(runCopy);
+      } else {
+        setBrief(null);
+        setBriefCopy(null);
+      }
+      setPickedChoices({});
+    }
+    inputsFromRun.current = false;
+    setChangeNotice(null);
+    setResult(null);
+    setRunSeconds(null);
+    setSavedId(null);
+    setSavedTitle(null);
+    setSaveState(null);
+    setSearchParams({}, { replace: true });
+    setError(null);
+    setSessionId(null);
     setPhase('start');
     window.scrollTo(0, 0);
   };
@@ -796,7 +856,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             result={result}
             isRescoring={isRescoring}
             onRescore={handleRescore}
-            onNew={handleNew}
+            onNew={handleStartOver}
             elapsedLabel={runSeconds != null ? formatElapsed(runSeconds) : undefined}
             title={savedTitle ?? undefined}
             saveState={saveState}

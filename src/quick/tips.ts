@@ -72,7 +72,7 @@ export const TIPS = {
   exportReport: 'Saves a report of all versions, scores and reasons as a file you can open or send.',
   editMyself: 'Opens the best version as text. Change it and CopyZap scores your edit.',
   goToChange: 'Jump to "What should change?" below.',
-  startOver: 'New copy, new run. This result stays in History.',
+  startOver: 'Back to the start with the same copy and goal, to change something and run again. This result stays in History.',
   lengthWords: 'How many words the best version should have afterwards. CopyZap gets close to it, usually within about 15%.',
   changeIt: 'Rewrites the best version once with everything you ticked and wrote, scores it, and keeps whichever is better. Uses credits.',
   scoreAgain: 'Scores the versions again. Uses credits.',
