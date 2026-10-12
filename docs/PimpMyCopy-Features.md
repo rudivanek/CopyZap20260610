@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.57
-Last Updated: 2026-10-12T08:00:00Z
+Version: 1.58
+Last Updated: 2026-10-12T09:00:00Z
 
 ---
 
@@ -98,6 +98,28 @@ Last Updated: 2026-10-12T08:00:00Z
 **Verification:**
 - `npm run build` passes.
 - The check screen shows the "Kind of text" selector with six options; choosing "Other" reveals the "What is it?" field; the help page explains the new line; a fetched page is forced to "Web page".
+
+---
+
+## Quick — The Version Name Under "Why this version" and "Check before publishing" (2026-10-12)
+
+**Feature:** On the Quick result screen, the "Why this version" card and the "Check before publishing" card now name the version they are about, in a small line under their heading: "Generated Copy 1". The line uses the best version's display name — the same wording the best-version card, the score card, the rankings, and the Other-versions list already use — falling back to "Version" when the field is missing. Nothing else on the screen changes, and the exported report is not affected by this prompt.
+
+**Why:** Those two cards sit in the right-hand column and describe the best version, but a reader scanning them could not tell which version they were about when several were generated. Adding the version name under each heading brings the same context the best-version card and the score card already carry (added by prompt 13), so a reader knows at a glance which version the notes and checks belong to.
+
+**Edit — `src/quick/QuickResult.tsx` (2 edits):** Each edit was a find-and-replace applied once; nothing else in the file changed. The `winnerName` constant these edits use was already defined by prompt 13 (`const winnerName = winner.sourceDisplayName || 'Version';`), so it is in scope where the two headings render.
+- **Edit 15.1 — the version name under "Why this version":** The `<h2 className="text-gray-900 dark:text-white">Why this version</h2>` line inside the `quick-why` section was replaced with a `<div className="flex flex-col gap-0.5">` wrapping the same `<h2>` and a new `<span className="text-xs text-gray-600 dark:text-gray-400 break-words">{winnerName}</span>`. The `break-words` class was added so a long version name wraps instead of overflowing. No other part of the card (the notes list, the section's id, padding, or scroll margin) is touched.
+- **Edit 15.2 — the version name under "Check before publishing":** The `<h2 className="text-gray-900 dark:text-white">Check before publishing</h2>` line inside the `quick-checks` section was replaced with the same `<div className="flex flex-col gap-0.5">` wrapping the same `<h2>` and the same new `<span>` showing `{winnerName}`. No other part of the card (the quote flags, the testimonials-moved note, the incomplete note, the number notes, the claims, the tone notes, the section's id, padding, or scroll margin) is touched.
+
+**Effect on the exported report:** None. The report is built by `src/engine/exportQuickReport.ts` and `src/utils/enhancedExports.ts`, neither of which is changed by this prompt.
+
+**Effect on existing results:** None. The version name (`sourceDisplayName`) is already part of every saved result; the new line reads it when the result screen renders. A result saved before this change shows the version name under the two headings exactly as a new result does. No new field is stored.
+
+**Files touched:** `src/quick/QuickResult.tsx` (2 edits). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- On a Quick result, "Why this version" has the version name, for example "Generated Copy 1", in a small line under its heading. "Check before publishing" has the same line under its heading. Nothing else on the screen changed.
 
 ---
 

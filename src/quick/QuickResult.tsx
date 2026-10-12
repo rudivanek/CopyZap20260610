@@ -876,7 +876,10 @@ const QuickResult: React.FC<QuickResultProps> = ({
 
           {whyNotes.length > 0 && (
             <section id="quick-why" aria-label="Why this version" className={`${card} p-6 flex flex-col gap-3 scroll-mt-20`}>
-              <h2 className="text-gray-900 dark:text-white">Why this version</h2>
+              <div className="flex flex-col gap-0.5">
+                <h2 className="text-gray-900 dark:text-white">Why this version</h2>
+                <span className="text-xs text-gray-600 dark:text-gray-400 break-words">{winnerName}</span>
+              </div>
               <ul className="flex flex-col gap-2 text-gray-700 dark:text-gray-300">
                 {whyNotes.map(item => (
                   <li key={item.label}>
@@ -889,7 +892,10 @@ const QuickResult: React.FC<QuickResultProps> = ({
 
           {hasChecks && (
             <section id="quick-checks" aria-label="Check before publishing" className={`${card} p-6 flex flex-col gap-3 scroll-mt-20`}>
-              <h2 className="text-gray-900 dark:text-white">Check before publishing</h2>
+              <div className="flex flex-col gap-0.5">
+                <h2 className="text-gray-900 dark:text-white">Check before publishing</h2>
+                <span className="text-xs text-gray-600 dark:text-gray-400 break-words">{winnerName}</span>
+              </div>
               {(quoteFlags.length > 0 || testimonialsMoved || isIncomplete) && (
               <ul className="flex flex-col gap-3 text-gray-700 dark:text-gray-300">
                 {quoteFlags.map((quote, index) => (
