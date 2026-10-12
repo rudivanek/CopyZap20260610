@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useCreditsBalance } from '../hooks/useCreditsBalance';
+import { TIPS } from './tips';
 
 interface QuickTopBarProps {
   onNew: () => void;
@@ -91,6 +92,7 @@ const QuickTopBar: React.FC<QuickTopBarProps> = ({
           onClick={onNew}
           disabled={isBusy}
           aria-current={view === 'new' ? 'page' : undefined}
+          data-tip={TIPS.new}
           className={navButton + (view === 'new' ? 'border-primary-500' : 'border-transparent')}
         >
           New
@@ -100,6 +102,7 @@ const QuickTopBar: React.FC<QuickTopBarProps> = ({
           onClick={onHistory}
           disabled={isBusy}
           aria-current={view === 'history' ? 'page' : undefined}
+          data-tip={TIPS.history}
           className={navButton + (view === 'history' ? 'border-primary-500' : 'border-transparent')}
         >
           History

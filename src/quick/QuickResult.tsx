@@ -17,6 +17,7 @@ import { ORIGINAL_VERSION_ID } from '../engine/pickWinner';
 import { QUICK_SCORE_MARGIN } from '../engine/runQuickPipeline';
 import type { QuickRunResult } from '../engine/runQuickPipeline';
 import SquareCheck from './SquareCheck';
+import { CHANGE_TIPS, TIPS } from './tips';
 
 interface QuickResultProps {
   result: QuickRunResult;
@@ -94,7 +95,7 @@ const CopyButton: React.FC<{ content: GeneratedContentItem['content']; className
   };
 
   return (
-    <button type="button" onClick={handleCopy} className={className}>
+    <button type="button" onClick={handleCopy} data-tip={TIPS.copy} className={className}>
       {copied ? 'Copied' : label}
     </button>
   );
@@ -466,6 +467,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
             <button
               type="button"
               onClick={onRetrySave}
+              data-tip={TIPS.saveAgain}
               className="inline-flex items-center min-h-[44px] text-primary-800 dark:text-primary-300 underline focus:outline-none focus:ring-2 focus:ring-primary-500"
             >
               Save again
@@ -487,6 +489,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
           <button
             type="button"
             onClick={handleExport}
+            data-tip={TIPS.exportReport}
             disabled={!scores || exportState === 'working'}
             className={`${secondaryButton} shrink-0`}
           >
@@ -495,6 +498,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
           <button
             type="button"
             onClick={openEditor}
+            data-tip={TIPS.editMyself}
             disabled={!scores || !scores.winnerId || isRescoring || draft !== null}
             className={`${secondaryButton} shrink-0`}
           >
@@ -503,12 +507,13 @@ const QuickResult: React.FC<QuickResultProps> = ({
           <button
             type="button"
             onClick={goToChange}
+            data-tip={TIPS.goToChange}
             disabled={!scores || !scores.winnerId || isRescoring}
             className={`${secondaryButton} shrink-0`}
           >
             Change it
           </button>
-          <button type="button" onClick={onNew} className={`${secondaryButton} shrink-0`}>
+          <button type="button" onClick={onNew} data-tip={TIPS.startOver} className={`${secondaryButton} shrink-0`}>
             Start over
           </button>
         </div>
@@ -568,6 +573,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 <button
                   type="button"
                   onClick={() => onScoreEdit(draft, editText)}
+                  data-tip={TIPS.scoreEdit}
                   disabled={isRescoring || editProblem !== null}
                   className={primaryButton}
                 >
@@ -596,6 +602,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                     key={option.label}
                     checked={ticked.includes(option.label)}
                     onChange={on => tick(option.label, on)}
+                    tip={CHANGE_TIPS[option.label]}
                     disabled={isRescoring || changeClosed !== null}
                   >
                     <span className="text-gray-900 dark:text-gray-100">{option.label}</span>
@@ -622,6 +629,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                   <button
                     type="button"
                     onClick={submitChange}
+                    data-tip={TIPS.changeIt}
                     disabled={isRescoring || !wantedChange || changeProblem !== null}
                     className={primaryButton}
                   >
@@ -724,7 +732,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 {result.scoringError && (
                   <p className="text-gray-600 dark:text-gray-400 break-words">{result.scoringError}</p>
                 )}
-                <button type="button" onClick={onRescore} disabled={isRescoring} className={`${secondaryButton} self-start`}>
+                <button type="button" onClick={onRescore} disabled={isRescoring} data-tip={TIPS.scoreAgain} className={`${secondaryButton} self-start`}>
                   {isRescoring ? 'Scoring…' : 'Score again'}
                 </button>
               </div>

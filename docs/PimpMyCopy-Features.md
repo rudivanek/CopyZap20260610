@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.50
-Last Updated: 2026-10-12T01:00:00Z
+Version: 1.51
+Last Updated: 2026-10-12T02:00:00Z
 
 ---
 
@@ -206,6 +206,85 @@ Last Updated: 2026-10-12T01:00:00Z
 **Verification:**
 - `npm run build` passes.
 - The app looks and behaves as before: this prompt adds nothing to the screens. The typed goal and the multi-change request are wired through the engine but not yet reachable from the UI.
+
+---
+
+## Quick — Tips on Hover and Keyboard Focus (2026-10-12)
+
+**Feature:** Choices and buttons in Quick show a short tip when the mouse rests on them for half a second, or at once when they are reached with the Tab key. The tips cover: the goals on the start form, Fetch page, the fields and part choices on the check screen, the buttons and tick boxes on the result screen, Open / Rename / Delete in History, and New / History in the top bar. The tip goes away when the pointer leaves, on a click, on Escape, while typing, and when the page scrolls. A tap on a phone shows nothing — there the screen and Help must say it all, so a tip never holds the only copy of something a user must know. All tip texts live in one new file, so they can be read and changed in one place. Nothing else on the screens changes.
+
+**New file — `src/quick/tips.ts`:** A plain-text module (no component, no model call) that holds every tip text:
+- `GOAL_TIPS`: a `Record<string, string>` keyed by goal key (`convert`, `nurture`, `inform`, `educate`, `brand`, `custom`). Each entry is one sentence saying what that goal is judged hardest on. The `custom` entry tells the user to say in a few words what the copy should achieve, and that the versions are scored by how well they do that.
+- `PART_TIPS`: a `Record<string, string>` keyed by part choice (`improve`, `keep`, `leave`). Each entry says what happens to that part: rewritten, kept word for word in its place, or dropped.
+- `CHANGE_TIPS`: a `Record<string, string>` keyed by the tick-box label (`Shorter`, `Stronger call to action`, `Warmer`, `More formal`, `Less formal`). Each entry says what the change does and that it keeps every fact; the formal pair notes they cannot be ticked together.
+- `TIPS`: an object with one string per control that has a tip — the top bar and History buttons (`new`, `history`, `open`, `rename`, `remove`), the start form (`fetchPage`), the check screen (`changeInput`, `product`, `audience`, `tone`, `language`, `kind`, `generate`, `back`), and the result screen (`copy`, `exportReport`, `editMyself`, `goToChange`, `startOver`, `changeIt`, `scoreAgain`, `saveAgain`, `scoreEdit`). Controls whose name says it all (Continue, Cancel, Log out, the "Jump to" links) have no tip.
+
+**New file — `src/quick/QuickTips.tsx`:** A component that mounts once (in `QuickPage`) and serves the whole page. It creates one `<div>` tooltip in the document body and wires document-level listeners:
+- **Hover:** `pointerover` finds the closest ancestor with a `data-tip` attribute. After `HOVER_DELAY_MS` (500 ms) of rest, the tip appears above the control (below it when there is no room above), starting at the control's left edge and clamped to the window. `pointerout` hides it when the pointer leaves. Touch pointers (`event.pointerType === 'touch'`) are ignored, so a tap on a phone shows nothing.
+- **Keyboard focus:** `focusin` shows the tip at once when the focused element has a `data-tip` and the focus came from the keyboard (`:focus-visible`). While the tip of a focused control is shown, the control is given `aria-describedby` pointing to the tip box, so a screen reader reads it too. The attribute is removed (or restored to its prior value) when the tip hides.
+- **Hiding:** The tip hides on `pointerdown`, `focusout`, `scroll` (capture phase), `resize`, and on `keydown` for Escape, any single character, or Backspace (so it does not cover what is written).
+- The box has `role="tooltip"`, `pointer-events-none`, and a dark-on-light / light-on-dark style (`bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900`). One box serves every control, so a control only needs the `data-tip` attribute — nothing is wrapped and no layout changes.
+
+**Edit — `src/quick/SquareRadio.tsx` (2 edits):** The single-choice square marker gains an optional `tip` prop:
+- `SquareRadioProps` gained `tip?: string` with a comment pointing to `QuickTips.tsx`.
+- The component destructures `tip` and the `<label>` now carries `data-tip={tip}`.
+
+**Edit — `src/quick/SquareCheck.tsx` (2 edits):** The multi-choice square tick box gains the same:
+- `SquareCheckProps` gained `tip?: string` with a comment pointing to `QuickTips.tsx`.
+- The component destructures `tip` and the `<label>` now carries `data-tip={tip}` on its own line.
+
+**Edit — `src/quick/QuickPage.tsx` (4 edits):** The start form wires the tip layer and the goal / Fetch tips:
+- Imports added: `QuickTips` from `./QuickTips`; `GOAL_TIPS, TIPS` from `./tips` (next to the existing `SquareRadio` import).
+- `<QuickTips />` is mounted once, right inside the page's root `<div>`, with a comment.
+- The Fetch page button gained `data-tip={TIPS.fetchPage}`.
+- Each `SquareRadio` for a goal gained `tip={GOAL_TIPS[goal.key]}`.
+
+**Edit — `src/quick/QuickConfirm.tsx` (10 edits):** The check screen gains tips on its fields, part choices, and buttons:
+- Import added: `PART_TIPS, TIPS` from `./tips` (next to the existing `SquareRadio` import).
+- The "Change" link next to "Your copy" gained `data-tip={TIPS.changeInput}`.
+- The Selling input gained `data-tip={TIPS.product}`.
+- The For input gained `data-tip={TIPS.audience}`.
+- The Tone select gained `data-tip={TIPS.tone}`.
+- The Language select gained `data-tip={TIPS.language}`.
+- The Kind of text select gained `data-tip={TIPS.kind}` (alongside the existing `aria-describedby`).
+- Each `SquareRadio` for a part choice gained `tip={PART_TIPS[option.value]}`.
+- The "Looks right, generate" button gained `data-tip={TIPS.generate}`.
+- The Back button gained `data-tip={TIPS.back}`.
+
+**Edit — `src/quick/QuickResult.tsx` (11 edits):** The result screen gains tips on its buttons and tick boxes:
+- Import added: `CHANGE_TIPS, TIPS` from `./tips` (next to the existing `SquareCheck` import).
+- The Copy button gained `data-tip={TIPS.copy}`.
+- The "Save again" link gained `data-tip={TIPS.saveAgain}`.
+- The Export report button gained `data-tip={TIPS.exportReport}`.
+- The "Edit it myself" button gained `data-tip={TIPS.editMyself}`.
+- The top "Change it" button (jumps to the panel) gained `data-tip={TIPS.goToChange}`.
+- The "Start over" button gained `data-tip={TIPS.startOver}`.
+- The "Score my edit" button gained `data-tip={TIPS.scoreEdit}`.
+- Each `SquareCheck` tick box gained `tip={CHANGE_TIPS[option.label]}`.
+- The panel's "Change it" button gained `data-tip={TIPS.changeIt}`.
+- The "Score again" button gained `data-tip={TIPS.scoreAgain}`.
+
+**Edit — `src/quick/QuickHistory.tsx` (4 edits):** History gains tips on its buttons:
+- Import added: `TIPS` from `./tips` (next to the existing `quickGoalName` import).
+- The New button gained `data-tip={TIPS.new}`.
+- The Open button gained `data-tip={TIPS.open}`; the Rename button gained `data-tip={TIPS.rename}`.
+- The Delete button gained `data-tip={TIPS.remove}`.
+
+**Edit — `src/quick/QuickTopBar.tsx` (3 edits):** The top bar gains tips on New and History:
+- Import added: `TIPS` from `./tips` (next to the existing `useCreditsBalance` import).
+- The New nav button gained `data-tip={TIPS.new}`.
+- The History nav button gained `data-tip={TIPS.history}`.
+
+**Accessibility:** Each tip is a real tooltip (`role="tooltip"`). When a control reached by the keyboard shows its tip, the control points to it with `aria-describedby`, so a screen reader reads the tip too. The tip hides on Escape, on click, on scroll, and while typing, so it never covers what the user is doing. Touch pointers are ignored, so a phone tap never shows a tip.
+
+**Effect on existing results:** None. This is a UI-only change. No data, settings, or stored values changed. A result saved before this change is shown exactly as before; the tips only appear on hover or keyboard focus of the controls around it.
+
+**Files touched:** `src/quick/tips.ts` (new), `src/quick/QuickTips.tsx` (new), `src/quick/SquareRadio.tsx` (2 edits), `src/quick/SquareCheck.tsx` (2 edits), `src/quick/QuickPage.tsx` (4 edits), `src/quick/QuickConfirm.tsx` (10 edits), `src/quick/QuickResult.tsx` (11 edits), `src/quick/QuickHistory.tsx` (4 edits), `src/quick/QuickTopBar.tsx` (3 edits). `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- On the Quick start form, resting the mouse on "Convert" for half a second shows a dark box with the text "Judged hardest on the call to action: …".
+- Tabbing to a control shows its tip at once; Escape, a click, a scroll, or typing hides it. A tap on a phone shows nothing.
 
 ---
 

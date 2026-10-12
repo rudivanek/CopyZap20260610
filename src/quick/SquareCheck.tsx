@@ -17,6 +17,8 @@ interface SquareCheckProps {
   disabled?: boolean;
   children: React.ReactNode;
   className?: string;
+  /** Shown when the pointer rests on the tick box or it is reached with the Tab key (see QuickTips.tsx). */
+  tip?: string;
 }
 
 const FRAME =
@@ -26,8 +28,9 @@ const FRAME =
 const OFF = 'border-gray-500 dark:border-gray-400';
 const ON = 'border-primary-600 bg-primary-600 dark:border-primary-400 dark:bg-primary-400';
 
-const SquareCheck: React.FC<SquareCheckProps> = ({ checked, onChange, disabled, children, className }) => (
+const SquareCheck: React.FC<SquareCheckProps> = ({ checked, onChange, disabled, children, className, tip }) => (
   <label
+    data-tip={tip}
     className={
       'flex items-center gap-2.5 min-h-[44px] ' +
       (disabled ? 'opacity-50 cursor-not-allowed ' : 'cursor-pointer ') +

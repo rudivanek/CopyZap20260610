@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { User } from '../types';
 import { getAbsoluteScoreMarkClass } from '../utils/scoreColors';
 import { quickGoalName } from '../engine/buildQuickFormState';
+import { TIPS } from './tips';
 import { deleteQuickResult, listQuickResults, QuickHistoryEntry, renameQuickResult } from '../engine/quickHistory';
 
 interface QuickHistoryProps {
@@ -103,6 +104,7 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
         <button
           type="button"
           onClick={onNew}
+          data-tip={TIPS.new}
           className="inline-flex items-center justify-center min-h-[44px] px-6 bg-primary-500 hover:bg-primary-400 text-white font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
         >
           New
@@ -210,10 +212,10 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
                     </span>
                   ) : (
                     <span className="inline-flex flex-wrap items-center gap-4">
-                      <button type="button" onClick={() => onOpen(entry.id)} className={linkButton}>
+                      <button type="button" onClick={() => onOpen(entry.id)} data-tip={TIPS.open} className={linkButton}>
                         Open
                       </button>
-                      <button type="button" onClick={() => startRename(entry)} className={linkButton}>
+                      <button type="button" onClick={() => startRename(entry)} data-tip={TIPS.rename} className={linkButton}>
                         Rename
                       </button>
                       <button
@@ -222,6 +224,7 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
                           setRenamingId(null);
                           setDeletingId(entry.id);
                         }}
+                        data-tip={TIPS.remove}
                         className="inline-flex items-center min-h-[44px] text-status-critical underline focus:outline-none focus:ring-2 focus:ring-primary-500"
                       >
                         Delete

@@ -22,6 +22,8 @@ interface SquareRadioProps {
   onChange: () => void;
   children: React.ReactNode;
   className?: string;
+  /** Shown when the pointer rests on the choice or it is reached with the Tab key (see QuickTips.tsx). */
+  tip?: string;
 }
 
 const MARKER =
@@ -32,8 +34,8 @@ const MARKER =
   'peer-focus-visible:ring-2 peer-focus-visible:ring-primary-500 peer-focus-visible:ring-offset-2 ' +
   'dark:peer-focus-visible:ring-offset-gray-900';
 
-const SquareRadio: React.FC<SquareRadioProps> = ({ name, checked, onChange, children, className }) => (
-  <label className={'flex items-center gap-2.5 min-h-[44px] cursor-pointer ' + (className ?? '')}>
+const SquareRadio: React.FC<SquareRadioProps> = ({ name, checked, onChange, children, className, tip }) => (
+  <label data-tip={tip} className={'flex items-center gap-2.5 min-h-[44px] cursor-pointer ' + (className ?? '')}>
     <input type="radio" name={name} checked={checked} onChange={onChange} className="peer sr-only" />
     <span aria-hidden="true" className={MARKER} />
     {children}

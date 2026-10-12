@@ -40,6 +40,8 @@ import QuickConfirm from './QuickConfirm';
 import QuickHistory from './QuickHistory';
 import QuickResult from './QuickResult';
 import SquareRadio from './SquareRadio';
+import QuickTips from './QuickTips';
+import { GOAL_TIPS, TIPS } from './tips';
 import { APP_VERSION } from '../lib/version';
 
 interface QuickPageProps {
@@ -583,6 +585,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-gray-100">
+      {/* The tips of choices and buttons, shown on hover and keyboard focus. */}
+      <QuickTips />
       <QuickTopBar
         onNew={() => {
           setHelpOpen(false);
@@ -689,6 +693,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               <button
                 type="button"
                 onClick={handleFetch}
+                data-tip={TIPS.fetchPage}
                 disabled={isFetching || !url.trim()}
                 className="inline-flex items-center justify-center min-h-[44px] px-5 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500"
               >
@@ -709,6 +714,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
                   name="quick-goal"
                   checked={goal.key === goalKey}
                   onChange={() => setGoalKey(goal.key)}
+                  tip={GOAL_TIPS[goal.key]}
                 >
                   <span className="flex flex-wrap items-baseline gap-x-3">
                     <span className="min-w-[5rem] font-semibold text-gray-900 dark:text-gray-100">{goal.name}</span>

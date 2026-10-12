@@ -6,6 +6,7 @@ import type { PageSection, SectionChoice } from '../engine/pageSections';
 import { TEXT_KIND_OTHER_MAX_CHARS, TEXT_KINDS, TextKindKey } from '../services/api/textKinds';
 import { stripMarkdown } from '../utils/markdownUtils';
 import SquareRadio from './SquareRadio';
+import { PART_TIPS, TIPS } from './tips';
 
 interface QuickConfirmProps {
   copy: string;
@@ -104,6 +105,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
           <button
             type="button"
             onClick={onBack}
+            data-tip={TIPS.changeInput}
             className="text-xs text-primary-800 dark:text-primary-300 underline focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             Change
@@ -131,6 +133,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
             type="text"
             value={brief.product}
             onChange={event => onBriefChange({ ...brief, product: event.target.value })}
+            data-tip={TIPS.product}
             placeholder="The product or service"
             className={field}
           />
@@ -144,6 +147,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
             type="text"
             value={brief.audience}
             onChange={event => onBriefChange({ ...brief, audience: event.target.value })}
+            data-tip={TIPS.audience}
             placeholder="Who this copy speaks to"
             className={field}
           />
@@ -156,6 +160,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
             id="quick-tone"
             value={brief.tone}
             onChange={event => onBriefChange({ ...brief, tone: event.target.value as Tone })}
+            data-tip={TIPS.tone}
             className={field}
           >
             {QUICK_TONES.map(tone => (
@@ -175,6 +180,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
             onChange={event =>
               onBriefChange({ ...brief, language: event.target.value as Language, unsupportedLanguage: undefined })
             }
+            data-tip={TIPS.language}
             className={field}
           >
             {QUICK_LANGUAGES.map(language => (
@@ -197,6 +203,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
               value={brief.kind}
               onChange={event => onBriefChange({ ...brief, kind: event.target.value as TextKindKey })}
               aria-describedby="quick-kind-note"
+              data-tip={TIPS.kind}
               className={field}
             >
               {TEXT_KINDS.map(kind => (
@@ -281,6 +288,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
                         name={`quick-part-${section.id}`}
                         checked={current === option.value}
                         onChange={() => onChoiceChange(section.id, option.value)}
+                        tip={PART_TIPS[option.value]}
                       >
                         <span className="text-gray-900 dark:text-gray-100 whitespace-nowrap">{option.label}</span>
                       </SquareRadio>
@@ -323,6 +331,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
           <button
             type="button"
             onClick={onGenerate}
+            data-tip={TIPS.generate}
             disabled={blocked !== null}
             className="inline-flex items-center justify-center min-h-[48px] px-8 bg-primary-500 hover:bg-primary-400 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
           >
@@ -331,6 +340,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
           <button
             type="button"
             onClick={onBack}
+            data-tip={TIPS.back}
             className="inline-flex items-center justify-center min-h-[48px] px-6 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 focus:outline-none focus:ring-2 focus:ring-primary-500"
           >
             Back
