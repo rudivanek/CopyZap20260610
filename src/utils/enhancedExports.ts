@@ -2969,7 +2969,9 @@ export const exportAsFormattedHtml = (
   previewPercent?: number,
   extraSummaryRows?: [string, string][],
   /** Quick: show the length of the original and of every version, as its result screen does. */
-  showWordCounts?: boolean
+  showWordCounts?: boolean,
+  /** The CopyZap logo as a data address (data:image/png;base64,...). Without it the name is written as text. */
+  logoSrc?: string
 ): void => {
   try {
     
@@ -3077,7 +3079,9 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
     htmlContent += '<section id="doc-header" class="cover" style="padding:56px 0 64px;">\n';
     htmlContent += '<div class="wrap">\n';
     htmlContent += '<div class="brandbar">\n';
-    htmlContent += '<div class="logo">Copy<span>Zap</span></div>\n';
+    htmlContent += logoSrc && logoSrc.startsWith('data:image/')
+      ? `<div class="logo"><img src="${logoSrc}" alt="CopyZap" style="display:block;height:28px;width:auto"></div>\n`
+      : '<div class="logo">Copy<span>Zap</span></div>\n';
     htmlContent += '<div class="powered">' + t.copyReportLabel + '</div>\n';
     htmlContent += '</div>\n';
     htmlContent += `<div class="kicker">${t.copyReportLabel}</div>\n`;

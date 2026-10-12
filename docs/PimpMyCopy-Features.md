@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.53
-Last Updated: 2026-10-12T04:00:00Z
+Version: 1.54
+Last Updated: 2026-10-12T05:00:00Z
 
 ---
 
@@ -98,6 +98,34 @@ Last Updated: 2026-10-12T04:00:00Z
 **Verification:**
 - `npm run build` passes.
 - The check screen shows the "Kind of text" selector with six options; choosing "Other" reveals the "What is it?" field; the help page explains the new line; a fetched page is forced to "Web page".
+
+---
+
+## Quick — The CopyZap Logo in the Exported Report (2026-10-12)
+
+**Feature:** The HTML report that Quick exports ("Export report" on a result screen) shows the CopyZap logo at the top left instead of the word "CopyZap" in plain text. The logo is the app's own `public/copyzap.png`, read when the report is built and placed inside the HTML file as a data address (a base64-encoded image), so it also shows when the report is opened offline, sent by email, or viewed on another machine — the report is one self-contained file. If the logo cannot be read (the file is missing, the fetch fails, or the response is not an image), the report shows the name as text, exactly as before. Copy Maker's report is not changed by this prompt.
+
+**Why:** A plain-text "CopyZap" wordmark at the top of a client-facing report looks less finished than the branded logo the app uses everywhere else. Embedding the logo as a data address keeps the report as one file (no external link, no broken image when offline) while giving it the same identity the rest of the product carries.
+
+**Edit — `src/utils/enhancedExports.ts` (2 edits):** The shared HTML export builder accepts an optional logo and shows it in the header:
+- **Edit 11.1 — accept the logo:** The `exportAsFormattedHtml` function's parameter list gained one more optional field: `logoSrc?: string`, described as "The CopyZap logo as a data address (data:image/png;base64,...). Without it the name is written as text." It sits right after the existing `showWordCounts?: boolean` parameter. The parameter is optional, so every existing caller (Copy Maker's export, and the Quick caller before this change) keeps working unchanged — without a `logoSrc`, the header is exactly as before.
+- **Edit 11.2 — show the logo in the report header:** The line that wrote the brand bar's logo — `htmlContent += '<div class="logo">Copy<span>Zap</span></div>\n';` — now checks `logoSrc`: when it is present and starts with `data:image/`, the logo is shown as an `<img>` inside the same `.logo` div, with `alt="CopyZap"`, `display:block`, `height:28px`, and `width:auto` (so it keeps its aspect ratio and sits at the same height as the text wordmark it replaces). When `logoSrc` is absent or not a data address, the original text wordmark is written, unchanged. No other part of the header (the "Copy Report" label, the title, the stamp, the journey band) is touched.
+
+**Edit — `src/engine/exportQuickReport.ts` (2 edits):** The Quick report builder reads the logo and hands it to the shared builder:
+- **Edit 11.3 — read the logo and pass it on:** A new `logoDataUrl()` function was added above `exportQuickReport`. It fetches `/copyzap.png` (the app's own logo in the public folder), reads the response as a blob, checks that the blob's type starts with `image/`, and converts it to a data address via `FileReader.readAsDataURL`. It returns `null` on any failure — a non-OK response, a non-image blob, a `FileReader` error, or a thrown exception — so the report always falls back to the text wordmark when the logo cannot be read. The `exportQuickReport` function now runs the dynamic import of `enhancedExports` and the `logoDataUrl()` call in parallel (`Promise.all`), so the logo read does not add to the report's build time. The destructured `exportAsFormattedHtml` import is unchanged; the new `logo` value is the second element of the `Promise.all` result.
+- **Edit 11.4 — hand the logo to the report:** The `exportAsFormattedHtml(...)` call now passes `logo ?? undefined` as a final argument, after the existing `true` (the `showWordCounts` flag). When `logoDataUrl()` returned `null`, `undefined` is passed, so the builder writes the text wordmark. When it returned a data address, the builder shows the `<img>`.
+
+**Accessibility:** The logo `<img>` carries `alt="CopyZap"`, so a screen reader announces the brand name just as the text wordmark did. The image is block-level and fixed-height, so it does not shift the header layout.
+
+**Effect on Copy Maker:** Copy Maker's export path does not pass `logoSrc`, so `logoSrc` is `undefined` there and the builder writes the text wordmark, exactly as before. Copy Maker's report is not changed by this prompt.
+
+**Effect on existing results:** None. The logo is read when a report is built, not when a result is saved. A saved result has no logo field; the report is rebuilt on each export. The `logoSrc` parameter is optional and the shared builder's behavior without it is identical to before.
+
+**Files touched:** `src/utils/enhancedExports.ts` (2 edits), `src/engine/exportQuickReport.ts` (2 edits). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- In Quick, "Export report" on a result gives an HTML file with the orange CopyZap logo at the top left. Opening the file offline (with no network) still shows the logo, because it is embedded as a data address inside the file. If the logo file cannot be read, the report shows "CopyZap" as text, as before. Copy Maker's export is unchanged.
 
 ---
 

@@ -90,10 +90,33 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
   };
 }
 
+/**
+ * The CopyZap logo of the app (public/copyzap.png) as a data address. The
+ * report is one file that is opened and sent on its own, so the logo is put
+ * inside it rather than linked. Null when it cannot be read: the report then
+ * shows the name as text, as before.
+ */
+async function logoDataUrl(): Promise<string | null> {
+  try {
+    const response = await fetch('/copyzap.png');
+    if (!response.ok) return null;
+    const blob = await response.blob();
+    if (!blob.type.startsWith('image/')) return null;
+    return await new Promise<string | null>(resolve => {
+      const reader = new FileReader();
+      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+      reader.onerror = () => resolve(null);
+      reader.readAsDataURL(blob);
+    });
+  } catch {
+    return null;
+  }
+}
+
 /** Builds the report and hands it to the browser as an HTML file. */
 export async function exportQuickReport(result: QuickRunResult, title?: string): Promise<void> {
   const input = buildQuickReportInput(result, title);
-  const { exportAsFormattedHtml } = await import('../utils/enhancedExports');
+  const [{ exportAsFormattedHtml }, logo] = await Promise.all([import('../utils/enhancedExports'), logoDataUrl()]);
   exportAsFormattedHtml(
     input.formState,
     input.cards,
@@ -105,6 +128,7 @@ export async function exportQuickReport(result: QuickRunResult, title?: string):
     undefined,
     undefined,
     input.extraRows,
-    true
+    true,
+    logo ?? undefined
   );
 }
