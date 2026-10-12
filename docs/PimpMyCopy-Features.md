@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.60
-Last Updated: 2026-10-12T11:00:00Z
+Version: 1.61
+Last Updated: 2026-10-12T12:00:00Z
 
 ---
 
@@ -98,6 +98,29 @@ Last Updated: 2026-10-12T11:00:00Z
 **Verification:**
 - `npm run build` passes.
 - The check screen shows the "Kind of text" selector with six options; choosing "Other" reveals the "What is it?" field; the help page explains the new line; a fetched page is forced to "Web page".
+
+---
+
+## Quick — Versions Keep the Headings of the Original (2026-10-12)
+
+**Feature:** Quick's writing step no longer uses Copy Maker's heading rule, which turned every heading into a new "compelling" heading in Title Case ("How it works" became "Here's How It Works"). Quick's versions now keep the original's headings: in the same place, in the same capitalisation style (sentence case stays sentence case), and with the same words unless other words clearly serve the goal better. A text without headings gets none added. Emails, posts, ads and short texts keep their own notes, which already say not to add headings. This is Quick only — Copy Maker is not changed. Nothing on the screens changes.
+
+**Edit — `src/engine/buildQuickFormState.ts` (1 edit):** The FIND text occurred exactly once; nothing else in the file changed.
+- **Edit 18.1 — no Copy Maker heading rule for Quick:** Between the existing `keepToOriginal: true,` line and the `// For the goal "Other": the user's own words.` comment, a new `includeSectionTitles: false` line was inserted with a comment explaining that Copy Maker's heading rule (new "compelling" headings in Title Case) is for writing new copy, and that Quick keeps the headings of the original instead (see `QUICK_HEADINGS_NOTE` in `runQuickPipeline.ts` and the kind notes in `textKinds.ts`). This switches off the writer's "every section must have a heading" rule for Quick's writing step, so the original's headings are not replaced.
+
+**Edit — `src/engine/runQuickPipeline.ts` (2 edits):** Each FIND text occurred exactly once; nothing else in the file changed.
+- **Edit 18.2 — the heading note:** Between the closing `}` of `toImprovedCopy` and the `async function writeOneVersion(` line, a new constant `QUICK_HEADINGS_NOTE` was inserted. Its JSDoc explains it is for a page, or when the kind of text is not known: the headings of the original stay, in its style; other kinds have their own note that says not to add headings. The string itself tells the writer to keep the headings of the original — write each as a markdown heading with the same `#`/`##` marks the original uses (where it uses none, `#` for the first and `##` for the rest), in the same place and the same capitalisation style (sentence case stays sentence case, do not switch to Title Case), keep the words unless other words clearly serve the goal better (then keep it about as short and in the same style), and do not add headings to a text that has none.
+- **Edit 18.3 — use the note for pages and unknown kinds:** The `textKindWritingNote(quickTextKindOf(formState)),` line in the writer's special instructions was changed to `textKindWritingNote(quickTextKindOf(formState)) || QUICK_HEADINGS_NOTE,`. So: a kind with its own writing note (email, post, ad, short text) keeps that note, which already says not to add headings; a page, or an unknown kind (a result saved before kinds existed), now gets `QUICK_HEADINGS_NOTE` instead of empty — the fallback. This is the behaviour change: pages and pre-kinds results now keep the original's headings instead of getting new Title Case headings from Copy Maker's rule.
+
+**Effect on Copy Maker:** None. Copy Maker builds its own form state, not through `buildQuickFormState`, so its `includeSectionTitles` is unchanged. Copy Maker's heading rule continues to apply to its writing step. This prompt changes Quick only.
+
+**Effect on existing results:** A result saved before this change had its versions written under Copy Maker's heading rule, so those versions may already carry rewritten Title Case headings. The change applies to new runs and new changes made after it: those versions keep the original's headings. The scorer and the comparison step are not changed by this prompt — only the writer's heading behaviour changes. The score cache is not affected, since the heading note is not part of the cache key.
+
+**Files touched:** `src/engine/buildQuickFormState.ts` (1 edit), `src/engine/runQuickPipeline.ts` (2 edits). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- In Quick, a version written from an original whose headings are in sentence case (for example "How it works") keeps that heading as "How it works" — same words, same capitalisation, same place — instead of turning it into "Here's How It Works". A text without headings gets none added. Emails, posts, ads and short texts keep their own notes, which already say not to add headings.
 
 ---
 

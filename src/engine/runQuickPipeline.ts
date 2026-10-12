@@ -191,6 +191,14 @@ function toImprovedCopy(content: GeneratedContentItem['content']) {
   return Array.isArray(content) ? content.join('\n') : content;
 }
 
+/**
+ * For a page, or when the kind of text is not known: the headings of the
+ * original stay, in its style. The other kinds have their own note, which says
+ * not to add headings.
+ */
+const QUICK_HEADINGS_NOTE =
+  'Headings: keep the headings of the original. A heading is a short line that names the part below it, with or without # marks. Write each one as a markdown heading (with the # or ## marks the original uses; where it uses none, # for the first heading and ## for the others), in the same place, and in the same capitalisation style as the original: sentence case stays sentence case, and you do not switch to Title Case. Keep the words of a heading unless other words clearly serve the goal better; then keep it about as short and in the same style. Do not add headings to a text that has none.';
+
 async function writeOneVersion(
   formState: FormState,
   user: User,
@@ -508,7 +516,7 @@ export async function runQuickPipeline(
   // page (see textKinds.ts), and the parts it must not touch.
   const writerNotes = [
     KEEP_TO_ORIGINAL_NOTE,
-    textKindWritingNote(quickTextKindOf(formState)),
+    textKindWritingNote(quickTextKindOf(formState)) || QUICK_HEADINGS_NOTE,
     keepInstructions(keepZones),
     testimonialInstructions(lock.zones),
   ]
