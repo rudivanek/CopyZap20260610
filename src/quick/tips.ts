@@ -20,6 +20,17 @@ export const GOAL_TIPS: Record<string, string> = {
   custom: 'Say in a few words what the copy should achieve. The versions are scored by how well they do that.',
 };
 
+/** The kinds of text on the check screen, by key (see services/api/textKinds.ts). */
+export const KIND_TIPS: Record<string, string> = {
+  web_page: 'A page or part of a website, usually with headings and several parts. Judged as a page: structure and a clear next step count.',
+  short_text:
+    'One or two sentences that stand alone: a value proposition, headline or slogan. Judged as a statement, not as a page: no call to action expected.',
+  email: 'An email or a newsletter. The subject line, greeting and sign-off are kept; a text link is a complete call to action.',
+  social_post: 'A post for a social network. Hashtags, emoji, mentions and links are kept; judged on the first line and one clear point.',
+  ad: 'A paid ad: a headline and a few short lines. Judged within the space of an ad; a short call to action is enough.',
+  other: 'None of these. Say what it is in a few words, or leave it empty to have it treated as general marketing copy.',
+};
+
 /** What to do with each part of a page, on the check screen. */
 export const PART_TIPS: Record<string, string> = {
   improve: 'This part is rewritten.',
@@ -54,7 +65,6 @@ export const TIPS = {
   audience: 'Who reads the copy. Tone and words are chosen for them.',
   tone: 'How the new versions should sound.',
   language: 'The language the new versions are written in.',
-  kind: 'What the copy is, so it is written and judged as that: a page, a slogan, an email, a post, an ad.',
   generate: 'Writes three versions and scores them with your original. Uses credits.',
   back: "Back to your text and goal. Your corrections here stay as long as you don't change the text.",
   // Result screen

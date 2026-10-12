@@ -6,7 +6,7 @@ import type { PageSection, SectionChoice } from '../engine/pageSections';
 import { TEXT_KIND_OTHER_MAX_CHARS, TEXT_KINDS, TextKindKey } from '../services/api/textKinds';
 import { stripMarkdown } from '../utils/markdownUtils';
 import SquareRadio from './SquareRadio';
-import { PART_TIPS, TIPS } from './tips';
+import { KIND_TIPS, PART_TIPS, TIPS } from './tips';
 
 interface QuickConfirmProps {
   copy: string;
@@ -192,48 +192,42 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
         </div>
       </div>
 
-      <div className="flex flex-col gap-1.5">
-        <div className="flex flex-wrap gap-4">
-          <div className="flex-[1_1_240px] min-w-0 flex flex-col gap-1.5">
-            <label htmlFor="quick-kind" className={label}>
-              Kind of text
-            </label>
-            <select
-              id="quick-kind"
-              value={brief.kind}
-              onChange={event => onBriefChange({ ...brief, kind: event.target.value as TextKindKey })}
-              aria-describedby="quick-kind-note"
-              data-tip={TIPS.kind}
-              className={field}
+      {/* The kind of text: six square choices in two columns, like the goals on the start form. */}
+      <fieldset aria-describedby="quick-kind-note" className="m-0 p-0 border-0 flex flex-col gap-1">
+        <legend className={'p-0 mb-1 ' + label}>Kind of text</legend>
+        <div className="grid grid-cols-1 sm:grid-flow-col sm:grid-rows-3 sm:auto-cols-fr gap-x-8">
+          {TEXT_KINDS.map(kind => (
+            <SquareRadio
+              key={kind.key}
+              name="quick-kind"
+              checked={brief.kind === kind.key}
+              onChange={() => onBriefChange({ ...brief, kind: kind.key as TextKindKey })}
+              tip={KIND_TIPS[kind.key]}
             >
-              {TEXT_KINDS.map(kind => (
-                <option key={kind.key} value={kind.key}>
-                  {kind.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          {brief.kind === 'other' && (
-            <div className="flex-[2_1_240px] min-w-0 flex flex-col gap-1.5">
-              <label htmlFor="quick-kind-other" className={label}>
-                What is it? <span className="font-normal text-gray-600 dark:text-gray-400">Optional</span>
-              </label>
-              <input
-                id="quick-kind-other"
-                type="text"
-                value={brief.kindOther}
-                maxLength={TEXT_KIND_OTHER_MAX_CHARS}
-                onChange={event => onBriefChange({ ...brief, kindOther: event.target.value })}
-                placeholder="For example: flyer, product description"
-                className={field}
-              />
-            </div>
-          )}
+              <span className="text-gray-900 dark:text-gray-100">{kind.label}</span>
+            </SquareRadio>
+          ))}
         </div>
+        {brief.kind === 'other' && (
+          <div className="mt-1 flex flex-col gap-1.5 sm:max-w-xl">
+            <label htmlFor="quick-kind-other" className={label}>
+              What is it? <span className="font-normal text-gray-600 dark:text-gray-400">Optional</span>
+            </label>
+            <input
+              id="quick-kind-other"
+              type="text"
+              value={brief.kindOther}
+              maxLength={TEXT_KIND_OTHER_MAX_CHARS}
+              onChange={event => onBriefChange({ ...brief, kindOther: event.target.value })}
+              placeholder="For example: flyer, product description"
+              className={field}
+            />
+          </div>
+        )}
         <p id="quick-kind-note" className="text-gray-600 dark:text-gray-400">
           CopyZap writes and scores the copy as this kind of text.
         </p>
-      </div>
+      </fieldset>
 
       {sections.length > 1 && (
         <fieldset className="m-0 p-0 border-0 flex flex-col gap-2">

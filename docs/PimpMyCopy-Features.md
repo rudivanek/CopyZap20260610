@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.52
-Last Updated: 2026-10-12T03:00:00Z
+Version: 1.53
+Last Updated: 2026-10-12T04:00:00Z
 
 ---
 
@@ -98,6 +98,32 @@ Last Updated: 2026-10-12T03:00:00Z
 **Verification:**
 - `npm run build` passes.
 - The check screen shows the "Kind of text" selector with six options; choosing "Other" reveals the "What is it?" field; the help page explains the new line; a fetched page is forced to "Web page".
+
+---
+
+## Quick — Kind of Text as Square Choices (2026-10-12)
+
+**Feature:** On the Quick check screen, "Kind of text" is no longer a dropdown list but six square choices laid out in two columns of three (one column on a phone), like the goals on the start form: Web page, Short text (USP, headline, slogan), Email / newsletter, Social post, Ad, Other. The kind CopyZap detected is chosen at the start; choosing "Other" still opens the "What is it?" field. Each kind has its own tip (on hover and keyboard focus, like the rest of the screen). The helper line "CopyZap writes and scores the copy as this kind of text." stays. Nothing changes in how the copy is written or scored — this is a change to the control only.
+
+**Why:** A dropdown hides the options behind one click and gives each kind only a name, not a reason. Square choices, like the goals on the start form, show all six at once, each with a tip that says how that kind is judged, so a user who has never met the idea can pick the right one without opening Help.
+
+**Edit — `src/quick/QuickConfirm.tsx` (2 edits):** The dropdown becomes a fieldset of square choices:
+- **Edit 10.1 — import the kind tips:** The import from `./tips` was widened from `PART_TIPS, TIPS` to `KIND_TIPS, PART_TIPS, TIPS`, so each kind's tip text is available to the choice control.
+- **Edit 10.2 — Kind of text as six square choices:** The whole "Kind of text" block — the `<div>` with a `<label>` and a `<select>` of `TEXT_KINDS`, the conditional "What is it?" input, and the helper `<p>` — was replaced with a `<fieldset>` (no border, no margin/padding) whose `<legend>` reads "Kind of text" and whose body is a CSS grid: one column on a small screen (`grid-cols-1`), and on a larger screen three rows down two columns (`sm:grid-flow-col sm:grid-rows-3 sm:auto-cols-fr`, with `gap-x-8`). Each of the six `TEXT_KINDS` is a `SquareRadio` (the same component the goals and the part choices already use), with `name="quick-kind"`, `checked` when `brief.kind === kind.key`, an `onChange` that sets `brief.kind`, a child `<span>` showing `kind.label`, and `tip={KIND_TIPS[kind.key]}`. The conditional "What is it?" input (for `brief.kind === 'other'`) is now a block below the grid (`mt-1`, capped at `sm:max-w-xl`), with the same label, `maxLength`, `placeholder`, and binding as before. The helper `<p>` (`id="quick-kind-note"`) moved inside the fieldset and keeps its text. The fieldset carries `aria-describedby="quick-kind-note"` so a screen reader announces the helper line for the group.
+
+**Edit — `src/quick/tips.ts` (2 edits):** Each kind gets its own tip, and the old single kind tip is removed:
+- **Edit 10.3 — a tip for each kind of text:** After the `custom` entry in `GOAL_TIPS` (which closes the `GOAL_TIPS` object), a new exported `KIND_TIPS: Record<string, string>` was added, keyed by the kind keys (`web_page`, `short_text`, `email`, `social_post`, `ad`, `other`). Each entry is one sentence saying what the kind is and how it is judged: a web page is judged on structure and a clear next step; a short text is judged as a statement with no call to action expected; an email keeps its subject line, greeting and sign-off, and a text link is a complete call to action; a social post keeps hashtags, emoji, mentions and links and is judged on the first line and one clear point; an ad is judged within the space of an ad with a short call to action; "Other" says to describe it in a few words or leave it empty to be treated as general marketing copy.
+- **Edit 10.4 — remove the tip of the former list:** The `TIPS.kind` entry ("What the copy is, so it is written and judged as that: a page, a slogan, an email, a post, an ad.") was removed, because the dropdown it tipped is gone and each kind now has its own tip. The `generate` entry that followed it stays, now directly after `language`.
+
+**Accessibility:** The control is now a `<fieldset>` with a `<legend>` ("Kind of text"), so a screen reader announces it as a group. Each choice is a `SquareRadio` — a real radio input with a `<label>`, grouped by `name="quick-kind"`. The fieldset's `aria-describedby` points to the helper line. Each `SquareRadio` carries a `tip`, which the page's tip layer shows on hover and on keyboard focus (`:focus-visible`) and reads to a screen reader via `aria-describedby` on the focused control.
+
+**Effect on existing results:** None. The control only sets `brief.kind` and `brief.kindOther`, which the engine already handles (see the "Text Kinds" sections above). A saved result has its kind in its settings; it is not changed. The `KIND_TIPS` map is read only when the check screen renders.
+
+**Files touched:** `src/quick/QuickConfirm.tsx` (2 edits), `src/quick/tips.ts` (2 edits). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- On the Quick check screen, "Kind of text" shows six square choices in two columns (one column on a phone), with the detected kind chosen. Choosing "Other" reveals the "What is it?" field. Each choice shows its own tip on hover and keyboard focus. The helper line stays.
 
 ---
 
