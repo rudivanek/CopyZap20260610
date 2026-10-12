@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.58
-Last Updated: 2026-10-12T09:00:00Z
+Version: 1.59
+Last Updated: 2026-10-12T10:00:00Z
 
 ---
 
@@ -98,6 +98,28 @@ Last Updated: 2026-10-12T09:00:00Z
 **Verification:**
 - `npm run build` passes.
 - The check screen shows the "Kind of text" selector with six options; choosing "Other" reveals the "What is it?" field; the help page explains the new line; a fetched page is forced to "Web page".
+
+---
+
+## Quick — History Times in the Same Format as the Versions (2026-10-12)
+
+**Feature:** The Quick History list shows the date and time of each result in the same format as the versions on a result: "Oct 12, 2026, 11:37" (24-hour clock, local time) instead of "Oct 12, 2026, 11:37 AM". Nothing else on the History screen changes.
+
+**Why:** The result screen (prompt 12) shows each version's time as "Oct 12, 2026, 10:58" — 24-hour, local, no AM/PM — but the History list used the browser's `toLocaleTimeString`, which in many locales adds "AM" or "PM". The two screens then disagreed on how the same moment is written. Reusing the result screen's `formatVersionTime` brings the History list to the same format, so a user sees the time the same way in both places.
+
+**Edit — `src/quick/QuickHistory.tsx` (2 edits):** Each edit was a find-and-replace applied once; nothing else in the file changed.
+- **Edit 16.1 — import:** Right after the existing `import { TIPS } from './tips';` line, `import { formatVersionTime } from '../utils/versionTime';` was added, so the History list can use the same formatter the result screen uses (added by prompt 12 in `src/utils/versionTime.ts`).
+- **Edit 16.2 — the same time format as the versions:** The `formatDate` function — which read `new Date(value)`, checked `Number.isNaN(date.getTime())`, and returned `date.toLocaleDateString(...) + ', ' + date.toLocaleTimeString(...)` — was replaced with a one-line body that returns `formatVersionTime(value)`. A JSDoc comment was added above it: `/** The same format as the times of the versions on a result: "Oct 12, 2026, 11:37". */`. `formatVersionTime` already handles missing, invalid, and throwing input by returning an empty string (see prompt 12), so the explicit `Number.isNaN` guard the old function had is no longer needed. The function keeps its name (`formatDate`) and its single `value: string` parameter, so its one call site (`formatDate(entry.createdAt)`) is unchanged.
+
+**Effect on the result screen, the exported report, and Copy Maker:** None. Those paths do not call `formatDate` in `QuickHistory.tsx`; the result screen and the report use `formatVersionTime` directly (prompt 12). Copy Maker is not changed by this prompt.
+
+**Effect on existing results:** None. The time is read from `entry.createdAt`, which every saved history entry already carries. A result saved before this change now shows its time in the 24-hour local format instead of the locale-dependent AM/PM format — no new field is stored.
+
+**Files touched:** `src/quick/QuickHistory.tsx` (2 edits). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- In Quick History, each entry shows its time like "Oct 12, 2026, 11:37", without AM or PM — the same format the versions use on the result screen.
 
 ---
 

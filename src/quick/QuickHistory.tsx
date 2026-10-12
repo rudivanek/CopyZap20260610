@@ -3,6 +3,7 @@ import { User } from '../types';
 import { getAbsoluteScoreMarkClass } from '../utils/scoreColors';
 import { quickGoalName } from '../engine/buildQuickFormState';
 import { TIPS } from './tips';
+import { formatVersionTime } from '../utils/versionTime';
 import { deleteQuickResult, listQuickResults, QuickHistoryEntry, renameQuickResult } from '../engine/quickHistory';
 
 interface QuickHistoryProps {
@@ -22,11 +23,9 @@ const smallButton =
   'dark:border-gray-600 text-gray-900 dark:text-gray-100 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 ' +
   'disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-500';
 
+/** The same format as the times of the versions on a result: "Oct 12, 2026, 11:37". */
 function formatDate(value: string): string {
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return '';
-  return date.toLocaleDateString(undefined, { day: 'numeric', month: 'short', year: 'numeric' }) +
-    ', ' + date.toLocaleTimeString(undefined, { hour: '2-digit', minute: '2-digit' });
+  return formatVersionTime(value);
 }
 
 const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew, onDeleted }) => {
