@@ -4,6 +4,7 @@ import FormattedContent from '../components/ui/FormattedContent';
 import { contentToText } from '../services/api/contentText';
 import type { AbsoluteScoreBreakdown } from '../services/api/absoluteScoring';
 import { countWords } from '../utils/markdownUtils';
+import { formatVersionTime } from '../utils/versionTime';
 import { getAbsoluteScoreLabel, getAbsoluteScoreMarkClass } from '../utils/scoreColors';
 import { deriveQuickLabel, quickGoalName } from '../engine/buildQuickFormState';
 import {
@@ -120,11 +121,12 @@ function noteText(note: string): string {
   return kind ? `${kind.charAt(0).toUpperCase()}${kind.slice(1)}: ${words}` : words;
 }
 
-/** The length of a text as shown next to it: "1,240 words". */
-function wordsLabel(content: GeneratedContentItem['content']): string {
+/** The length of a version, and when it was made: "1,240 words · Oct 12, 2026, 10:58". */
+function wordsLabel(content: GeneratedContentItem['content'], generatedAt?: string): string {
   const text = contentToText(content).trim();
   const count = text ? countWords(text) : 0;
-  return `${count.toLocaleString('en-US')} ${count === 1 ? 'word' : 'words'}`;
+  const when = formatVersionTime(generatedAt);
+  return `${count.toLocaleString('en-US')} ${count === 1 ? 'word' : 'words'}${when ? ` · ${when}` : ''}`;
 }
 
 const NO_NUMBERS: NumberCheck = { added: [], dropped: [] };
@@ -567,7 +569,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
           <article id="quick-best" className={`${paper} p-5 sm:p-8 flex flex-col gap-4 scroll-mt-20`}>
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <span className="text-xs font-semibold text-gray-600">
-                Best version <span className="font-normal tabular-nums">· {wordsLabel(winner.content)}</span>
+                Best version <span className="font-normal tabular-nums">· {wordsLabel(winner.content, winner.generatedAt)}</span>
               </span>
               {scores && !isIncomplete && !nearOriginal && (
                 <span className="inline-flex items-center gap-2 text-xs font-semibold text-gray-900">
@@ -884,7 +886,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
             <article id="quick-original" className={`${paper} p-5 flex flex-col gap-3 scroll-mt-20`}>
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                 <span className="text-xs font-semibold text-gray-600">
-                  Your original <span className="font-normal tabular-nums">· {wordsLabel(original.content)}</span>
+                  Your original <span className="font-normal tabular-nums">· {wordsLabel(original.content, original.generatedAt)}</span>
                 </span>
                 <ScoreTag total={originalTotal} />
               </div>
@@ -907,7 +909,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                     >
                       <span className="flex flex-wrap items-baseline gap-x-2">
                         <span className="font-semibold text-gray-900">{version.sourceDisplayName || 'Version'}</span>
-                        <span className="text-xs text-gray-600 tabular-nums">{wordsLabel(version.content)}</span>
+                        <span className="text-xs text-gray-600 tabular-nums">{wordsLabel(version.content, version.generatedAt)}</span>
                         {setAside && (
                           <span className="text-xs text-gray-600">Set aside: repeats a paragraph or is cut short</span>
                         )}
@@ -977,7 +979,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                         </span>
                       )}
                       <span className="text-xs text-gray-600 dark:text-gray-400 tabular-nums">
-                        {wordsLabel(item.version.content)}
+                        {wordsLabel(item.version.content, item.version.generatedAt)}
                       </span>
                       {isBaseline && <span className="text-xs text-gray-600 dark:text-gray-400">baseline</span>}
                       {item.setAside && (

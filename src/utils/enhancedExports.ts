@@ -23,6 +23,7 @@ import { formatLocalDateTime } from './dateFormatting';
 import { generateExportAnalysis } from './contentAnalysisForExport';
 import { calculateTargetWordCount } from '../services/api/utils';
 import jsPDF from 'jspdf';
+import { formatVersionTime, localTimeZoneLabel } from './versionTime';
 
 function formatExportTimestamp(d: Date = new Date()): string {
   // Use toLocaleString() to get full date and time in user's locale
@@ -622,13 +623,15 @@ const truncateWordsAtSentence = (text: string, maxWords: number): string => {
 const countWords = (s?: string) => (s ? (s.match(/\S+/g) || []).length : 0);
 
 /**
- * The length of a version as Quick's result screen shows it: "1,240 words".
+ * The length of a version as Quick's result screen shows it: "1,240 words",
+ * and, when known, when it was made: "1,240 words · Oct 12, 2026, 10:58".
  * Same text and same way of counting as the screen, so the report and the
  * screen never disagree. English, like the rest of the report's own text.
  */
-const wordsLabelOf = (content: GeneratedContentItem['content']): string => {
+const wordsLabelOf = (content: GeneratedContentItem['content'], generatedAt?: string): string => {
   const count = countWords(contentToText(content).trim());
-  return `${count.toLocaleString('en-US')} ${count === 1 ? 'word' : 'words'}`;
+  const when = formatVersionTime(generatedAt);
+  return `${count.toLocaleString('en-US')} ${count === 1 ? 'word' : 'words'}${when ? ` &middot; ${when}` : ''}`;
 };
 
 const EXPORT_I18N = {
@@ -905,7 +908,7 @@ export const generateFullHtmlExportForCard = (
   html += '<div class="v-head">\n';
   html += '<div class="t">\n';
   html += `<h3>${escapeHtml(copyLabel)}${isWinner ? `<span class="win">${t.winner}</span>` : ''}</h3>\n`;
-  html += `<div class="role">${variantTypeLabel}${card.persona ? ` &middot; ${escapeHtml(card.persona)}` : ''}${showWordCount ? ` &middot; ${wordsLabelOf(card.content)}` : ''}</div>\n`;
+  html += `<div class="role">${variantTypeLabel}${card.persona ? ` &middot; ${escapeHtml(card.persona)}` : ''}${showWordCount ? ` &middot; ${wordsLabelOf(card.content, card.generatedAt)}` : ''}</div>\n`;
   html += '</div>\n';
   if (card.score) {
     html += '<div class="v-scores">\n';
@@ -3086,7 +3089,9 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
     htmlContent += '</div>\n';
     htmlContent += `<div class="kicker">${t.copyReportLabel}</div>\n`;
     htmlContent += `<h1>${escapeHtml((formState.projectDescription || 'Untitled Project').replace(/^[\s\-–—]+/, ''))}</h1>\n`;
-    htmlContent += `<div class="stamp">${t.generatedLabel}: ${formatExportTimestamp()} &nbsp;&middot;&nbsp; ${totalVariants} ${totalVariants !== 1 ? t.variantsEvaluated : t.variantEvaluated} &nbsp;&middot;&nbsp; ${t.languageLabel}: ${lang}</div>\n`;
+    htmlContent += `<div class="stamp">${t.generatedLabel}: ${showWordCounts ? formatVersionTime(new Date().toISOString()) : formatExportTimestamp()} &nbsp;&middot;&nbsp; ${totalVariants} ${totalVariants !== 1 ? t.variantsEvaluated : t.variantEvaluated} &nbsp;&middot;&nbsp; ${t.languageLabel}: ${lang}</div>\n`;
+    // Quick shows when each version was made; say once which time zone those times are in.
+    if (showWordCounts) htmlContent += `<div class="stamp">Times are local time: ${escapeHtml(localTimeZoneLabel())}</div>\n`;
 
     if (baselineScore !== null || winnerScore !== null) {
       htmlContent += '<div class="journey">\n';
@@ -3392,7 +3397,7 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
           const winTag = isWinner ? ` <span class="win" style="display:inline-block;margin-left:8px;">${t.winner}</span>` : '';
           const incompleteTag = (row as any).incomplete ? ` <span class="win" style="display:inline-block;margin-left:6px;background:var(--warn-soft);color:var(--warn);">${t.incompleteLabel}</span>` : '';
           const subParts = [isOriginal ? t.original : (matchedCard?.persona || '')];
-          if (showWordCounts && matchedCard) subParts.push(wordsLabelOf(matchedCard.content));
+          if (showWordCounts && matchedCard) subParts.push(wordsLabelOf(matchedCard.content, matchedCard.generatedAt));
           const subName = subParts.filter(Boolean).join(' &middot; ');
 
           htmlContent += `<div class="${rowClasses.join(' ')}">\n`;

@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.54
-Last Updated: 2026-10-12T05:00:00Z
+Version: 1.55
+Last Updated: 2026-10-12T06:00:00Z
 
 ---
 
@@ -98,6 +98,44 @@ Last Updated: 2026-10-12T05:00:00Z
 **Verification:**
 - `npm run build` passes.
 - The check screen shows the "Kind of text" selector with six options; choosing "Other" reveals the "What is it?" field; the help page explains the new line; a fetched page is forced to "Web page".
+
+---
+
+## Quick — When Each Version Was Made, Next to Its Length (2026-10-12)
+
+**Feature:** Next to the word count of every version, Quick now shows when that version was made, in local time: "1,352 words · Oct 12, 2026, 10:58". On the result screen this is the time of whoever looks at it — the best version, the user's original, the other versions, and the rankings all show it. In the exported report it is the time of whoever exported it, written into the file; the report says once, under its date, which time zone that is ("Times are local time: America/Mexico City (UTC−06:00)"), and its own date uses the same format. Nothing new is stored: every version already carries the moment it was made (`generatedAt`), also in results saved earlier. Copy Maker's report is not changed by this prompt.
+
+**Why:** A version list with only a word count gives no sense of when each was made — whether the best version is from this run or an earlier one, or how recent an edit is. Showing the time next to the length adds that context without a new column or a new stored field. In the report, the time is the exporter's local time (the report is one file, read elsewhere), so one line names the time zone so a reader in another zone knows what the times mean.
+
+**New file — `src/utils/versionTime.ts`:** A plain-text module (no model call, no cost) with two functions:
+- `formatVersionTime(iso?)`: takes an ISO string (or null/undefined) and returns the moment in the local time of whoever runs it, as "Oct 12, 2026, 10:58". Uses `Intl.DateTimeFormat` with `month: 'short'`, `day: 'numeric'`, `year: 'numeric'`, `hour: '2-digit'`, `minute: '2-digit'`, and `hourCycle: 'h23'` (24-hour clock, so no "AM" or "PM"). Returns an empty string when the input is missing, not a valid date, or the formatter throws — so a version with no `generatedAt` (saved before the field existed) shows only its word count, as before.
+- `localTimeZoneLabel(date?)`: returns the time zone those times are in, as "America/Mexico City (UTC−06:00)". Reads the zone from `Intl.DateTimeFormat().resolvedOptions().timeZone` (underscores to spaces), and the offset from `getTimezoneOffset` (with a minus sign U+2212, not a hyphen, to match the rest of the report's typography). Returns just the offset when the zone name cannot be read. For the report, which may be read in another zone, so a reader knows what the times mean.
+
+**Edit — `src/quick/QuickResult.tsx` (6 edits):** The result screen shows the time next to the length of every version:
+- **Edit 12.1 — import:** Added `import { formatVersionTime } from '../utils/versionTime';` right after the existing `countWords` import.
+- **Edit 12.2 — the length label with the time:** The `wordsLabel` function gained an optional `generatedAt?: string` parameter and now appends ` · <time>` when one is known. The comment changed from "The length of a text as shown next to it" to "The length of a version, and when it was made". Without a `generatedAt`, the label is exactly as before ("1,240 words").
+- **Edit 12.3 — best version:** The "Best version" line now passes `winner.generatedAt` to `wordsLabel`.
+- **Edit 12.4 — your original:** The "Your original" line now passes `original.generatedAt` to `wordsLabel`.
+- **Edit 12.5 — other versions:** The per-version length span in the other-versions list now passes `version.generatedAt` to `wordsLabel`.
+- **Edit 12.6 — rankings:** The per-row length span in the rankings table now passes `item.version.generatedAt` to `wordsLabel`.
+
+**Edit — `src/utils/enhancedExports.ts` (5 edits):** The shared HTML export builder shows the time in the report and names the time zone once:
+- **Edit 12.7 — import:** Added `import { formatVersionTime, localTimeZoneLabel } from './versionTime';` right after the existing `jsPDF` import.
+- **Edit 12.8 — the length label with the time:** The `wordsLabelOf` function gained an optional `generatedAt?: string` parameter and now appends ` &middot; <time>` when one is known. The comment changed to mention the time. Without a `generatedAt`, the label is exactly as before. Uses `&middot;` (the middle-dot HTML entity) to match the rest of the report's own text.
+- **Edit 12.9 — version heads:** The per-version "role" line (the line under the version name) now passes `card.generatedAt` to `wordsLabelOf`, so each version's head shows when it was made next to its length.
+- **Edit 12.10 — the time zone, once, under the date:** The report's stamp line (the line under the title with the date and variant count) now uses `formatVersionTime(new Date().toISOString())` for its own date when `showWordCounts` is on (the Quick path), so the report's date uses the same format as the per-version times. When `showWordCounts` is off (Copy Maker's path), the line is exactly as before (`formatExportTimestamp()`). When `showWordCounts` is on, a second stamp line is added right below: "Times are local time: <time zone>", so a reader in another zone knows what the per-version times mean.
+- **Edit 12.11 — ranking rows:** The per-row length in the rankings table now passes `matchedCard.generatedAt` to `wordsLabelOf`.
+
+**Effect on Copy Maker:** Copy Maker's export path does not pass `showWordCounts` (it is `undefined`/false there), so the stamp line uses `formatExportTimestamp()` as before, no time-zone line is added, and `wordsLabelOf` is not called with a `generatedAt` from Copy Maker's cards. Copy Maker's report is not changed by this prompt.
+
+**Effect on existing results:** None. Every version already carries `generatedAt`; a result saved before this change has the field, and the time now shows next to its length. A version with no `generatedAt` (an edge case) shows only its word count, as before — `formatVersionTime` returns an empty string for missing or invalid input. No new field is stored; the time is read from the existing `generatedAt` when the screen or report renders.
+
+**Files touched:** `src/utils/versionTime.ts` (new), `src/quick/QuickResult.tsx` (6 edits), `src/utils/enhancedExports.ts` (5 edits). `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- On a Quick result, next to "Best version · N words" the date and time appear, for example "Oct 12, 2026, 10:58". The same shows next to "Your original", each other version, and each row in the rankings.
+- In the exported report, each version's head shows when it was made; the report's own date uses the same format; a line under the date says which time zone the times are in. Copy Maker's report is unchanged.
 
 ---
 
