@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.56
-Last Updated: 2026-10-12T07:00:00Z
+Version: 1.57
+Last Updated: 2026-10-12T08:00:00Z
 
 ---
 
@@ -98,6 +98,37 @@ Last Updated: 2026-10-12T07:00:00Z
 **Verification:**
 - `npm run build` passes.
 - The check screen shows the "Kind of text" selector with six options; choosing "Other" reveals the "What is it?" field; the help page explains the new line; a fetched page is forced to "Web page".
+
+---
+
+## Quick — "Selling" and "For" Grow With Their Text (2026-10-12)
+
+**Feature:** On the Quick check screen ("Here is what I understood"), the "Selling" and "For" fields no longer cut longer text off. They start one line high, as before, and grow to show the whole text, up to four lines; longer text scrolls inside the field. Enter adds no line break, and a pasted line break becomes a space, because each field holds one fact. What CopyZap reads from these fields, and how it writes and scores, does not change.
+
+**Why:** A single-line input cut longer answers off ("servicios de conceptualizac…"), so a user could not see or fix the whole fact CopyZap had read. A growing field shows the full text in place, without giving the field more than one line when the answer is short.
+
+**New file — `src/quick/GrowingField.tsx`:** A React component that renders a `<textarea>` styled to look and behave like the one-line inputs beside it, but grows with its text:
+- `GrowingFieldProps`: `id`, `value`, `onChange`, `placeholder?`, `className?`, `tip?`.
+- `MAX_LINES = 4`: the field grows to show up to four lines, then scrolls inside.
+- `LINE_PX = 24`: one line of text in pixels, matching the field's `leading-6` line-height.
+- `EDGE_PX = 20`: top and bottom padding plus border (9 + 9 + 1 + 1), so one line is 44 pixels high like the other fields on the screen.
+- A `useLayoutEffect` fits the field's height to its text after every change and when the field's width changes (a `ResizeObserver` watches the width so wrapping re-fits the height). The effect sets `height: auto`, reads `scrollHeight` (adjusted for any border/padding mismatch between `offsetHeight` and `clientHeight`), caps the height at `MAX_LINES * LINE_PX + EDGE_PX`, and switches `overflowY` to `auto` only when the text is taller than the cap. The observer is disconnected on cleanup.
+- The `<textarea>` has `rows={1}`, `resize-none`, `py-[9px]`, `leading-6`, and `break-words`. The `onChange` replaces any run of whitespace that contains a line break with a single space (`/\s*[\r\n]+\s*/g` → `' '`), so a pasted line break becomes a space and the field still holds one fact. `onKeyDown` calls `preventDefault()` on Enter, so Enter adds no line break. The `className` prop is appended to the component's own classes, so the caller's border, background, focus ring, and placeholder colour (`field`) still apply.
+
+**Edit — `src/quick/QuickConfirm.tsx` (3 edits):** Each edit was a find-and-replace applied once; nothing else in the file changed.
+- **Edit 14.1 — import:** Right after the existing `import SquareRadio from './SquareRadio';` line, `import GrowingField from './GrowingField';` was added.
+- **Edit 14.2 — Selling as a growing field:** The "Selling" `<input>` (id `quick-product`, type `text`, `value={brief.product}`, `onChange` that spread the event target value, `data-tip={TIPS.product}`) was replaced with a `<GrowingField>` using the same id, `value={brief.product}`, `onChange={product => onBriefChange({ ...brief, product })}`, and `tip={TIPS.product}`. The `placeholder` and `className={field}` lines below were left in place, so the field keeps its border, background, focus ring, and placeholder text.
+- **Edit 14.3 — For as a growing field:** The "For" `<input>` (id `quick-audience`, type `text`, `value={brief.audience}`, `onChange` that spread the event target value, `data-tip={TIPS.audience}`) was replaced with a `<GrowingField>` using the same id, `value={brief.audience}`, `onChange={audience => onBriefChange({ ...brief, audience })}`, and `tip={TIPS.audience}`. The `placeholder` and `className={field}` lines below were left in place.
+
+**Effect on what CopyZap reads and writes:** None. The fields still bind to `brief.product` and `brief.audience`, the same values the engine reads. The growing field changes only how the text is shown, not what the text is. Enter and paste are handled so the field holds one fact, as before.
+
+**Effect on existing results:** None. The check screen is not part of a saved result; the fields are read when a run starts. A result saved before this change is not affected.
+
+**Files touched:** `src/quick/GrowingField.tsx` (new), `src/quick/QuickConfirm.tsx` (3 edits). `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- On the Quick check screen, a long text in "Selling" or "For" shows in full over several lines instead of being cut off. The field starts one line high when the text is short. Enter adds no line break; a pasted line break becomes a space.
 
 ---
 

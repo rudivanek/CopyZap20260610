@@ -6,6 +6,7 @@ import type { PageSection, SectionChoice } from '../engine/pageSections';
 import { TEXT_KIND_OTHER_MAX_CHARS, TEXT_KINDS, TextKindKey } from '../services/api/textKinds';
 import { stripMarkdown } from '../utils/markdownUtils';
 import SquareRadio from './SquareRadio';
+import GrowingField from './GrowingField';
 import { KIND_TIPS, PART_TIPS, TIPS } from './tips';
 
 interface QuickConfirmProps {
@@ -128,12 +129,11 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
           <label htmlFor="quick-product" className={label}>
             Selling
           </label>
-          <input
+          <GrowingField
             id="quick-product"
-            type="text"
             value={brief.product}
-            onChange={event => onBriefChange({ ...brief, product: event.target.value })}
-            data-tip={TIPS.product}
+            onChange={product => onBriefChange({ ...brief, product })}
+            tip={TIPS.product}
             placeholder="The product or service"
             className={field}
           />
@@ -142,12 +142,11 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
           <label htmlFor="quick-audience" className={label}>
             For
           </label>
-          <input
+          <GrowingField
             id="quick-audience"
-            type="text"
             value={brief.audience}
-            onChange={event => onBriefChange({ ...brief, audience: event.target.value })}
-            data-tip={TIPS.audience}
+            onChange={audience => onBriefChange({ ...brief, audience })}
+            tip={TIPS.audience}
             placeholder="Who this copy speaks to"
             className={field}
           />
