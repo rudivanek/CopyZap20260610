@@ -510,7 +510,12 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       const outcome = await changeQuickVersion(result, instruction, currentUser, setProgress, signal, parts);
       if (!isMounted.current) return;
       setResult(outcome.result);
-      setChangeNotice(outcomeNotice('Your change', outcome));
+      const notice = outcomeNotice('Your change', outcome);
+      // Shorter or Longer: say how close it came to the number asked for.
+      if (outcome.length) {
+        notice.text += ` It has ${asNumber(outcome.length.words)} words; you asked for about ${asNumber(outcome.length.target)}.`;
+      }
+      setChangeNotice(notice);
       window.scrollTo(0, 0);
       playSuccessSound();
       persist(outcome.result, runSeconds, savedId);

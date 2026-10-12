@@ -6,7 +6,14 @@ import type { AbsoluteScoreBreakdown } from '../services/api/absoluteScoring';
 import { countWords } from '../utils/markdownUtils';
 import { getAbsoluteScoreLabel, getAbsoluteScoreMarkClass } from '../utils/scoreColors';
 import { deriveQuickLabel, quickGoalName } from '../engine/buildQuickFormState';
-import { composeQuickChange, QUICK_CHANGE_MAX_CHARS, QUICK_CHANGE_OPTIONS } from '../engine/changeQuickVersion';
+import {
+  composeQuickChange,
+  QUICK_CHANGE_MAX_CHARS,
+  QUICK_CHANGE_OPTIONS,
+  quickLengthDirection,
+  quickLengthInfo,
+  quickLengthProblem,
+} from '../engine/changeQuickVersion';
 import type { QuickChangeParts } from '../engine/changeQuickVersion';
 import { prepareQuickEdit, QuickEditDraft, validateQuickEdit } from '../engine/editQuickVersion';
 import { exportQuickReport } from '../engine/exportQuickReport';
@@ -212,28 +219,56 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const [instruction, setInstruction] = useState('');
   // The changes that are ticked. Several go into one rewrite, with the user's own words.
   const [ticked, setTicked] = useState<string[]>([]);
-  const tick = (label: string, on: boolean) =>
+  // Shorter and Longer come with a number of words: the best version's length afterwards.
+  const lengthInfo = useMemo(() => quickLengthInfo(result), [result]);
+  const [lengthWords, setLengthWords] = useState('');
+  const tick = (label: string, on: boolean) => {
     setTicked(current => {
       const excluded = QUICK_CHANGE_OPTIONS.find(option => option.label === label)?.excludes;
       const others = current.filter(item => item !== label && item !== excluded);
       return on ? [...others, label] : others;
     });
+    // Ticking Shorter or Longer proposes a number: a quarter fewer, or a third more.
+    const ticking = on ? quickLengthDirection([label]) : null;
+    if (ticking && lengthInfo) setLengthWords(String(lengthInfo[ticking].suggested));
+  };
   // In the order of the list, whatever the order of ticking.
   const tickedInOrder = QUICK_CHANGE_OPTIONS.map(option => option.label).filter(label => ticked.includes(label));
-  const wantedChange = composeQuickChange(tickedInOrder, instruction);
+  const direction = quickLengthDirection(tickedInOrder);
+  const lengthTarget = lengthWords.trim() === '' ? Number.NaN : Number(lengthWords);
+  const lengthProblem = direction && lengthInfo ? quickLengthProblem(lengthInfo, direction, lengthTarget) : null;
+  const wantedChange = composeQuickChange(
+    tickedInOrder.map(label =>
+      direction && label.toLowerCase() === direction && Number.isFinite(lengthTarget) ? `${label} to ${lengthTarget} words` : label
+    ),
+    instruction
+  );
   const changeProblem = wantedChange ? changeBlocked(wantedChange) : null;
   // Why no change is possible at all right now (for example: the result is full); null when one is.
   const changeClosed = changeBlocked('Shorter');
   const submitChange = () => {
-    if (isRescoring || !wantedChange || changeBlocked(wantedChange)) return;
-    onChange(wantedChange, { ticked: tickedInOrder, own: instruction.trim() });
+    if (isRescoring || !wantedChange || changeBlocked(wantedChange) || lengthProblem) return;
+    onChange(wantedChange, {
+      ticked: tickedInOrder,
+      own: instruction.trim(),
+      ...(direction ? { targetWords: lengthTarget } : {}),
+    });
   };
   // The ticks and the words are cleared once the change has led to a new version;
   // after a failed or stopped change they are still there to try again.
   useEffect(() => {
     setInstruction('');
     setTicked([]);
+    setLengthWords('');
   }, [versionCount]);
+  // Another version became the best (after "Score again"): propose the number again for it.
+  const lengthNow = lengthInfo?.now;
+  useEffect(() => {
+    const ticking = quickLengthDirection(ticked);
+    if (ticking && lengthInfo) setLengthWords(String(lengthInfo[ticking].suggested));
+    // Only when the best version's length changes, not on every tick.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lengthNow]);
   // Ids of the other versions whose text is currently open.
   const [openIds, setOpenIds] = useState<string[]>([]);
   // The report is built in the browser and handed over as an HTML file.
@@ -609,6 +644,38 @@ const QuickResult: React.FC<QuickResultProps> = ({
                   </SquareCheck>
                 ))}
               </div>
+              {direction && lengthInfo && (
+                <div className="flex flex-col gap-1">
+                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
+                    <label htmlFor="quick-length" className="text-gray-900 dark:text-gray-100">
+                      {direction === 'shorter' ? 'Shorter' : 'Longer'}, to about
+                    </label>
+                    <input
+                      id="quick-length"
+                      type="number"
+                      inputMode="numeric"
+                      min={lengthInfo[direction].min}
+                      max={lengthInfo[direction].max}
+                      step={1}
+                      value={lengthWords}
+                      onChange={event => setLengthWords(event.target.value)}
+                      disabled={isRescoring || changeClosed !== null}
+                      onKeyDown={event => {
+                        if (event.key === 'Enter') submitChange();
+                      }}
+                      aria-describedby="quick-length-note"
+                      data-tip={TIPS.lengthWords}
+                      className="w-24 min-h-[44px] px-3 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    />
+                    <span className="text-gray-900 dark:text-gray-100">words</span>
+                    <span id="quick-length-note" className="text-gray-600 dark:text-gray-400">
+                      (now {lengthInfo.now.toLocaleString('en-US')}; {lengthInfo[direction].min.toLocaleString('en-US')} to{' '}
+                      {lengthInfo[direction].max.toLocaleString('en-US')} possible)
+                    </span>
+                  </div>
+                  {lengthProblem && <p className="text-gray-900 dark:text-gray-100">{lengthProblem}</p>}
+                </div>
+              )}
               <div className="flex flex-col gap-1">
                 <label htmlFor="quick-change" className="text-gray-900 dark:text-gray-100">
                   In your own words <span className="text-gray-600 dark:text-gray-400">(optional)</span>
@@ -630,7 +697,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                     type="button"
                     onClick={submitChange}
                     data-tip={TIPS.changeIt}
-                    disabled={isRescoring || !wantedChange || changeProblem !== null}
+                    disabled={isRescoring || !wantedChange || changeProblem !== null || lengthProblem !== null}
                     className={primaryButton}
                   >
                     Change it

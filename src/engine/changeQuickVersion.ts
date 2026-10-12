@@ -61,7 +61,8 @@ export interface QuickChangeOption {
   excludes?: string;
 }
 export const QUICK_CHANGE_OPTIONS: QuickChangeOption[] = [
-  { label: 'Shorter' },
+  { label: 'Shorter', excludes: 'Longer' },
+  { label: 'Longer', excludes: 'Shorter' },
   { label: 'Stronger call to action' },
   { label: 'Warmer' },
   { label: 'More formal', excludes: 'Less formal' },
@@ -69,13 +70,133 @@ export const QUICK_CHANGE_OPTIONS: QuickChangeOption[] = [
 ];
 /** Between the parts of a request made of several changes. */
 const CHANGE_SEPARATOR = '; ';
-/** Room for the ticked changes on top of the user's own words. */
-const TICKED_MAX_CHARS = QUICK_CHANGE_OPTIONS.map(option => option.label).join(CHANGE_SEPARATOR).length + CHANGE_SEPARATOR.length;
+/** Room for the ticked changes on top of the user's own words, with the number of words of Shorter or Longer. */
+const TICKED_MAX_CHARS =
+  QUICK_CHANGE_OPTIONS.map(option => option.label).join(CHANGE_SEPARATOR).length + CHANGE_SEPARATOR.length + ' to 99999 words'.length;
 
 /** A change as the result screen hands it over: what is ticked, and the user's own words. */
 export interface QuickChangeParts {
   ticked: string[];
   own: string;
+  /** With "Shorter" or "Longer": how many words the whole best version should have afterwards. */
+  targetWords?: number;
+}
+
+/**
+ * Shorter and Longer, with a number of words.
+ *
+ * The user sets how many words the best version should have (the screen
+ * proposes a quarter fewer or a third more). The rewrite step is told the
+ * number; when the result misses it by more than LENGTH_TOLERANCE, one more
+ * pass corrects the length, as the main run does.
+ *
+ * Measured on 2026-10-12 against the live model. "Shorter" with "keep every
+ * fact" hardly cut dense copy at all (an email of 105 words asked for 79 came
+ * back with 96 to 99, and a second pass did not help), so Shorter keeps the
+ * headings and the key facts and may leave out less important detail. Dense
+ * copy still stops short of a small target (email 105 to 53: 60 words; page
+ * 109 to 55: 76 to 85): nothing is left to cut. Wordy copy reaches it (a page of
+ * 272 words asked for 136: 118; for 95: 100 to 102). Longer lands within about
+ * 15% (email 140: 158 to 161; page 145: 163 to 165; post 64: 68 to 73).
+ */
+export type QuickLengthDirection = 'shorter' | 'longer';
+/** How far the result may miss the number before a second pass corrects it. */
+const LENGTH_TOLERANCE = 0.15;
+/** A miss of a few words is never corrected, however short the text. */
+const LENGTH_MIN_MISS = 3;
+/** Shorter goes down to this share of the words that can be rewritten. */
+const SHORTER_MIN_SHARE = 0.3;
+/** Longer goes up to this multiple of the words that can be rewritten. */
+const LONGER_MAX_SHARE = 2;
+/**
+ * The rewrite step has room for about this many words of output when the text
+ * it gets is short (4,000 tokens; see contentModification.ts), and for about a
+ * fifth more than it gets when the text is long. Longer stays inside that room,
+ * so a long text is never cut off.
+ */
+const LONGER_ROOM_WORDS = 1100;
+const LONG_INPUT_WORDS = 1250;
+const LONGER_LONG_SHARE = 1.15;
+
+/** Shorter or Longer, when one of them is ticked. */
+export function quickLengthDirection(ticked: string[]): QuickLengthDirection | null {
+  const found = ticked.map(label => label.toLowerCase()).find(label => label === 'shorter' || label === 'longer');
+  return (found as QuickLengthDirection | undefined) ?? null;
+}
+
+/** Words of the best version now, and the numbers the user may ask for. */
+export interface QuickLengthInfo {
+  /** Words of the whole best version. */
+  now: number;
+  /** Words in kept parts and testimonials: they stay as they are, so they count in any target. */
+  fixed: number;
+  shorter: { min: number; max: number; suggested: number };
+  longer: { min: number; max: number; suggested: number };
+}
+
+export function quickLengthInfo(result: QuickRunResult): QuickLengthInfo | null {
+  const base = result.versions.find(version => version.id === result.scores?.winnerId);
+  if (!base) return null;
+  const text = contentToText(base.content);
+  const now = countWords(text);
+  const editable = countWords(lockVersion(text, result.keptTexts).locked);
+  const fixed = Math.max(0, now - editable);
+  const shorterMin = fixed + Math.max(1, Math.ceil(editable * SHORTER_MIN_SHARE));
+  const shorterMax = now - 1;
+  const longerRoom =
+    editable > LONG_INPUT_WORDS
+      ? Math.floor(editable * LONGER_LONG_SHARE)
+      : Math.min(Math.floor(editable * LONGER_MAX_SHARE), Math.max(editable + 1, LONGER_ROOM_WORDS));
+  const longerMax = fixed + Math.max(editable + 1, longerRoom);
+  const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
+  return {
+    now,
+    fixed,
+    shorter: { min: shorterMin, max: shorterMax, suggested: clamp(Math.round(now * 0.75), shorterMin, shorterMax) },
+    longer: { min: now + 1, max: longerMax, suggested: clamp(Math.round(now * (4 / 3)), now + 1, longerMax) },
+  };
+}
+
+/** Why this number of words cannot be asked for; null when it can. */
+export function quickLengthProblem(info: QuickLengthInfo, direction: QuickLengthDirection, target: number): string | null {
+  const range = info[direction];
+  // Too little text to change the length of: a few words, or a version that is mostly kept as it is.
+  if (range.min > range.max) {
+    return direction === 'shorter'
+      ? `This text can't get shorter${info.fixed > 0 ? ': most of it is kept as it is' : ''}.`
+      : `This text can't get longer${info.fixed > 0 ? ': most of it is kept as it is' : ''}.`;
+  }
+  if (!Number.isFinite(target) || target <= 0) return 'Say how many words it should have.';
+  if (!Number.isInteger(target)) return 'Use a whole number of words.';
+  if (target < range.min) {
+    return direction === 'shorter'
+      ? `It can go down to about ${range.min} words${info.fixed > 0 ? ' (the parts kept as they are stay)' : ''}.`
+      : `For Longer, choose more than ${info.now} words.`;
+  }
+  if (target > range.max) {
+    return direction === 'shorter'
+      ? `For Shorter, choose fewer than ${info.now} words.`
+      : `It can go up to about ${range.max} words; for more, say in your own words what to add.`;
+  }
+  return null;
+}
+
+/** "Shorter" or "Longer" with the number, as the rewrite step is told it. */
+function lengthRequest(direction: QuickLengthDirection, target: number, words: number): string {
+  return direction === 'shorter'
+    ? `Make it shorter: about ${target} words instead of ${words}. Keep every heading, and keep the key facts: names, numbers, prices, the offer and the call to action. Shorten sentences, merge them, and leave out repetition, filler and less important detail until the text has about ${target} words.`
+    : `Make it longer: about ${target} words instead of ${words}. Do it by explaining more fully what the text already says: what each point means for the reader and why it matters. Keep every section, every heading and every fact. Do not add facts, numbers, prices, offers, guarantees, deadlines, examples, customers or results that the text does not state.`;
+}
+
+/** The second pass, when the first missed the number. */
+function lengthCorrection(direction: QuickLengthDirection, target: number, words: number): string {
+  if (words > target && direction === 'shorter') {
+    return `This text has ${words} words and must have about ${target}. Shorten it to about ${target} words: shorten and merge sentences and leave out less important detail. Keep every heading, and keep names, numbers, prices, the offer and the call to action. Change nothing else.`;
+  }
+  if (words > target) {
+    return `Make this text shorter: it has ${words} words and should have about ${target}. Cut repetition, filler and long-winded sentences. Keep every section, every heading and every fact, and change nothing else.`;
+  }
+  return `Make this text longer: it has ${words} words and should have about ${target}. Explain more fully what it already says. Keep every section, every heading and every fact, add no facts, and change nothing else.`;
 }
 
 /**
@@ -102,23 +223,31 @@ export function composeQuickChange(ticked: string[], own: string): string {
  *   to half (121 to 147 words, and 139 to 169); with them it stays where one
  *   change on its own lands (110 to 118, and 122 to 133).
  */
-function requestFor(wanted: string, parts: QuickChangeParts | undefined, words: number): string {
+function requestFor(
+  wanted: string,
+  parts: QuickChangeParts | undefined,
+  words: number,
+  /** With Shorter or Longer: the words the rewritten text should have. */
+  lengthTarget: number | null
+): string {
   const ticked = parts?.ticked ?? [];
   const own = (parts?.own ?? '').trim();
-  if (ticked.length + (own ? 1 : 0) < 2) return FULL_REQUESTS[wanted.toLowerCase()] ?? wanted;
-  const shorter = ticked.some(part => part.toLowerCase() === 'shorter');
-  const target = Math.round(words * 0.75);
-  // A text of one or two words cannot be given a smaller number.
-  const shorterInFull =
-    target < words
-      ? FULL_REQUESTS.shorter.replace('a quarter shorter.', `a quarter shorter: about ${target} words instead of ${words}.`)
-      : FULL_REQUESTS.shorter;
-  const all = [...ticked.map(part => (part.toLowerCase() === 'shorter' ? shorterInFull : part)), ...(own ? [own] : [])];
+  const direction = lengthTarget != null ? quickLengthDirection(ticked) : null;
+  if (ticked.length + (own ? 1 : 0) < 2) {
+    if (direction && lengthTarget != null) return lengthRequest(direction, lengthTarget, words);
+    return FULL_REQUESTS[wanted.toLowerCase()] ?? wanted;
+  }
+  const all = [
+    ...ticked.map(part =>
+      direction && lengthTarget != null && part.toLowerCase() === direction ? lengthRequest(direction, lengthTarget, words) : part
+    ),
+    ...(own ? [own] : []),
+  ];
   const numbered = all.map((part, at) => `(${at + 1}) ${part}${/[.!?]$/.test(part) ? '' : '.'}`).join(' ');
   return (
     `Make all of these changes together, in one rewrite: ${numbered}` +
-    (shorter
-      ? ' The result must still be about a quarter shorter than the text is now.'
+    (direction && lengthTarget != null
+      ? ` The result must have about ${lengthTarget} words.`
       : ` Keep the length: the text has ${words} words now and the result should have about as many, unless one of these changes asks for more or fewer.`)
   );
 }
@@ -132,6 +261,8 @@ export interface QuickChangeOutcome {
   /** The score of the version that was best before; null when there was none. */
   previousBestScore: number | null;
   becameBest: boolean;
+  /** With Shorter or Longer: the words asked for and the words the new version has. */
+  length?: { target: number; words: number };
 }
 
 const wordsToRewriteOf = new WeakMap<GeneratedContentItem, number>();
@@ -223,6 +354,20 @@ export async function changeQuickVersion(
       `This version has ${lockedWords} words to rewrite; a change handles up to ${QUICK_CHANGE_MAX_WORDS} for now.`
     );
   }
+  // Shorter or Longer: the number is for the whole version. Kept parts and
+  // testimonials stay as they are, so the rewritten part gets the rest.
+  const direction = quickLengthDirection(parts?.ticked ?? []);
+  let lengthTarget: number | null = null;
+  let wholeTarget: number | null = null;
+  if (direction) {
+    const info = quickLengthInfo(result);
+    if (info) {
+      wholeTarget = parts?.targetWords ?? info[direction].suggested;
+      const lengthProblem = quickLengthProblem(info, direction, wholeTarget);
+      if (lengthProblem) throw new Error(lengthProblem);
+      lengthTarget = Math.max(1, wholeTarget - info.fixed);
+    }
+  }
 
   // 1 — rewrite
   throwIfStopped(signal);
@@ -246,9 +391,25 @@ export async function changeQuickVersion(
       .filter(Boolean)
       .join('\n\n'),
   };
-  const request = requestFor(wanted, parts, lockedWords);
-  const rewritten = await modifyContent(locked, request, rewriteState, user, undefined, result.formState.sessionId);
+  const request = requestFor(wanted, parts, lockedWords, lengthTarget);
+  let rewritten = await modifyContent(locked, request, rewriteState, user, undefined, result.formState.sessionId);
   throwIfStopped(signal);
+  // Shorter or Longer missed the number by more than LENGTH_TOLERANCE: one pass that changes only the length.
+  if (direction && lengthTarget != null) {
+    const got = countWords(contentToText(rewritten));
+    const miss = Math.abs(got - lengthTarget);
+    if (got > 0 && miss > LENGTH_MIN_MISS && miss / lengthTarget > LENGTH_TOLERANCE) {
+      rewritten = await modifyContent(
+        contentToText(rewritten),
+        lengthCorrection(direction, lengthTarget, got),
+        { ...rewriteState, customWordCount: got },
+        user,
+        undefined,
+        result.formState.sessionId
+      );
+      throwIfStopped(signal);
+    }
+  }
   const restored = zones.length > 0 ? restoreTestimonials(contentToText(rewritten), zones) : { text: contentToText(rewritten), moved: false };
   if (!restored.text.trim()) throw new Error('The change came back empty. Try again.');
   onProgress?.({ stage: 'writing', done: 1, total: 1 });
@@ -286,6 +447,7 @@ export async function changeQuickVersion(
     },
     newVersionId: item.id,
     newScore: newScores.absoluteByVersion[item.id]?.total ?? null,
+    ...(wholeTarget != null ? { length: { target: wholeTarget, words: countWords(restored.text) } } : {}),
     previousBestScore: scores.absoluteByVersion[base.id]?.total ?? null,
     becameBest: newScores.winnerId === item.id,
   };

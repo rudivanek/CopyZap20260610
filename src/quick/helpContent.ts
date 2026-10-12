@@ -161,7 +161,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       { term: 'Copy', text: 'Copies the best version. Every other version has its own Copy button when you open it.' },
       {
         term: 'Change it',
-        text: `Tick what should change (${QUICK_CHANGE_OPTIONS.map(option => option.label).join(', ')}), say it in your own words in up to ${QUICK_CHANGE_MAX_CHARS} characters, or both. Everything you tick and write goes into one rewrite. CopyZap rewrites the best version, scores the new one, and shows whichever scores higher on top. Parts you kept stay kept.`,
+        text: `Tick what should change (${QUICK_CHANGE_OPTIONS.map(option => option.label).join(', ')}), say it in your own words in up to ${QUICK_CHANGE_MAX_CHARS} characters, or both. Everything you tick and write goes into one rewrite. With Shorter or Longer you set how many words the best version should have; CopyZap gets close to it, usually within about 15%, and a dense text can only get so short without losing its facts. CopyZap rewrites the best version, scores the new one, and shows whichever scores higher on top. Parts you kept stay kept.`,
       },
       {
         term: 'Edit it myself',

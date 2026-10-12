@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.51
-Last Updated: 2026-10-12T02:00:00Z
+Version: 1.52
+Last Updated: 2026-10-12T03:00:00Z
 
 ---
 
@@ -206,6 +206,53 @@ Last Updated: 2026-10-12T02:00:00Z
 **Verification:**
 - `npm run build` passes.
 - The app looks and behaves as before: this prompt adds nothing to the screens. The typed goal and the multi-change request are wired through the engine but not yet reachable from the UI.
+
+---
+
+## Quick — Shorter and Longer, to a Number of Words (2026-10-12)
+
+**Feature:** On the Quick result screen, "What should change?" gets a sixth tick box, **Longer**, next to Shorter. The two exclude each other. Ticking either shows one line — "Shorter, to about [ N ] words (now X; MIN to MAX possible)" — filled in with a quarter fewer or a third more of the best version's words. The best version is rewritten to about that number; when the result misses it by more than 15% (and by more than 3 words), one more pass corrects the length. Afterwards the change message says how many words the new version has and how many were asked for. Changes without Shorter or Longer are sent exactly as before. Tips and Help describe it.
+
+**Why:** Before, Shorter was a fixed "about a quarter shorter" with no number, and the rewrite often missed the cut on dense copy. Measured on 2026-10-12: "Shorter" with "keep every fact" hardly cut a 105-word email at all (96–99 words after asking for 79); a page of 272 words asked for 136 came back at 118. With the number and a correction pass, the rewrite lands within about 15% on wordy copy, and a dense text stops where nothing is left to cut.
+
+**Edit — `src/engine/changeQuickVersion.ts` (8 edits):** The engine adds Longer, the number of words, the limits, the requests, and the correction pass:
+- **Edit 9.1 — Shorter and Longer exclude each other:** `QUICK_CHANGE_OPTIONS` gained `{ label: 'Longer', excludes: 'Shorter' }` as its second entry, and `Shorter` gained `excludes: 'Longer'`. The five original options remain; the array now has six.
+- **Edit 9.2 — room for the number in the length check:** `TICKED_MAX_CHARS` (the room added to the user's own-words limit so the ticked labels don't count against it) grew by `' to 99999 words'.length`, so a label like "Shorter to 79 words" fits. The comment now says "with the number of words of Shorter or Longer".
+- **Edit 9.3 — the number of words: limits, requests and the correction pass:** `QuickChangeParts` gained an optional `targetWords?: number` field — the words the whole best version should have afterwards. Below the interface, a documented block adds the length machinery: `QuickLengthDirection` type (`'shorter' | 'longer'`); `LENGTH_TOLERANCE = 0.15`, `LENGTH_MIN_MISS = 3`, `SHORTER_MIN_SHARE = 0.3`, `LONGER_MAX_SHARE = 2`, `LONGER_ROOM_WORDS = 1100`, `LONG_INPUT_WORDS = 1250`, `LONGER_LONG_SHARE = 1.15`. `quickLengthDirection(ticked)` returns `'shorter'`, `'longer'`, or null. `QuickLengthInfo` holds `now`, `fixed` (words in kept parts and testimonials), and `shorter`/`longer` objects with `min`, `max`, `suggested`. `quickLengthInfo(result)` works out the numbers from the best version's text and its locked (editable) part. `quickLengthProblem(info, direction, target)` returns a user-facing reason when the number is out of range, not a whole number, or when the text can't change length; null when it's fine. `lengthRequest(direction, target, words)` builds the rewrite instruction — Shorter keeps headings and key facts and leaves out less important detail; Longer explains more fully what the text already says and adds no new facts. `lengthCorrection(direction, target, words)` builds the second-pass instruction when the first missed. The block carries a measurement note from 2026-10-12.
+- **Edit 9.4 — build the request with the number:** `requestFor` gained a fourth parameter `lengthTarget: number | null`. A single change that is Shorter or Longer now uses `lengthRequest`; a multi-change request substitutes `lengthRequest` for the matching tick and ends with "The result must have about N words." instead of the old quarter-shorter or keep-length line. A single change that is not a length change still returns `FULL_REQUESTS[wanted]` as before.
+- **Edit 9.5 — report the words reached:** `QuickChangeOutcome` gained an optional `length?: { target: number; words: number }` field.
+- **Edit 9.6 — work out the number for the rewritten part:** Before the rewrite, the engine computes `direction`, `wholeTarget` (from `parts?.targetWords` or the suggested value), validates it with `quickLengthProblem`, and sets `lengthTarget = max(1, wholeTarget - fixed)` — kept parts and testimonials stay as they are, so the rewritten part gets the rest of the target.
+- **Edit 9.7 — the correction pass:** After the first rewrite, if Shorter or Longer was ticked and the result missed by more than `LENGTH_MIN_MISS` words and more than `LENGTH_TOLERANCE` of the target, one more `modifyContent` pass runs `lengthCorrection` on the rewritten text. The pass uses `customWordCount: got` so the writer is anchored to the actual length.
+- **Edit 9.8 — pass the words on:** The outcome now includes `length: { target: wholeTarget, words: countWords(restored.text) }` when Shorter or Longer was used, so the screen can report how close it came.
+
+**Edit — `src/quick/QuickResult.tsx` (6 edits):** The result screen adds the number field and wires it through:
+- **Edit 9.9 — imports:** Added `quickLengthDirection`, `quickLengthInfo`, `quickLengthProblem` alongside the existing `composeQuickChange`, `QUICK_CHANGE_MAX_CHARS`, `QUICK_CHANGE_OPTIONS`.
+- **Edit 9.10 — the number field state:** Added `lengthInfo = useMemo(() => quickLengthInfo(result), [result])` and `lengthWords` state (the text in the number field). The `tick` function became a block: after the existing `setTicked`, it calls `quickLengthDirection([label])` and, when ticking Shorter or Longer, sets `lengthWords` to the suggested number (a quarter fewer or a third more).
+- **Edit 9.11 — ticking proposes a number; the label carries it:** Added `direction = quickLengthDirection(tickedInOrder)`, `lengthTarget` (parsed from `lengthWords`, `NaN` when empty), `lengthProblem` (from `quickLengthProblem`), and `wantedChange` now composes the ticked labels with "Shorter to 79 words" / "Longer to 140 words" when a length is set and valid.
+- **Edit 9.12 — send the number:** `submitChange` now guards on `lengthProblem` and passes `targetWords: lengthTarget` in the `onChange` parts when a direction is ticked.
+- **Edit 9.13 — clear and re-propose the number:** The `versionCount` effect that clears `instruction` and `ticked` now also clears `lengthWords`. A new effect watches `lengthInfo?.now` and re-proposes the number when another version becomes the best (after "Score again") and Shorter or Longer is still ticked.
+- **Edit 9.14 — the number field:** Between the tick boxes and the "In your own words" field, a conditional block renders when `direction && lengthInfo`: a label ("Shorter, to about" / "Longer, to about"), a number `<input>` (`type="number"`, `inputMode="numeric"`, min/max from the info, step 1, `data-tip={TIPS.lengthWords}`, Enter submits, disabled while rescoring or when the result is full), the word "words", and a note "(now X; MIN to MAX possible)". A `lengthProblem` line shows below when the number is out of range.
+- **Edit 9.15 — Change it waits for a valid number:** The "Change it" button's `disabled` condition gained `|| lengthProblem !== null`, so it stays disabled until the number is in range.
+
+**Edit — `src/quick/QuickPage.tsx` (1 edit):** The change notice now reports the length:
+- **Edit 9.16 — say how close it came:** After building the `outcomeNotice`, if `outcome.length` is set, the notice text gains "It has N words; you asked for about M." using the existing `asNumber` formatter.
+
+**Edit — `src/quick/tips.ts` (2 edits):** Tips describe Shorter, Longer, and the number field:
+- **Edit 9.17 — tips for Shorter and Longer:** `CHANGE_TIPS.Shorter` was rewritten to "Down to the number of words you set (a quarter fewer to start with). Keeps the headings and key facts; at a small number, less important detail is left out. Can't be ticked with Longer." A new `CHANGE_TIPS.Longer` entry reads "Up to the number of words you set (a third more to start with): explains more fully what your text already says. Adds no new facts; for new content, write it in your own words. Can't be ticked with Shorter."
+- **Edit 9.18 — tip for the number field:** `TIPS` gained `lengthWords: 'How many words the best version should have afterwards. CopyZap gets close to it, usually within about 15%.'`, placed after `startOver`.
+
+**Edit — `src/quick/helpContent.ts` (1 edit):** The Help "Change it" entry now describes the length feature:
+- **Edit 9.19 — Help: Change it:** The help text gained a sentence: "With Shorter or Longer you set how many words the best version should have; CopyZap gets close to it, usually within about 15%, and a dense text can only get so short without losing its facts." The rest of the entry is unchanged.
+
+**Accessibility:** The number field is a real `<input type="number">` with a label, `aria-describedby` pointing to the range note, and Enter submits. It is disabled while a process runs or when no change is possible. The tip (`data-tip`) appears on hover and keyboard focus as the other controls do.
+
+**Effect on existing results:** None. A result saved before this change has no `targetWords` in its change parts. The length field only appears when Shorter or Longer is ticked, which only happens on a new change. The `quickLengthInfo` function reads the best version's text on demand; it works for any result with a winner. No saved result is changed.
+
+**Files touched:** `src/engine/changeQuickVersion.ts` (8 edits), `src/quick/QuickResult.tsx` (6 edits), `src/quick/QuickPage.tsx` (1 edit), `src/quick/tips.ts` (2 edits), `src/quick/helpContent.ts` (1 edit). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- On a Quick result, "What should change?" shows six tick boxes (Shorter, Longer, Stronger call to action, Warmer, More formal, Less formal). Ticking Shorter shows "Shorter, to about [number] words (now X; MIN to MAX possible)"; ticking Longer unticks Shorter and shows its own line. The number can be edited; out-of-range values show a reason and disable "Change it". After the change, the notice says how many words the new version has and how many were asked for.
 
 ---
 
