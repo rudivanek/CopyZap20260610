@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.49
-Last Updated: 2026-10-12T00:00:00Z
+Version: 1.50
+Last Updated: 2026-10-12T01:00:00Z
 
 ---
 
@@ -206,6 +206,52 @@ Last Updated: 2026-10-12T00:00:00Z
 **Verification:**
 - `npm run build` passes.
 - The app looks and behaves as before: this prompt adds nothing to the screens. The typed goal and the multi-change request are wired through the engine but not yet reachable from the UI.
+
+---
+
+## Quick — A Goal in the User's Own Words, and Tick Boxes for "What Should Change?" — Screens (2026-10-12)
+
+**Feature:** The screen part of two Quick changes, built on the engine added in the previous section. First, the start form's "What is this copy for?" gains a sixth choice, "Other", with a text field where the user types a goal in their own words (3 to 80 characters). The six choices stand in two columns of three on wider screens, one column on a phone. "Continue" waits until a goal is typed when "Other" is chosen. Second, the result screen's "What should change?" replaces its one-click buttons with five square tick boxes (Shorter, Stronger call to action, Warmer, More formal, Less formal). Several can be ticked; "More formal" and "Less formal" untick each other. The text field stays, and one "Change it" button sends everything — ticks and words — as one rewrite. Ticks and text are cleared when the new version arrives, and stay when a change fails or is stopped. The typed goal is shown on the check screen, on the result, and in History. Help describes both changes.
+
+**New file — `src/quick/SquareCheck.tsx`:** A square tick-box component, the multi-choice counterpart to `SquareRadio` (single-choice). It looks like `SquareRadio` on purpose, with one difference: a chosen `SquareCheck` is filled and shows a tick (a checked `SquareRadio` shows only a filled square). It is a real `<input type="checkbox">` under the square, so the space bar ticks it and a screen reader says "checked" or "not checked". The orange is the same as `SquareRadio`'s (`primary-600` on light, `primary-400` on dark). The label has a 44px minimum touch height, and the children sit to the right of the marker.
+
+**Edit — `src/quick/QuickPage.tsx` (13 edits):** The start form carries the typed goal and the multi-change request:
+- Imports widened: `QUICK_GOAL_OTHER_MAX_CHARS`, `QUICK_GOAL_OTHER_MIN_CHARS`, `cleanQuickGoalLabel`, `quickGoalName` from `buildQuickFormState`; `QuickChangeParts` from `changeQuickVersion`.
+- The `GOALS` array now includes the sixth "Other" choice (`{ key: 'custom', name: 'Other', description: 'Say it in your own words' }`) alongside the five fixed goals.
+- New state: `goalOther` (the typed goal text), `goalMissing` (true when "Other" is chosen and the cleaned text is under the minimum). The reading step and the run both check `goalMissing` before proceeding. The "Continue" button is disabled when `goalMissing`.
+- The `runQuickPipeline` call passes `goalLabel: goalKey === 'custom' ? goalOther : undefined`.
+- `handleChange` now accepts an optional `QuickChangeParts` argument and passes it to `changeQuickVersion`.
+- The goal selector's container changed from `flex flex-col` (one column) to `grid grid-cols-1 sm:grid-flow-col sm:grid-rows-3 sm:auto-cols-fr gap-x-8` (two columns of three on wider screens, one column on a phone). When "Other" is chosen, a text field appears below the grid with a label, the input (capped at `QUICK_GOAL_OTHER_MAX_CHARS`), and a helper note that says the versions are scored by how well they do this, plus "Type a few words to continue." when the text is too short.
+- The check screen's `goalName` prop now uses `quickGoalName(goalKey, goalOther)` instead of the `GOALS` lookup, so "Other" shows the user's own words.
+
+**Edit — `src/quick/QuickResult.tsx` (8 edits):** The result screen gains tick boxes and the typed goal:
+- Imports replaced: `GOAL_OPTIONS` removed; `quickGoalName` from `buildQuickFormState`, `composeQuickChange`, `QUICK_CHANGE_MAX_CHARS`, `QUICK_CHANGE_OPTIONS` from `changeQuickVersion`, `QuickChangeParts` type, and `SquareCheck` added.
+- The `onChange` prop now accepts an optional `QuickChangeParts` argument.
+- The `CHANGE_IDEAS` array and its one-click buttons were removed.
+- New state: `ticked` (array of ticked labels). `tick(label, on)` adds a label and removes its `excludes` pair (so "More formal" and "Less formal" untick each other). `tickedInOrder` returns the ticked labels in the list's order. `wantedChange` is `composeQuickChange(tickedInOrder, instruction)` — one line that names the new version and is checked for length. `changeClosed` is the reason no change is possible at all (e.g., the result is full). `submitChange` now takes no argument and calls `onChange(wantedChange, { ticked: tickedInOrder, own: instruction.trim() })`. A `useEffect` on `versionCount` clears both `instruction` and `ticked` when a new version arrives.
+- The "Judged as" line and the top-line goal now use `quickGoalName(result.goalKey, result.formState.quickGoalLabel, ...)` instead of the `GOAL_OPTIONS` lookup, so "Other" shows the user's own words.
+- The change panel was replaced: the old label and one-click buttons became a `<p id="quick-change-title">` heading, a paragraph explaining the tick + words + both flow, a `role="group"` grid of five `SquareCheck` components (three columns on wider screens), the text field (now labeled "In your own words (optional)", capped at `QUICK_CHANGE_MAX_CHARS`), and one "Change it" button. The button is disabled when `isRescoring`, `!wantedChange`, or `changeProblem`. The error line now shows `changeProblem || changeClosed`.
+
+**Edit — `src/quick/QuickHistory.tsx` (3 edits):** History shows the typed goal:
+- Imports replaced: `GOAL_OPTIONS` removed; `quickGoalName` from `buildQuickFormState` added.
+- The local `goalName` function was removed (replaced by `quickGoalName`).
+- The per-entry "Goal:" line now uses `quickGoalName(entry.goalKey, entry.goalLabel)`, so "Other" shows the user's own words. The condition changed from `goalName(entry.goalKey) && ...` to `entry.goalKey && ...`.
+
+**Edit — `src/quick/helpContent.ts` (3 edits):** Help describes both changes:
+- Import widened to include `QUICK_CHANGE_OPTIONS` from `changeQuickVersion`.
+- The "Goal" help entry in the "Bringing your copy" section now mentions "Other": "With 'Other' you say it in a few words of your own, for example 'get sign-ups for the October webinar'."
+- The "Change it" help entry in the "Working on a result" section was rewritten: "Tick what should change (Shorter, Stronger call to action, Warmer, More formal, Less formal), say it in your own words in up to 300 characters, or both. Everything you tick and write goes into one rewrite."
+
+**Effect on existing results:** A result saved before this change has no `quickGoalLabel` in its settings, so `quickGoalName` returns "Other" for a `custom` goal with no label, and the fixed goal's short name for the five fixed goals. The tick boxes and the "Other" goal field are only reachable from new runs. No saved result is changed.
+
+**Files touched:** `src/quick/SquareCheck.tsx` (new), `src/quick/QuickPage.tsx` (13 edits), `src/quick/QuickResult.tsx` (8 edits), `src/quick/QuickHistory.tsx` (3 edits), `src/quick/helpContent.ts` (3 edits). `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- On the Quick start form, "What is this copy for?" shows six choices in two columns; choosing "Other" shows a text field under them. "Continue" is disabled until a goal is typed.
+- On a result, "What should change?" shows five square tick boxes, a text field, and one "Change it" button. Several ticks can be combined with typed words; "More formal" and "Less formal" untick each other. Ticks and text clear when a new version arrives.
+- The typed goal appears on the check screen, on the result's top line and "Judged as" line, and in History.
+- The Quick help page describes both the "Other" goal and the tick-box change flow.
 
 ---
 

@@ -3,10 +3,11 @@ import { GeneratedContentItem } from '../types';
 import FormattedContent from '../components/ui/FormattedContent';
 import { contentToText } from '../services/api/contentText';
 import type { AbsoluteScoreBreakdown } from '../services/api/absoluteScoring';
-import { GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import { countWords } from '../utils/markdownUtils';
 import { getAbsoluteScoreLabel, getAbsoluteScoreMarkClass } from '../utils/scoreColors';
-import { deriveQuickLabel } from '../engine/buildQuickFormState';
+import { deriveQuickLabel, quickGoalName } from '../engine/buildQuickFormState';
+import { composeQuickChange, QUICK_CHANGE_MAX_CHARS, QUICK_CHANGE_OPTIONS } from '../engine/changeQuickVersion';
+import type { QuickChangeParts } from '../engine/changeQuickVersion';
 import { prepareQuickEdit, QuickEditDraft, validateQuickEdit } from '../engine/editQuickVersion';
 import { exportQuickReport } from '../engine/exportQuickReport';
 import { effectiveGates } from '../engine/gateRules';
@@ -15,6 +16,7 @@ import type { NumberCheck } from '../engine/numberCheck';
 import { ORIGINAL_VERSION_ID } from '../engine/pickWinner';
 import { QUICK_SCORE_MARGIN } from '../engine/runQuickPipeline';
 import type { QuickRunResult } from '../engine/runQuickPipeline';
+import SquareCheck from './SquareCheck';
 
 interface QuickResultProps {
   result: QuickRunResult;
@@ -29,7 +31,7 @@ interface QuickResultProps {
   saveState: 'saving' | 'saved' | 'failed' | null;
   onRetrySave: () => void;
   /** Rewrites the best version as asked. The page runs it behind the modal. */
-  onChange: (instruction: string) => void;
+  onChange: (instruction: string, parts?: QuickChangeParts) => void;
   /** Why a change is not possible for this text right now; null when it is. */
   changeBlocked: (instruction: string) => string | null;
   /** What the last change or edit led to, or why it failed. */
@@ -37,9 +39,6 @@ interface QuickResultProps {
   /** Scores a version the user edited by hand. The page runs it behind the modal. */
   onScoreEdit: (draft: QuickEditDraft, text: string) => void;
 }
-
-/** One-click requests. Each is sent as written. */
-const CHANGE_IDEAS = ['Shorter', 'More formal', 'Warmer', 'Stronger call to action'];
 
 const card = 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700';
 // The copy itself always sits on a white "paper" surface, in light and dark theme:
@@ -210,12 +209,30 @@ const QuickResult: React.FC<QuickResultProps> = ({
   };
   const editProblem = draft ? validateQuickEdit(result, editText, draft.text) : null;
   const [instruction, setInstruction] = useState('');
-  const changeProblem = instruction.trim() ? changeBlocked(instruction) : null;
-  const submitChange = (text: string) => {
-    if (isRescoring || !text.trim() || changeBlocked(text)) return;
-    onChange(text.trim());
-    setInstruction('');
+  // The changes that are ticked. Several go into one rewrite, with the user's own words.
+  const [ticked, setTicked] = useState<string[]>([]);
+  const tick = (label: string, on: boolean) =>
+    setTicked(current => {
+      const excluded = QUICK_CHANGE_OPTIONS.find(option => option.label === label)?.excludes;
+      const others = current.filter(item => item !== label && item !== excluded);
+      return on ? [...others, label] : others;
+    });
+  // In the order of the list, whatever the order of ticking.
+  const tickedInOrder = QUICK_CHANGE_OPTIONS.map(option => option.label).filter(label => ticked.includes(label));
+  const wantedChange = composeQuickChange(tickedInOrder, instruction);
+  const changeProblem = wantedChange ? changeBlocked(wantedChange) : null;
+  // Why no change is possible at all right now (for example: the result is full); null when one is.
+  const changeClosed = changeBlocked('Shorter');
+  const submitChange = () => {
+    if (isRescoring || !wantedChange || changeBlocked(wantedChange)) return;
+    onChange(wantedChange, { ticked: tickedInOrder, own: instruction.trim() });
   };
+  // The ticks and the words are cleared once the change has led to a new version;
+  // after a failed or stopped change they are still there to try again.
+  useEffect(() => {
+    setInstruction('');
+    setTicked([]);
+  }, [versionCount]);
   // Ids of the other versions whose text is currently open.
   const [openIds, setOpenIds] = useState<string[]>([]);
   // The report is built in the browser and handed over as an HTML file.
@@ -336,7 +353,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const hasRankings = !!scores && ranked.length + unranked.length > 0;
   const judgedAs = [
     scores?.comparisonResult.scoringContext?.useCaseLabel && `Judged as: ${scores.comparisonResult.scoringContext.useCaseLabel}`,
-    `Goal: ${GOAL_OPTIONS.find(option => option.key === result.goalKey)?.label ?? result.goalKey}`,
+    `Goal: ${quickGoalName(result.goalKey, result.formState.quickGoalLabel, true)}`,
   ]
     .filter(Boolean)
     .join(' · ');
@@ -354,8 +371,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
     window.setTimeout(() => jumpTo(`quick-version-${id}`), 60);
   };
 
-  const goalOption = GOAL_OPTIONS.find(option => option.key === result.goalKey);
-  const goalName = goalOption ? goalOption.label.split(' — ')[0] : result.goalKey;
+  const goalName = quickGoalName(result.goalKey, result.formState.quickGoalLabel);
   const scoreLabel = winnerTotal != null ? getAbsoluteScoreLabel(winnerTotal) : '';
 
   const hasChecks = flags.length > 0 || isIncomplete || quoteFlags.length > 0 || testimonialsMoved || hasNumberNotes;
@@ -568,52 +584,53 @@ const QuickResult: React.FC<QuickResultProps> = ({
           {scores && scores.winnerId && (
             <section id="quick-change-panel" aria-label="What should change?" className={`${card} p-5 flex flex-col gap-3 scroll-mt-20`}>
               <div className="flex flex-col gap-1">
-                <label htmlFor="quick-change" className="font-semibold text-gray-900 dark:text-gray-100">
-                  What should change?
-                </label>
+                <p id="quick-change-title" className="font-semibold text-gray-900 dark:text-gray-100">What should change?</p>
                 <p className="text-gray-600 dark:text-gray-400">
-                  Say it in your own words. CopyZap rewrites the best version, scores it, and keeps whichever is better.
-                  Uses credits.
+                  Tick what you want, say it in your own words, or both. CopyZap rewrites the best version once with
+                  all of it, scores it, and keeps whichever is better. Uses credits.
                 </p>
               </div>
-              <div className="flex flex-wrap gap-2">
-                <input
-                  id="quick-change"
-                  type="text"
-                  value={instruction}
-                  maxLength={300}
-                  placeholder="For example: shorter, and mention the free diagnosis earlier"
-                  onChange={event => setInstruction(event.target.value)}
-                  onKeyDown={event => {
-                    if (event.key === 'Enter') submitChange(instruction);
-                  }}
-                  className="flex-[1_1_260px] min-w-0 min-h-[44px] px-3.5 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
-                />
-                <button
-                  type="button"
-                  onClick={() => submitChange(instruction)}
-                  disabled={isRescoring || !instruction.trim() || changeProblem !== null}
-                  className={primaryButton}
-                >
-                  Change it
-                </button>
-              </div>
-              <div className="flex flex-wrap items-center gap-2">
-                <span className="text-xs text-gray-600 dark:text-gray-400">Or one click:</span>
-                {CHANGE_IDEAS.map(idea => (
-                  <button
-                    key={idea}
-                    type="button"
-                    onClick={() => submitChange(idea)}
-                    disabled={isRescoring || changeBlocked(idea) !== null}
-                    className="min-h-[44px] px-3 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500"
+              <div role="group" aria-labelledby="quick-change-title" className="grid grid-cols-1 sm:grid-cols-3 gap-x-6">
+                {QUICK_CHANGE_OPTIONS.map(option => (
+                  <SquareCheck
+                    key={option.label}
+                    checked={ticked.includes(option.label)}
+                    onChange={on => tick(option.label, on)}
+                    disabled={isRescoring || changeClosed !== null}
                   >
-                    {idea}
-                  </button>
+                    <span className="text-gray-900 dark:text-gray-100">{option.label}</span>
+                  </SquareCheck>
                 ))}
               </div>
-              {(changeProblem || changeBlocked('Shorter')) && (
-                <p className="text-gray-900 dark:text-gray-100">{changeProblem || changeBlocked('Shorter')}</p>
+              <div className="flex flex-col gap-1">
+                <label htmlFor="quick-change" className="text-gray-900 dark:text-gray-100">
+                  In your own words <span className="text-gray-600 dark:text-gray-400">(optional)</span>
+                </label>
+                <div className="flex flex-wrap gap-2">
+                  <input
+                    id="quick-change"
+                    type="text"
+                    value={instruction}
+                    maxLength={QUICK_CHANGE_MAX_CHARS}
+                    placeholder="For example: mention the free diagnosis earlier"
+                    onChange={event => setInstruction(event.target.value)}
+                    onKeyDown={event => {
+                      if (event.key === 'Enter') submitChange();
+                    }}
+                    className="flex-[1_1_260px] min-w-0 min-h-[44px] px-3.5 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  />
+                  <button
+                    type="button"
+                    onClick={submitChange}
+                    disabled={isRescoring || !wantedChange || changeProblem !== null}
+                    className={primaryButton}
+                  >
+                    Change it
+                  </button>
+                </div>
+              </div>
+              {(changeProblem || changeClosed) && (
+                <p className="text-gray-900 dark:text-gray-100">{changeProblem || changeClosed}</p>
               )}
               {changeNotice && (
                 <p role="status" className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">

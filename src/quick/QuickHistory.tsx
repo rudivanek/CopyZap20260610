@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { User } from '../types';
-import { GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import { getAbsoluteScoreMarkClass } from '../utils/scoreColors';
+import { quickGoalName } from '../engine/buildQuickFormState';
 import { deleteQuickResult, listQuickResults, QuickHistoryEntry, renameQuickResult } from '../engine/quickHistory';
 
 interface QuickHistoryProps {
@@ -20,12 +20,6 @@ const smallButton =
   'inline-flex items-center justify-center min-h-[44px] px-4 bg-white dark:bg-gray-900 border border-gray-400 ' +
   'dark:border-gray-600 text-gray-900 dark:text-gray-100 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 ' +
   'disabled:opacity-50 focus:outline-none focus:ring-2 focus:ring-primary-500';
-
-function goalName(key: string | null): string {
-  if (!key) return '';
-  const option = GOAL_OPTIONS.find(item => item.key === key);
-  return option ? option.label.split(' — ')[0] : key;
-}
 
 function formatDate(value: string): string {
   const date = new Date(value);
@@ -191,7 +185,7 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
 
                 <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
                   <span className="text-xs text-gray-600 dark:text-gray-400">
-                    {[goalName(entry.goalKey) && `Goal: ${goalName(entry.goalKey)}`,
+                    {[entry.goalKey && `Goal: ${quickGoalName(entry.goalKey, entry.goalLabel)}`,
                       entry.sourceHost && `From ${entry.sourceHost}`,
                       entry.originalScore != null && `Original: ${entry.originalScore}`,
                       formatDate(entry.createdAt),

@@ -3,7 +3,7 @@
  * sections of the help page. Kept apart from the components so both show the
  * same text.
  */
-import { QUICK_MAX_VERSIONS, QUICK_CHANGE_MAX_CHARS } from '../engine/changeQuickVersion';
+import { QUICK_MAX_VERSIONS, QUICK_CHANGE_MAX_CHARS, QUICK_CHANGE_OPTIONS } from '../engine/changeQuickVersion';
 import { QUICK_MAX_INPUT_WORDS, QUICK_MAX_WORDS, QUICK_MIN_WORDS } from '../engine/buildQuickFormState';
 import { QUICK_LANGUAGES } from '../engine/inferQuickBrief';
 import { QUICK_SCORE_MARGIN, QUICK_SCORE_SAMPLES } from '../engine/runQuickPipeline';
@@ -63,7 +63,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       {
         term: 'Goal',
         text:
-          'What the copy is for: to convert, nurture, inform, educate, or build the brand. The goal decides how the versions are judged. A page that should convert is judged hard on its call to action; a page that should inform is not.',
+          'What the copy is for: to convert, nurture, inform, educate, or build the brand. With "Other" you say it in a few words of your own, for example "get sign-ups for the October webinar". The goal decides how the versions are judged. A page that should convert is judged hard on its call to action; a page that should inform is not.',
       },
     ],
   },
@@ -161,7 +161,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       { term: 'Copy', text: 'Copies the best version. Every other version has its own Copy button when you open it.' },
       {
         term: 'Change it',
-        text: `Say in your own words what should change, in up to ${QUICK_CHANGE_MAX_CHARS} characters, or use one click: Shorter, More formal, Warmer, Stronger call to action. CopyZap rewrites the best version, scores the new one, and shows whichever scores higher on top. Parts you kept stay kept.`,
+        text: `Tick what should change (${QUICK_CHANGE_OPTIONS.map(option => option.label).join(', ')}), say it in your own words in up to ${QUICK_CHANGE_MAX_CHARS} characters, or both. Everything you tick and write goes into one rewrite. CopyZap rewrites the best version, scores the new one, and shows whichever scores higher on top. Parts you kept stay kept.`,
       },
       {
         term: 'Edit it myself',

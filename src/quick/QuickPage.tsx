@@ -9,12 +9,16 @@ import {
   QUICK_DEFAULT_VARIANTS,
   QUICK_MAX_INPUT_WORDS,
   QUICK_MIN_WORDS,
+  QUICK_GOAL_OTHER_MAX_CHARS,
+  QUICK_GOAL_OTHER_MIN_CHARS,
+  cleanQuickGoalLabel,
+  quickGoalName,
   quickMaxWords,
 } from '../engine/buildQuickFormState';
 import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
 import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
-import { changeQuickVersion, QuickChangeOutcome, validateQuickChange } from '../engine/changeQuickVersion';
+import { changeQuickVersion, QuickChangeOutcome, QuickChangeParts, validateQuickChange } from '../engine/changeQuickVersion';
 import { QuickEditDraft, scoreQuickEdit } from '../engine/editQuickVersion';
 import { defaultChoices, planSections, SectionChoice, splitIntoSections } from '../engine/pageSections';
 import {
@@ -77,7 +81,9 @@ function outcomeNotice(name: 'Your change' | 'Your edit', outcome: QuickChangeOu
   return { tone: 'neutral', text: `${name} scored ${newScore} / 100, ${-difference} points below the best version (${best}). It is listed under Other versions.` };
 }
 
-const GOALS = GOAL_OPTIONS.filter(option => option.key !== 'custom').map(option => {
+// The five fixed goals, then "Other": the user says in a few words what the copy is for.
+const GOALS = GOAL_OPTIONS.map(option => {
+  if (option.key === 'custom') return { key: option.key, name: 'Other', description: 'Say it in your own words' };
   const [name, description = ''] = option.label.split(' — ');
   return {
     key: option.key,
@@ -104,6 +110,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [phase, setPhase] = useState<Phase>('start');
   const [copy, setCopy] = useState('');
   const [goalKey, setGoalKey] = useState<GoalKey>(DEFAULT_GOAL_KEY);
+  // For the goal "Other": what the copy is for, in the user's own words.
+  const [goalOther, setGoalOther] = useState('');
+  const goalMissing = goalKey === 'custom' && cleanQuickGoalLabel(goalOther).length < QUICK_GOAL_OTHER_MIN_CHARS;
   const [progress, setProgress] = useState<QuickProgress>({ stage: 'checking' });
   const [elapsed, setElapsed] = useState(0);
   const [error, setError] = useState<string | null>(null);
@@ -367,7 +376,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   };
 
   const handleContinue = async () => {
-    if (tooShort || tooLong || busy) return;
+    if (tooShort || tooLong || goalMissing || busy) return;
     setError(null);
 
     // Same copy as last time: the earlier reading still applies.
@@ -399,7 +408,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   };
 
   const handleRun = async () => {
-    if (tooShort || tooLong || busy || blocked) return;
+    if (tooShort || tooLong || goalMissing || busy || blocked) return;
     // With more than one part the user has decided about each, testimonials included.
     const usesParts = sections.length > 1;
     setError(null);
@@ -425,6 +434,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             : undefined,
           source: fetchedFrom && fetchedUrl ? { url: fetchedUrl, host: fetchedFrom } : undefined,
           goalKey,
+          goalLabel: goalKey === 'custom' ? goalOther : undefined,
           sessionId: sessionId ?? undefined,
           signal,
           brief: brief
@@ -488,14 +498,14 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   };
 
   /** Rewrites the best version as the user asked, scores it, and keeps whichever is better. */
-  const handleChange = async (instruction: string) => {
+  const handleChange = async (instruction: string, parts?: QuickChangeParts) => {
     if (!result || busy) return;
     setChangeNotice(null);
     setProgress({ stage: 'checking' });
     setBusy('changing');
     const { alive: isMounted, signal } = startProcess();
     try {
-      const outcome = await changeQuickVersion(result, instruction, currentUser, setProgress, signal);
+      const outcome = await changeQuickVersion(result, instruction, currentUser, setProgress, signal, parts);
       if (!isMounted.current) return;
       setResult(outcome.result);
       setChangeNotice(outcomeNotice('Your change', outcome));
@@ -692,7 +702,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
 
           <fieldset className="m-0 p-0 border-0">
             <legend className="p-0 mb-1 font-semibold text-gray-900 dark:text-gray-100">What is this copy for?</legend>
-            <div className="flex flex-col">
+            <div className="grid grid-cols-1 sm:grid-flow-col sm:grid-rows-3 sm:auto-cols-fr gap-x-8">
               {GOALS.map(goal => (
                 <SquareRadio
                   key={goal.key}
@@ -707,13 +717,34 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
                 </SquareRadio>
               ))}
             </div>
+            {goalKey === 'custom' && (
+              <div className="mt-1 flex flex-col gap-1">
+                <label htmlFor="quick-goal-other" className="text-gray-900 dark:text-gray-100">
+                  Your goal, in a few words
+                </label>
+                <input
+                  id="quick-goal-other"
+                  type="text"
+                  value={goalOther}
+                  onChange={event => setGoalOther(event.target.value)}
+                  maxLength={QUICK_GOAL_OTHER_MAX_CHARS}
+                  placeholder="For example: get sign-ups for the October webinar"
+                  aria-describedby="quick-goal-other-note"
+                  className="w-full sm:max-w-xl min-h-[44px] px-3.5 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                />
+                <p id="quick-goal-other-note" className="text-gray-600 dark:text-gray-400">
+                  The versions are scored by how well they do this.
+                  {goalMissing && ' Type a few words to continue.'}
+                </p>
+              </div>
+            )}
           </fieldset>
 
           <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
             <button
               type="button"
               onClick={handleContinue}
-              disabled={tooShort || tooLong || isFetching}
+              disabled={tooShort || tooLong || goalMissing || isFetching}
               className="inline-flex items-center justify-center min-h-[48px] px-8 bg-primary-500 hover:bg-primary-400 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
             >
               Continue
@@ -729,7 +760,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         <QuickConfirm
           copy={copy}
           words={words}
-          goalName={GOALS.find(goal => goal.key === goalKey)?.name ?? goalKey}
+          goalName={quickGoalName(goalKey, goalOther)}
           brief={brief}
           onBriefChange={setBrief}
           testimonialCount={testimonialCount}
