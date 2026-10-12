@@ -130,6 +130,8 @@ function wordsLabel(content: GeneratedContentItem['content'], generatedAt?: stri
 }
 
 const NO_NUMBERS: NumberCheck = { added: [], dropped: [] };
+/** Versions listed in the short ranking under the score; the full table is further down. */
+const RANKING_SUMMARY_MAX = 5;
 /** How many number findings of one kind are listed before "and N more". */
 const NUMBER_NOTES_SHOWN = 6;
 
@@ -308,6 +310,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const winner = (scores?.winnerId ? generated.find(version => version.id === scores.winnerId) : undefined) ?? generated[0];
 
   if (!winner) return null;
+  // The best version's name, as in the rankings and under Other versions: "Generated Copy 1".
+  const winnerName = winner.sourceDisplayName || 'Version';
 
   const rows = scores?.comparisonResult.rows ?? [];
   const winnerRow = rows.find(row => row.versionId === winner.id);
@@ -568,8 +572,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
         <div className="flex flex-col gap-5 min-w-0 lg:col-start-1 lg:row-start-1">
           <article id="quick-best" className={`${paper} p-5 sm:p-8 flex flex-col gap-4 scroll-mt-20`}>
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-              <span className="text-xs font-semibold text-gray-600">
-                Best version <span className="font-normal tabular-nums">· {wordsLabel(winner.content, winner.generatedAt)}</span>
+              <span className="text-xs font-semibold text-gray-600 break-words">
+                Best version: {winnerName}{' '}
+                <span className="font-normal tabular-nums">· {wordsLabel(winner.content, winner.generatedAt)}</span>
               </span>
               {scores && !isIncomplete && !nearOriginal && (
                 <span className="inline-flex items-center gap-2 text-xs font-semibold text-gray-900">
@@ -732,7 +737,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
         {/* Right: score, reasons, checks */}
         <aside className="flex flex-col gap-4 min-w-0 lg:col-start-2 lg:row-start-1 lg:row-span-2">
           <section id="quick-score" aria-label="Quality score" className={`${card} p-6 flex flex-col gap-5 scroll-mt-20`}>
-            <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Quality score</span>
+            <span className="text-xs font-semibold text-gray-600 dark:text-gray-400 break-words">
+              Quality score <span className="font-normal">· {winnerName}</span>
+            </span>
 
             {winnerTotal != null && winnerScore ? (
               <>
@@ -807,6 +814,65 @@ const QuickResult: React.FC<QuickResultProps> = ({
               </div>
             )}
           </section>
+
+          {/* A short ranking under the score: every ranked version, best first, and the original. */}
+          {scores && ranked.length > 0 && (
+            <section id="quick-ranking-summary" aria-label="Ranking" className={`${card} p-6 flex flex-col gap-2`}>
+              <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Ranking</span>
+              <ol className="flex flex-col">
+                {ranked.slice(0, RANKING_SUMMARY_MAX).map((item, index) => {
+                  const total = item.score?.total;
+                  const isWinner = item.version.id === winner.id;
+                  return (
+                    <li key={item.version.id}>
+                      <button
+                        type="button"
+                        onClick={() => jumpToVersion(item.version.id)}
+                        className="group w-full min-h-[44px] py-1 flex items-baseline gap-3 text-left focus:outline-none focus:ring-2 focus:ring-primary-500"
+                      >
+                        <span className="w-5 shrink-0 text-gray-600 dark:text-gray-400 tabular-nums">{index + 1}</span>
+                        <span className="flex-1 min-w-0 flex flex-col">
+                          <span className="text-gray-900 dark:text-gray-100 break-words group-hover:underline">
+                            {item.version.sourceDisplayName || 'Version'}
+                          </span>
+                          {isWinner && <span className="text-xs text-gray-600 dark:text-gray-400">Winner</span>}
+                          {!isWinner && isClose(total) && (
+                            <span className="text-xs text-gray-600 dark:text-gray-400">About the same</span>
+                          )}
+                        </span>
+                        <span className="shrink-0 font-semibold text-gray-900 dark:text-gray-100 tabular-nums">{total}</span>
+                      </button>
+                    </li>
+                  );
+                })}
+                {originalTotal != null && (
+                  <li className="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1">
+                    <button
+                      type="button"
+                      onClick={() => jumpTo('quick-original')}
+                      className="group w-full min-h-[44px] py-1 flex items-baseline gap-3 text-left focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      <span className="w-5 shrink-0" aria-hidden="true" />
+                      <span className="flex-1 min-w-0 text-gray-600 dark:text-gray-400 group-hover:underline">Your original</span>
+                      <span className="shrink-0 text-gray-600 dark:text-gray-400 tabular-nums">{originalTotal}</span>
+                    </button>
+                  </li>
+                )}
+              </ol>
+              {ranked.length > RANKING_SUMMARY_MAX && (
+                <p className="text-xs text-gray-600 dark:text-gray-400">
+                  and {ranked.length - RANKING_SUMMARY_MAX} more
+                </p>
+              )}
+              <button
+                type="button"
+                onClick={() => jumpTo('quick-rankings')}
+                className="self-start min-h-[44px] text-primary-800 dark:text-primary-300 underline focus:outline-none focus:ring-2 focus:ring-primary-500"
+              >
+                See full rankings
+              </button>
+            </section>
+          )}
 
           {whyNotes.length > 0 && (
             <section id="quick-why" aria-label="Why this version" className={`${card} p-6 flex flex-col gap-3 scroll-mt-20`}>

@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.55
-Last Updated: 2026-10-12T06:00:00Z
+Version: 1.56
+Last Updated: 2026-10-12T07:00:00Z
 
 ---
 
@@ -98,6 +98,31 @@ Last Updated: 2026-10-12T06:00:00Z
 **Verification:**
 - `npm run build` passes.
 - The check screen shows the "Kind of text" selector with six options; choosing "Other" reveals the "What is it?" field; the help page explains the new line; a fetched page is forced to "Web page".
+
+---
+
+## Quick — The Best Version's Name, and a Short Ranking Under the Score (2026-10-12)
+
+**Feature:** On the Quick result screen, the best version now says which version it is: the best-version card starts with "Best version: Generated Copy 1 · 1,352 words · Oct 12, 2026, 10:58", and the score card's heading reads "Quality score · Generated Copy 1". A new short "Ranking" card sits under the score card, listing the ranked versions best first (up to five, then "and N more"), each with its score, a "Winner" mark on the best one and "About the same" on the ones the scorer cannot tell apart from it, and the user's original at the bottom with its own score. Each line jumps to that version when chosen; "See full rankings" jumps to the full table further down the page. Nothing else on the screen changes, and the exported report is not affected by this prompt.
+
+**Why:** A result with several versions showed only "Best version" and a score without naming which version that was, so a reader could not tell whether the best was the first, the second, or a later edit. The full rankings table sits at the bottom of a long page, so the order of the versions and how close they came was not visible while looking at the best one. Naming the best version on its card and on the score card, and adding a short ranking right under the score, brings that context to where the reader already is.
+
+**Edit — `src/quick/QuickResult.tsx` (5 edits):** Each edit was a find-and-replace applied once; nothing else in the file changed.
+- **Edit 13.1 — how many versions the short ranking lists:** Right after the existing `const NO_NUMBERS: NumberCheck = { added: [], dropped: [] };` line, a new constant and comment were added: `/** Versions listed in the short ranking under the score; the full table is further down. */` then `const RANKING_SUMMARY_MAX = 5;`. This caps the short ranking at five ranked versions; the rest are reached through the full table.
+- **Edit 13.2 — the name of the best version:** Between the `if (!winner) return null;` line and the `const rows = scores?.comparisonResult.rows ?? [];` line, a new constant and comment were added: `// The best version's name, as in the rankings and under Other versions: "Generated Copy 1".` then `const winnerName = winner.sourceDisplayName || 'Version';`. The name is the version's own display name, falling back to "Version" when the field is missing — the same wording the rankings and the Other-versions list already use.
+- **Edit 13.3 — the name on the best version card:** The best-version card's header span changed from `<span className="text-xs font-semibold text-gray-600">` with the text `Best version <span ...>· {wordsLabel(...)}</span>` to `<span className="text-xs font-semibold text-gray-600 break-words">` with the text `Best version: {winnerName}{' '}` followed by the same length-and-time span. The `break-words` class was added so a long version name wraps instead of overflowing. No other part of the card (the copy body, the "Recommended" tag) is touched.
+- **Edit 13.4 — the name on the score card:** The score card's heading changed from a single `<span className="text-xs font-semibold text-gray-600 dark:text-gray-400">Quality score</span>` to a span of the same classes plus `break-words`, now reading `Quality score <span className="font-normal">· {winnerName}</span>`. The version name sits in a normal-weight span so the "Quality score" label stays the bold part. No other part of the score card (the big number, the delta, the sub-scores, the "Score again" button) is touched.
+- **Edit 13.5 — the short ranking under the score:** Between the score card's closing `</section>` and the existing `{whyNotes.length > 0 && (` block, a new `<section id="quick-ranking-summary" aria-label="Ranking">` was inserted. It renders only when `scores` is present and `ranked.length > 0` (so an unscored or unranked result shows no card, as before). The card holds: a "Ranking" label span; an ordered list of `ranked.slice(0, RANKING_SUMMARY_MAX)` entries, each a `<button>` that calls `jumpToVersion(item.version.id)` and shows the rank number, the version's display name (with `group-hover:underline`), a "Winner" mark when the entry is the best version, an "About the same" mark when it is not the winner but its score is within `QUICK_SCORE_MARGIN` of the winner's, and the total score on the right; a separator row for the user's original (shown when `originalTotal != null`), a `<button>` that calls `jumpTo('quick-original')` and shows "Your original" with its score; a "and N more" line when `ranked.length > RANKING_SUMMARY_MAX`; and a "See full rankings" button that calls `jumpTo('quick-rankings')`. The buttons reuse the existing `jumpToVersion` and `jumpTo` helpers already used elsewhere on the page, and meet the 44px minimum touch height. The `isClose` helper (already defined above for the full table and the Other-versions list) decides the "About the same" mark. No new data is read; the card is built from the `ranked` array and `originalTotal` that the page already computes.
+
+**Effect on the exported report:** None. The report is built by `src/engine/exportQuickReport.ts` and `src/utils/enhancedExports.ts`, neither of which is changed by this prompt. The report keeps its own, separate rankings table at the bottom.
+
+**Effect on existing results:** None. The version name (`sourceDisplayName`) and the ranked list are already part of every saved result; the new card reads them when the result screen renders. A result saved before this change shows the best version's name and the short ranking exactly as a new result does. No new field is stored.
+
+**Files touched:** `src/quick/QuickResult.tsx` (5 edits). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- On a Quick result, the best-version card starts with "Best version: Generated Copy …", the score card's heading reads "Quality score · Generated Copy …", and a "Ranking" card sits under the score, listing the ranked versions best first with their scores, the original at the bottom, and a "See full rankings" link. Choosing a line scrolls to that version; "See full rankings" scrolls to the full table.
 
 ---
 
