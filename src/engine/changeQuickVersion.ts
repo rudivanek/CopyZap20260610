@@ -253,6 +253,21 @@ function requestFor(
 }
 const LABEL_MAX_CHARS = 40;
 
+/**
+ * For a page, or a result from before the kinds of text: the headings stay as
+ * they are. Other kinds of text have their own note, which already says not to
+ * add section headings.
+ */
+const HEADINGS_CHANGE_NOTE =
+  'Keep every heading of the text as a heading, with the same markdown marks (# or ##) and the same capitalisation (sentence case stays sentence case). Change the words of a heading only when the request asks for it or when the part under it no longer fits it, and do not add new headings unless the request asks for them.';
+
+/** The ticked changes as they appear in a version's name. */
+const LABEL_NAMES: Record<string, string> = {
+  'stronger call to action': 'Stronger CTA',
+};
+/** How long the list of changes in a version's name may be before the rest is counted ("+2 more"). */
+const LABEL_LIST_MAX_CHARS = 50;
+
 export interface QuickChangeOutcome {
   result: QuickRunResult;
   newVersionId: string;
@@ -295,11 +310,43 @@ export function validateQuickChange(result: QuickRunResult, instruction: string)
   return null;
 }
 
+/** Cuts a text at the last whole word that fits. */
+function cutAtWord(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max + 1);
+  const space = cut.lastIndexOf(' ');
+  return `${(space > max / 2 ? cut.slice(0, space) : text.slice(0, max)).replace(/[\s,;:.-]+$/, '')}…`;
+}
+
+/**
+ * What a version's name says after "Changed: ". With ticks: their short names
+ * and "own words", for example "Longer to 157 words, Stronger CTA, own words".
+ * Only own words: the start of them, cut at a whole word.
+ */
+function labelText(instruction: string, parts: QuickChangeParts | undefined): string {
+  const ticked = parts?.ticked ?? [];
+  const own = (parts?.own ?? '').replace(/\s+/g, ' ').trim();
+  if (ticked.length === 0) {
+    const words = cutAtWord(own || instruction.replace(/\s+/g, ' ').trim(), LABEL_MAX_CHARS);
+    return words.charAt(0).toUpperCase() + words.slice(1);
+  }
+  const direction = quickLengthDirection(ticked);
+  const names = ticked.map(label => {
+    const key = label.toLowerCase();
+    if (direction && key === direction && Number.isFinite(parts?.targetWords)) return `${label} to ${parts?.targetWords} words`;
+    return LABEL_NAMES[key] ?? label;
+  });
+  if (own) names.push('own words');
+  let shown = names.length;
+  const listOf = (count: number) =>
+    names.slice(0, count).join(', ') + (count < names.length ? ` +${names.length - count} more` : '');
+  while (shown > 1 && listOf(shown).length > LABEL_LIST_MAX_CHARS) shown -= 1;
+  return listOf(shown);
+}
+
 /** A unique, short name for the new version, taken from what the user asked for. */
-function labelFor(instruction: string, taken: string[]): string {
-  const clean = instruction.replace(/\s+/g, ' ').trim();
-  const short = clean.length > LABEL_MAX_CHARS ? `${clean.slice(0, LABEL_MAX_CHARS).trim()}…` : clean;
-  const base = `Changed: ${short}`;
+function labelFor(instruction: string, taken: string[], parts?: QuickChangeParts): string {
+  const base = `Changed: ${labelText(instruction, parts)}`;
   let label = base;
   for (let n = 2; taken.includes(label); n += 1) label = `${base} (${n})`;
   return label;
@@ -381,10 +428,12 @@ export async function changeQuickVersion(
     ...result.formState,
     wordCount: 'Custom',
     customWordCount: lockedWords,
-    ...(kindNote ? { includeSectionTitles: false } : {}),
+    // The rewrite step's own heading rule (Title Case, "make them compelling") is
+    // for writing new copy; a change keeps the headings the text has (see HEADINGS_CHANGE_NOTE).
+    includeSectionTitles: false,
     specialInstructions: [
       KEEP_TO_ORIGINAL_CHANGE_NOTE,
-      kindNote,
+      kindNote || HEADINGS_CHANGE_NOTE,
       keepInstructions(keepZones),
       testimonialInstructions(quoteZones),
     ]
@@ -422,7 +471,7 @@ export async function changeQuickVersion(
     generatedAt: new Date().toISOString(),
     sourceId: base.id,
     sourceType: base.type,
-    sourceDisplayName: labelFor(wanted, result.versions.map(version => version.sourceDisplayName || '')),
+    sourceDisplayName: labelFor(wanted, result.versions.map(version => version.sourceDisplayName || ''), parts),
     sourceText: original,
     modificationInstruction: wanted,
   };

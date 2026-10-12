@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.59
-Last Updated: 2026-10-12T10:00:00Z
+Version: 1.60
+Last Updated: 2026-10-12T11:00:00Z
 
 ---
 
@@ -98,6 +98,38 @@ Last Updated: 2026-10-12T10:00:00Z
 **Verification:**
 - `npm run build` passes.
 - The check screen shows the "Kind of text" selector with six options; choosing "Other" reveals the "What is it?" field; the help page explains the new line; a fetched page is forced to "Web page".
+
+---
+
+## Quick — Short Names for Changed Versions, Headings Kept, Accents in Report File Names (2026-10-12)
+
+**Feature:** Three changes to Quick and the exported report:
+1. The names of changed versions are short and never cut mid-word. "Changed: Longer to 157 words; Stronger call to ac…" becomes "Changed: Longer to 157 words, Stronger CTA, own words". With many ticks the rest is counted ("+2 more"). A change asked for only in own words shows the start of them, cut at a whole word.
+2. A change keeps the headings of a page as they are. Until now the change step used the rewrite step's own heading rule (Title Case, "make them compelling"), so "Your next step" became "Your Next Step". Now a change keeps each heading, its # marks and its capitalisation, unless the request asks otherwise. Other kinds of text (email, post, ad…) already had their own note; that stays.
+3. Report file names keep accented letters as plain letters. "¿Tu sitio web ya cumplió 5 años?" becomes "Tu-sitio-web-ya-cumplio-5-anos" instead of "Tu-sitio-web-ya-cumpli-5-a-os". This applies to every HTML report (Quick and Copy Maker); nothing else in the report changes.
+
+**Edit — `src/engine/changeQuickVersion.ts` (4 edits):** Each FIND text occurred exactly once; nothing else in the file changed.
+- **Edit 17.1 — the heading note and the short names of the changes:** Between the existing `const LABEL_MAX_CHARS = 40;` line and `export interface QuickChangeOutcome {`, three new constants were inserted: `HEADINGS_CHANGE_NOTE` (a string telling the rewrite step to keep every heading as a heading, with the same markdown marks and capitalisation, and to change a heading's words only when the request asks or the part under it no longer fits, and to add no new headings unless asked); `LABEL_NAMES: Record<string, string>` (mapping the ticked-change labels to their short names — currently `'stronger call to action'` → `'Stronger CTA'`); and `LABEL_LIST_MAX_CHARS = 50` (how long the list of changes in a version's name may be before the rest is counted as "+N more").
+- **Edit 17.2 — short version names:** The body of `labelFor` was replaced. A new `cutAtWord(text, max)` helper cuts a text at the last whole word that fits (it looks for a space in the first `max + 1` characters, and if the space is past the halfway point it cuts there, otherwise it cuts hard at `max`; trailing punctuation/whitespace is trimmed and `…` is appended). A new `labelText(instruction, parts)` function builds what follows "Changed: ": with no ticks it returns the own words (or the instruction) cut at a whole word and capitalised; with ticks it maps each ticked label through `LABEL_NAMES` (and appends "to N words" to Shorter/Longer when a target is known), appends "own words" when the user wrote something, then trims the list to fit `LABEL_LIST_MAX_CHARS` by dropping the last shown item and appending "+N more" for the rest. The `labelFor` function's signature gained a third optional parameter `parts?: QuickChangeParts`, and its body now builds `base` as `Changed: ${labelText(instruction, parts)}`.
+- **Edit 17.3 — the change keeps the headings as they are:** The rewrite form state's `includeSectionTitles` line changed from `...(kindNote ? { includeSectionTitles: false } : {})` to an unconditional `includeSectionTitles: false` (with a comment explaining the rewrite step's own heading rule is for new copy, and a change keeps the text's headings — see `HEADINGS_CHANGE_NOTE`). The `specialInstructions` array changed from starting with `kindNote,` to starting with `kindNote || HEADINGS_CHANGE_NOTE,`, so a page (where `kindNote` is empty) now gets the heading-keeping note, while a non-page kind keeps its own note as before.
+- **Edit 17.4 — pass what was ticked to the name:** The `sourceDisplayName: labelFor(wanted, result.versions.map(...))` call now passes `parts` as the third argument, so the new name is built from the ticked changes and the user's own words.
+
+**Edit — `src/utils/enhancedExports.ts` (1 edit):** The FIND text occurred exactly once; nothing else in the file changed.
+- **Edit 17.5 — accented letters in the report file name:** In the HTML report's filename builder, between `.substring(0, 50)` and `.replace(/[^a-z0-9]/gi, '-')`, three new steps were inserted: `.normalize('NFD')` (decomposes accented letters into base letter + combining mark), `.replace(/[\u0300-\u036f]/g, '')` (strips the combining marks, so "años" → "anos"), and `.replace(/ß/g, 'ss')` (German sharp s → "ss"). A comment was added explaining the intent. The existing `.replace(/[^a-z0-9]/gi, '-')` then runs on the de-accented text, so letters that would have been dropped now survive as their base letter.
+
+**Effect on how versions are written or scored:** None. The rewrite step's prompt, the scorer, and the comparison step are not changed by this prompt. The `HEADINGS_CHANGE_NOTE` tells the rewrite step to keep headings as they are, which is the new behaviour for a change on a page; the words, scores, and rankings are otherwise unaffected.
+
+**Effect on the exported report's content:** None. Only the report's file name changes — accented letters in the project description survive as their base letter. The report's HTML content, headings, scores, and layout are not changed.
+
+**Effect on existing results:** None. The version name is built when a change is made, not when a result is saved; a result saved before this change keeps the name it got. The heading-keeping note applies to new changes only. The report file-name change applies to every export made after this change, including exports of results saved before it.
+
+**Files touched:** `src/engine/changeQuickVersion.ts` (4 edits), `src/utils/enhancedExports.ts` (1 edit). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- In Quick, after a change with Longer and Stronger call to action ticked, the new version is named like "Changed: Longer to 157 words, Stronger CTA".
+- A change on a page keeps the headings as they are (same words, same capitalisation, same # marks), unless the request asks otherwise.
+- An HTML report exported from a project whose description has accented letters (for example "¿Tu sitio web ya cumplió 5 años?") is saved with a file name that keeps the letters as plain ("Tu-sitio-web-ya-cumplio-5-anos").
 
 ---
 

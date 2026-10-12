@@ -3563,6 +3563,10 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
       || 'copy-output';
     const sanitizedDesc = rawDesc
       .substring(0, 50)
+      // Letters with accents keep their base letter ("años" -> "anos"), rather than being dropped.
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .replace(/ß/g, 'ss')
       .replace(/[^a-z0-9]/gi, '-')
       .replace(/-+/g, '-')
       .replace(/^-|-$/g, '');
