@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.48
-Last Updated: 2026-10-11T23:30:00Z
+Version: 1.49
+Last Updated: 2026-10-12T00:00:00Z
 
 ---
 
@@ -167,6 +167,45 @@ Last Updated: 2026-10-11T23:30:00Z
 **Verification:**
 - `npm run build` passes.
 - On a Quick run, the writer receives the keep-to-original note; the second pass receives the keep-to-original rule; a change by request receives the keep-to-original change note. Copy Maker receives none of these.
+
+---
+
+## Quick — A Goal in the User's Own Words, and Several Changes in One Rewrite — Engine (2026-10-12)
+
+**Feature:** The engine part of two Quick changes. Nothing on screen changes until the follow-up UI prompt is applied. First, a run can carry a goal in the user's own words: the goal key `custom` ("Other") plus a short text the user types. The text is cleaned, stored with the result, handed to the scorers, and listed in History. Second, a change to the best version can consist of several changes at once: ticked ones (Shorter, Stronger call to action, Warmer, More formal, Less formal) plus the user's own words. They go to the rewrite step as one numbered request, so none is lost. A request with a single change is passed on exactly as before.
+
+**Edit — `src/types/index.ts`:** `FormData` gained one optional field: `quickGoalLabel?: string`, the goal in the user's own words when the goal key is `'custom'`. Left out for the five fixed goals.
+
+**Edit — `src/engine/buildQuickFormState.ts`:** Four changes that add the typed goal's limits, cleaning, screen name, storage, and path to the scorers:
+- The import from `scoringContextStorage` was widened to include `GOAL_OPTIONS` (so the screen name of a fixed goal can be resolved without duplicating its label).
+- `QuickFormInput` gained an optional `goalLabel?: string` field. Below the interface, three new exports: `QUICK_GOAL_OTHER_MAX_CHARS = 80` (longest text the user can type), `QUICK_GOAL_OTHER_MIN_CHARS = 3` (shortest that counts), and `cleanQuickGoalLabel(value)` — makes the text safe to stand inside the scorer's instructions (one line, no double quotation marks of any kind, no invisible control characters, at most 80 characters counted by code points so an emoji is never cut in half). Also `quickGoalName(goalKey, goalLabel?, long = false)` — the goal as shown on screen: "Convert", or for "Other" the user's own words; `long` gives the fixed goals with their description ("Convert — drive an action / sale").
+- `buildQuickFormState` now sets `quickGoalLabel` on the form state when `cleanQuickGoalLabel(input.goalLabel)` is non-empty. Left out for the five fixed goals.
+- `buildQuickScoringContext(goalKey, kind?, goalLabel?)` gained an optional third parameter. When `goalKey` is `'custom'`, the context's `goalLabel` is set to the cleaned text, so the scorer judges by the user's own words. The five fixed goals keep their own label (set by `buildContextFromKey`); "Other" without words is judged without a goal. Without the parameter, the context is exactly as before.
+
+**Edit — `src/engine/runQuickPipeline.ts`:** Four changes that carry the typed goal through a run:
+- `QuickRunInput` gained an optional `goalLabel?: string` field.
+- The first scoring step (the unified comparison) now calls `buildQuickScoringContext(goalKey, quickTextKindOf(formState), formState.quickGoalLabel)`.
+- The second scoring step (the further-score readings) now calls `buildQuickScoringContext(goalKey, kind, formState.quickGoalLabel)`.
+- The `buildQuickFormState` call that builds the run's form state now passes `goalLabel: input.goalKey === 'custom' ? input.goalLabel : undefined`, so the typed goal is stored only for the "Other" goal.
+
+**Edit — `src/engine/changeQuickVersion.ts`:** Four changes that let several changes go into one rewrite:
+- After `QUICK_CHANGE_MAX_CHARS`, a new block defines the tickable change options: `QuickChangeOption` interface (`label`, optional `excludes`), `QUICK_CHANGE_OPTIONS` array (Shorter, Stronger call to action, Warmer, More formal [excludes Less formal], Less formal [excludes More formal]), `CHANGE_SEPARATOR = '; '`, and `TICKED_MAX_CHARS` (room for all ticked labels plus a separator, added to the length check so a user's own words are not rejected when the ticks fill the box). Also `QuickChangeParts` interface (`ticked: string[]`, `own: string`), `composeQuickChange(ticked, own)` (one line out of the parts, used to name the new version and checked for length), and `requestFor(wanted, parts, words)` — the rewrite step's instruction. One change (one tick, or the user's own words alone) is passed on as before via `FULL_REQUESTS`. Several are numbered in one line: `(1) Shorter: about N words instead of M. (2) Warmer. (3) mention the free diagnosis earlier.` When "Shorter" is among them, the "about a quarter shorter" instruction is expanded with the exact target word count, and the closing line says the result must still be about a quarter shorter. Without "Shorter", the closing line says to keep the length unless one of the changes asks for more or fewer. Measured on 2026-10-11: the numbers stop the other changes from eating the cut or growing the text.
+- The length check in `validateQuickChange` now uses `QUICK_CHANGE_MAX_CHARS + TICKED_MAX_CHARS` so the ticked labels do not count against the user's own words.
+- `changeQuickVersion` gained an optional `parts?: QuickChangeParts` parameter.
+- The `request` is now built by `requestFor(wanted, parts, lockedWords)` instead of the bare `FULL_REQUESTS` lookup.
+
+**Edit — `src/engine/quickHistory.ts`:** Three changes that carry the typed goal into a History line:
+- `QuickHistoryEntry` gained a `goalLabel: string | null` field (null for the five fixed goals).
+- The `listQuickResults` select now reads `goal_label:input_data->>quickGoalLabel` alongside the existing `goal_key`.
+- The row mapper now sets `goalLabel` from `row.goal_label` (string and non-empty, else null).
+
+**Effect on existing results:** A result saved before this change has no `quickGoalLabel` in its settings. The `goalLabel` field on the History entry reads as null. The `buildQuickScoringContext` call without the third parameter produces the same context as before. The `requestFor` function with no `parts` (or with a single change) returns the same instruction as the old `FULL_REQUESTS` lookup. No saved result is changed.
+
+**Files touched:** `src/types/index.ts` (1 edit), `src/engine/buildQuickFormState.ts` (4 edits), `src/engine/runQuickPipeline.ts` (4 edits), `src/engine/changeQuickVersion.ts` (4 edits), `src/engine/quickHistory.ts` (3 edits). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes.
+- The app looks and behaves as before: this prompt adds nothing to the screens. The typed goal and the multi-change request are wired through the engine but not yet reachable from the UI.
 
 ---
 

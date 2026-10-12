@@ -6,7 +6,7 @@ import { FormState, GoalKey, Language, ScoringContext, Tone } from '../types';
 import { DEFAULT_FORM_STATE } from '../constants';
 import { detectLanguage, convertLanguageCodeToFormDataLanguage } from '../utils/languageDetection';
 import { countWords } from '../utils/markdownUtils';
-import { buildContextFromKey } from '../utils/scoringContextStorage';
+import { buildContextFromKey, GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import { cleanTextKindOther, getTextKind, TextKindChoice, textKindLabel } from '../services/api/textKinds';
 
 /** How many versions one Quick run writes. */
@@ -104,6 +104,39 @@ export interface QuickFormInput {
   copy: string;
   variants?: number;
   brief?: QuickBriefInput;
+  /** For the goal "Other": what the copy is for, in the user's own words. */
+  goalLabel?: string;
+}
+
+/** Longest text the user can type for the goal "Other". */
+export const QUICK_GOAL_OTHER_MAX_CHARS = 80;
+/** Shortest text that counts as a goal. */
+export const QUICK_GOAL_OTHER_MIN_CHARS = 3;
+
+/**
+ * What the user typed for the goal "Other", made safe to stand inside the
+ * scorer's instructions, where it is put between quotation marks: one line,
+ * no double quotation marks of any kind, no characters that cannot be seen,
+ * at most QUICK_GOAL_OTHER_MAX_CHARS characters.
+ */
+export function cleanQuickGoalLabel(value: string | null | undefined): string {
+  const oneLine = (value || '')
+    .replace(/["“”„«»`\u0000-\u001f\u007f-\u009f\u200b-\u200f\u2060\ufeff\u201f\u2033\u301d-\u301f\uff02]/g, ' ')
+    .replace(/\s+/g, ' ')
+    .trim();
+  return Array.from(oneLine).slice(0, QUICK_GOAL_OTHER_MAX_CHARS).join('').trim();
+}
+
+/**
+ * The goal as shown on screen: "Convert", or for "Other" the user's own words.
+ * `long` gives the fixed goals with their description: "Convert — drive an action / sale".
+ */
+export function quickGoalName(goalKey: string | null | undefined, goalLabel?: string | null, long = false): string {
+  if (!goalKey) return '';
+  if (goalKey === 'custom') return cleanQuickGoalLabel(goalLabel) || 'Other';
+  const option = GOAL_OPTIONS.find(item => item.key === goalKey);
+  if (!option) return goalKey;
+  return long ? option.label : option.label.split(' — ')[0];
 }
 
 export function buildQuickFormState(input: QuickFormInput): FormState {
@@ -129,6 +162,8 @@ export function buildQuickFormState(input: QuickFormInput): FormState {
       : {}),
     // The writer's second pass may not add or remove facts (see keepToOriginal.ts).
     keepToOriginal: true,
+    // For the goal "Other": the user's own words. Left out for the five fixed goals.
+    ...(cleanQuickGoalLabel(input.goalLabel) ? { quickGoalLabel: cleanQuickGoalLabel(input.goalLabel) } : {}),
     // Improve keeps the length of the original.
     wordCount: 'Custom',
     customWordCount: words,
@@ -157,8 +192,15 @@ export function quickTextKindOf(formState: Pick<FormState, 'quickTextKind' | 'qu
  * text, the context carries it to the scorers and "Judged as" shows its name.
  * Without one (a result saved before kinds existed) the context is as before.
  */
-export function buildQuickScoringContext(goalKey: GoalKey, kind?: TextKindChoice | null): ScoringContext {
+export function buildQuickScoringContext(
+  goalKey: GoalKey,
+  kind?: TextKindChoice | null,
+  /** For the goal "Other" (key 'custom'): the user's own words. The scorer judges by them. */
+  goalLabel?: string | null
+): ScoringContext {
   const context: ScoringContext = { ...buildContextFromKey('general_improve', goalKey), method: 'new' };
+  // The five fixed goals keep their own label. "Other" without words is judged without a goal.
+  if (goalKey === 'custom') context.goalLabel = cleanQuickGoalLabel(goalLabel);
   const label = textKindLabel(kind);
   if (!label || !kind?.key) return context;
   return {

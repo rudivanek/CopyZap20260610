@@ -49,7 +49,79 @@ const FULL_REQUESTS: Record<string, string> = {
     'Make it about a quarter shorter. Keep every section, every heading and every fact: cut repetition, filler and long-winded sentences, not content.',
 };
 export const QUICK_CHANGE_MIN_CHARS = 3;
+/** Longest text the user can type as a change of their own. */
 export const QUICK_CHANGE_MAX_CHARS = 300;
+
+/**
+ * The changes that can be ticked on the result screen. Several can go into
+ * one rewrite. `excludes` names the one that cannot be ticked together with it.
+ */
+export interface QuickChangeOption {
+  label: string;
+  excludes?: string;
+}
+export const QUICK_CHANGE_OPTIONS: QuickChangeOption[] = [
+  { label: 'Shorter' },
+  { label: 'Stronger call to action' },
+  { label: 'Warmer' },
+  { label: 'More formal', excludes: 'Less formal' },
+  { label: 'Less formal', excludes: 'More formal' },
+];
+/** Between the parts of a request made of several changes. */
+const CHANGE_SEPARATOR = '; ';
+/** Room for the ticked changes on top of the user's own words. */
+const TICKED_MAX_CHARS = QUICK_CHANGE_OPTIONS.map(option => option.label).join(CHANGE_SEPARATOR).length + CHANGE_SEPARATOR.length;
+
+/** A change as the result screen hands it over: what is ticked, and the user's own words. */
+export interface QuickChangeParts {
+  ticked: string[];
+  own: string;
+}
+
+/**
+ * One line out of the ticked changes and the user's own words:
+ * "Shorter; Warmer; mention the free diagnosis earlier". It names the new
+ * version and is what is checked for length. A single change is the change
+ * itself, as before.
+ */
+export function composeQuickChange(ticked: string[], own: string): string {
+  return [...ticked, (own || '').trim()].filter(Boolean).join(CHANGE_SEPARATOR);
+}
+
+/**
+ * What the rewrite step is told. One change (one tick, or the user's own
+ * words, whatever they contain) is passed on as it always was. Several are
+ * numbered in one line, so that none of them is lost.
+ *
+ * The length is said with the numbers. Measured on 2026-10-11 against the
+ * live model, on an email of 105 words and a page of 109:
+ * - "Shorter" among several changes: without the numbers the other changes
+ *   used up the cut (97 to 109 words, and 107 to 109); with them the result is
+ *   as short as "Shorter" on its own gives, or shorter (86 to 97, and 93 to 97).
+ * - Several changes without "Shorter": without the numbers the text grew by up
+ *   to half (121 to 147 words, and 139 to 169); with them it stays where one
+ *   change on its own lands (110 to 118, and 122 to 133).
+ */
+function requestFor(wanted: string, parts: QuickChangeParts | undefined, words: number): string {
+  const ticked = parts?.ticked ?? [];
+  const own = (parts?.own ?? '').trim();
+  if (ticked.length + (own ? 1 : 0) < 2) return FULL_REQUESTS[wanted.toLowerCase()] ?? wanted;
+  const shorter = ticked.some(part => part.toLowerCase() === 'shorter');
+  const target = Math.round(words * 0.75);
+  // A text of one or two words cannot be given a smaller number.
+  const shorterInFull =
+    target < words
+      ? FULL_REQUESTS.shorter.replace('a quarter shorter.', `a quarter shorter: about ${target} words instead of ${words}.`)
+      : FULL_REQUESTS.shorter;
+  const all = [...ticked.map(part => (part.toLowerCase() === 'shorter' ? shorterInFull : part)), ...(own ? [own] : [])];
+  const numbered = all.map((part, at) => `(${at + 1}) ${part}${/[.!?]$/.test(part) ? '' : '.'}`).join(' ');
+  return (
+    `Make all of these changes together, in one rewrite: ${numbered}` +
+    (shorter
+      ? ' The result must still be about a quarter shorter than the text is now.'
+      : ` Keep the length: the text has ${words} words now and the result should have about as many, unless one of these changes asks for more or fewer.`)
+  );
+}
 const LABEL_MAX_CHARS = 40;
 
 export interface QuickChangeOutcome {
@@ -80,7 +152,7 @@ export function validateQuickChange(result: QuickRunResult, instruction: string)
   const text = (instruction || '').trim();
   if (!result.scores || !result.scores.winnerId) return 'Score this result first; a change starts from the best version.';
   if (text.length < QUICK_CHANGE_MIN_CHARS) return 'Say what should change.';
-  if (text.length > QUICK_CHANGE_MAX_CHARS) return `Keep it under ${QUICK_CHANGE_MAX_CHARS} characters.`;
+  if (text.length > QUICK_CHANGE_MAX_CHARS + TICKED_MAX_CHARS) return `Keep it under ${QUICK_CHANGE_MAX_CHARS} characters.`;
   if (result.versions.length - 1 >= QUICK_MAX_VERSIONS) {
     return `This result already has ${QUICK_MAX_VERSIONS} versions. Start a new one to keep changing.`;
   }
@@ -122,7 +194,9 @@ export async function changeQuickVersion(
   user: User,
   onProgress?: (progress: QuickProgress) => void,
   /** Set when the user can stop the change: after a stop, no further step is started. */
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  /** What is ticked and what the user wrote, when the change comes from the result screen. */
+  parts?: QuickChangeParts
 ): Promise<QuickChangeOutcome> {
   const problem = validateQuickChange(result, instruction);
   if (problem) throw new Error(problem);
@@ -172,7 +246,7 @@ export async function changeQuickVersion(
       .filter(Boolean)
       .join('\n\n'),
   };
-  const request = FULL_REQUESTS[wanted.toLowerCase()] ?? wanted;
+  const request = requestFor(wanted, parts, lockedWords);
   const rewritten = await modifyContent(locked, request, rewriteState, user, undefined, result.formState.sessionId);
   throwIfStopped(signal);
   const restored = zones.length > 0 ? restoreTestimonials(contentToText(rewritten), zones) : { text: contentToText(rewritten), moved: false };

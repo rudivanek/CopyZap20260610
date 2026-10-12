@@ -179,6 +179,8 @@ export interface FormData {
   quickTextKindOther?: string;
   // Quick: the writer's second pass (refineOutput.ts) may not add or remove facts. Set by buildQuickFormState; Copy Maker never sets it.
   keepToOriginal?: boolean;
+  // Quick: what the copy is for in the user's own words, when the goal is "Other" (goal key 'custom')
+  quickGoalLabel?: string;
   // Section titles for structured output
   includeSectionTitles?: boolean; // Generate AI titles for each section in structured output (default: true)
   // AI Engine Mode for A/B testing

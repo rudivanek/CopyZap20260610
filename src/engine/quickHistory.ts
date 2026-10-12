@@ -32,6 +32,8 @@ export interface QuickHistoryEntry {
   id: string;
   title: string;
   goalKey: string | null;
+  /** For the goal "Other": the user's own words. Null for the five fixed goals. */
+  goalLabel: string | null;
   score: number | null;
   originalScore: number | null;
   /** Host of the page the copy was fetched from; null for pasted copy. */
@@ -145,7 +147,7 @@ export async function listQuickResults(userId: string, limit = 100): Promise<Qui
   const { data, error } = await supabase
     .from(TABLE)
     .select(
-      'id, title, created_at, goal_key:output_data->quick->>goalKey, winner_score:output_data->quick->>winnerScore, original_score:output_data->quick->>originalScore, source_host:output_data->quick->source->>host'
+      'id, title, created_at, goal_key:output_data->quick->>goalKey, goal_label:input_data->>quickGoalLabel, winner_score:output_data->quick->>winnerScore, original_score:output_data->quick->>originalScore, source_host:output_data->quick->source->>host'
     )
     .eq('user_id', userId)
     .contains('tags', [QUICK_TAG])
@@ -163,6 +165,7 @@ export async function listQuickResults(userId: string, limit = 100): Promise<Qui
     id: String(row.id),
     title: cleanTitle(String(row.title ?? '')),
     goalKey: typeof row.goal_key === 'string' && row.goal_key ? row.goal_key : null,
+    goalLabel: typeof row.goal_label === 'string' && row.goal_label ? row.goal_label : null,
     score: toNumber(row.winner_score),
     originalScore: toNumber(row.original_score),
     sourceHost: typeof row.source_host === 'string' && row.source_host ? row.source_host : null,

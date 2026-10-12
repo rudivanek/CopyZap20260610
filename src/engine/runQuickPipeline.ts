@@ -102,6 +102,8 @@ export interface QuickSource {
 export interface QuickRunInput {
   copy: string;
   goalKey: GoalKey;
+  /** For the goal "Other" (key 'custom'): what the copy is for, in the user's own words. */
+  goalLabel?: string;
   variants?: number;
   /** What the user confirmed about the copy (product, audience, tone, language, kind of text). */
   brief?: QuickBriefInput;
@@ -291,7 +293,7 @@ export async function scoreQuickVersions(
     formState.model,
     undefined,
     [],
-    buildQuickScoringContext(goalKey, quickTextKindOf(formState)),
+    buildQuickScoringContext(goalKey, quickTextKindOf(formState), formState.quickGoalLabel),
     QUICK_SECTION,
     'new',
     targetWords,
@@ -311,7 +313,7 @@ export async function scoreQuickVersions(
   // earlier score are not read again.
   throwIfStopped(signal);
   const kind = quickTextKindOf(formState);
-  const context = buildQuickScoringContext(goalKey, kind);
+  const context = buildQuickScoringContext(goalKey, kind, formState.quickGoalLabel);
   const fresh = versions.filter(version => !isUsableScore(keepScores?.absoluteByVersion[version.id]));
   const unscoredIds: string[] = [];
 
@@ -495,7 +497,12 @@ export async function runQuickPipeline(
   const base = input.keep ? input.keep.lockedCopy.trim() : fullCopy;
   const lock = input.keep?.autoLock === false ? { lockedCopy: base, zones: [], count: 0 } : lockTestimonials(base);
   const zones = [...lock.zones, ...keepZones];
-  let formState = buildQuickFormState({ copy: lock.lockedCopy, variants: input.variants, brief: input.brief });
+  let formState = buildQuickFormState({
+    copy: lock.lockedCopy,
+    variants: input.variants,
+    brief: input.brief,
+    goalLabel: input.goalKey === 'custom' ? input.goalLabel : undefined,
+  });
   // What the writer is told on top of its own rules: to keep to the facts of
   // the original (see keepToOriginal.ts), the kind of text when it is not a
   // page (see textKinds.ts), and the parts it must not touch.
