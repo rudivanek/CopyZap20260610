@@ -109,7 +109,14 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
   const [loadingMoreTemplates, setLoadingMoreTemplates] = useState(false);
   const [loadingMoreOutputs, setLoadingMoreOutputs] = useState(false);
   const [allUsers, setAllUsers] = useState<DashboardUser[]>([]);
-  const [selectedUserFilter, setSelectedUserFilter] = useState<string>('all');
+  // Manage Users links here with ?user=<id> to open Credits Usage filtered to that user
+  const [selectedUserFilter, setSelectedUserFilter] = useState<string>(() => {
+    try {
+      return new URLSearchParams(window.location.search).get('user') || 'all';
+    } catch {
+      return 'all';
+    }
+  });
   const [betaRegistrationsCount, setBetaRegistrationsCount] = useState<number | null>(null);
   const [subscriptionData, setSubscriptionData] = useState<any>(null);
   const [creditsBalance, setCreditsBalance] = useState<CreditsBalance | null>(null);
@@ -117,6 +124,14 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
   const [loadingCreditsUsage, setLoadingCreditsUsage] = useState(false);
   const [creditsUsageLoaded, setCreditsUsageLoaded] = useState(false);
   const [activeTab, setActiveTab] = useState(() => {
+    try {
+      const urlTab = new URLSearchParams(window.location.search).get('tab');
+      if (urlTab && ['sessions', 'templates', 'savedOutputs', 'creditsUsage'].includes(urlTab)) {
+        return urlTab;
+      }
+    } catch {
+      // ignore
+    }
     const savedTab = localStorage.getItem('copyZap_dashboardTab');
     if (savedTab && ['sessions', 'templates', 'savedOutputs', 'creditsUsage'].includes(savedTab)) {
       return savedTab;
@@ -160,7 +175,7 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
   const [dateRange, setDateRange] = useState(getDefaultDateRange());
 
   // Check if current user is admin using centralized admin service
-  const { isAdmin } = useIsAdmin(currentUser);
+  const { isAdmin, isLoading: isAdminLoading } = useIsAdmin(currentUser);
   const { claudeModel, setClaudeModel, isLoading: isModelLoading, options: claudeModelOptions } = useAdminClaudeModel();
 
   // Rename template state
@@ -761,10 +776,11 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
 
   // Load credits usage when Credits Usage tab is activated
   useEffect(() => {
-    if (activeTab === 'creditsUsage' && !creditsUsageLoaded && !loadingCreditsUsage) {
+    // Wait for the admin check, so an admin is never served the own-usage view first
+    if (activeTab === 'creditsUsage' && !creditsUsageLoaded && !loadingCreditsUsage && !isAdminLoading) {
       loadCreditsUsage(0, true);
     }
-  }, [activeTab, creditsUsageLoaded, loadingCreditsUsage, loadCreditsUsage]);
+  }, [activeTab, creditsUsageLoaded, loadingCreditsUsage, loadCreditsUsage, isAdminLoading]);
 
   // Auto-reload credits usage when date range changes (only if tab is active and data has been loaded)
   useEffect(() => {
@@ -1888,6 +1904,15 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
             <div className="p-6 border-b border-gray-300 dark:border-gray-800">
               <div className="flex items-center justify-between">
                 <div>
+                  {isAdmin && searchParams.get('from') === 'users' && (
+                    <button
+                      onClick={() => navigate('/manage-users')}
+                      className="mb-2 inline-flex items-center text-sm text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white"
+                    >
+                      <ArrowRight size={14} className="mr-1 rotate-180" />
+                      Back to Manage Users
+                    </button>
+                  )}
                   <h2 className="text-xl font-semibold text-gray-900 dark:text-white">Credits Usage</h2>
                   <p className="text-gray-600 dark:text-gray-400 mt-1">
                     {isAdmin ? 'Monitor API credit consumption across all users' : 'Monitor your API credit consumption'}
