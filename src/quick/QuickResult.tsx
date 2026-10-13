@@ -20,6 +20,7 @@ import { prepareQuickEdit, QuickEditDraft, validateQuickEdit } from '../engine/e
 import { exportQuickReport } from '../engine/exportQuickReport';
 import { effectiveGates } from '../engine/gateRules';
 import { checkNumbers } from '../engine/numberCheck';
+import { dropUserFactClaims } from '../services/api/flagOwnership';
 import type { NumberCheck } from '../engine/numberCheck';
 import { ORIGINAL_VERSION_ID } from '../engine/pickWinner';
 import { QUICK_SCORE_MARGIN } from '../engine/runQuickPipeline';
@@ -342,7 +343,10 @@ const QuickResult: React.FC<QuickResultProps> = ({
     gateProblems.length > 0
       ? `This version may be incomplete: ${Array.from(new Set(gateProblems)).join(' and ')}.`
       : 'This version may be incomplete.';
-  const flags = (winnerRow?.verificationFlags ?? []).filter(flag => flag && flag.trim().length > 0);
+  // A claim that quotes a fact the user added on the check screen is not listed: the user is its source.
+  const flags = dropUserFactClaims(winnerRow?.verificationFlags, result.formState.quickUserFacts).filter(
+    flag => flag && flag.trim().length > 0
+  );
   // The same wording and grouping as in the rankings table.
   const claimNotes = flags.filter(isClaimNote).map(noteText);
   const toneNotes = flags.filter(flag => !isClaimNote(flag)).map(noteText);
@@ -373,7 +377,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
     const row = rows.find(item => item.versionId === version.id);
     const gate = gates[version.id];
     const gain = score && originalTotal != null ? score.total - originalTotal : null;
-    const notes = (row?.verificationFlags ?? []).filter(flag => flag && flag.trim().length > 0);
+    const notes = dropUserFactClaims(row?.verificationFlags, result.formState.quickUserFacts).filter(
+      flag => flag && flag.trim().length > 0
+    );
     return {
       version,
       score,

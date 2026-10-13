@@ -67,9 +67,7 @@ export const TIPS = {
   language: 'The language the new versions are written in.',
   generate: 'Writes three versions and scores them with your original. Uses credits.',
   back: "Back to your text and goal. Your corrections here stay as long as you don't change the text.",
-  factTick: 'Tick only if this is true for you. The new versions then say it.',
-  factBlank: 'Fill in the blank with your own figure or name. A ticked line with an empty blank is not used.',
-  factOwn: 'Write the fact as it is true for you. The new versions use it as you wrote it.',
+  factAnswer: 'Write it as it is true for you, with your own figures and currency. The new versions use it as you wrote it. Leave it empty to skip.',
   // Result screen
   copy: 'Copies this version as text, ready to paste.',
   exportReport: 'Saves a report of all versions, scores and reasons as a file you can open or send.',

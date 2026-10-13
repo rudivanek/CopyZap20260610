@@ -5,8 +5,8 @@
  * Much of what makes copy act — a reason to act now, a low-risk first step,
  * proof, a price — is often not in the original, and only the business can
  * supply it. So on the check screen Quick asks up to three short questions
- * about what is missing, with suggested answers to tick or fill in. What the
- * user answers counts as their own facts: the writer is told to use them.
+ * about what is missing, each with one answer field and an example answer.
+ * What the user writes counts as their own facts: the writer is told to use them.
  * Nothing answered: the run is the same as without this step.
  *
  * Measured on 2026-10-12, five texts, goal Convert (see the project note
@@ -30,13 +30,12 @@ const HEAD_CHARS = 9000;
 const TAIL_CHARS = 3000;
 
 export const MISSING_FACTS_MAX_QUESTIONS = 3;
-export const MISSING_FACTS_MAX_SUGGESTIONS = 3;
-/** Longest fact the user can add, one at a time. */
+/** Longest answer the user can give to one question. */
 export const USER_FACT_MAX_CHARS = 200;
-/** Most facts a run takes: one answer per question, plus an own-words line each. */
-export const USER_FACTS_MAX = 6;
+/** Most facts a run takes: one answer per question. */
+export const USER_FACTS_MAX = MISSING_FACTS_MAX_QUESTIONS;
 
-/** Where the user fills in a suggestion: a number, a date, a name. */
+/** In an example answer: where the user's own number, date or name goes. */
 export const FACT_BLANK = '___';
 
 /** The goals the questions are asked for. */
@@ -51,8 +50,12 @@ export interface MissingFactQuestion {
   kind: string;
   /** One short sentence in English. */
   question: string;
-  /** In the copy's language. May hold FACT_BLANK where the user fills in a value. */
-  suggestions: string[];
+  /**
+   * One example answer in the copy's language, shown inside the empty answer
+   * field. Holds FACT_BLANK where the user's own value goes; never a number or
+   * a currency of its own. Empty when the model gave no safe example.
+   */
+  example: string;
 }
 
 function goalLine(goalKey: GoalKey, goalLabel?: string): string {
@@ -69,12 +72,12 @@ Rules:
 - Up to ${MISSING_FACTS_MAX_QUESTIONS} gaps, most important first. Fewer is fine. If nothing important is missing, return an empty list.
 - Never ask for something the copy already states, even in other words. A line in brackets such as "(customer testimonials, not shown)" stands for a part of the page that is there: do not ask for it.
 - Each question is one short sentence in English, also when the copy is in another language, specific to this copy: name or quote the part it is about.
-- For each question give 2 or 3 suggested answers, written in the language of the copy, short enough to drop into the copy. The user ticks one only if it is true for them, so:
-  - Never write a number, price, date, duration, percentage, rating, count or client name. Where the answer needs one, leave a blank as ${FACT_BLANK} for the user to fill in (for example "More than ${FACT_BLANK} clients", "From $${FACT_BLANK} per month", "Free first call of ${FACT_BLANK} minutes").
-  - Answers without a number are fine as they are when they are common for this kind of business (for example "No long-term contract").
-  - Each suggestion states one plain fact. No sales phrases such as "filling fast" or "don't miss out", and never a customer quote or testimonial.
+- For each question give one example answer, written in the language of the copy, short enough to drop into the copy. It is shown greyed out in an empty field as a hint of what to write, so:
+  - Never write a number, price, date, duration, percentage, rating, count or client name. Where the answer needs one, leave a blank as ${FACT_BLANK} (for example "More than ${FACT_BLANK} clients", "From ${FACT_BLANK} per month", "Free first call of ${FACT_BLANK} minutes").
+  - Never write a currency symbol or code: the user writes the price with their own currency.
+  - One plain fact. No sales phrases such as "filling fast" or "don't miss out", and never a customer quote or testimonial.
 
-Answer with JSON only: {"gaps":[{"kind":"offer|urgency|proof|price|guarantee|next_step|other","question":"...","suggestions":["...","..."]}]}`;
+Answer with JSON only: {"gaps":[{"kind":"offer|urgency|proof|price|guarantee|next_step|other","question":"...","example":"..."}]}`;
 }
 
 /** Where testimonials were taken out: they are on the page, so they are not asked for. */
@@ -96,13 +99,23 @@ const oneLine = (value: unknown, max: number): string =>
 /** Any run of two or more underscores is a blank. */
 const BLANKS = /_{2,}/g;
 
+/** Currency symbols and codes: the user writes their own currency, so an example never shows one. */
+const CURRENCY = /[$€£¥₹]|\b(?:MXN|USD|EUR|GBP|CAD|AUD|CHF|COP|ARS|CLP|PEN|BRL)\b/gi;
+
 /**
- * A suggestion is shown only when it holds no number of its own: a figure the
- * model wrote ("Rated 4.9 stars") looks true and could be ticked in a hurry.
- * Numbers belong in the blanks, where the user types them.
+ * The example as shown, or empty when it is not safe to show. It may hold no
+ * number of its own: a figure the model wrote ("Rated 4.9 stars") looks true.
+ * Numbers belong in the blanks. A currency is taken out: CopyZap does not
+ * guess it.
  */
-export function isSafeSuggestion(suggestion: string): boolean {
-  return !/\d/.test(suggestion.replace(BLANKS, ''));
+export function safeExample(value: unknown): string {
+  const example = oneLine(value, USER_FACT_MAX_CHARS)
+    .replace(BLANKS, FACT_BLANK)
+    .replace(CURRENCY, '')
+    .replace(/\s+/g, ' ')
+    .trim();
+  if (!example || /\d/.test(example.replace(BLANKS, ''))) return '';
+  return example;
 }
 
 /** Turns the model's reply into questions. Anything missing or invalid is dropped. */
@@ -122,18 +135,10 @@ export function parseMissingFacts(raw: string): MissingFactQuestion[] {
     const item = gap as Record<string, unknown>;
     const question = oneLine(item.question, 220);
     if (!question) continue;
-    const seen = new Set<string>();
-    const suggestions = (Array.isArray(item.suggestions) ? item.suggestions : [])
-      .map(value => oneLine(value, USER_FACT_MAX_CHARS).replace(BLANKS, FACT_BLANK))
-      .filter(value => value && isSafeSuggestion(value))
-      .filter(value => {
-        const key = value.toLowerCase();
-        if (seen.has(key)) return false;
-        seen.add(key);
-        return true;
-      })
-      .slice(0, MISSING_FACTS_MAX_SUGGESTIONS);
-    questions.push({ kind: oneLine(item.kind, 20).toLowerCase() || 'other', question, suggestions });
+    // An older reply shape gave a list of suggestions: its first safe one is the example.
+    const candidates = [item.example, ...(Array.isArray(item.suggestions) ? item.suggestions : [])];
+    const example = candidates.map(safeExample).find(Boolean) ?? '';
+    questions.push({ kind: oneLine(item.kind, 20).toLowerCase() || 'other', question, example });
     if (questions.length === MISSING_FACTS_MAX_QUESTIONS) break;
   }
   return questions;
@@ -172,7 +177,7 @@ export async function findMissingFacts(
 
 /**
  * The facts as they go to the writer: one line each, trimmed, no blank left
- * unfilled, no duplicates, at most USER_FACTS_MAX.
+ * unfilled (an example copied with its ___), no duplicates, at most USER_FACTS_MAX.
  */
 export function cleanUserFacts(facts: (string | null | undefined)[] | null | undefined): string[] {
   const seen = new Set<string>();

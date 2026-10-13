@@ -64,3 +64,58 @@ export function dropInheritedToneFlags(flags: string[], originalText: string | n
   if (!originalText || !originalText.trim()) return flags;
   return flags.filter(flag => !(TONE_NOTE.test(flag) && flagPhrase(flag) && isOwnFlag(flag, originalText)));
 }
+
+const CLAIM_NOTE = /^\s*unverified claim\b/i;
+
+/** Lower case, no accents, numbers without thousands separators ("$8,000" -> "8000"). */
+const plainWords = (text: string): string[] =>
+  (text || '')
+    .normalize('NFKD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/(\d)[.,](?=\d{3}\b)/g, '$1')
+    .split(/[^\p{L}\p{N}]+/u)
+    .filter(Boolean);
+
+const isNumber = (word: string) => /^\d+$/.test(word);
+
+/**
+ * True when a claim quotes a fact the user added. Every number in the claim
+ * must be one of the fact's numbers, and either most of the fact's words are
+ * in the claim, or (for a claim with a number) at least two longer words of
+ * the fact are, for a claim that quotes part of a long fact.
+ * "Los proyectos arrancan desde $8,000" quotes "Desde $8000"; "una garantía
+ * ilimitada de 30 días" quotes "Garantía ilimitada por 30 días! Después …";
+ * "más de 100 clientes" does not quote "Más de 100 proyectos de branding completados".
+ */
+export function quotesUserFact(phrase: string, fact: string): boolean {
+  const claim = plainWords(phrase);
+  const factWords = plainWords(fact);
+  if (claim.length === 0 || factWords.length === 0) return false;
+  const factNumbers = new Set(factWords.filter(isNumber));
+  const claimNumbers = claim.filter(isNumber);
+  if (!claimNumbers.every(number => factNumbers.has(number))) return false;
+  const inClaim = new Set(claim);
+  const found = factWords.filter(word => inClaim.has(word)).length;
+  if (found / factWords.length >= 0.6) return true;
+  if (claimNumbers.length === 0) return false;
+  const longShared = new Set(factWords.filter(word => word.length >= 4 && !isNumber(word) && inClaim.has(word)));
+  return longShared.size >= 2;
+}
+
+/**
+ * Claims to verify that quote a fact the user added on Quick's check screen.
+ * The scorer cannot know where a fact came from and lists them as "source
+ * unknown"; the user is the source, so they are not listed. Seen 2026-10-13 on
+ * the branding page: 13 such notes. Tone notes and other claims stay.
+ */
+export function dropUserFactClaims(flags: string[] | null | undefined, userFacts: string[] | null | undefined): string[] {
+  const list = Array.isArray(flags) ? flags : [];
+  const facts = (userFacts ?? []).filter(fact => typeof fact === 'string' && fact.trim());
+  if (facts.length === 0) return list;
+  return list.filter(flag => {
+    if (!CLAIM_NOTE.test(flag)) return true;
+    const phrase = flagPhrase(flag);
+    return !phrase || !facts.some(fact => quotesUserFact(phrase, fact));
+  });
+}
