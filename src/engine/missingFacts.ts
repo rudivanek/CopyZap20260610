@@ -35,8 +35,8 @@ const TAIL_CHARS = 3000;
 export const MISSING_FACTS_MAX_QUESTIONS = 3;
 /** Longest answer the user can give to one question. */
 export const USER_FACT_MAX_CHARS = 400;
-/** Most facts a run takes: one answer per question, plus "anything else". */
-export const USER_FACTS_MAX = MISSING_FACTS_MAX_QUESTIONS + 1;
+/** Most facts a run takes: enough for a chat (see factChat.ts); the fields give at most four. */
+export const USER_FACTS_MAX = 6;
 
 /** In an example answer: where the user's own number, date or name goes. */
 export const FACT_BLANK = '___';
@@ -61,7 +61,7 @@ export interface MissingFactQuestion {
   example: string;
 }
 
-function goalLine(goalKey: GoalKey, goalLabel?: string): string {
+export function goalLine(goalKey: GoalKey, goalLabel?: string): string {
   if (goalKey === 'custom' && goalLabel) return `Its goal, in the user's own words: ${goalLabel}.`;
   return 'Its goal: Convert — get the reader to take an action or buy.';
 }
@@ -89,12 +89,22 @@ const KIND_GUIDANCE: Record<TextKindKey, { max: number; line: string }> = {
   other: { max: 3, line: 'Choose the gaps that suit this kind of text.' },
 };
 
-function kindGuidance(kind: TextKindKey | null | undefined) {
+export function kindGuidance(kind: TextKindKey | null | undefined) {
   return KIND_GUIDANCE[kind ?? 'other'] ?? KIND_GUIDANCE.other;
 }
 
-function systemPrompt(goalKey: GoalKey, goalLabel?: string, kind?: TextKindKey | null): string {
+/**
+ * The language the examples are written in. Named outright: told only "the
+ * language of the copy", the model wrote French examples for an English page
+ * (Tidewell Bookkeeping, three runs out of three on 2026-10-13).
+ */
+export function exampleLanguage(language?: string | null): string {
+  return language?.trim() ? language.trim() : 'the language of the copy';
+}
+
+function systemPrompt(goalKey: GoalKey, goalLabel?: string, kind?: TextKindKey | null, language?: string | null): string {
   const guidance = kindGuidance(kind);
+  const examples = exampleLanguage(language);
   return `You read a piece of marketing copy before it is rewritten. ${goalLine(goalKey, goalLabel)} ${guidance.line}
 
 The rewrite may only use facts the copy states. So find what is MISSING that would most help the copy reach its goal, and that only the business itself can supply. Typical gaps:
@@ -112,20 +122,20 @@ Rules:
 - Up to ${guidance.max} ${guidance.max === 1 ? 'gap' : 'gaps'}, most important first. Fewer is fine. If nothing important is missing, return an empty list.
 - Never ask for something the copy already states, even in other words. A line in brackets such as "(customer testimonials, not shown)" stands for a part of the page that is there: do not ask for it.
 - Each question is one short sentence written in ENGLISH, whatever the language of the copy (the user reads the questions in an English interface). It is specific to this copy: name or quote the part it is about; a quote may stay in the copy's language.
-- For each question give one example answer, written in the language of the copy, short enough to drop into the copy. It is shown greyed out in an empty field as a hint of what to write, so:
+- For each question give one example answer, written in ${examples}, short enough to drop into the copy. It is shown greyed out in an empty field as a hint of what to write, so:
   - Never write a number, price, date, duration, percentage, rating, count or client name. Where the answer needs one, leave a blank as ${FACT_BLANK} (for example "More than ${FACT_BLANK} clients", "From ${FACT_BLANK} per month", "Free first call of ${FACT_BLANK} minutes").
   - Never write a currency symbol or code: the user writes the price with their own currency.
   - One plain fact. No sales phrases such as "filling fast" or "don't miss out", and never a customer quote or testimonial.
   - For what makes the business different, the example names something concrete (for example "Every site is delivered with ${FACT_BLANK} included"), never a superlative such as "the best" or "the only".
 
-Answer with JSON only: {"gaps":[{"kind":"difference|included|timing|offer|urgency|proof|price|guarantee|next_step|other","question":"(in English)","example":"(in the language of the copy)"}]}`;
+Answer with JSON only: {"gaps":[{"kind":"difference|included|timing|offer|urgency|proof|price|guarantee|next_step|other","question":"(in English)","example":"(in ${examples})"}]}`;
 }
 
 /** Where testimonials were taken out: they are on the page, so they are not asked for. */
 const TESTIMONIAL_MARKER_LINE = /^.*\[\[\s*TESTIMONIALS[-\s_]?\d+\s*\]\].*$/gim;
 
 /** The copy the questions are about: testimonials out, and for a long page its start and its end. */
-function excerpt(copy: string): string {
+export function excerpt(copy: string): string {
   const text = lockTestimonials((copy || '').trim()).lockedCopy.replace(
     TESTIMONIAL_MARKER_LINE,
     '(customer testimonials, not shown)'
@@ -141,7 +151,7 @@ const oneLine = (value: unknown, max: number): string =>
 const BLANKS = /_{2,}/g;
 
 /** Currency symbols and codes: the user writes their own currency, so an example never shows one. */
-const CURRENCY = /[$€£¥₹]|\b(?:MXN|USD|EUR|GBP|CAD|AUD|CHF|COP|ARS|CLP|PEN|BRL)\b/gi;
+const CURRENCY = /[$€£¥₹]|\b(?:MXN|USD|EUR|GBP|CAD|AUD|CHF|COP|ARS|CLP|PEN|BRL|pesos?|d[oó]lar(?:es)?|dollars?|euros?)\b/gi;
 
 /**
  * The example as shown, or empty when it is not safe to show. It may hold no
@@ -192,7 +202,9 @@ export async function findMissingFacts(
   goalLabel: string | undefined,
   kind: TextKindKey | null | undefined,
   user: User,
-  sessionId?: string
+  sessionId?: string,
+  /** The copy's language as Quick read it ("Spanish"): the examples are written in it. */
+  language?: string | null
 ): Promise<MissingFactQuestion[]> {
   if (!asksForMissingFacts(goalKey)) return [];
   const text = excerpt(copy);
@@ -201,7 +213,7 @@ export async function findMissingFacts(
     const response = await makeApiRequestWithFallback(
       MISSING_FACTS_MODEL,
       [
-        { role: 'system', content: systemPrompt(goalKey, goalLabel, kind) },
+        { role: 'system', content: systemPrompt(goalKey, goalLabel, kind, language) },
         { role: 'user', content: `Copy:\n"""\n${text}\n"""` },
       ],
       0.2,

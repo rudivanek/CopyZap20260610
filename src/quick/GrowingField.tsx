@@ -19,6 +19,9 @@ interface GrowingFieldProps {
   tip?: string;
   /** Most characters the field takes. */
   maxLength?: number;
+  /** Called on Enter (the chat sends the answer with it). */
+  onEnter?: () => void;
+  disabled?: boolean;
 }
 
 /** Lines shown before the field scrolls inside. */
@@ -28,7 +31,7 @@ const LINE_PX = 24;
 /** Top and bottom padding plus border, in pixels (9 + 9 + 1 + 1), so one line is 44 pixels high like the other fields. */
 const EDGE_PX = 20;
 
-const GrowingField: React.FC<GrowingFieldProps> = ({ id, value, onChange, placeholder, className, tip, maxLength }) => {
+const GrowingField: React.FC<GrowingFieldProps> = ({ id, value, onChange, placeholder, className, tip, maxLength, onEnter, disabled }) => {
   const ref = useRef<HTMLTextAreaElement>(null);
 
   // Fit the height to the text after every change, and when the width changes.
@@ -63,11 +66,14 @@ const GrowingField: React.FC<GrowingFieldProps> = ({ id, value, onChange, placeh
       value={value}
       onChange={event => onChange(event.target.value.replace(/\s*[\r\n]+\s*/g, ' '))}
       onKeyDown={event => {
-        if (event.key === 'Enter') event.preventDefault();
+        if (event.key !== 'Enter') return;
+        event.preventDefault();
+        onEnter?.();
       }}
       data-tip={tip}
       placeholder={placeholder}
       maxLength={maxLength}
+      disabled={disabled}
       className={'block resize-none py-[9px] leading-6 break-words ' + (className ?? '')}
     />
   );
