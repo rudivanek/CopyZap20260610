@@ -31,7 +31,7 @@ const TAIL_CHARS = 3000;
 
 export const MISSING_FACTS_MAX_QUESTIONS = 3;
 /** Longest answer the user can give to one question. */
-export const USER_FACT_MAX_CHARS = 200;
+export const USER_FACT_MAX_CHARS = 400;
 /** Most facts a run takes: one answer per question. */
 export const USER_FACTS_MAX = MISSING_FACTS_MAX_QUESTIONS;
 

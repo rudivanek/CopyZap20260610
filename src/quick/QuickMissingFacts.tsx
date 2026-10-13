@@ -3,6 +3,7 @@ import type { MissingFactQuestion } from '../engine/missingFacts';
 import { USER_FACT_MAX_CHARS } from '../engine/missingFacts';
 import { FactAnswers, factsFromAnswers, unfinishedAnswers } from './factAnswers';
 import { TIPS } from './tips';
+import GrowingField from './GrowingField';
 
 /**
  * "Make it stronger" on the check screen: up to three questions about what the
@@ -52,14 +53,14 @@ const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answer
             <label htmlFor={`quick-fact-${index}`} className="font-semibold text-gray-900 dark:text-gray-100">
               {question.question}
             </label>
-            <input
+            {/* Grows with the text, like "Selling" and "For" above: an answer can be a long sentence. */}
+            <GrowingField
               id={`quick-fact-${index}`}
-              type="text"
               value={answers[index] ?? ''}
               maxLength={USER_FACT_MAX_CHARS}
-              onChange={event => onAnswersChange({ ...answers, [index]: event.target.value })}
+              onChange={value => onAnswersChange({ ...answers, [index]: value })}
               placeholder={question.example ? `e.g. ${question.example}` : 'Your answer'}
-              data-tip={TIPS.factAnswer}
+              tip={TIPS.factAnswer}
               className={FIELD}
             />
           </div>

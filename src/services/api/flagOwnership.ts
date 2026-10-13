@@ -80,17 +80,27 @@ const plainWords = (text: string): string[] =>
 const isNumber = (word: string) => /^\d+$/.test(word);
 
 /**
+ * A word cut to its first five letters, so a reworded fact still matches its
+ * claim: "incrementar" and "incrementado", "conversiones" and "conversión".
+ * Numbers and short words stay as they are.
+ */
+const stem = (word: string) => (isNumber(word) || word.length <= 5 ? word : word.slice(0, 5));
+
+/**
  * True when a claim quotes a fact the user added. Every number in the claim
  * must be one of the fact's numbers, and either most of the fact's words are
  * in the claim, or (for a claim with a number) at least two longer words of
  * the fact are, for a claim that quotes part of a long fact.
+ * Words are compared by their stem (see stem above).
  * "Los proyectos arrancan desde $8,000" quotes "Desde $8000"; "una garantía
  * ilimitada de 30 días" quotes "Garantía ilimitada por 30 días! Después …";
- * "más de 100 clientes" does not quote "Más de 100 proyectos de branding completados".
+ * "incrementado conversiones en más del 50%" quotes "Hemos logrado incrementar
+ * conversiones en más de 50%!"; "más de 100 clientes" does not quote "Más de
+ * 100 proyectos de branding completados".
  */
 export function quotesUserFact(phrase: string, fact: string): boolean {
-  const claim = plainWords(phrase);
-  const factWords = plainWords(fact);
+  const claim = plainWords(phrase).map(stem);
+  const factWords = plainWords(fact).map(stem);
   if (claim.length === 0 || factWords.length === 0) return false;
   const factNumbers = new Set(factWords.filter(isNumber));
   const claimNumbers = claim.filter(isNumber);
