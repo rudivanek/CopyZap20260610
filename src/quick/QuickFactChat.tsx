@@ -1,7 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import type { MissingFactQuestion } from '../engine/missingFacts';
-import { USER_FACT_MAX_CHARS } from '../engine/missingFacts';
+import { cleanUserFacts, USER_FACT_MAX_CHARS, USER_FACTS_MAX } from '../engine/missingFacts';
 import {
+  chatFacts,
+  CLOSING_QUESTION,
   FactChat,
   FactChatContext,
   FACT_CHAT_MAX_QUESTIONS,
@@ -9,16 +11,16 @@ import {
   questionsAsked,
   SKIPPED_ANSWER,
   startFactChat,
-  EMPTY_FACT_CHAT,
 } from '../engine/factChat';
 import GrowingField from './GrowingField';
 import { TIPS } from './tips';
 
 /**
  * "Make it stronger" as a chat (see engine/factChat.ts): CopyZap asks one
- * question at a time and decides the next one from the answer. Below the chat,
- * the facts CopyZap will use, which the user can take out. Generating never
- * waits for the chat.
+ * question at a time and decides the next one from the answer, and ends with an
+ * open "anything else?". Below the chat, the facts CopyZap will use: the user
+ * can take any out, and add one in their own words at any time. Generating
+ * never waits for the chat.
  */
 interface QuickFactChatProps {
   /** null while Quick is still looking for what is missing. */
@@ -58,8 +60,19 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
       turns: [...chat.turns, { from: 'user', text }],
     };
     setChat(sent);
+    // Facts added or taken out by hand while CopyZap was reading stay as the user left them.
     nextFactChatStep(context, questions, sent).then(next =>
-      setChat(current => (current.turns === sent.turns ? { ...next, draft: current.draft } : current))
+      setChat(current =>
+        current.turns === sent.turns
+          ? {
+              ...next,
+              facts: next.facts.filter(fact => !current.removed.includes(fact)),
+              added: current.added,
+              removed: current.removed,
+              draft: current.draft,
+            }
+          : current
+      )
     );
   };
 
@@ -68,9 +81,30 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
     if (text) answer(text);
   };
   const remove = (fact: string) =>
-    setChat(current => ({ ...current, facts: current.facts.filter(item => item !== fact), removed: [...current.removed, fact] }));
+    setChat(current => ({
+      ...current,
+      facts: current.facts.filter(item => item !== fact),
+      added: current.added.filter(item => item !== fact),
+      removed: [...current.removed, fact],
+    }));
   const finish = () => setChat(current => ({ ...current, done: true, waiting: false }));
-  const restart = () => setChat(questions ? startFactChat(questions) : EMPTY_FACT_CHAT);
+  // A new chat keeps the facts the user added by hand.
+  const restart = () => setChat(current => ({ ...startFactChat(questions ?? []), added: current.added }));
+
+  // "Add a fact": straight into the list, exactly as typed.
+  const [addDraft, setAddDraft] = useState('');
+  const facts = chatFacts(chat);
+  const full = facts.length >= USER_FACTS_MAX;
+  const addFact = () => {
+    const fact = cleanUserFacts([addDraft])[0];
+    if (!fact || full) return;
+    setChat(current => ({
+      ...current,
+      added: cleanUserFacts([...current.added, fact]),
+      removed: current.removed.filter(item => item.toLowerCase() !== fact.toLowerCase()),
+    }));
+    setAddDraft('');
+  };
 
   if (questions === null) {
     return (
@@ -81,7 +115,9 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
   }
 
   const asked = questionsAsked(chat.turns);
-  const lastIsQuestion = chat.turns[chat.turns.length - 1]?.from === 'copyzap';
+  const lastTurn = chat.turns[chat.turns.length - 1];
+  const lastIsQuestion = lastTurn?.from === 'copyzap';
+  const onClosing = lastIsQuestion && lastTurn.text === CLOSING_QUESTION;
 
   return (
     <div className="flex flex-col gap-4">
@@ -138,7 +174,7 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
               Done
             </button>
             <span className="text-gray-600 dark:text-gray-400">
-              Question {asked} of up to {FACT_CHAT_MAX_QUESTIONS}
+              {onClosing ? 'Last question' : `Question ${asked} of up to ${FACT_CHAT_MAX_QUESTIONS}`}
             </span>
           </div>
         </div>
@@ -146,7 +182,7 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
 
       {chat.done && (
         <p className="text-gray-600 dark:text-gray-400">
-          {chat.facts.length > 0 ? 'That is all CopyZap needs.' : 'Chat finished.'}{' '}
+          {facts.length > 0 ? 'That is all CopyZap needs.' : 'Chat finished.'}{' '}
           <button type="button" onClick={restart} className={LINK}>
             Start the chat again
           </button>
@@ -155,7 +191,7 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
 
       <div className="flex flex-col gap-1.5 border-t border-gray-200 dark:border-gray-700 pt-3">
         <h3 className="font-semibold text-gray-900 dark:text-gray-100">Facts CopyZap will use</h3>
-        {chat.facts.length === 0 ? (
+        {facts.length === 0 ? (
           <p className="text-gray-600 dark:text-gray-400">
             None yet: CopyZap uses only what your copy says.
             {chat.draft.trim() && !chat.waiting && ' Your answer is not sent yet.'}
@@ -163,7 +199,7 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
         ) : (
           <>
             <ul className="m-0 p-0 list-none flex flex-col gap-1">
-              {chat.facts.map(fact => (
+              {facts.map(fact => (
                 <li key={fact} className="flex items-start justify-between gap-3 text-gray-900 dark:text-gray-100">
                   <span className="break-words">{fact}</span>
                   <button
@@ -180,11 +216,30 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
               ))}
             </ul>
             <p className="text-gray-600 dark:text-gray-400">
-              The new versions use {chat.facts.length === 1 ? 'it' : 'them'} as written here.
+              The new versions use {facts.length === 1 ? 'it' : 'them'} as written here.
               {chat.draft.trim() && !chat.waiting && ' Your last answer is not sent yet.'}
             </p>
           </>
         )}
+        <div className="mt-1 flex flex-col gap-2 sm:flex-row sm:items-start">
+          <label htmlFor="quick-fact-add" className="sr-only">
+            Add a fact in your own words
+          </label>
+          <GrowingField
+            id="quick-fact-add"
+            value={addDraft}
+            maxLength={USER_FACT_MAX_CHARS}
+            onChange={setAddDraft}
+            onEnter={addFact}
+            disabled={full}
+            placeholder={full ? `Up to ${USER_FACTS_MAX} facts: take one out to add another` : 'Add a fact in your own words'}
+            tip={TIPS.factAdd}
+            className={FIELD + ' sm:flex-1'}
+          />
+          <button type="button" onClick={addFact} disabled={full || !addDraft.trim()} className={SECONDARY + ' sm:w-auto'}>
+            Add
+          </button>
+        </div>
       </div>
     </div>
   );

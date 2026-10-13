@@ -19,7 +19,7 @@ import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
 import { asksForMissingFacts, findMissingFacts, MissingFactQuestion } from '../engine/missingFacts';
 import { FactAnswers, factsFromAnswers, OTHER_FACT_KEY } from './factAnswers';
-import { EMPTY_FACT_CHAT, FactChat } from '../engine/factChat';
+import { chatFacts, EMPTY_FACT_CHAT, FactChat } from '../engine/factChat';
 import { readChatChoice, saveChatChoice } from './QuickFactChat';
 import { getTextKind } from '../services/api/textKinds';
 import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
@@ -475,7 +475,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     // Facts the user added under "Make it stronger", in the chat or in the fields. While the questions are
     // still loading only "anything else" counts.
     const userFacts =
-      factQuestions === undefined ? [] : chatOn ? factChat.facts : factsFromAnswers(factQuestions ?? [], factAnswers);
+      factQuestions === undefined ? [] : chatOn ? chatFacts(factChat) : factsFromAnswers(factQuestions ?? [], factAnswers);
     setError(null);
     setProgress({ stage: 'checking' });
     setBusy('running');

@@ -13,7 +13,10 @@
  * sees the list before generating and can take any fact out.
  *
  * At most FACT_CHAT_MAX_QUESTIONS questions, and an answer such as "that's all"
- * or "eso es todo" ends the chat (endsChat). The step never throws: on a
+ * or "eso es todo" ends the chat (endsChat). When CopyZap has nothing more to
+ * ask it ends with one last open question (CLOSING_QUESTION), so the user can
+ * add what CopyZap did not think of. The user can also add a fact in their own
+ * words at any time (FactChat.added); those go to the writer exactly as typed. The step never throws: on a
  * failure the answer is kept as the user wrote it and the next question found
  * earlier is asked.
  */
@@ -48,8 +51,10 @@ export interface ChatTurn {
 
 export interface FactChat {
   turns: ChatTurn[];
-  /** The facts so far, in the user's words. The writer gets these. */
+  /** The facts CopyZap took from the answers, in the user's words. */
   facts: string[];
+  /** Facts the user typed straight into the list ("Add a fact"): used exactly as typed. */
+  added: string[];
   /** CopyZap is reading the last answer. */
   waiting: boolean;
   /** No more questions: CopyZap has enough, the limit is reached, or the user said Done. */
@@ -60,7 +65,22 @@ export interface FactChat {
   removed: string[];
 }
 
-export const EMPTY_FACT_CHAT: FactChat = { turns: [], facts: [], waiting: false, done: false, draft: '', removed: [] };
+export const EMPTY_FACT_CHAT: FactChat = { turns: [], facts: [], added: [], waiting: false, done: false, draft: '', removed: [] };
+
+/** Every fact of the chat, as the writer gets them: from the answers, then the ones added by hand. */
+export function chatFacts(chat: FactChat): string[] {
+  return cleanUserFacts([...chat.facts, ...chat.added]);
+}
+
+/** The chat's last question, asked when CopyZap has nothing more to ask. */
+export const CLOSING_QUESTION = 'Anything else that is true and should be in the copy?';
+
+export const closingAsked = (turns: ChatTurn[]) => turns.some(turn => turn.from === 'copyzap' && turn.text === CLOSING_QUESTION);
+
+/** The chat with its last question added. */
+export function withClosingQuestion(chat: FactChat): FactChat {
+  return { ...chat, waiting: false, done: false, turns: [...chat.turns, { from: 'copyzap', text: CLOSING_QUESTION }] };
+}
 
 /** What the chat is about: the same copy, goal and kind the questions were found for. */
 export interface FactChatContext {
@@ -145,7 +165,7 @@ You get the copy and the chat so far. Do two things.
 
 1. "facts": the full, updated list of facts the user has given in the chat, one short line each.
 - Take every fact from every answer, also a fact that answers a different question than the one asked ("more than 120 sites, and the first review is free" gives two facts).
-- Write each fact in ${language}, as close to the user's own words as you can. Keep every number, currency and name exactly as the user wrote it.
+- Write each fact in ${language}, short: the user's own words, plus only the few words needed to say what it is about (an answer "28000 mxn" to the price question becomes "Precio desde 28000 mxn" in Spanish, "Price from 28000 mxn" in English). Never turn it into a long sentence. Keep every number, currency and name exactly as the user wrote it.
 - Never add anything the user did not say: no number, price, currency, date, duration, result or promise of your own, and do not make a fact stronger than the user put it.
 - A fact that is vague stays as vague as the user wrote it. When the user later makes it clear, replace it with the clear version.
 - "no", "skip" or "(skipped)" gives no fact. Something the copy already says is not a new fact.
@@ -154,7 +174,7 @@ You get the copy and the chat so far. Do two things.
 2. "next": the next question, or null.
 - If the last answer is vague or unclear (a number without what it refers to, "it depends", "a discount" without how much or on what), ask about that answer first, once: say what is unclear and show what a clear answer looks like.
 - Otherwise ask the next gap from the list above that is not answered or skipped. You may ask one short follow-up when an answer opens something useful for the copy (what a free consultation includes, for example), but never ask the same thing twice, and never for something the copy already states.
-- If the user says they are done, or every gap is answered or skipped, "next" is null.
+- If the user says they are done, or every gap is answered or skipped, "next" is null. Never ask an open "anything else?" question yourself: CopyZap asks that at the end.
 - The question is one short sentence in ENGLISH, whatever the language of the copy or of the answers. Be friendly and plain; no praise, no sales talk.
 - "example": one example answer in ${language}, short enough to drop into the copy. Never a number, price, date, duration, percentage, rating, count or client name of your own: leave ${FACT_BLANK} where the user's own value goes. Never a currency symbol or code. Empty when no example helps.
 
@@ -245,13 +265,14 @@ export async function nextFactChatStep(
   const facts = factsSaidByUser(step.facts, chat.turns).filter(fact => !removed.has(fact.toLowerCase()));
   const last = chat.turns[chat.turns.length - 1];
   const userEnded = last?.from === 'user' && endsChat(last.text);
+  const closed = closingAsked(chat.turns);
   const limitReached = questionsAsked(chat.turns) >= FACT_CHAT_MAX_QUESTIONS;
-  const next = limitReached || userEnded ? null : step.next;
-  return {
-    ...chat,
-    facts,
-    waiting: false,
-    done: next === null,
-    turns: next ? [...chat.turns, { from: 'copyzap', text: next.question, example: next.example || undefined }] : chat.turns,
-  };
+  const next = limitReached || userEnded || closed ? null : step.next;
+  const updated: FactChat = { ...chat, facts, waiting: false };
+  if (next) {
+    return { ...updated, done: false, turns: [...chat.turns, { from: 'copyzap', text: next.question, example: next.example || undefined }] };
+  }
+  // Nothing more to ask: one last open question, unless the user ended the chat or already had it.
+  if (!userEnded && !closed) return withClosingQuestion(updated);
+  return { ...updated, done: true };
 }
