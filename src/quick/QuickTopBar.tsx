@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { useCreditsBalance } from '../hooks/useCreditsBalance';
+import { supabase } from '../services/supabaseClient';
 import { TIPS } from './tips';
 
 interface QuickTopBarProps {
@@ -23,6 +24,10 @@ interface QuickTopBarProps {
   onHelp: () => void;
   /** Whose credits to show. */
   userId: string;
+  /** The signed-in account's email, shown when no name is known, and always in the tip. */
+  userEmail: string;
+  /** A name from the sign-in (for example from Google), used when the account record has none. */
+  userMetaName?: string;
   /** Changes whenever a process has finished, so the credits are read again. */
   creditsTick: number;
 }
@@ -55,6 +60,48 @@ const CreditsLeft: React.FC<{ userId: string }> = ({ userId }) => {
   );
 };
 
+/** Longest name or email shown in the bar; the rest is cut with "…" and the whole is in the tip. */
+const ACCOUNT_MAX_CHARS = 24;
+
+/**
+ * Which account is signed in: the name from the account record (the one an
+ * admin sets in Manage Users), else the name from the sign-in, else the email.
+ * Hidden on narrow screens, where the bar is already full.
+ */
+const AccountName: React.FC<{ userId: string; email: string; metaName?: string }> = ({ userId, email, metaName }) => {
+  const [recordName, setRecordName] = React.useState<string | null>(null);
+  React.useEffect(() => {
+    let live = true;
+    supabase
+      .from('pmc_users')
+      .select('name')
+      .eq('id', userId)
+      .maybeSingle()
+      .then(({ data }) => {
+        const name = typeof data?.name === 'string' ? data.name.trim() : '';
+        if (live) setRecordName(name || null);
+      });
+    return () => {
+      live = false;
+    };
+  }, [userId]);
+
+  const full = (recordName || (metaName || '').trim() || email || '').trim();
+  if (!full) return null;
+  const shown = full.length > ACCOUNT_MAX_CHARS ? `${full.slice(0, ACCOUNT_MAX_CHARS - 1).trimEnd()}…` : full;
+  return (
+    <span
+      data-tip={email ? `Signed in as ${email}` : undefined}
+      className="hidden md:inline-flex items-center min-h-[44px] pl-3 text-xs font-medium text-gray-900 dark:text-gray-100 whitespace-nowrap"
+    >
+      {shown}
+      <span className="pl-3 text-gray-400 dark:text-gray-600" aria-hidden="true">
+        ·
+      </span>
+    </span>
+  );
+};
+
 const navButton =
   'inline-flex items-center min-h-[44px] px-2 sm:px-3 font-medium text-gray-900 dark:text-gray-100 ' +
   'hover:text-primary-700 dark:hover:text-primary-300 disabled:text-gray-400 disabled:cursor-not-allowed ' +
@@ -69,6 +116,8 @@ const QuickTopBar: React.FC<QuickTopBarProps> = ({
   showComplete,
   openResultId,
   userId,
+  userEmail,
+  userMetaName,
   creditsTick,
 }) => (
   <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-700">
@@ -124,6 +173,7 @@ const QuickTopBar: React.FC<QuickTopBarProps> = ({
             {openResultId ? 'Open in Advanced' : 'Advanced'}
           </Link>
         )}
+        <AccountName userId={userId} email={userEmail} metaName={userMetaName} />
         <CreditsLeft key={creditsTick} userId={userId} />
         <button type="button" onClick={onLogout} className={navButton + 'border-transparent'}>
           Log out

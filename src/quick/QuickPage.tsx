@@ -668,6 +668,11 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         openResultId={phase === 'result' && !helpOpen && saveState === 'saved' ? savedId : null}
         onHelp={toggleHelp}
         userId={currentUser.id}
+        userEmail={currentUser.email || ''}
+        userMetaName={
+          (currentUser as { user_metadata?: { name?: string; full_name?: string } }).user_metadata?.name ||
+          (currentUser as { user_metadata?: { name?: string; full_name?: string } }).user_metadata?.full_name
+        }
         creditsTick={creditsTick}
       />
 

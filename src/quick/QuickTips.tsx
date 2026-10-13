@@ -23,7 +23,7 @@ const HOVER_DELAY_MS = 500;
 const GAP = 8;
 
 const BOX =
-  'fixed z-[60] max-w-[280px] px-3 py-2 text-sm leading-snug font-normal text-left normal-case ' +
+  'fixed z-[60] max-w-[280px] px-3 py-2 text-sm leading-snug font-normal text-left normal-case break-words ' +
   'bg-gray-900 text-white dark:bg-gray-100 dark:text-gray-900 shadow-lg pointer-events-none';
 
 const QuickTips: React.FC = () => {
