@@ -18,7 +18,7 @@ import {
 import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
 import { asksForMissingFacts, findMissingFacts, MissingFactQuestion } from '../engine/missingFacts';
-import { FactAnswers, factsFromAnswers } from './factAnswers';
+import { FactAnswers, factsFromAnswers, OTHER_FACT_KEY } from './factAnswers';
 import { getTextKind } from '../services/api/textKinds';
 import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
 import { changeQuickVersion, QuickChangeOutcome, QuickChangeParts, validateQuickChange } from '../engine/changeQuickVersion';
@@ -263,8 +263,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           ? `Choose at least one part to improve (${QUICK_MIN_WORDS} words or more).`
           : null;
 
-  // The questions belong to one copy and one goal: a change to either asks again.
-  const factsKey = `${goalKey}\n${goalKey === 'custom' ? cleanQuickGoalLabel(goalOther) : ''}\n${copy}`;
+  // The questions belong to one copy, one goal and one kind of text: a change to any of them asks again.
+  const factsKey = `${goalKey}\n${goalKey === 'custom' ? cleanQuickGoalLabel(goalOther) : ''}\n${brief?.kind ?? ''}\n${copy}`;
   const factQuestions = !asksForMissingFacts(goalKey)
     ? undefined
     : facts?.key === factsKey
@@ -402,23 +402,32 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   };
 
   /**
-   * Starts looking for what the copy is missing, for the goals that ask (see
-   * engine/missingFacts.ts). Not awaited: the check screen opens at once and
-   * the questions appear when they are ready. The same copy and goal as last
-   * time keep their questions and the answers already given.
+   * Looks for what the copy is missing once the check screen is open and the
+   * kind of text is known (the questions depend on it; see engine/missingFacts.ts).
+   * Not awaited: the questions appear when they are ready, and generating never
+   * waits for them. The same copy, goal and kind as last time keep their
+   * questions and answers. When the user changes the kind, Quick asks again and
+   * keeps only what was written under "anything else".
    */
-  const lookForMissingFacts = (id: string | undefined) => {
-    if (!asksForMissingFacts(goalKey) || facts?.key === factsKey) return;
+  const factsKind = brief?.kind;
+  const factsKnown = facts?.key;
+  useEffect(() => {
+    if (phase !== 'confirm' || !factsKind || !asksForMissingFacts(goalKey) || factsKnown === factsKey) return;
     const key = factsKey;
     setFacts({ key, questions: null });
-    setFactAnswers({});
-    findMissingFacts(copy, goalKey, goalKey === 'custom' ? cleanQuickGoalLabel(goalOther) : undefined, currentUser, id).then(
-      questions => {
-        if (!isMounted.current) return;
-        setFacts(current => (current?.key === key ? { key, questions } : current));
-      }
-    );
-  };
+    setFactAnswers((previous): FactAnswers => (previous[OTHER_FACT_KEY] ? { [OTHER_FACT_KEY]: previous[OTHER_FACT_KEY] } : {}));
+    findMissingFacts(
+      copy,
+      goalKey,
+      goalKey === 'custom' ? cleanQuickGoalLabel(goalOther) : undefined,
+      factsKind,
+      currentUser,
+      sessionId ?? undefined
+    ).then(questions => {
+      if (!isMounted.current) return;
+      setFacts(current => (current?.key === key ? { key, questions } : current));
+    });
+  }, [phase, factsKind, factsKnown, factsKey, goalKey, goalOther, copy, currentUser, sessionId]);
 
   const handleContinue = async () => {
     if (tooShort || tooLong || goalMissing || busy) return;
@@ -426,7 +435,6 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
 
     // Same copy as last time: the earlier reading still applies.
     if (brief && briefCopy === copy) {
-      lookForMissingFacts(sessionId ?? undefined);
       setPhase('confirm');
       window.scrollTo(0, 0);
       return;
@@ -436,8 +444,6 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     const { alive: isMounted } = startProcess();
     try {
       const id = await ensureSession(copy);
-      // Runs alongside the reading below; the check screen does not wait for it.
-      lookForMissingFacts(id);
       const understood = await inferQuickBrief(copy, currentUser, id);
       if (!isMounted.current) return;
       // Copy fetched from a web address is a web page, whatever the reading step made of it.
@@ -459,8 +465,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     if (tooShort || tooLong || goalMissing || busy || blocked) return;
     // With more than one part the user has decided about each, testimonials included.
     const usesParts = sections.length > 1;
-    // Facts the user added under "Make it stronger". None while the questions are still loading.
-    const userFacts = factQuestions ? factsFromAnswers(factQuestions, factAnswers) : [];
+    // Facts the user added under "Make it stronger". While the questions are still loading only "anything else" counts.
+    const userFacts = factQuestions !== undefined ? factsFromAnswers(factQuestions ?? [], factAnswers) : [];
     setError(null);
     setProgress({ stage: 'checking' });
     setBusy('running');

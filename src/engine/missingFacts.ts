@@ -17,11 +17,14 @@
  *
  * Asked for the goals Convert and Other only: urgency or a price is the wrong
  * question for copy that informs or builds a brand, and only Convert was measured.
+ * Which gaps and how many depend on the kind of text (KIND_GUIDANCE below).
+ * Besides the questions the user can add "anything else" in their own words.
  *
  * One small model call. It never throws: on any failure there are no questions.
  */
 import { GoalKey, User } from '../types';
 import { cleanJsonResponse, makeApiRequestWithFallback } from '../services/api/utils';
+import type { TextKindKey } from '../services/api/textKinds';
 import { lockTestimonials } from './quoteLock';
 
 const MISSING_FACTS_MODEL = 'claude-sonnet-4-6';
@@ -32,8 +35,8 @@ const TAIL_CHARS = 3000;
 export const MISSING_FACTS_MAX_QUESTIONS = 3;
 /** Longest answer the user can give to one question. */
 export const USER_FACT_MAX_CHARS = 400;
-/** Most facts a run takes: one answer per question. */
-export const USER_FACTS_MAX = MISSING_FACTS_MAX_QUESTIONS;
+/** Most facts a run takes: one answer per question, plus "anything else". */
+export const USER_FACTS_MAX = MISSING_FACTS_MAX_QUESTIONS + 1;
 
 /** In an example answer: where the user's own number, date or name goes. */
 export const FACT_BLANK = '___';
@@ -46,7 +49,7 @@ export function asksForMissingFacts(goalKey: GoalKey | null | undefined): boolea
 }
 
 export interface MissingFactQuestion {
-  /** offer, urgency, proof, price, guarantee, next_step or other. */
+  /** difference, included, timing, offer, urgency, proof, price, guarantee, next_step or other. */
   kind: string;
   /** One short sentence in English. */
   question: string;
@@ -63,21 +66,59 @@ function goalLine(goalKey: GoalKey, goalLabel?: string): string {
   return 'Its goal: Convert — get the reader to take an action or buy.';
 }
 
-function systemPrompt(goalKey: GoalKey, goalLabel?: string): string {
-  return `You read a piece of marketing copy before it is rewritten. ${goalLine(goalKey, goalLabel)}
+/**
+ * Which questions suit which kind of text, and how many. A web page can carry
+ * every kind of fact; an email needs the offer, a real date and the next step;
+ * an ad or a post has room for one or two; a slogan for one at most.
+ */
+const KIND_GUIDANCE: Record<TextKindKey, { max: number; line: string }> = {
+  web_page: { max: 3, line: 'It is a web page: any of the gaps below can matter.' },
+  email: {
+    max: 3,
+    line: 'It is an email or newsletter: ask mainly about the offer, a real reason to act now and what happens after the reader replies or clicks. Do not ask what is included in a service or for credentials.',
+  },
+  ad: { max: 2, line: 'It is an ad: there is room for one or two facts at most, usually the offer, the price or what makes it different.' },
+  social_post: {
+    max: 2,
+    line: 'It is a social media post: there is room for one or two facts at most, usually the offer, the price or what makes it different.',
+  },
+  short_text: {
+    max: 1,
+    line: 'It is a short text (a slogan, headline or USP): ask at most one question, and only about what makes the business different. Never ask for a price, a date or a guarantee.',
+  },
+  other: { max: 3, line: 'Choose the gaps that suit this kind of text.' },
+};
 
-The rewrite may only use facts the copy states. So find what is MISSING that would most help the copy reach its goal, and that only the business itself can supply. Typical gaps: an offer or first step that lowers the risk (free consultation, trial, quote), a reason to act now (date, limited capacity, season), proof (a result, a number of clients, a named client, a rating), a price or price range, a guarantee, what happens after the reader acts.
+function kindGuidance(kind: TextKindKey | null | undefined) {
+  return KIND_GUIDANCE[kind ?? 'other'] ?? KIND_GUIDANCE.other;
+}
+
+function systemPrompt(goalKey: GoalKey, goalLabel?: string, kind?: TextKindKey | null): string {
+  const guidance = kindGuidance(kind);
+  return `You read a piece of marketing copy before it is rewritten. ${goalLine(goalKey, goalLabel)} ${guidance.line}
+
+The rewrite may only use facts the copy states. So find what is MISSING that would most help the copy reach its goal, and that only the business itself can supply. Typical gaps:
+- what makes the business different: something concrete it does that others do not (a method, something included at no extra cost, a specialty), not a quality every competitor claims
+- what the client gets: what is included and what they have at the end
+- how long it takes: delivery time or response time
+- an offer or first step that lowers the risk (free consultation, trial, quote)
+- a reason to act now (a real date, limited capacity, a season)
+- proof: a result, a number of clients, a named client, a rating, a certification, a partnership, an award
+- a price or price range
+- a guarantee
+- what happens after the reader acts
 
 Rules:
-- Up to ${MISSING_FACTS_MAX_QUESTIONS} gaps, most important first. Fewer is fine. If nothing important is missing, return an empty list.
+- Up to ${guidance.max} ${guidance.max === 1 ? 'gap' : 'gaps'}, most important first. Fewer is fine. If nothing important is missing, return an empty list.
 - Never ask for something the copy already states, even in other words. A line in brackets such as "(customer testimonials, not shown)" stands for a part of the page that is there: do not ask for it.
-- Each question is one short sentence in English, also when the copy is in another language, specific to this copy: name or quote the part it is about.
+- Each question is one short sentence written in ENGLISH, whatever the language of the copy (the user reads the questions in an English interface). It is specific to this copy: name or quote the part it is about; a quote may stay in the copy's language.
 - For each question give one example answer, written in the language of the copy, short enough to drop into the copy. It is shown greyed out in an empty field as a hint of what to write, so:
   - Never write a number, price, date, duration, percentage, rating, count or client name. Where the answer needs one, leave a blank as ${FACT_BLANK} (for example "More than ${FACT_BLANK} clients", "From ${FACT_BLANK} per month", "Free first call of ${FACT_BLANK} minutes").
   - Never write a currency symbol or code: the user writes the price with their own currency.
   - One plain fact. No sales phrases such as "filling fast" or "don't miss out", and never a customer quote or testimonial.
+  - For what makes the business different, the example names something concrete (for example "Every site is delivered with ${FACT_BLANK} included"), never a superlative such as "the best" or "the only".
 
-Answer with JSON only: {"gaps":[{"kind":"offer|urgency|proof|price|guarantee|next_step|other","question":"...","example":"..."}]}`;
+Answer with JSON only: {"gaps":[{"kind":"difference|included|timing|offer|urgency|proof|price|guarantee|next_step|other","question":"(in English)","example":"(in the language of the copy)"}]}`;
 }
 
 /** Where testimonials were taken out: they are on the page, so they are not asked for. */
@@ -149,6 +190,7 @@ export async function findMissingFacts(
   copy: string,
   goalKey: GoalKey,
   goalLabel: string | undefined,
+  kind: TextKindKey | null | undefined,
   user: User,
   sessionId?: string
 ): Promise<MissingFactQuestion[]> {
@@ -159,7 +201,7 @@ export async function findMissingFacts(
     const response = await makeApiRequestWithFallback(
       MISSING_FACTS_MODEL,
       [
-        { role: 'system', content: systemPrompt(goalKey, goalLabel) },
+        { role: 'system', content: systemPrompt(goalKey, goalLabel, kind) },
         { role: 'user', content: `Copy:\n"""\n${text}\n"""` },
       ],
       0.2,
@@ -169,7 +211,7 @@ export async function findMissingFacts(
       'quick_missing_facts',
       sessionId
     );
-    return parseMissingFacts(response.choices[0]?.message?.content ?? '');
+    return parseMissingFacts(response.choices[0]?.message?.content ?? '').slice(0, kindGuidance(kind).max);
   } catch {
     return [];
   }
@@ -205,6 +247,7 @@ export function userFactsWritingNote(facts: string[]): string {
   if (clean.length === 0) return '';
   return [
     'The user added these facts about the business. They are true. Use every one of them, in the copy\'s own language and voice, exactly as given: do not change their numbers or make them stronger. Put the reason to act now and the offer next to the call to action, and the proof where the copy makes its claims. Do not turn a limit on capacity into a claim that places are running out.',
+    'Use each fact only for what it says. Where a fact does not say what a number or a result refers to, keep it as general as the user wrote it: do not decide that it is about sales, clients, traffic or anything else. Keep separate facts in separate statements: a free offer and a price, for example, never in one sentence.',
     factList(clean),
   ].join('\n');
 }

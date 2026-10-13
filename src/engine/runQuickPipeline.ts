@@ -518,7 +518,18 @@ export async function runQuickPipeline(
     goalLabel: input.goalKey === 'custom' ? input.goalLabel : undefined,
   });
   const userFacts = cleanUserFacts(input.userFacts);
-  if (userFacts.length > 0) formState = { ...formState, quickUserFacts: userFacts };
+  if (userFacts.length > 0) {
+    // The facts need room: without it the writer squeezes them into the original's
+    // length and merges them ("Solicita tu análisis gratis desde 32,000 MXN" reads
+    // as if the free analysis cost the price). Measured 2026-10-13 on a 40-word
+    // text with three facts: price and free offer in one sentence in 4 of 6
+    // versions at the original length, 2 of 6 with the facts' words added.
+    formState = {
+      ...formState,
+      quickUserFacts: userFacts,
+      customWordCount: (formState.customWordCount ?? 0) + countWords(userFacts.join(' ')),
+    };
+  }
   // What the writer is told on top of its own rules: to keep to the facts of
   // the original (see keepToOriginal.ts), the kind of text when it is not a
   // page (see textKinds.ts), and the parts it must not touch.

@@ -87,16 +87,16 @@ const isNumber = (word: string) => /^\d+$/.test(word);
 const stem = (word: string) => (isNumber(word) || word.length <= 5 ? word : word.slice(0, 5));
 
 /**
- * True when a claim quotes a fact the user added. Every number in the claim
- * must be one of the fact's numbers, and either most of the fact's words are
- * in the claim, or (for a claim with a number) at least two longer words of
- * the fact are, for a claim that quotes part of a long fact.
+ * True when a claim quotes a fact the user added: every number in the claim
+ * is one of the fact's numbers, and most of the fact's words are in the claim.
  * Words are compared by their stem (see stem above).
- * "Los proyectos arrancan desde $8,000" quotes "Desde $8000"; "una garantía
- * ilimitada de 30 días" quotes "Garantía ilimitada por 30 días! Después …";
- * "incrementado conversiones en más del 50%" quotes "Hemos logrado incrementar
- * conversiones en más de 50%!"; "más de 100 clientes" does not quote "Más de
- * 100 proyectos de branding completados".
+ * "Los proyectos arrancan desde $8,000" quotes "Desde $8000"; "incrementado
+ * conversiones en más del 50%" quotes "Hemos logrado incrementar conversiones
+ * en más de 50%!". Not a quote, so still listed: "más de 100 clientes" for
+ * "Más de 100 proyectos de branding completados", and "hasta 50% tu presencia
+ * digital" for "incremento hasta 50% en el desarrollo web de calidad" (seen
+ * 2026-10-13: the same number put to something the user did not say). Listing
+ * a harmless reworded fact is better than hiding a stronger claim.
  */
 export function quotesUserFact(phrase: string, fact: string): boolean {
   const claim = plainWords(phrase).map(stem);
@@ -107,10 +107,7 @@ export function quotesUserFact(phrase: string, fact: string): boolean {
   if (!claimNumbers.every(number => factNumbers.has(number))) return false;
   const inClaim = new Set(claim);
   const found = factWords.filter(word => inClaim.has(word)).length;
-  if (found / factWords.length >= 0.6) return true;
-  if (claimNumbers.length === 0) return false;
-  const longShared = new Set(factWords.filter(word => word.length >= 4 && !isNumber(word) && inClaim.has(word)));
-  return longShared.size >= 2;
+  return found / factWords.length >= 0.6;
 }
 
 /**
