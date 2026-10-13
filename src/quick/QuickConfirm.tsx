@@ -9,6 +9,9 @@ import { estimateRunCredits } from '../engine/quickCredits';
 import SquareRadio from './SquareRadio';
 import GrowingField from './GrowingField';
 import { KIND_TIPS, PART_TIPS, TIPS } from './tips';
+import type { MissingFactQuestion } from '../engine/missingFacts';
+import type { FactAnswers } from './factAnswers';
+import QuickMissingFacts from './QuickMissingFacts';
 
 interface QuickConfirmProps {
   copy: string;
@@ -32,6 +35,13 @@ interface QuickConfirmProps {
   maxWords: number;
   /** Why generating is not possible right now, if it is not. */
   blocked: string | null;
+  /**
+   * "Make it stronger": questions about what the copy is missing (see
+   * engine/missingFacts.ts). undefined: not asked for this goal; null: still looking.
+   */
+  factQuestions?: MissingFactQuestion[] | null;
+  factAnswers: FactAnswers;
+  onFactAnswersChange: (answers: FactAnswers) => void;
 }
 
 const CHOICES: { value: SectionChoice; label: string }[] = [
@@ -77,6 +87,9 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
   usedWords,
   maxWords,
   blocked,
+  factQuestions,
+  factAnswers,
+  onFactAnswersChange,
 }) => {
   const choiceOf = (section: PageSection): SectionChoice => choices[section.id] ?? 'improve';
   const estimate = estimateRunCredits(usedWords);
@@ -308,6 +321,10 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
             </p>
           )}
         </fieldset>
+      )}
+
+      {factQuestions !== undefined && (
+        <QuickMissingFacts questions={factQuestions} answers={factAnswers} onAnswersChange={onFactAnswersChange} />
       )}
 
       {brief.unsupportedLanguage && (

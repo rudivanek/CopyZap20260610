@@ -1021,6 +1021,11 @@ const QuickResult: React.FC<QuickResultProps> = ({
           <div className="flex flex-col gap-1">
             <h2 className="text-gray-900 dark:text-white">Comparison &amp; rankings</h2>
             <p className="text-gray-600 dark:text-gray-400">{judgedAs}</p>
+            {(result.formState.quickUserFacts ?? []).length > 0 && (
+              <p className="text-gray-600 dark:text-gray-400">
+                Facts you added: {(result.formState.quickUserFacts ?? []).join(' · ')}
+              </p>
+            )}
           </div>
           <ol className={`${card} divide-y divide-gray-200 dark:divide-gray-700`}>
             {[...ranked, ...unranked, ...(baseline ? [baseline] : [])].map((item, index) => {

@@ -17,6 +17,8 @@ import {
 } from '../engine/buildQuickFormState';
 import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
+import { asksForMissingFacts, findMissingFacts, MissingFactQuestion } from '../engine/missingFacts';
+import { FactAnswers, factsFromAnswers } from './factAnswers';
 import { getTextKind } from '../services/api/textKinds';
 import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
 import { changeQuickVersion, QuickChangeOutcome, QuickChangeParts, validateQuickChange } from '../engine/changeQuickVersion';
@@ -181,6 +183,11 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [briefCopy, setBriefCopy] = useState<string | null>(null);
   // What the user chose for parts of the page; reset whenever the copy changes.
   const [pickedChoices, setPickedChoices] = useState<Record<string, SectionChoice>>({});
+  // "Make it stronger": what the copy is missing (see engine/missingFacts.ts),
+  // for the copy and goal it was looked up for, and what the user answered.
+  // questions is null while Quick is still looking.
+  const [facts, setFacts] = useState<{ key: string; questions: MissingFactQuestion[] | null } | null>(null);
+  const [factAnswers, setFactAnswers] = useState<FactAnswers>({});
   // True while the copy, goal and corrections above are the ones the result on
   // screen was run with: right after a run from this page. False for a result
   // opened from History or from its address.
@@ -255,6 +262,14 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         : sections.length > 1 && plan.improveWords < QUICK_MIN_WORDS
           ? `Choose at least one part to improve (${QUICK_MIN_WORDS} words or more).`
           : null;
+
+  // The questions belong to one copy and one goal: a change to either asks again.
+  const factsKey = `${goalKey}\n${goalKey === 'custom' ? cleanQuickGoalLabel(goalOther) : ''}\n${copy}`;
+  const factQuestions = !asksForMissingFacts(goalKey)
+    ? undefined
+    : facts?.key === factsKey
+      ? facts.questions
+      : null;
 
   /** Saves a result as a new History entry, or over its existing one, and keeps its id in the address. */
   const persist = async (run: QuickRunResult, seconds: number | null, id: string | null) => {
@@ -386,12 +401,32 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     }
   };
 
+  /**
+   * Starts looking for what the copy is missing, for the goals that ask (see
+   * engine/missingFacts.ts). Not awaited: the check screen opens at once and
+   * the questions appear when they are ready. The same copy and goal as last
+   * time keep their questions and the answers already given.
+   */
+  const lookForMissingFacts = (id: string | undefined) => {
+    if (!asksForMissingFacts(goalKey) || facts?.key === factsKey) return;
+    const key = factsKey;
+    setFacts({ key, questions: null });
+    setFactAnswers({});
+    findMissingFacts(copy, goalKey, goalKey === 'custom' ? cleanQuickGoalLabel(goalOther) : undefined, currentUser, id).then(
+      questions => {
+        if (!isMounted.current) return;
+        setFacts(current => (current?.key === key ? { key, questions } : current));
+      }
+    );
+  };
+
   const handleContinue = async () => {
     if (tooShort || tooLong || goalMissing || busy) return;
     setError(null);
 
     // Same copy as last time: the earlier reading still applies.
     if (brief && briefCopy === copy) {
+      lookForMissingFacts(sessionId ?? undefined);
       setPhase('confirm');
       window.scrollTo(0, 0);
       return;
@@ -401,6 +436,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     const { alive: isMounted } = startProcess();
     try {
       const id = await ensureSession(copy);
+      // Runs alongside the reading below; the check screen does not wait for it.
+      lookForMissingFacts(id);
       const understood = await inferQuickBrief(copy, currentUser, id);
       if (!isMounted.current) return;
       // Copy fetched from a web address is a web page, whatever the reading step made of it.
@@ -422,6 +459,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     if (tooShort || tooLong || goalMissing || busy || blocked) return;
     // With more than one part the user has decided about each, testimonials included.
     const usesParts = sections.length > 1;
+    // Facts the user added under "Make it stronger". None while the questions are still loading.
+    const userFacts = factQuestions ? factsFromAnswers(factQuestions, factAnswers) : [];
     setError(null);
     setProgress({ stage: 'checking' });
     setBusy('running');
@@ -448,6 +487,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           goalLabel: goalKey === 'custom' ? goalOther : undefined,
           sessionId: sessionId ?? undefined,
           signal,
+          userFacts,
           brief: brief
             ? {
                 product: brief.product,
@@ -578,6 +618,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setBrief(null);
     setBriefCopy(null);
     setPickedChoices({});
+    setFacts(null);
+    setFactAnswers({});
     setCopy('');
     setPhase('start');
     window.scrollTo(0, 0);
@@ -620,6 +662,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         setBriefCopy(null);
       }
       setPickedChoices({});
+      // Asked again on Continue: a result from History keeps its facts, not the questions.
+      setFacts(null);
+      setFactAnswers({});
     }
     inputsFromRun.current = false;
     setChangeNotice(null);
@@ -850,6 +895,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           usedWords={usedWords}
           maxWords={maxWords}
           blocked={blocked}
+          factQuestions={factQuestions}
+          factAnswers={factAnswers}
+          onFactAnswersChange={setFactAnswers}
           onGenerate={handleRun}
           onBack={() => {
             setPhase('start');
