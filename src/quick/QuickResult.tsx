@@ -323,9 +323,6 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const winnerTotal = winnerScore?.total;
   const originalTotal = originalScore?.total;
   const delta = winnerTotal != null && originalTotal != null ? winnerTotal - originalTotal : null;
-  // Improvement relative to the original's own score, e.g. 71 -> 85 is +20%.
-  const deltaPercent =
-    delta != null && originalTotal != null && originalTotal > 0 ? Math.round((delta / originalTotal) * 100) : null;
   const original = versions.find(version => version.id === ORIGINAL_VERSION_ID);
   // The best version scores so close to the original that the scorer cannot
   // tell them apart: that is not shown as an improvement.
@@ -378,7 +375,6 @@ const QuickResult: React.FC<QuickResultProps> = ({
       version,
       score,
       gain,
-      gainPercent: gain != null && originalTotal != null && originalTotal > 0 ? Math.round((gain / originalTotal) * 100) : null,
       setAside: gate ? !gate.valid : false,
       claims: notes.filter(isClaimNote).map(noteText),
       tone: notes.filter(note => !isClaimNote(note)).map(noteText),
@@ -766,7 +762,6 @@ const QuickResult: React.FC<QuickResultProps> = ({
                         {nearOriginal && 'About the same as your original'}
                         {!nearOriginal && delta > 0 && `+${delta} points`}
                         {!nearOriginal && delta < 0 && `−${Math.abs(delta)} points`}
-                        {!nearOriginal && deltaPercent != null && ` (${delta > 0 ? '+' : '−'}${Math.abs(deltaPercent)}%)`}
                         {!nearOriginal && ' vs your original'}
                       </p>
                       <p className="text-gray-600 dark:text-gray-400">
@@ -1070,7 +1065,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                     <span className="w-28 shrink-0 text-gray-900 dark:text-gray-100 tabular-nums">
                       {isBaseline || item.gain == null
                         ? ''
-                        : `${item.gain >= 0 ? '+' : ''}${item.gain}${item.gainPercent != null ? ` | ${item.gain >= 0 ? '+' : ''}${item.gainPercent}%` : ''}`}
+                        : `${item.gain >= 0 ? '+' : ''}${item.gain}`}
                     </span>
                     <span className="w-24 shrink-0 text-right">
                       {total != null ? <ScoreTag total={total} /> : <span className="text-gray-600 dark:text-gray-400">Not scored</span>}

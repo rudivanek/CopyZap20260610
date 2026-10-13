@@ -3007,7 +3007,8 @@ export const exportAsFormattedHtml = (
     const winnerRow = comparisonResult?.rows?.find(r => r.isWinner);
     const winnerVersionId = winnerRow?.versionId;
     const targetWordCount = calculateTargetWordCount(formState).target;
-    const totalVariants = contentCards.length;
+    // Versions only: the original is the baseline, not a variant.
+    const totalVariants = contentCards.filter(c => c.id !== ORIGINAL_VERSION_ID && c.type !== GeneratedContentItemType.Original).length;
     const lang = formState.language || 'English';
     // The report's own labels (always English, see resolveExportLangCode).
     // The copy keeps its language, and the report still names that language.
@@ -3118,10 +3119,9 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
       }
       if (winnerScore !== null && baselineScore !== null) {
         const delta = winnerScore - baselineScore;
-        const pct = baselineScore > 0 ? Math.round((delta / baselineScore) * 100) : 0;
         const sign = delta >= 0 ? '+' : '';
         // The "apply all suggestions" projection is shown only when there are suggestions to apply.
-        htmlContent += `<div class="journey-foot"><b>${sign}${delta} pts (${sign}${pct}%)</b>${projectedScore !== null ? ` &nbsp;${t.applyAllSuggestions(projectedScore)}` : ''}</div>\n`;
+        htmlContent += `<div class="journey-foot"><b>${sign}${delta} pts</b>${projectedScore !== null ? ` &nbsp;${t.applyAllSuggestions(projectedScore)}` : ''}</div>\n`;
       }
       htmlContent += '</div>\n';
     }
@@ -3200,8 +3200,9 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
     const configRows: [string, string][] = [
       [t.languageLabel, formState.language || '—'],
       [t.toneLabel, formState.tone || '—'],
-      [t.wordCount, `${formState.wordCount || '—'}${formState.wordCount === 'Custom' ? ` (${formState.customWordCount})` : (formState.wordCount ? (exportLangCode === 'es' ? ' (por sección)' : ' (per section)') : '')}`],
     ];
+    // Quick sets no word count of its own: the value is an internal writing target, not the user's choice.
+    if (!showWordCounts) configRows.push([t.wordCount, `${formState.wordCount || '—'}${formState.wordCount === 'Custom' ? ` (${formState.customWordCount})` : (formState.wordCount ? (exportLangCode === 'es' ? ' (por sección)' : ' (per section)') : '')}`]);
     if (formState.targetAudience) configRows.push([t.targetAudienceLabel, formState.targetAudience]);
     if (formState.geoRegions) configRows.push([t.targetRegionLabel, formState.geoRegions]);
     if (formState.keyMessage) configRows.push([t.keyMessageLabel, formState.keyMessage]);
@@ -3385,9 +3386,8 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
             deltaHtml = `<small>${t.baselineWordLabel}</small>`;
           } else if (primary != null && baseVal != null) {
             const delta = primary - baseVal;
-            const pct = baseVal > 0 ? Math.round((delta / baseVal) * 100) : 0;
             const sign = delta >= 0 ? '+' : '';
-            deltaHtml = `${sign}${delta}<small>${sign}${pct}%</small>`;
+            deltaHtml = `${sign}${delta}`;
           }
 
           const rowClasses = ['rank-row'];
@@ -3524,8 +3524,9 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
     }
 
     // BOTTOM CTA BLOCK
+    // Copy Maker only: Quick makes its versions itself, so "save 3–4" does not apply there.
     const generatedCount = contentCards.length;
-    if (generatedCount > 0) {
+    if (generatedCount > 0 && !showWordCounts) {
       htmlContent += '<div class="wrap">\n';
       htmlContent += '<div class="cta-mini" style="display:flex;flex-direction:column;align-items:center;gap:6px;text-align: center; padding: 32px; background: var(--white); border: 1px solid var(--line); border-radius: 8px; margin-top: 56px;">\n';
       htmlContent += `<p style="margin: 0 0 6px 0; font-size: 16px; font-weight: 700; color: var(--ink);">${t.wantMoreVariations}</p>\n`;

@@ -51,3 +51,16 @@ export function keepOwnFlags(flags: string[] | null | undefined, versionText: st
   if (!versionText || !versionText.trim()) return clean;
   return clean.filter(flag => isOwnFlag(flag, versionText));
 }
+
+const TONE_NOTE = /^\s*tone intensity\b/i;
+
+/**
+ * Tone notes on words the version took over from the original. "Review the tone
+ * of 'valiente'" is noise when "valiente" was already the user's own word: the
+ * version did not add it. Only tone notes go: a claim to verify still needs
+ * checking, whoever wrote it first. Without an original text nothing is removed.
+ */
+export function dropInheritedToneFlags(flags: string[], originalText: string | null | undefined): string[] {
+  if (!originalText || !originalText.trim()) return flags;
+  return flags.filter(flag => !(TONE_NOTE.test(flag) && flagPhrase(flag) && isOwnFlag(flag, originalText)));
+}

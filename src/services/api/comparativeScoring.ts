@@ -15,7 +15,7 @@ import { GeneratedContentItem, Model, ScoringContext } from '../../types';
 import { makeApiRequestWithFallback, cleanJsonResponse } from './utils';
 import { SCORING_MODEL } from '../../constants';
 import { calculateMultiScoreDisplay } from '../../utils/multiScoreDisplay';
-import { keepOwnFlags } from './flagOwnership';
+import { keepOwnFlags, dropInheritedToneFlags } from './flagOwnership';
 import { textKindContextLabel } from './textKinds';
 
 // ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
@@ -705,6 +705,10 @@ export function mapToComparisonResult(
   // comparative scoring migration step 1
   // mapping new comparative format to old comparison result structure
 
+  // The original's text, to tell a version's own tone words from the ones it kept.
+  const originalVersion = versions.find(v => v.id === '__original__');
+  const originalText = typeof originalVersion?.content === 'string' ? originalVersion.content : '';
+
   const rows = comparativeResult.ranking.map(item => {
     const version = versions.find(v => v.id === item.versionId);
 
@@ -767,7 +771,11 @@ export function mapToComparisonResult(
       // A note stays only when the phrase it quotes stands in this version's own
       // text: the model sometimes lists one version's phrases under another
       // (see flagOwnership.ts).
-      verificationFlags: keepOwnFlags(item.verificationFlags, contentText)
+      // On a version (not the original itself), tone notes on words the original
+      // already had are dropped: the version did not add them.
+      verificationFlags: item.versionId === '__original__'
+        ? keepOwnFlags(item.verificationFlags, contentText)
+        : dropInheritedToneFlags(keepOwnFlags(item.verificationFlags, contentText), originalText)
     };
   });
 
