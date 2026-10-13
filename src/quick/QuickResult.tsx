@@ -299,14 +299,17 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const numbersByVersion = useMemo(() => {
     const byVersion: Record<string, NumberCheck> = {};
     const source = result.versions.find(version => version.id === ORIGINAL_VERSION_ID);
-    const originalText = source ? contentToText(source.content) : '';
+    // Facts the user added on the check screen count as part of the original:
+    // a price they typed is not a figure to verify.
+    const userFacts = (result.formState.quickUserFacts ?? []).join('\n');
+    const originalText = source ? [contentToText(source.content), userFacts].filter(Boolean).join('\n\n') : '';
     if (!originalText.trim()) return byVersion;
     for (const version of result.versions) {
       if (version.id === ORIGINAL_VERSION_ID) continue;
       byVersion[version.id] = checkNumbers(contentToText(version.content), originalText);
     }
     return byVersion;
-  }, [result.versions]);
+  }, [result.versions, result.formState.quickUserFacts]);
 
   const { scores, versions } = result;
   const generated = versions.filter(version => version.id !== ORIGINAL_VERSION_ID);

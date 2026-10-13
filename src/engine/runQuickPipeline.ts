@@ -33,6 +33,7 @@ import {
 } from './buildQuickFormState';
 import { textKindWritingNote } from '../services/api/textKinds';
 import { KEEP_TO_ORIGINAL_NOTE } from './keepToOriginal';
+import { cleanUserFacts, userFactsWritingNote } from './missingFacts';
 import { effectiveGates } from './gateRules';
 import { stopSessionWith, throwIfStopped } from './quickStop';
 import { ORIGINAL_OPTION_LABEL, ORIGINAL_VERSION_ID, pickWinner } from './pickWinner';
@@ -133,6 +134,11 @@ export interface QuickRunInput {
   signal?: AbortSignal;
   /** The page the copy was fetched from, when it was fetched. Recorded with the result. */
   source?: QuickSource;
+  /**
+   * Facts the user added on the check screen, for what the copy was missing
+   * (see missingFacts.ts). The writer is told to use them. Empty: as before.
+   */
+  userFacts?: string[];
 }
 
 export interface QuickRunResult {
@@ -511,11 +517,14 @@ export async function runQuickPipeline(
     brief: input.brief,
     goalLabel: input.goalKey === 'custom' ? input.goalLabel : undefined,
   });
+  const userFacts = cleanUserFacts(input.userFacts);
+  if (userFacts.length > 0) formState = { ...formState, quickUserFacts: userFacts };
   // What the writer is told on top of its own rules: to keep to the facts of
   // the original (see keepToOriginal.ts), the kind of text when it is not a
   // page (see textKinds.ts), and the parts it must not touch.
   const writerNotes = [
     KEEP_TO_ORIGINAL_NOTE,
+    userFactsWritingNote(userFacts),
     textKindWritingNote(quickTextKindOf(formState)) || QUICK_HEADINGS_NOTE,
     keepInstructions(keepZones),
     testimonialInstructions(lock.zones),

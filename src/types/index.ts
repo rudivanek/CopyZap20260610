@@ -181,6 +181,8 @@ export interface FormData {
   keepToOriginal?: boolean;
   // Quick: what the copy is for in the user's own words, when the goal is "Other" (goal key 'custom')
   quickGoalLabel?: string;
+  // Quick: facts the user added on the check screen (what the copy was missing). The writer may use them; see engine/missingFacts.ts
+  quickUserFacts?: string[];
   // Section titles for structured output
   includeSectionTitles?: boolean; // Generate AI titles for each section in structured output (default: true)
   // AI Engine Mode for A/B testing

@@ -29,6 +29,7 @@ import type { QuickProgress } from './runQuickPipeline';
 import { throwIfStopped } from './quickStop';
 import { quickTextKindOf } from './buildQuickFormState';
 import { KEEP_TO_ORIGINAL_CHANGE_NOTE } from './keepToOriginal';
+import { userFactsChangeNote } from './missingFacts';
 
 /** Versions one result can hold besides the original. The comparison reads them all together. */
 export const QUICK_MAX_VERSIONS = 8;
@@ -433,6 +434,7 @@ export async function changeQuickVersion(
     includeSectionTitles: false,
     specialInstructions: [
       KEEP_TO_ORIGINAL_CHANGE_NOTE,
+      userFactsChangeNote(result.formState.quickUserFacts ?? []),
       kindNote || HEADINGS_CHANGE_NOTE,
       keepInstructions(keepZones),
       testimonialInstructions(quoteZones),

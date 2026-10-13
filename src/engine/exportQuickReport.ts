@@ -77,6 +77,9 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
     const kept = result.parts.kept === 1 ? '1 kept as it is' : `${result.parts.kept} kept as they are`;
     extraRows.push(['Parts of the page', `${kept}, ${result.parts.leftOut} left out`]);
   }
+  // Facts the user added on the check screen: a reader of the report sees where those claims came from.
+  const userFacts = result.formState.quickUserFacts ?? [];
+  if (userFacts.length > 0) extraRows.push(['Facts you added', userFacts.join(' · ')]);
 
   return {
     // The report takes its title and file name from the project description.
