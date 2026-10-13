@@ -2183,17 +2183,16 @@ export const getCreditsBalance = async (userId: string): Promise<{ data: Credits
 
     console.log('💳 Credits balance computed:', { creditsAllowed, creditsUsed, creditsRemaining });
 
-    // 4. Compute total API cost for ALL users in current period (admin-only metric)
-    const { data: costData, error: costError } = await supabase
-      .from('pmc_user_tokens_used')
-      .select('cost_usd')
-      .gte('created_at', periodStart)
-      .lte('created_at', periodEnd);
+    // 4. Total API cost of ALL users in the current period (admin-only metric).
+    //    Summed in the database: reading rows here stopped at 1,000 rows.
+    //    The function refuses anyone who is not an admin; the figure is then left out.
+    const { data: costData, error: costError } = await supabase.rpc('admin_get_api_cost_since', {
+      p_since: periodStart
+    });
 
     let totalApiCostUsd: number | undefined = undefined;
-    if (!costError && costData) {
-      totalApiCostUsd = costData.reduce((sum, record) => sum + (record.cost_usd || 0), 0);
-      console.log('💰 Total API cost (all users) computed:', totalApiCostUsd);
+    if (!costError && costData !== null && costData !== undefined) {
+      totalApiCostUsd = Number(costData) || 0;
     }
 
     return {

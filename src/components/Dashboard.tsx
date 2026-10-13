@@ -1190,14 +1190,6 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                   </p>
                 </div>
               </div>
-              <div className="text-right flex items-center space-x-8">
-                <div>
-                  <div className="text-2xl font-bold text-indigo-600 dark:text-indigo-400">
-                    {stats.totalBillableUnits.toLocaleString()}
-                  </div>
-                  <div className="text-sm text-gray-600 dark:text-gray-400">Credits Used</div>
-                </div>
-              </div>
             </div>
           </div>
         )}
@@ -1237,7 +1229,7 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                       <div className="text-2xl font-bold text-purple-600 dark:text-purple-400">
                         {formatCostUSD(creditsBalance.totalApiCostUsd)}
                       </div>
-                      <div className="text-sm text-gray-600 dark:text-gray-400">Cost USD</div>
+                      <div className="text-sm text-gray-600 dark:text-gray-400">API cost, all users</div>
                     </div>
                   )}
                   <div>
