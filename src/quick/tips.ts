@@ -69,6 +69,9 @@ export const TIPS = {
   back: "Back to your text and goal. Your corrections here stay as long as you don't change the text.",
   factAnswer: 'Write it as it is true for you, with your own figures and currency. The new versions use it as you wrote it. Leave it empty to skip.',
   factOther: 'A fact CopyZap did not ask about, as it is true for you. Not for changes of style: those go in "What should change?" after the result.',
+  factChatMode: 'CopyZap asks one question at a time and follows up on your answers. The facts it takes from them are listed below the chat before you generate.',
+  factChat: 'Write it as it is true for you, with your own figures and currency. Enter sends it.',
+  factRemove: 'Leaves this fact out of the new versions.',
   // Result screen
   copy: 'Copies this version as text, ready to paste.',
   exportReport: 'Saves a report of all versions, scores and reasons as a file you can open or send.',

@@ -1,0 +1,212 @@
+import React, { useEffect } from 'react';
+import type { MissingFactQuestion } from '../engine/missingFacts';
+import { USER_FACT_MAX_CHARS } from '../engine/missingFacts';
+import {
+  FactChat,
+  FactChatContext,
+  FACT_CHAT_MAX_QUESTIONS,
+  nextFactChatStep,
+  questionsAsked,
+  SKIPPED_ANSWER,
+  startFactChat,
+  EMPTY_FACT_CHAT,
+} from '../engine/factChat';
+import GrowingField from './GrowingField';
+import { TIPS } from './tips';
+
+/**
+ * "Make it stronger" as a chat (see engine/factChat.ts): CopyZap asks one
+ * question at a time and decides the next one from the answer. Below the chat,
+ * the facts CopyZap will use, which the user can take out. Generating never
+ * waits for the chat.
+ */
+interface QuickFactChatProps {
+  /** null while Quick is still looking for what is missing. */
+  questions: MissingFactQuestion[] | null;
+  chat: FactChat;
+  setChat: React.Dispatch<React.SetStateAction<FactChat>>;
+  context: FactChatContext;
+}
+
+const FIELD =
+  'w-full min-h-[44px] px-3.5 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 ' +
+  'text-gray-900 dark:text-gray-100 placeholder-gray-500 disabled:opacity-60 focus:outline-none focus:ring-2 focus:ring-primary-500';
+const PRIMARY =
+  'inline-flex items-center justify-center min-h-[44px] px-5 bg-primary-500 hover:bg-primary-400 text-white font-semibold ' +
+  'disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2';
+const SECONDARY =
+  'inline-flex items-center justify-center min-h-[44px] px-4 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 ' +
+  'text-gray-900 dark:text-gray-100 font-medium hover:bg-gray-100 dark:hover:bg-gray-800 disabled:opacity-50 disabled:cursor-not-allowed ' +
+  'focus:outline-none focus:ring-2 focus:ring-primary-500';
+const LINK =
+  'underline underline-offset-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 ' +
+  'disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500';
+
+const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat, context }) => {
+  // The chat starts as soon as the questions are known: its first question is the first one found.
+  useEffect(() => {
+    if (questions !== null && chat.turns.length === 0) setChat(startFactChat(questions));
+  }, [questions, chat.turns.length, setChat]);
+
+  /** Adds the user's answer and asks CopyZap for the next step. A late reply for an older chat is ignored. */
+  const answer = (text: string) => {
+    if (chat.waiting || chat.done || questions === null) return;
+    const sent: FactChat = {
+      ...chat,
+      draft: '',
+      waiting: true,
+      turns: [...chat.turns, { from: 'user', text }],
+    };
+    setChat(sent);
+    nextFactChatStep(context, questions, sent).then(next =>
+      setChat(current => (current.turns === sent.turns ? { ...next, draft: current.draft } : current))
+    );
+  };
+
+  const send = () => {
+    const text = chat.draft.replace(/\s+/g, ' ').trim();
+    if (text) answer(text);
+  };
+  const remove = (fact: string) =>
+    setChat(current => ({ ...current, facts: current.facts.filter(item => item !== fact), removed: [...current.removed, fact] }));
+  const finish = () => setChat(current => ({ ...current, done: true, waiting: false }));
+  const restart = () => setChat(questions ? startFactChat(questions) : EMPTY_FACT_CHAT);
+
+  if (questions === null) {
+    return (
+      <p className="text-gray-600 dark:text-gray-400" aria-live="polite">
+        Looking for what is missing… You can generate without waiting.
+      </p>
+    );
+  }
+
+  const asked = questionsAsked(chat.turns);
+  const lastIsQuestion = chat.turns[chat.turns.length - 1]?.from === 'copyzap';
+
+  return (
+    <div className="flex flex-col gap-4">
+      <ol className="m-0 p-0 list-none flex flex-col gap-3" aria-live="polite">
+        {chat.turns.map((turn, index) =>
+          turn.from === 'copyzap' ? (
+            <li key={index} className="flex flex-col gap-0.5 border-l-2 border-primary-500 pl-3">
+              <span className="sr-only">CopyZap asks:</span>
+              <p className="font-semibold text-gray-900 dark:text-gray-100">{turn.text}</p>
+              {turn.example && <p className="text-gray-600 dark:text-gray-400">e.g. {turn.example}</p>}
+            </li>
+          ) : (
+            <li
+              key={index}
+              className="self-end max-w-[85%] px-3.5 py-2 bg-gray-100 dark:bg-gray-800 text-gray-900 dark:text-gray-100 break-words"
+            >
+              <span className="sr-only">You: </span>
+              {turn.text === SKIPPED_ANSWER ? <span className="text-gray-600 dark:text-gray-400">Skipped</span> : turn.text}
+            </li>
+          )
+        )}
+      </ol>
+
+      {chat.waiting && (
+        <p className="text-gray-600 dark:text-gray-400" aria-live="polite">
+          Reading your answer…
+        </p>
+      )}
+
+      {!chat.done && lastIsQuestion && (
+        <div className="flex flex-col gap-2">
+          <label htmlFor="quick-fact-chat" className="sr-only">
+            Your answer
+          </label>
+          <GrowingField
+            id="quick-fact-chat"
+            value={chat.draft}
+            maxLength={USER_FACT_MAX_CHARS}
+            onChange={draft => setChat(current => ({ ...current, draft }))}
+            onEnter={send}
+            disabled={chat.waiting}
+            placeholder="Your answer, as it is true for you"
+            tip={TIPS.factChat}
+            className={FIELD}
+          />
+          <div className="flex flex-wrap items-center gap-2">
+            <button type="button" onClick={send} disabled={chat.waiting || !chat.draft.trim()} className={PRIMARY}>
+              Send
+            </button>
+            <button type="button" onClick={() => answer(SKIPPED_ANSWER)} disabled={chat.waiting} className={SECONDARY}>
+              Skip
+            </button>
+            <button type="button" onClick={finish} disabled={chat.waiting} className={SECONDARY}>
+              Done
+            </button>
+            <span className="text-gray-600 dark:text-gray-400">
+              Question {asked} of up to {FACT_CHAT_MAX_QUESTIONS}
+            </span>
+          </div>
+        </div>
+      )}
+
+      {chat.done && (
+        <p className="text-gray-600 dark:text-gray-400">
+          {chat.facts.length > 0 ? 'That is all CopyZap needs.' : 'Chat finished.'}{' '}
+          <button type="button" onClick={restart} className={LINK}>
+            Start the chat again
+          </button>
+        </p>
+      )}
+
+      <div className="flex flex-col gap-1.5 border-t border-gray-200 dark:border-gray-700 pt-3">
+        <h3 className="font-semibold text-gray-900 dark:text-gray-100">Facts CopyZap will use</h3>
+        {chat.facts.length === 0 ? (
+          <p className="text-gray-600 dark:text-gray-400">
+            None yet: CopyZap uses only what your copy says.
+            {chat.draft.trim() && !chat.waiting && ' Your answer is not sent yet.'}
+          </p>
+        ) : (
+          <>
+            <ul className="m-0 p-0 list-none flex flex-col gap-1">
+              {chat.facts.map(fact => (
+                <li key={fact} className="flex items-start justify-between gap-3 text-gray-900 dark:text-gray-100">
+                  <span className="break-words">{fact}</span>
+                  <button
+                    type="button"
+                    onClick={() => remove(fact)}
+                    disabled={chat.waiting}
+                    aria-label={`Take out: ${fact}`}
+                    data-tip={TIPS.factRemove}
+                    className={LINK + ' shrink-0'}
+                  >
+                    Take out
+                  </button>
+                </li>
+              ))}
+            </ul>
+            <p className="text-gray-600 dark:text-gray-400">
+              The new versions use {chat.facts.length === 1 ? 'it' : 'them'} as written here.
+              {chat.draft.trim() && !chat.waiting && ' Your last answer is not sent yet.'}
+            </p>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default QuickFactChat;
+
+/** Whether this browser chose the chat last time. Kept for the next check screen; storage can fail, then it is off. */
+const CHAT_CHOICE_KEY = 'copyzap.quick.factChat';
+
+export function readChatChoice(): boolean {
+  try {
+    return window.localStorage.getItem(CHAT_CHOICE_KEY) === 'on';
+  } catch {
+    return false;
+  }
+}
+
+export function saveChatChoice(on: boolean): void {
+  try {
+    window.localStorage.setItem(CHAT_CHOICE_KEY, on ? 'on' : 'off');
+  } catch {
+    // Not kept: the chat is simply off next time.
+  }
+}
