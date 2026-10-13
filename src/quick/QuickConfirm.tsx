@@ -11,7 +11,7 @@ import GrowingField from './GrowingField';
 import { KIND_TIPS, PART_TIPS, TIPS } from './tips';
 import type { MissingFactQuestion } from '../engine/missingFacts';
 import type { FactAnswers } from './factAnswers';
-import QuickMissingFacts from './QuickMissingFacts';
+import QuickMissingFacts, { FactChatSwitch } from './QuickMissingFacts';
 
 interface QuickConfirmProps {
   copy: string;
@@ -42,6 +42,8 @@ interface QuickConfirmProps {
   factQuestions?: MissingFactQuestion[] | null;
   factAnswers: FactAnswers;
   onFactAnswersChange: (answers: FactAnswers) => void;
+  /** The same questions as a chat, when the user ticks it. */
+  factChat: FactChatSwitch;
 }
 
 const CHOICES: { value: SectionChoice; label: string }[] = [
@@ -90,6 +92,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
   factQuestions,
   factAnswers,
   onFactAnswersChange,
+  factChat,
 }) => {
   const choiceOf = (section: PageSection): SectionChoice => choices[section.id] ?? 'improve';
   const estimate = estimateRunCredits(usedWords);
@@ -324,7 +327,12 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
       )}
 
       {factQuestions !== undefined && (
-        <QuickMissingFacts questions={factQuestions} answers={factAnswers} onAnswersChange={onFactAnswersChange} />
+        <QuickMissingFacts
+          questions={factQuestions}
+          answers={factAnswers}
+          onAnswersChange={onFactAnswersChange}
+          chat={factChat}
+        />
       )}
 
       {brief.unsupportedLanguage && (

@@ -19,6 +19,8 @@ import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
 import { asksForMissingFacts, findMissingFacts, MissingFactQuestion } from '../engine/missingFacts';
 import { FactAnswers, factsFromAnswers, OTHER_FACT_KEY } from './factAnswers';
+import { EMPTY_FACT_CHAT, FactChat } from '../engine/factChat';
+import { readChatChoice, saveChatChoice } from './QuickFactChat';
 import { getTextKind } from '../services/api/textKinds';
 import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
 import { changeQuickVersion, QuickChangeOutcome, QuickChangeParts, validateQuickChange } from '../engine/changeQuickVersion';
@@ -188,6 +190,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   // questions is null while Quick is still looking.
   const [facts, setFacts] = useState<{ key: string; questions: MissingFactQuestion[] | null } | null>(null);
   const [factAnswers, setFactAnswers] = useState<FactAnswers>({});
+  // The same questions as a chat (see engine/factChat.ts), when the user chose it.
+  const [chatOn, setChatOn] = useState<boolean>(readChatChoice);
+  const [factChat, setFactChat] = useState<FactChat>(EMPTY_FACT_CHAT);
   // True while the copy, goal and corrections above are the ones the result on
   // screen was run with: right after a run from this page. False for a result
   // opened from History or from its address.
@@ -416,13 +421,15 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     const key = factsKey;
     setFacts({ key, questions: null });
     setFactAnswers((previous): FactAnswers => (previous[OTHER_FACT_KEY] ? { [OTHER_FACT_KEY]: previous[OTHER_FACT_KEY] } : {}));
+    setFactChat(EMPTY_FACT_CHAT);
     findMissingFacts(
       copy,
       goalKey,
       goalKey === 'custom' ? cleanQuickGoalLabel(goalOther) : undefined,
       factsKind,
       currentUser,
-      sessionId ?? undefined
+      sessionId ?? undefined,
+      brief?.language
     ).then(questions => {
       if (!isMounted.current) return;
       setFacts(current => (current?.key === key ? { key, questions } : current));
@@ -465,8 +472,10 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     if (tooShort || tooLong || goalMissing || busy || blocked) return;
     // With more than one part the user has decided about each, testimonials included.
     const usesParts = sections.length > 1;
-    // Facts the user added under "Make it stronger". While the questions are still loading only "anything else" counts.
-    const userFacts = factQuestions !== undefined ? factsFromAnswers(factQuestions ?? [], factAnswers) : [];
+    // Facts the user added under "Make it stronger", in the chat or in the fields. While the questions are
+    // still loading only "anything else" counts.
+    const userFacts =
+      factQuestions === undefined ? [] : chatOn ? factChat.facts : factsFromAnswers(factQuestions ?? [], factAnswers);
     setError(null);
     setProgress({ stage: 'checking' });
     setBusy('running');
@@ -626,6 +635,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setPickedChoices({});
     setFacts(null);
     setFactAnswers({});
+    setFactChat(EMPTY_FACT_CHAT);
     setCopy('');
     setPhase('start');
     window.scrollTo(0, 0);
@@ -671,6 +681,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       // Asked again on Continue: a result from History keeps its facts, not the questions.
       setFacts(null);
       setFactAnswers({});
+      setFactChat(EMPTY_FACT_CHAT);
     }
     inputsFromRun.current = false;
     setChangeNotice(null);
@@ -904,6 +915,24 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           factQuestions={factQuestions}
           factAnswers={factAnswers}
           onFactAnswersChange={setFactAnswers}
+          factChat={{
+            on: chatOn,
+            onToggle: on => {
+              setChatOn(on);
+              saveChatChoice(on);
+            },
+            state: factChat,
+            setState: setFactChat,
+            context: {
+              copy,
+              goalKey,
+              goalLabel: goalKey === 'custom' ? cleanQuickGoalLabel(goalOther) : undefined,
+              kind: brief?.kind,
+              language: brief?.language,
+              user: currentUser,
+              sessionId: sessionId ?? undefined,
+            },
+          }}
           onGenerate={handleRun}
           onBack={() => {
             setPhase('start');

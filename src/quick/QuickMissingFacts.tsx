@@ -4,18 +4,32 @@ import { USER_FACT_MAX_CHARS } from '../engine/missingFacts';
 import { FactAnswers, factsFromAnswers, OTHER_FACT_KEY, unfinishedAnswers } from './factAnswers';
 import { TIPS } from './tips';
 import GrowingField from './GrowingField';
+import SquareCheck from './SquareCheck';
+import QuickFactChat from './QuickFactChat';
+import type { FactChat, FactChatContext } from '../engine/factChat';
 
 /**
  * "Make it stronger" on the check screen: up to three questions about what the
  * copy is missing (see engine/missingFacts.ts), each with one answer field and
  * an example answer inside it, and one field for anything else that is true.
- * Everything is optional.
+ * Or, when the user ticks "Answer in a chat instead", the same questions as a
+ * chat (QuickFactChat.tsx). Everything is optional.
  */
 interface QuickMissingFactsProps {
   /** null while Quick is still looking. Empty: nothing important is missing, only "anything else" is shown. */
   questions: MissingFactQuestion[] | null;
   answers: FactAnswers;
   onAnswersChange: (answers: FactAnswers) => void;
+  /** The chat instead of the fields: whether it is on, and its state. */
+  chat: FactChatSwitch;
+}
+
+export interface FactChatSwitch {
+  on: boolean;
+  onToggle: (on: boolean) => void;
+  state: FactChat;
+  setState: React.Dispatch<React.SetStateAction<FactChat>>;
+  context: FactChatContext;
 }
 
 const FIELD =
@@ -23,7 +37,7 @@ const FIELD =
   'text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500';
 const LABEL = 'font-semibold text-gray-900 dark:text-gray-100';
 
-const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answers, onAnswersChange }) => {
+const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answers, onAnswersChange, chat }) => {
   const asked = questions ?? [];
   const used = factsFromAnswers(asked, answers).length;
   const unfinished = unfinishedAnswers(asked, answers);
@@ -46,55 +60,64 @@ const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answer
           Answer only what is true for you, with your own figures and currency; anything you write goes into the new
           versions.
         </p>
+        <SquareCheck checked={chat.on} onChange={chat.onToggle} tip={TIPS.factChatMode}>
+          <span className="text-gray-900 dark:text-gray-100">Answer in a chat instead</span>
+        </SquareCheck>
       </div>
 
-      {questions === null && (
-        <p className="text-gray-600 dark:text-gray-400" aria-live="polite">
-          Looking for what is missing… You can generate without waiting.
-        </p>
+      {chat.on ? (
+        <QuickFactChat questions={questions} chat={chat.state} setChat={chat.setState} context={chat.context} />
+      ) : (
+        <>
+          {questions === null && (
+            <p className="text-gray-600 dark:text-gray-400" aria-live="polite">
+              Looking for what is missing… You can generate without waiting.
+            </p>
+          )}
+
+          {asked.map((question, index) => (
+            <div key={index} className="flex flex-col gap-1.5">
+              <label htmlFor={`quick-fact-${index}`} className={LABEL}>
+                {question.question}
+              </label>
+              {/* Grows with the text, like "Selling" and "For" above: an answer can be a long sentence. */}
+              <GrowingField
+                id={`quick-fact-${index}`}
+                value={answers[String(index)] ?? ''}
+                maxLength={USER_FACT_MAX_CHARS}
+                onChange={value => setAnswer(String(index), value)}
+                placeholder={question.example ? `e.g. ${question.example}` : 'Your answer'}
+                tip={TIPS.factAnswer}
+                className={FIELD}
+              />
+            </div>
+          ))}
+
+          {/* For facts CopyZap did not ask about. Changes of style belong in "What should change?" on the result. */}
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="quick-fact-other" className={LABEL}>
+              Anything else that is true and should be in the copy?
+            </label>
+            <GrowingField
+              id="quick-fact-other"
+              value={answers[OTHER_FACT_KEY] ?? ''}
+              maxLength={USER_FACT_MAX_CHARS}
+              onChange={value => setAnswer(OTHER_FACT_KEY, value)}
+              placeholder="e.g. a service, an award, a language you work in"
+              tip={TIPS.factOther}
+              className={FIELD}
+            />
+          </div>
+
+          <p className="text-gray-600 dark:text-gray-400" aria-live="polite">
+            {used === 0
+              ? 'Nothing added: CopyZap uses only what your copy says.'
+              : `${used} ${used === 1 ? 'fact' : 'facts'} added. The new versions use ${used === 1 ? 'it' : 'them'} as you wrote ${used === 1 ? 'it' : 'them'}.`}
+            {unfinished > 0 &&
+              ` ${unfinished} ${unfinished === 1 ? 'answer still has' : 'answers still have'} a blank (___) and ${unfinished === 1 ? 'is' : 'are'} not used.`}
+          </p>
+        </>
       )}
-
-      {asked.map((question, index) => (
-        <div key={index} className="flex flex-col gap-1.5">
-          <label htmlFor={`quick-fact-${index}`} className={LABEL}>
-            {question.question}
-          </label>
-          {/* Grows with the text, like "Selling" and "For" above: an answer can be a long sentence. */}
-          <GrowingField
-            id={`quick-fact-${index}`}
-            value={answers[String(index)] ?? ''}
-            maxLength={USER_FACT_MAX_CHARS}
-            onChange={value => setAnswer(String(index), value)}
-            placeholder={question.example ? `e.g. ${question.example}` : 'Your answer'}
-            tip={TIPS.factAnswer}
-            className={FIELD}
-          />
-        </div>
-      ))}
-
-      {/* For facts CopyZap did not ask about. Changes of style belong in "What should change?" on the result. */}
-      <div className="flex flex-col gap-1.5">
-        <label htmlFor="quick-fact-other" className={LABEL}>
-          Anything else that is true and should be in the copy?
-        </label>
-        <GrowingField
-          id="quick-fact-other"
-          value={answers[OTHER_FACT_KEY] ?? ''}
-          maxLength={USER_FACT_MAX_CHARS}
-          onChange={value => setAnswer(OTHER_FACT_KEY, value)}
-          placeholder="e.g. a service, an award, a language you work in"
-          tip={TIPS.factOther}
-          className={FIELD}
-        />
-      </div>
-
-      <p className="text-gray-600 dark:text-gray-400" aria-live="polite">
-        {used === 0
-          ? 'Nothing added: CopyZap uses only what your copy says.'
-          : `${used} ${used === 1 ? 'fact' : 'facts'} added. The new versions use ${used === 1 ? 'it' : 'them'} as you wrote ${used === 1 ? 'it' : 'them'}.`}
-        {unfinished > 0 &&
-          ` ${unfinished} ${unfinished === 1 ? 'answer still has' : 'answers still have'} a blank (___) and ${unfinished === 1 ? 'is' : 'are'} not used.`}
-      </p>
     </section>
   );
 };
