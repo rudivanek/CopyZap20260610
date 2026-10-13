@@ -44,6 +44,7 @@ import SquareRadio from './SquareRadio';
 import QuickTips from './QuickTips';
 import { GOAL_TIPS, TIPS } from './tips';
 import { APP_VERSION } from '../lib/version';
+import { useSessionCredits } from '../engine/quickCredits';
 
 interface QuickPageProps {
   currentUser: User;
@@ -134,6 +135,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     }, 5000);
     return () => window.clearTimeout(later);
   }, [busy]);
+  // Credits used by the result on screen: the run and every change or score after it.
+  const resultCredits = useSessionCredits(phase === 'result' ? result?.formState.sessionId : null, creditsTick);
   const isFetching = busy === 'fetch';
   const isRescoring = busy === 'rescoring';
   const [runSeconds, setRunSeconds] = useState<number | null>(null);
@@ -863,6 +866,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             onRescore={handleRescore}
             onNew={handleStartOver}
             elapsedLabel={runSeconds != null ? formatElapsed(runSeconds) : undefined}
+            creditsUsed={resultCredits}
             title={savedTitle ?? undefined}
             saveState={saveState}
             onRetrySave={() => persist(result, runSeconds, savedId)}

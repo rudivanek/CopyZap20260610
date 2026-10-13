@@ -5,6 +5,7 @@ import { QUICK_LANGUAGES, QUICK_TONES, QuickBrief } from '../engine/inferQuickBr
 import type { PageSection, SectionChoice } from '../engine/pageSections';
 import { TEXT_KIND_OTHER_MAX_CHARS, TEXT_KINDS, TextKindKey } from '../services/api/textKinds';
 import { stripMarkdown } from '../utils/markdownUtils';
+import { estimateRunCredits } from '../engine/quickCredits';
 import SquareRadio from './SquareRadio';
 import GrowingField from './GrowingField';
 import { KIND_TIPS, PART_TIPS, TIPS } from './tips';
@@ -78,6 +79,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
   blocked,
 }) => {
   const choiceOf = (section: PageSection): SectionChoice => choices[section.id] ?? 'improve';
+  const estimate = estimateRunCredits(usedWords);
   const count = (value: SectionChoice) => sections.filter(section => choiceOf(section) === value).length;
   const couldNotRead = !brief.product && !brief.audience;
   // A page longer than one run works on: parts have to be left out first.
@@ -345,7 +347,8 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
           </p>
         ) : (
           <p className="text-gray-600 dark:text-gray-400">
-            Writes {QUICK_DEFAULT_VARIANTS} versions and scores them. Uses credits.
+            Writes {QUICK_DEFAULT_VARIANTS} versions and scores them. Uses{' '}
+            {estimate.atLeast ? `at least ${estimate.credits}` : `about ${estimate.credits}`} credits.
             {usedWords >= LONG_RUN_FROM_WORDS &&
               ` A page of this length takes about ${Math.round(usedWords / WORDS_PER_MINUTE)} minutes. Keep this tab open.`}
           </p>

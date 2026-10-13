@@ -39,6 +39,8 @@ export interface QuickHistoryEntry {
   /** Host of the page the copy was fetched from; null for pasted copy. */
   sourceHost: string | null;
   createdAt: string;
+  /** The run's session: its usage rows carry it, so its credits can be summed. Null for old entries. */
+  sessionId: string | null;
 }
 
 /** What Quick stores next to the result so it can show it again exactly as it was. */
@@ -147,7 +149,7 @@ export async function listQuickResults(userId: string, limit = 100): Promise<Qui
   const { data, error } = await supabase
     .from(TABLE)
     .select(
-      'id, title, created_at, goal_key:output_data->quick->>goalKey, goal_label:input_data->>quickGoalLabel, winner_score:output_data->quick->>winnerScore, original_score:output_data->quick->>originalScore, source_host:output_data->quick->source->>host'
+      'id, title, created_at, goal_key:output_data->quick->>goalKey, goal_label:input_data->>quickGoalLabel, winner_score:output_data->quick->>winnerScore, original_score:output_data->quick->>originalScore, source_host:output_data->quick->source->>host, session_id'
     )
     .eq('user_id', userId)
     .contains('tags', [QUICK_TAG])
@@ -170,6 +172,7 @@ export async function listQuickResults(userId: string, limit = 100): Promise<Qui
     originalScore: toNumber(row.original_score),
     sourceHost: typeof row.source_host === 'string' && row.source_host ? row.source_host : null,
     createdAt: String(row.created_at ?? ''),
+    sessionId: typeof row.session_id === 'string' && row.session_id ? row.session_id : null,
   }));
 }
 

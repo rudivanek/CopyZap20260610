@@ -2166,21 +2166,20 @@ export const getCreditsBalance = async (userId: string): Promise<{ data: Credits
 
     console.log('📅 Credits period:', { periodStart, periodEnd, periodStartDay });
 
-    // 3. Compute credits used in current period (SUM of billable_units)
-    const { data: usageData, error: usageError } = await supabase
-      .from('pmc_user_tokens_used')
-      .select('billable_units')
-      .eq('user_id', userId)
-      .gte('created_at', periodStart)
-      .lte('created_at', periodEnd);
+    // 3. Credits used and left in the current period, from the same database
+    //    function as the Quick header and the server's limit check, so every
+    //    screen shows one number. (Reading usage rows here stopped at 1,000 rows.)
+    const { data: balanceData, error: balanceError } = await supabase.rpc('get_user_credits_balance', {
+      user_id_param: userId
+    });
 
-    if (usageError) {
-      console.error('❌ Error fetching credits usage:', usageError);
-      return { data: null, error: usageError };
+    if (balanceError || !balanceData) {
+      console.error('❌ Error fetching credits balance:', balanceError);
+      return { data: null, error: balanceError };
     }
 
-    const creditsUsed = (usageData || []).reduce((sum, record) => sum + (record.billable_units || 0), 0);
-    const creditsRemaining = Math.max(0, creditsAllowed - creditsUsed);
+    const creditsUsed = Number(balanceData.credits_used) || 0;
+    const creditsRemaining = Number(balanceData.credits_remaining) || 0;
 
     console.log('💳 Credits balance computed:', { creditsAllowed, creditsUsed, creditsRemaining });
 

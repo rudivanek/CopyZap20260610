@@ -5,6 +5,7 @@ import { quickGoalName } from '../engine/buildQuickFormState';
 import { TIPS } from './tips';
 import { formatVersionTime } from '../utils/versionTime';
 import { deleteQuickResult, listQuickResults, QuickHistoryEntry, renameQuickResult } from '../engine/quickHistory';
+import { getSessionCredits } from '../engine/quickCredits';
 
 interface QuickHistoryProps {
   currentUser: User;
@@ -30,6 +31,8 @@ function formatDate(value: string): string {
 
 const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew, onDeleted }) => {
   const [entries, setEntries] = useState<QuickHistoryEntry[] | null>(null);
+  // Credits per session id. Read after the list; when the read fails, the lines simply show no credits.
+  const [credits, setCredits] = useState<Record<string, number>>({});
   const [error, setError] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -42,7 +45,13 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
     isMounted.current = true;
     listQuickResults(userId)
       .then(list => {
-        if (isMounted.current) setEntries(list);
+        if (!isMounted.current) return;
+        setEntries(list);
+        getSessionCredits(list.map(entry => entry.sessionId).filter((id): id is string => !!id))
+          .then(map => {
+            if (isMounted.current) setCredits(map);
+          })
+          .catch(() => undefined);
       })
       .catch(loadError => {
         if (isMounted.current) {
@@ -189,6 +198,8 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
                     {[entry.goalKey && `Goal: ${quickGoalName(entry.goalKey, entry.goalLabel)}`,
                       entry.sourceHost && `From ${entry.sourceHost}`,
                       entry.originalScore != null && `Original: ${entry.originalScore}`,
+                      entry.sessionId && credits[entry.sessionId] > 0 &&
+                        `${credits[entry.sessionId].toLocaleString('en-US')} credits`,
                       formatDate(entry.createdAt),
                     ]
                       .filter(Boolean)

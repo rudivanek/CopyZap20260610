@@ -34,6 +34,8 @@ interface QuickResultProps {
   onNew: () => void;
   /** How long the run took, already formatted (m:ss). */
   elapsedLabel?: string;
+  /** Credits used by this result so far (the run and every change or score after it). Null when unknown. */
+  creditsUsed?: number | null;
   /** The name of the History entry, when it differs from the first line of the copy. */
   title?: string;
   /** Where saving stands: null before anything was tried. */
@@ -188,6 +190,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
   onRescore,
   onNew,
   elapsedLabel,
+  creditsUsed,
   title,
   saveState,
   onRetrySave,
@@ -493,6 +496,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
         <p className="text-gray-600 dark:text-gray-400">
           Goal: {goalName} · {result.formState.language}
           {elapsedLabel && ` · Finished in ${elapsedLabel}`}
+          {creditsUsed != null && creditsUsed > 0 && ` · ${creditsUsed.toLocaleString('en-US')} credits used`}
           {result.testimonials.count > 0 &&
             ` · ${result.testimonials.count} ${result.testimonials.count === 1 ? 'testimonial' : 'testimonials'} kept word for word`}
           {result.parts.kept > 0 &&
