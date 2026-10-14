@@ -115,6 +115,9 @@ function formatElapsed(seconds: number): string {
   return `${minutes}:${rest < 10 ? '0' : ''}${rest}`;
 }
 
+/** Longest the check screen stays locked while the questions are asked again. */
+const FACTS_UPDATE_MAX_MS = 15000;
+
 const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [phase, setPhase] = useState<Phase>('start');
   const [copy, setCopy] = useState('');
@@ -196,6 +199,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [chatChoice, setChatOn] = useState<boolean>(readChatChoice);
   const chatOn = FACT_FIELDS_OFF || chatChoice;
   const [factChat, setFactChat] = useState<FactChat>(EMPTY_FACT_CHAT);
+  // True while the questions are asked again after a change (kind of text, goal
+  // or copy): the check screen is locked until they are there (see QuickConfirm).
+  const [factsUpdating, setFactsUpdating] = useState(false);
   // True while the copy, goal and corrections above are the ones the result on
   // screen was run with: right after a run from this page. False for a result
   // opened from History or from its address.
@@ -422,6 +428,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   useEffect(() => {
     if (phase !== 'confirm' || !factsKind || !asksForMissingFacts(goalKey) || factsKnown === factsKey) return;
     const key = factsKey;
+    // Asked again after a change: lock the screen until the new questions are there.
+    // The first time on the check screen nothing is locked: there is nothing yet to type into.
+    setFactsUpdating(factsKnown !== undefined);
     setFacts({ key, questions: null });
     setFactAnswers((previous): FactAnswers => (previous[OTHER_FACT_KEY] ? { [OTHER_FACT_KEY]: previous[OTHER_FACT_KEY] } : {}));
     setFactChat(EMPTY_FACT_CHAT);
@@ -438,6 +447,19 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       setFacts(current => (current?.key === key ? { key, questions } : current));
     });
   }, [phase, factsKind, factsKnown, factsKey, goalKey, goalOther, copy, currentUser, sessionId]);
+
+  // Unlocked when the new questions are there, when the user leaves the check
+  // screen, and after FACTS_UPDATE_MAX_MS at the latest: a slow call never keeps the screen locked.
+  const factsArrived = facts?.questions != null;
+  useEffect(() => {
+    if (!factsUpdating) return;
+    if (factsArrived || phase !== 'confirm') {
+      setFactsUpdating(false);
+      return;
+    }
+    const timer = window.setTimeout(() => setFactsUpdating(false), FACTS_UPDATE_MAX_MS);
+    return () => window.clearTimeout(timer);
+  }, [factsUpdating, factsArrived, phase]);
 
   const handleContinue = async () => {
     if (tooShort || tooLong || goalMissing || busy) return;
@@ -916,6 +938,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           maxWords={maxWords}
           blocked={blocked}
           factQuestions={factQuestions}
+          factsUpdating={factsUpdating}
           factAnswers={factAnswers}
           onFactAnswersChange={setFactAnswers}
           factChat={{

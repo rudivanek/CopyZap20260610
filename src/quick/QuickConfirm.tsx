@@ -40,6 +40,12 @@ interface QuickConfirmProps {
    * engine/missingFacts.ts). undefined: not asked for this goal; null: still looking.
    */
   factQuestions?: MissingFactQuestion[] | null;
+  /**
+   * True while the questions are asked again after a change (kind of text, goal
+   * or copy). Everything but Back and Generate is locked meanwhile, so nothing
+   * typed into the chat is lost when the new questions arrive.
+   */
+  factsUpdating?: boolean;
   factAnswers: FactAnswers;
   onFactAnswersChange: (answers: FactAnswers) => void;
   /** The same questions as a chat, when the user ticks it. */
@@ -90,6 +96,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
   maxWords,
   blocked,
   factQuestions,
+  factsUpdating = false,
   factAnswers,
   onFactAnswersChange,
   factChat,
@@ -113,238 +120,256 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
         </p>
       </div>
 
-      <section
-        aria-label="Your input"
-        className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-5 py-4 flex flex-col gap-2"
-      >
-        <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
-          <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
-            Your copy · {asNumber(words)} {words === 1 ? 'word' : 'words'} · Goal: {goalName}
-          </span>
-          <button
-            type="button"
-            onClick={onBack}
-            data-tip={TIPS.changeInput}
-            className="text-xs text-primary-800 dark:text-primary-300 underline focus:outline-none focus:ring-2 focus:ring-primary-500"
-          >
-            Change
-          </button>
-        </div>
-        <p className="text-gray-900 dark:text-gray-100 break-words">{preview(copy)}</p>
-        {testimonialCount > 0 && (
-          <p className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
-            <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-good" aria-hidden="true" />
-            <span>
-              {testimonialCount} {testimonialCount === 1 ? 'testimonial' : 'testimonials'} found. They are kept word for
-              word and are not rewritten.
-            </span>
-          </p>
-        )}
-      </section>
-
-      <div className="flex flex-wrap gap-4">
-        <div className="flex-[2_1_200px] min-w-0 flex flex-col gap-1.5">
-          <label htmlFor="quick-product" className={label}>
-            Selling
-          </label>
-          <GrowingField
-            id="quick-product"
-            value={brief.product}
-            onChange={product => onBriefChange({ ...brief, product })}
-            tip={TIPS.product}
-            placeholder="The product or service"
-            className={field}
-          />
-        </div>
-        <div className="flex-[2_1_200px] min-w-0 flex flex-col gap-1.5">
-          <label htmlFor="quick-audience" className={label}>
-            For
-          </label>
-          <GrowingField
-            id="quick-audience"
-            value={brief.audience}
-            onChange={audience => onBriefChange({ ...brief, audience })}
-            tip={TIPS.audience}
-            placeholder="Who this copy speaks to"
-            className={field}
-          />
-        </div>
-        <div className="flex-[1_1_130px] min-w-0 flex flex-col gap-1.5">
-          <label htmlFor="quick-tone" className={label}>
-            Tone
-          </label>
-          <select
-            id="quick-tone"
-            value={brief.tone}
-            onChange={event => onBriefChange({ ...brief, tone: event.target.value as Tone })}
-            data-tip={TIPS.tone}
-            className={field}
-          >
-            {QUICK_TONES.map(tone => (
-              <option key={tone} value={tone}>
-                {tone}
-              </option>
-            ))}
-          </select>
-        </div>
-        <div className="flex-[1_1_130px] min-w-0 flex flex-col gap-1.5">
-          <label htmlFor="quick-language" className={label}>
-            Language
-          </label>
-          <select
-            id="quick-language"
-            value={brief.language}
-            onChange={event =>
-              onBriefChange({ ...brief, language: event.target.value as Language, unsupportedLanguage: undefined })
-            }
-            data-tip={TIPS.language}
-            className={field}
-          >
-            {QUICK_LANGUAGES.map(language => (
-              <option key={language} value={language}>
-                {language}
-              </option>
-            ))}
-          </select>
-        </div>
-      </div>
-
-      {/* The kind of text: six square choices in two columns, like the goals on the start form. */}
-      <fieldset aria-describedby="quick-kind-note" className="m-0 p-0 border-0 flex flex-col gap-1">
-        <legend className={'p-0 mb-1 ' + label}>Kind of text</legend>
-        <div className="grid grid-cols-1 sm:grid-flow-col sm:grid-rows-3 sm:auto-cols-fr gap-x-8">
-          {TEXT_KINDS.map(kind => (
-            <SquareRadio
-              key={kind.key}
-              name="quick-kind"
-              checked={brief.kind === kind.key}
-              onChange={() => onBriefChange({ ...brief, kind: kind.key as TextKindKey })}
-              tip={KIND_TIPS[kind.key]}
-            >
-              <span className="text-gray-900 dark:text-gray-100">{kind.label}</span>
-            </SquareRadio>
-          ))}
-        </div>
-        {brief.kind === 'other' && (
-          <div className="mt-1 flex flex-col gap-1.5 sm:max-w-xl">
-            <label htmlFor="quick-kind-other" className={label}>
-              What is it? <span className="font-normal text-gray-600 dark:text-gray-400">Optional</span>
-            </label>
-            <input
-              id="quick-kind-other"
-              type="text"
-              value={brief.kindOther}
-              maxLength={TEXT_KIND_OTHER_MAX_CHARS}
-              onChange={event => onBriefChange({ ...brief, kindOther: event.target.value })}
-              placeholder="For example: flyer, product description"
-              className={field}
-            />
-          </div>
-        )}
-        <p id="quick-kind-note" className="text-gray-600 dark:text-gray-400">
-          CopyZap writes and scores the copy as this kind of text.
+      {factsUpdating && (
+        <p
+          role="status"
+          className="flex items-center gap-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 px-4 py-3 text-gray-900 dark:text-gray-100"
+        >
+          {/* The same pulsing bar as the busy window (QuickBusyModal). */}
+          <span className="w-1.5 h-5 shrink-0 bg-primary-500 animate-pulse" aria-hidden="true" />
+          Updating the questions in “Make it stronger”… The screen unlocks in a moment.
         </p>
-      </fieldset>
+      )}
 
-      {sections.length > 1 && (
-        <fieldset className="m-0 p-0 border-0 flex flex-col gap-2">
-          <legend className="p-0 mb-1 font-semibold text-gray-900 dark:text-gray-100">
-            What should CopyZap do with each part?
-          </legend>
-          {overLimit && (
-            <p id="quick-over-limit" className="flex items-start gap-2.5 mb-1 text-gray-900 dark:text-gray-100">
-              <span
-                className={'w-1 h-5 mt-0.5 shrink-0 ' + (stillOver ? 'bg-status-warning' : 'bg-status-good')}
-                aria-hidden="true"
-              />
+      {/* Locked while the questions are asked again: a disabled fieldset disables every field and button inside. */}
+      <fieldset
+        disabled={factsUpdating}
+        aria-busy={factsUpdating}
+        className={'m-0 p-0 border-0 min-w-0 flex flex-col gap-7 ' + (factsUpdating ? 'opacity-60 cursor-wait' : '')}
+      >
+        <section
+          aria-label="Your input"
+          className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-5 py-4 flex flex-col gap-2"
+        >
+          <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
+            <span className="text-xs font-semibold text-gray-600 dark:text-gray-400">
+              Your copy · {asNumber(words)} {words === 1 ? 'word' : 'words'} · Goal: {goalName}
+            </span>
+            <button
+              type="button"
+              onClick={onBack}
+              data-tip={TIPS.changeInput}
+              className="text-xs text-primary-800 dark:text-primary-300 underline focus:outline-none focus:ring-2 focus:ring-primary-500"
+            >
+              Change
+            </button>
+          </div>
+          <p className="text-gray-900 dark:text-gray-100 break-words">{preview(copy)}</p>
+          {testimonialCount > 0 && (
+            <p className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
+              <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-good" aria-hidden="true" />
               <span>
-                This copy has {asNumber(words)} words. CopyZap works on up to {asNumber(maxWords)} at a time. Set parts to
-                "Leave out" until {asNumber(maxWords)} words or fewer are in use. Parts kept as they are count too.
+                {testimonialCount} {testimonialCount === 1 ? 'testimonial' : 'testimonials'} found. They are kept word for
+                word and are not rewritten.
               </span>
             </p>
           )}
-          <ul className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
-            {sections.map(section => {
-              const current = choiceOf(section);
-              return (
-                <li key={section.id} className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-                  <div className="min-w-0 flex-[1_1_220px] flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
-                    <span
-                      className={
-                        'font-semibold break-words ' +
-                        (current === 'leave'
-                          ? 'text-gray-500 dark:text-gray-400 line-through'
-                          : 'text-gray-900 dark:text-gray-100')
-                      }
-                    >
-                      {section.title}
-                    </span>
-                    <span className="text-xs text-gray-600 dark:text-gray-400 tabular-nums">
-                      {asNumber(section.words)} {section.words === 1 ? 'word' : 'words'}
-                    </span>
-                    {section.hint && (
-                      <span className="text-xs text-gray-900 dark:text-gray-100 border border-gray-400 dark:border-gray-600 px-1.5">
-                        {section.hint}
-                      </span>
-                    )}
-                  </div>
-                  <div
-                    role="radiogroup"
-                    aria-label={`What to do with ${section.title}`}
-                    className="flex flex-wrap gap-x-5"
-                  >
-                    {CHOICES.map(option => (
-                      <SquareRadio
-                        key={option.value}
-                        name={`quick-part-${section.id}`}
-                        checked={current === option.value}
-                        onChange={() => onChoiceChange(section.id, option.value)}
-                        tip={PART_TIPS[option.value]}
-                      >
-                        <span className="text-gray-900 dark:text-gray-100 whitespace-nowrap">{option.label}</span>
-                      </SquareRadio>
-                    ))}
-                  </div>
-                </li>
-              );
-            })}
-          </ul>
-          <p className="text-gray-600 dark:text-gray-400">
-            Rewrites {count('improve')} {count('improve') === 1 ? 'part' : 'parts'} ({asNumber(improveWords)} words) · keeps{' '}
-            {count('keep')} as {count('keep') === 1 ? 'it is' : 'they are'} · leaves out {count('leave')}. A part kept
-            as it is goes into the new page unchanged, in its place. A part left out is dropped.
-          </p>
-          {overLimit && (
-            <p
-              id="quick-words-in-use"
-              aria-live="polite"
-              className={stillOver ? 'font-semibold text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'}
+        </section>
+
+        <div className="flex flex-wrap gap-4">
+          <div className="flex-[2_1_200px] min-w-0 flex flex-col gap-1.5">
+            <label htmlFor="quick-product" className={label}>
+              Selling
+            </label>
+            <GrowingField
+              id="quick-product"
+              value={brief.product}
+              onChange={product => onBriefChange({ ...brief, product })}
+              tip={TIPS.product}
+              placeholder="The product or service"
+              className={field}
+            />
+          </div>
+          <div className="flex-[2_1_200px] min-w-0 flex flex-col gap-1.5">
+            <label htmlFor="quick-audience" className={label}>
+              For
+            </label>
+            <GrowingField
+              id="quick-audience"
+              value={brief.audience}
+              onChange={audience => onBriefChange({ ...brief, audience })}
+              tip={TIPS.audience}
+              placeholder="Who this copy speaks to"
+              className={field}
+            />
+          </div>
+          <div className="flex-[1_1_130px] min-w-0 flex flex-col gap-1.5">
+            <label htmlFor="quick-tone" className={label}>
+              Tone
+            </label>
+            <select
+              id="quick-tone"
+              value={brief.tone}
+              onChange={event => onBriefChange({ ...brief, tone: event.target.value as Tone })}
+              data-tip={TIPS.tone}
+              className={field}
             >
-              In use: {asNumber(usedWords)} of {asNumber(maxWords)} words.
-            </p>
-          )}
-        </fieldset>
-      )}
-
-      {factQuestions !== undefined && (
-        <QuickMissingFacts
-          questions={factQuestions}
-          answers={factAnswers}
-          onAnswersChange={onFactAnswersChange}
-          chat={factChat}
-        />
-      )}
-
-      {brief.unsupportedLanguage && (
-        <div role="alert" className="flex items-start gap-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-4">
-          <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-warning" aria-hidden="true" />
-          <p className="text-gray-900 dark:text-gray-100">
-            This copy looks like it is written in {brief.unsupportedLanguage}. CopyZap can write in{' '}
-            {QUICK_LANGUAGES.slice(0, -1).join(', ')} and {QUICK_LANGUAGES[QUICK_LANGUAGES.length - 1]}. The new versions
-            will be written in {brief.language}.
-          </p>
+              {QUICK_TONES.map(tone => (
+                <option key={tone} value={tone}>
+                  {tone}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex-[1_1_130px] min-w-0 flex flex-col gap-1.5">
+            <label htmlFor="quick-language" className={label}>
+              Language
+            </label>
+            <select
+              id="quick-language"
+              value={brief.language}
+              onChange={event =>
+                onBriefChange({ ...brief, language: event.target.value as Language, unsupportedLanguage: undefined })
+              }
+              data-tip={TIPS.language}
+              className={field}
+            >
+              {QUICK_LANGUAGES.map(language => (
+                <option key={language} value={language}>
+                  {language}
+                </option>
+              ))}
+            </select>
+          </div>
         </div>
-      )}
+
+        {/* The kind of text: six square choices in two columns, like the goals on the start form. */}
+        <fieldset aria-describedby="quick-kind-note" className="m-0 p-0 border-0 flex flex-col gap-1">
+          <legend className={'p-0 mb-1 ' + label}>Kind of text</legend>
+          <div className="grid grid-cols-1 sm:grid-flow-col sm:grid-rows-3 sm:auto-cols-fr gap-x-8">
+            {TEXT_KINDS.map(kind => (
+              <SquareRadio
+                key={kind.key}
+                name="quick-kind"
+                checked={brief.kind === kind.key}
+                onChange={() => onBriefChange({ ...brief, kind: kind.key as TextKindKey })}
+                tip={KIND_TIPS[kind.key]}
+              >
+                <span className="text-gray-900 dark:text-gray-100">{kind.label}</span>
+              </SquareRadio>
+            ))}
+          </div>
+          {brief.kind === 'other' && (
+            <div className="mt-1 flex flex-col gap-1.5 sm:max-w-xl">
+              <label htmlFor="quick-kind-other" className={label}>
+                What is it? <span className="font-normal text-gray-600 dark:text-gray-400">Optional</span>
+              </label>
+              <input
+                id="quick-kind-other"
+                type="text"
+                value={brief.kindOther}
+                maxLength={TEXT_KIND_OTHER_MAX_CHARS}
+                onChange={event => onBriefChange({ ...brief, kindOther: event.target.value })}
+                placeholder="For example: flyer, product description"
+                className={field}
+              />
+            </div>
+          )}
+          <p id="quick-kind-note" className="text-gray-600 dark:text-gray-400">
+            CopyZap writes and scores the copy as this kind of text.
+          </p>
+        </fieldset>
+
+        {sections.length > 1 && (
+          <fieldset className="m-0 p-0 border-0 flex flex-col gap-2">
+            <legend className="p-0 mb-1 font-semibold text-gray-900 dark:text-gray-100">
+              What should CopyZap do with each part?
+            </legend>
+            {overLimit && (
+              <p id="quick-over-limit" className="flex items-start gap-2.5 mb-1 text-gray-900 dark:text-gray-100">
+                <span
+                  className={'w-1 h-5 mt-0.5 shrink-0 ' + (stillOver ? 'bg-status-warning' : 'bg-status-good')}
+                  aria-hidden="true"
+                />
+                <span>
+                  This copy has {asNumber(words)} words. CopyZap works on up to {asNumber(maxWords)} at a time. Set parts to
+                  "Leave out" until {asNumber(maxWords)} words or fewer are in use. Parts kept as they are count too.
+                </span>
+              </p>
+            )}
+            <ul className="bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
+              {sections.map(section => {
+                const current = choiceOf(section);
+                return (
+                  <li key={section.id} className="px-4 py-2.5 flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
+                    <div className="min-w-0 flex-[1_1_220px] flex flex-wrap items-baseline gap-x-2 gap-y-0.5">
+                      <span
+                        className={
+                          'font-semibold break-words ' +
+                          (current === 'leave'
+                            ? 'text-gray-500 dark:text-gray-400 line-through'
+                            : 'text-gray-900 dark:text-gray-100')
+                        }
+                      >
+                        {section.title}
+                      </span>
+                      <span className="text-xs text-gray-600 dark:text-gray-400 tabular-nums">
+                        {asNumber(section.words)} {section.words === 1 ? 'word' : 'words'}
+                      </span>
+                      {section.hint && (
+                        <span className="text-xs text-gray-900 dark:text-gray-100 border border-gray-400 dark:border-gray-600 px-1.5">
+                          {section.hint}
+                        </span>
+                      )}
+                    </div>
+                    <div
+                      role="radiogroup"
+                      aria-label={`What to do with ${section.title}`}
+                      className="flex flex-wrap gap-x-5"
+                    >
+                      {CHOICES.map(option => (
+                        <SquareRadio
+                          key={option.value}
+                          name={`quick-part-${section.id}`}
+                          checked={current === option.value}
+                          onChange={() => onChoiceChange(section.id, option.value)}
+                          tip={PART_TIPS[option.value]}
+                        >
+                          <span className="text-gray-900 dark:text-gray-100 whitespace-nowrap">{option.label}</span>
+                        </SquareRadio>
+                      ))}
+                    </div>
+                  </li>
+                );
+              })}
+            </ul>
+            <p className="text-gray-600 dark:text-gray-400">
+              Rewrites {count('improve')} {count('improve') === 1 ? 'part' : 'parts'} ({asNumber(improveWords)} words) · keeps{' '}
+              {count('keep')} as {count('keep') === 1 ? 'it is' : 'they are'} · leaves out {count('leave')}. A part kept
+              as it is goes into the new page unchanged, in its place. A part left out is dropped.
+            </p>
+            {overLimit && (
+              <p
+                id="quick-words-in-use"
+                aria-live="polite"
+                className={stillOver ? 'font-semibold text-gray-900 dark:text-gray-100' : 'text-gray-600 dark:text-gray-400'}
+              >
+                In use: {asNumber(usedWords)} of {asNumber(maxWords)} words.
+              </p>
+            )}
+          </fieldset>
+        )}
+
+        {factQuestions !== undefined && (
+          <QuickMissingFacts
+            questions={factQuestions}
+            answers={factAnswers}
+            onAnswersChange={onFactAnswersChange}
+            chat={factChat}
+          />
+        )}
+
+        {brief.unsupportedLanguage && (
+          <div role="alert" className="flex items-start gap-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-4">
+            <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-warning" aria-hidden="true" />
+            <p className="text-gray-900 dark:text-gray-100">
+              This copy looks like it is written in {brief.unsupportedLanguage}. CopyZap can write in{' '}
+              {QUICK_LANGUAGES.slice(0, -1).join(', ')} and {QUICK_LANGUAGES[QUICK_LANGUAGES.length - 1]}. The new versions
+              will be written in {brief.language}.
+            </p>
+          </div>
+        )}
+      </fieldset>
 
       <div className="flex flex-col gap-3">
         <div className="flex flex-wrap items-center gap-3">
