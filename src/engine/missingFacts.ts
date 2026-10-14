@@ -352,3 +352,37 @@ export function userFactsChangeNote(facts: string[]): string {
   if (clean.length === 0) return '';
   return ['The user also gave these facts about the business. They count as facts the text states, exactly as given:', factList(clean)].join('\n');
 }
+
+/**
+ * What the questions found are about, in plain words, for the offer under a
+ * result ("Run again with your answers"): "proof with numbers, your price, a
+ * reason to act now". From the kinds of the questions, in their order, each
+ * once, at most three. A question of an unknown kind is not named.
+ */
+const KIND_IN_PLAIN_WORDS: Record<string, string> = {
+  proof: 'proof with numbers',
+  price: 'your price',
+  offer: 'a clear offer',
+  urgency: 'a reason to act now',
+  next_step: 'what happens after someone contacts you',
+  included: 'what is included',
+  difference: 'what makes you different',
+  guarantee: 'a guarantee',
+  timing: 'how long it takes',
+  date: 'the date',
+  audience: 'who it is for',
+  example: 'a concrete example',
+  steps: 'the steps',
+  story: 'a short story',
+  news: 'what is new',
+};
+
+export function missingInPlainWords(questions: MissingFactQuestion[], max = 3): string[] {
+  const named: string[] = [];
+  for (const question of questions) {
+    const words = KIND_IN_PLAIN_WORDS[question.kind];
+    if (words && !named.includes(words)) named.push(words);
+    if (named.length === max) break;
+  }
+  return named;
+}

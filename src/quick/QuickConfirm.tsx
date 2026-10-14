@@ -51,6 +51,11 @@ interface QuickConfirmProps {
   onFactAnswersChange: (answers: FactAnswers) => void;
   /** The same questions as a chat, when the user ticks it. */
   factChat: FactChatSwitch;
+  /**
+   * The best score of the run the user came back from with "Run again with
+   * your answers". Shown above "Make it stronger". Null otherwise.
+   */
+  lastBest?: number | null;
 }
 
 const CHOICES: { value: SectionChoice; label: string }[] = [
@@ -101,6 +106,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
   factAnswers,
   onFactAnswersChange,
   factChat,
+  lastBest = null,
 }) => {
   const choiceOf = (section: PageSection): SectionChoice => choices[section.id] ?? 'improve';
   const estimate = estimateRunCredits(usedWords);
@@ -352,6 +358,16 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
               </p>
             )}
           </fieldset>
+        )}
+
+        {factQuestions !== undefined && lastBest != null && (
+          <p className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
+            <span className="w-1 h-5 mt-0.5 shrink-0 bg-primary-500" aria-hidden="true" />
+            <span>
+              Last run: best version {lastBest} / 100. Answer the questions below: your answers go into three new
+              versions.
+            </span>
+          </p>
         )}
 
         {factQuestions !== undefined && (

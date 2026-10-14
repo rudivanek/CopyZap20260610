@@ -17,7 +17,7 @@ import {
 } from '../engine/buildQuickFormState';
 import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
-import { asksForMissingFacts, findMissingFacts, MissingFactQuestion } from '../engine/missingFacts';
+import { asksForMissingFacts, findMissingFacts, MissingFactQuestion, missingInPlainWords } from '../engine/missingFacts';
 import { FactAnswers, factsFromAnswers, OTHER_FACT_KEY } from './factAnswers';
 import { chatFacts, EMPTY_FACT_CHAT, FactChat } from '../engine/factChat';
 import { readChatChoice, saveChatChoice } from './QuickFactChat';
@@ -206,6 +206,15 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   // screen was run with: right after a run from this page. False for a result
   // opened from History or from its address.
   const inputsFromRun = useRef(false);
+  /**
+   * "Run again with your answers" (see runAgainOffer below): the inputs of the
+   * last run, as one key, and the best score of the run the user came back
+   * from. A new run with the same key (same copy, goal, choices and reading;
+   * only the facts may differ) shows "Last run: best 76 → this run: best 83".
+   */
+  const lastRunKey = useRef<string | null>(null);
+  const [lastBest, setLastBest] = useState<{ best: number; key: string } | null>(null);
+  const [previousBest, setPreviousBest] = useState<number | null>(null);
   const isMounted = useRef(true);
 
   useEffect(() => {
@@ -284,6 +293,14 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     : facts?.key === factsKey
       ? facts.questions
       : null;
+  // What a run is made of, apart from the facts: compared to tell whether two runs are like for like.
+  const runKey = JSON.stringify({
+    copy: copy.trim(),
+    goalKey,
+    goalOther: goalKey === 'custom' ? cleanQuickGoalLabel(goalOther) : '',
+    choices: sections.length > 1 ? choices : null,
+    brief,
+  });
 
   /** Saves a result as a new History entry, or over its existing one, and keeps its id in the address. */
   const persist = async (run: QuickRunResult, seconds: number | null, id: string | null) => {
@@ -504,6 +521,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setError(null);
     setProgress({ stage: 'checking' });
     setBusy('running');
+    const keyAtRun = runKey;
     const { alive: isMounted, signal } = startProcess();
     const startedAt = Date.now();
 
@@ -549,6 +567,10 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       setRunSeconds(seconds);
       setResult(run);
       inputsFromRun.current = true;
+      lastRunKey.current = keyAtRun;
+      // Came back with "Run again with your answers" and changed nothing but the facts: show both bests.
+      setPreviousBest(lastBest && lastBest.key === keyAtRun ? lastBest.best : null);
+      setLastBest(null);
       setSavedId(null);
       setSavedTitle(null);
       setPhase('result');
@@ -642,6 +664,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
 
   const handleNew = () => {
     inputsFromRun.current = false;
+    setLastBest(null);
+    setPreviousBest(null);
     setChangeNotice(null);
     setResult(null);
     setRunSeconds(null);
@@ -674,6 +698,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
    */
   const handleStartOver = () => {
     if (!result || busy) return;
+    setLastBest(null);
+    setPreviousBest(null);
     // A result opened from History: take its copy and settings from the result.
     // Parts that were left out are not in it; a result saved before kinds of
     // text existed is read again on Continue.
@@ -721,6 +747,46 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setPhase('start');
     window.scrollTo(0, 0);
   };
+
+  /**
+   * "Run again with your answers": from a result the user ran without facts,
+   * straight back to the check screen with the same copy, goal, choices and
+   * reading (no cost, as "Start over" then Continue), the "Make it stronger"
+   * chat started again and in view. The best score of this result is kept, so
+   * the next result can show both. Tested 2026-10-14 on Sales Boost: the same
+   * facts fitted into the finished best version with "Change it" left it at 76;
+   * three new versions written with them reached 82 to 83. So this is a new run.
+   */
+  const handleRunAgainWithAnswers = () => {
+    if (!result || busy || !inputsFromRun.current || !lastRunKey.current) return;
+    const best = result.scores?.winnerId ? result.scores.absoluteByVersion[result.scores.winnerId]?.total : undefined;
+    setLastBest(typeof best === 'number' ? { best, key: lastRunKey.current } : null);
+    setPreviousBest(null);
+    setFactChat(EMPTY_FACT_CHAT);
+    setChangeNotice(null);
+    setResult(null);
+    setRunSeconds(null);
+    setSavedId(null);
+    setSavedTitle(null);
+    setSaveState(null);
+    setSearchParams({}, { replace: true });
+    setError(null);
+    setSessionId(null);
+    setPhase('confirm');
+    window.setTimeout(() => document.getElementById('quick-facts-title')?.scrollIntoView({ block: 'start' }), 250);
+  };
+
+  /**
+   * The offer under the score: shown for a run made here (not opened from
+   * History) that used no facts, when "Make it stronger" found questions for
+   * this copy. It names what is missing in plain words, from the kinds of the
+   * questions found; it promises no score.
+   */
+  const usedFacts = (result?.formState.quickUserFacts ?? []).length > 0;
+  const runAgainOffer =
+    phase === 'result' && result && inputsFromRun.current && !usedFacts && factQuestions && factQuestions.length > 0
+      ? { missing: missingInPlainWords(factQuestions), onClick: handleRunAgainWithAnswers }
+      : null;
 
   const handleHistory = () => {
     if (busy) return;
@@ -959,6 +1025,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               sessionId: sessionId ?? undefined,
             },
           }}
+          lastBest={lastBest && lastBest.key === runKey ? lastBest.best : null}
           onGenerate={handleRun}
           onBack={() => {
             setPhase('start');
@@ -983,6 +1050,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             changeBlocked={text => validateQuickChange(result, text)}
             changeNotice={changeNotice}
             onScoreEdit={handleScoreEdit}
+            runAgain={runAgainOffer}
+            previousBest={previousBest}
           />
         </main>
       )}

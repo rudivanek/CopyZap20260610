@@ -49,6 +49,14 @@ interface QuickResultProps {
   changeNotice: { tone: 'good' | 'neutral' | 'bad'; text: string } | null;
   /** Scores a version the user edited by hand. The page runs it behind the modal. */
   onScoreEdit: (draft: QuickEditDraft, text: string) => void;
+  /**
+   * "Make it stronger and run again", under the score: shown when the run used
+   * no facts and "Make it stronger" found questions for this copy. `missing`
+   * names them in plain words. Null: not shown.
+   */
+  runAgain?: { missing: string[]; onClick: () => void } | null;
+  /** The best score of the last run, when this run is the same but for the facts the user added. */
+  previousBest?: number | null;
 }
 
 const card = 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700';
@@ -198,6 +206,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
   changeBlocked,
   changeNotice,
   onScoreEdit,
+  runAgain = null,
+  previousBest = null,
 }) => {
   // Editing by hand: the best version as plain text, protected parts as bracketed lines.
   const [draft, setDraft] = useState<QuickEditDraft | null>(null);
@@ -778,6 +788,14 @@ const QuickResult: React.FC<QuickResultProps> = ({
                           same.{!nearOriginal && ` Scores within ${QUICK_SCORE_MARGIN} points cannot be told apart.`}
                         </p>
                       )}
+                      {previousBest != null && (
+                        <p id="quick-last-run" className="font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
+                          Last run: best {previousBest} → this run: best {winnerTotal}
+                          {winnerTotal - previousBest > 0 && ` (+${winnerTotal - previousBest})`}
+                          {winnerTotal - previousBest < 0 && ` (−${previousBest - winnerTotal})`}
+                          {Math.abs(winnerTotal - previousBest) <= QUICK_SCORE_MARGIN && ', about the same'}
+                        </p>
+                      )}
                     </div>
                   ) : (
                     <p className="text-gray-600 dark:text-gray-400">Your original could not be scored.</p>
@@ -817,6 +835,22 @@ const QuickResult: React.FC<QuickResultProps> = ({
               </div>
             )}
           </section>
+
+          {runAgain && winnerTotal != null && (
+            <section id="quick-run-again" aria-label="Make it stronger and run again" className={`${card} p-6 flex flex-col gap-3`}>
+              <p className="font-semibold text-gray-900 dark:text-gray-100">Make it stronger and run again</p>
+              <p className="text-gray-600 dark:text-gray-400">
+                Your best version scores {winnerTotal}.{' '}
+                {runAgain.missing.length > 0
+                  ? `Your copy is missing things that help people act: ${runAgain.missing.join(', ')}.`
+                  : 'Your copy is missing a few things that help people act.'}{' '}
+                Answer two or three questions and CopyZap writes three new versions with them. A new run uses credits.
+              </p>
+              <button type="button" onClick={runAgain.onClick} data-tip={TIPS.runAgain} className={`${primaryButton} self-start`}>
+                Answer and run again
+              </button>
+            </section>
+          )}
 
           {/* A short ranking under the score: every ranked version, best first, and the original. */}
           {scores && ranked.length > 0 && (

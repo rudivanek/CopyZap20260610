@@ -1,7 +1,55 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.64
-Last Updated: 2026-10-14T19:00:00Z
+Version: 1.65
+Last Updated: 2026-10-14T20:00:00Z
+
+---
+
+## Quick — "Make it stronger and run again" (2026-10-14)
+
+**Feature:** Under the score of a Quick result that used no "Make it stronger" facts, a card "Make it stronger and run again" names what the copy is missing in plain words — "proof with numbers, your price, a reason to act now" — taken from the kinds of the questions Quick found. Its button "Answer and run again" goes straight back to the check screen, with the same copy, goal, choices and reading (no cost — as "Start over" then Continue). The "Make it stronger" chat starts again and scrolls into view, under a line "Last run: best version 76 / 100. Answer the questions below: your answers go into three new versions." When the new run has the same inputs apart from the facts, its score shows "Last run: best 76 → this run: best 83 (+7)" (or "about the same" when the two bests are within the scorer's margin). Results opened from History do not show the card, because `inputsFromRun.current` is false for them.
+
+**Why:** On 2026-10-14, the Sales Boost page ran without facts and reached 76. The same facts fitted into the finished best version with "Change it" left it at 76; three new versions written with them reached 82 to 83. So a new run with the facts is the path that helps, not a change on the existing result. Before this, the user had to know to go back, find the "Make it stronger" section, and answer — the card makes that one click, and names what is missing so the user knows what to answer.
+
+**Edit — `src/engine/missingFacts.ts` (1 edit):** After `userFactsChangeNote`, a new exported `missingInPlainWords(questions, max = 3)` function was added, with a `KIND_IN_PLAIN_WORDS` record mapping each question kind to plain words (proof → "proof with numbers", price → "your price", offer → "a clear offer", urgency → "a reason to act now", next_step → "what happens after someone contacts you", included → "what is included", difference → "what makes you different", guarantee → "a guarantee", timing → "how long it takes", date → "the date", audience → "who it is for", example → "a concrete example", steps → "the steps", story → "a short story", news → "what is new"). It walks the questions in their order, names each kind once, and stops at `max` (3). A question of an unknown kind is not named.
+
+**Edit — `src/quick/QuickPage.tsx` (10 edits):** Each edit was a find-and-replace applied once; nothing else in the file changed.
+- **Edit 1 — import:** Added `missingInPlainWords` to the `missingFacts` import.
+- **Edit 2 — run-key and best-score state:** After the `inputsFromRun` ref, three new pieces of state: `lastRunKey` (a ref holding the `runKey` of the last run), `lastBest` (state holding `{ best, key }` — the best score and run key of the run the user came back from), and `previousBest` (state holding the best score to show against the current run's best).
+- **Edit 3 — the run key:** After `factQuestions`, a new `runKey = JSON.stringify({ copy, goalKey, goalOther, choices, brief })` constant — what a run is made of, apart from the facts. Used to tell whether two runs are like for like.
+- **Edit 4 — capture the key at run start:** Inside `handleRun`, after `setBusy('running')`, a `const keyAtRun = runKey;` line freezes the key for the run in progress (so a later change to the inputs does not affect what was run).
+- **Edit 5 — store the key and set previousBest on success:** After `inputsFromRun.current = true`, the code now sets `lastRunKey.current = keyAtRun`, and sets `previousBest` to `lastBest.best` when `lastBest.key === keyAtRun` (the user came back with "Run again" and changed nothing but the facts), otherwise to `null`. `lastBest` is cleared.
+- **Edit 6 — clear on "New":** `handleNew` now also clears `lastBest` and `previousBest`.
+- **Edit 7 — clear on "Start over":** `handleStartOver` now also clears `lastBest` and `previousBest` at the top.
+- **Edit 8 — `handleRunAgainWithAnswers` and `runAgainOffer`:** A new `handleRunAgainWithAnswers` function: guarded by `result`, `busy`, `inputsFromRun.current`, and `lastRunKey.current`; reads the best score from `result.scores`; sets `lastBest` to `{ best, key: lastRunKey.current }`; clears `previousBest`, `factChat`, `changeNotice`, `result`, `runSeconds`, save state, address, error, and session; sets phase to `confirm`; and scrolls the "Make it stronger" title into view after 250ms. A new `runAgainOffer` constant: `null` unless the result is on screen, was run here (not opened from History), used no facts, and `factQuestions` were found; otherwise `{ missing: missingInPlainWords(factQuestions), onClick: handleRunAgainWithAnswers }`.
+- **Edit 9 — pass `lastBest` to QuickConfirm:** The `<QuickConfirm>` element gained `lastBest={lastBest && lastBest.key === runKey ? lastBest.best : null}`.
+- **Edit 10 — pass `runAgain` and `previousBest` to QuickResult:** The `<QuickResult>` element gained `runAgain={runAgainOffer}` and `previousBest={previousBest}`.
+
+**Edit — `src/quick/QuickConfirm.tsx` (3 edits):**
+- **Props:** The `QuickConfirmProps` interface gained `lastBest?: number | null` with a JSDoc note.
+- **Destructure:** `lastBest = null` added to the component's parameter destructuring.
+- **"Last run" line:** Before the `QuickMissingFacts` block, a new `{factQuestions !== undefined && lastBest != null && (...)}` paragraph shows "Last run: best version {lastBest} / 100. Answer the questions below: your answers go into three new versions." with a primary-coloured bar.
+
+**Edit — `src/quick/QuickResult.tsx` (4 edits):**
+- **Props:** The `QuickResultProps` interface gained `runAgain?: { missing: string[]; onClick: () => void } | null` and `previousBest?: number | null`, each with a JSDoc note.
+- **Destructure:** `runAgain = null` and `previousBest = null` added to the component's parameter destructuring.
+- **"Last run → this run" line:** Inside the score card, after the "close to the best" note and before the closing `</div>`, a new `{previousBest != null && (...)}` paragraph with id `quick-last-run` shows "Last run: best {previousBest} → this run: best {winnerTotal}" followed by `(+N)` or `(−N)` when the two bests differ by more than the scorer's margin, or ", about the same" when they are within it.
+- **"Make it stronger and run again" card:** Between the score section and the ranking-summary section, a new `{runAgain && winnerTotal != null && (...)}` section with id `quick-run-again` shows a heading "Make it stronger and run again", a paragraph naming what is missing (or a generic line when `runAgain.missing` is empty) and that a new run uses credits, and an "Answer and run again" button using `primaryButton` and `TIPS.runAgain`.
+
+**Edit — `src/quick/tips.ts` (1 edit):**
+- Added `runAgain: 'Back to the check screen with the same copy and choices. Answer the questions there, then generate three new versions. This result stays in History.',` between `factRemove` and `factFromPage` in the `TIPS` object.
+
+**Effect on Copy Maker:** None. Every change is in Quick-only files (`missingFacts.ts`, `QuickPage.tsx`, `QuickConfirm.tsx`, `QuickResult.tsx`, `tips.ts`). Copy Maker is not changed.
+
+**Effect on existing results:** A result opened from History has `inputsFromRun.current === false`, so the card is not shown and `previousBest` stays `null` — the score card looks exactly as before. The `lastBest`/`previousBest`/`lastRunKey` state is ephemeral (not saved with the result). A result saved before this change is not affected.
+
+**Files touched:** `src/engine/missingFacts.ts` (1 edit), `src/quick/QuickPage.tsx` (10 edits), `src/quick/QuickConfirm.tsx` (3 edits), `src/quick/QuickResult.tsx` (4 edits), `src/quick/tips.ts` (1 edit). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes with no new errors.
+- Under the score of a Quick result that used no "Make it stronger" facts, a "Make it stronger and run again" card names what is missing in plain words. Its "Answer and run again" button goes back to the check screen with the same copy, goal, choices and reading; the "Make it stronger" chat starts again and scrolls into view, under a line naming the last run's best score.
+- When the new run has the same inputs apart from the facts, its score shows "Last run: best 76 → this run: best 83 (+7)" (or "about the same" within the margin).
+- A result opened from History does not show the card.
 
 ---
 
