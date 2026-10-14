@@ -28,6 +28,8 @@ interface QuickFactChatProps {
   chat: FactChat;
   setChat: React.Dispatch<React.SetStateAction<FactChat>>;
   context: FactChatContext;
+  /** True while the questions are asked again after a change (the check screen is locked meanwhile). */
+  updating?: boolean;
 }
 
 const FIELD =
@@ -44,7 +46,7 @@ const LINK =
   'underline underline-offset-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 ' +
   'disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500';
 
-const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat, context }) => {
+const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat, context, updating }) => {
   // The chat starts as soon as the questions are known: its first question is the first one found.
   useEffect(() => {
     if (questions !== null && chat.turns.length === 0) setChat(startFactChat(questions));
@@ -109,7 +111,9 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
   if (questions === null) {
     return (
       <p className="text-gray-600 dark:text-gray-400" aria-live="polite">
-        Looking for what is missing… You can generate without waiting.
+        {updating
+          ? 'Updating the questions… The screen unlocks in a moment.'
+          : 'Looking for what is missing… You can generate without waiting.'}
       </p>
     );
   }

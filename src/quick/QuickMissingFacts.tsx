@@ -22,6 +22,8 @@ interface QuickMissingFactsProps {
   onAnswersChange: (answers: FactAnswers) => void;
   /** The chat instead of the fields: whether it is on, and its state. */
   chat: FactChatSwitch;
+  /** True while the questions are asked again after a change: the loading line says so. */
+  updating?: boolean;
 }
 
 /**
@@ -45,7 +47,7 @@ const FIELD =
   'text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500';
 const LABEL = 'font-semibold text-gray-900 dark:text-gray-100';
 
-const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answers, onAnswersChange, chat }) => {
+const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answers, onAnswersChange, chat, updating }) => {
   const asked = questions ?? [];
   const used = factsFromAnswers(asked, answers).length;
   const unfinished = unfinishedAnswers(asked, answers);
@@ -88,7 +90,13 @@ const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answer
       </div>
 
       {inChat ? (
-        <QuickFactChat questions={questions} chat={chat.state} setChat={chat.setState} context={chat.context} />
+        <QuickFactChat
+          questions={questions}
+          chat={chat.state}
+          setChat={chat.setState}
+          context={chat.context}
+          updating={updating}
+        />
       ) : (
         <>
           {questions === null && (
