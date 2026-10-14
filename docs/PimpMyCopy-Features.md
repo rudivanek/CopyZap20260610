@@ -1,7 +1,33 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.63
-Last Updated: 2026-10-14T18:00:00Z
+Version: 1.64
+Last Updated: 2026-10-14T19:00:00Z
+
+---
+
+## Quick — Lock the Chat While Quick Checks the Page (2026-10-14)
+
+**Feature:** Under each "Make it stronger" question, while Quick looks in the user's page for an answer, the answer field and the Send, Skip, and Done buttons are locked, and a line says "Checking your page for an answer… a moment." They unlock when the check is done, or after 10 seconds at most. A question asked again after "Start the chat again" reuses the earlier result, so it does not lock a second time.
+
+**Why:** Without a lock, the user could answer or skip a question before Quick had a chance to show the passage their own page holds — the very feature prompt 4 added. On a slow network the page check could take several seconds, and the "Use this" passage would appear after the user had already moved on. Locking the field for the brief check makes sure the passage can appear first. The 10-second cap keeps the lock from ever being a long wait.
+
+**Edit — `src/quick/QuickFactChat.tsx` (5 edits):** Each edit was a find-and-replace applied once; nothing else in the file changed.
+- **Edit 5.1 — the page-check lookup with memory and a timeout:** After the `LINK` constant, a new `PAGE_CHECK_MAX_MS = 10000` constant was added. The page-answer `useEffect` block was replaced: the `looked` Set became two refs — `found` (a `Map<string, string>` that remembers the result per question text) and `inFlight` (a `Set<string>` of questions currently being checked). The effect now: skips the closing question (no check for it); checks `found` first and applies a known result immediately; otherwise starts the check (guarded by `inFlight`) and races `findPageAnswer(...)` against a 10-second timeout that resolves to `''`. When the race resolves, the result is stored in `found`, removed from `inFlight`, and set on the matching turn via `setPassage` — which only sets `fromPage` when it is still `undefined` (so a late result does not overwrite an earlier one). A question re-asked after "Start the chat again" hits the `found` map and never locks a second time.
+- **Edit 5.2 — `send` respects the lock:** The `send` function gained an early `if (locked) return;` guard, so Enter in the answer field does not send while the page check runs.
+- **Edit 5.3 — `pageCheck` and `locked`:** After the `onClosing` line, two new constants: `pageCheck = lastIsQuestion && !onClosing && lastTurn.fromPage === undefined && !chat.done` (true while Quick is looking in the page for the current question), and `locked = chat.waiting || pageCheck` (the single flag the field and buttons use).
+- **Edit 5.4 — the "Checking your page" line:** Between the "Reading your answer…" block and the answer-field block, a new `{!chat.waiting && pageCheck && (...)}` block was inserted, showing "Checking your page for an answer… a moment." with `aria-live="polite"`.
+- **Edit 5.5 — the field and buttons use `locked`:** The `GrowingField`'s `disabled` prop changed from `chat.waiting` to `locked`. The Send button's `disabled` changed from `chat.waiting || !chat.draft.trim()` to `locked || !chat.draft.trim()`. The Skip and Done buttons' `disabled` changed from `chat.waiting` to `locked`.
+
+**Effect on Copy Maker:** None. The lock, the timeout, and the `found`/`inFlight` refs are all in `QuickFactChat.tsx`, a Quick-only component. Copy Maker is not changed.
+
+**Effect on existing results:** None. The page check runs during the check screen, before a run starts; it is not part of a saved result. The `fromPage` field and the lock are ephemeral chat state. A result saved before this change is not affected.
+
+**Files touched:** `src/quick/QuickFactChat.tsx` (5 edits). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes with no new errors.
+- Under a "Make it stronger" question, while Quick looks in the page, the answer field and the Send, Skip, and Done buttons are disabled, and a line says "Checking your page for an answer… a moment." They unlock when the check is done, or after 10 seconds at most.
+- After "Start the chat again", a question that was already checked does not lock a second time — its passage (or empty result) is applied from memory.
 
 ---
 

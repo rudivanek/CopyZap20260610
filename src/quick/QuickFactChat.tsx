@@ -52,29 +52,51 @@ const LINK =
   'underline underline-offset-2 text-gray-700 dark:text-gray-300 hover:text-gray-900 dark:hover:text-gray-100 ' +
   'disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500';
 
+/** Longest wait for the page check under a question; then the answer field unlocks without a passage. */
+const PAGE_CHECK_MAX_MS = 10000;
+
 const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat, context, updating }) => {
   // The chat starts as soon as the questions are known: its first question is the first one found.
   useEffect(() => {
     if (questions !== null && chat.turns.length === 0) setChat(startFactChat(questions));
   }, [questions, chat.turns.length, setChat]);
 
-  // For the question on screen: look in the user's page for a passage that answers it. One look per question.
-  const looked = useRef(new Set<string>());
+  // For the question on screen: look in the user's page for a passage that answers it. One look per
+  // question; a question asked again (after "Start the chat again") gets the same answer from memory.
+  // While Quick looks, the answer field and the buttons are locked (pageCheck below), so the user cannot
+  // answer or skip before the passage can appear. After PAGE_CHECK_MAX_MS the field unlocks anyway.
+  const found = useRef(new Map<string, string>());
+  const inFlight = useRef(new Set<string>());
   const lastIndex = chat.turns.length - 1;
   const lastQuestion = chat.turns[lastIndex];
   useEffect(() => {
     if (!lastQuestion || lastQuestion.from !== 'copyzap' || lastQuestion.fromPage !== undefined) return;
-    if (lastQuestion.text === CLOSING_QUESTION || looked.current.has(lastQuestion.text)) return;
+    if (lastQuestion.text === CLOSING_QUESTION) return;
     const text = lastQuestion.text;
     const index = lastIndex;
-    looked.current.add(text);
-    findPageAnswer(context.copy, text, context.user, context.sessionId, context.language).then(passage =>
+    const setPassage = (passage: string) =>
       setChat(current => ({
         ...current,
         turns: current.turns.map((turn, at) =>
-          at === index && turn.from === 'copyzap' && turn.text === text ? { ...turn, fromPage: passage } : turn
+          at === index && turn.from === 'copyzap' && turn.text === text && turn.fromPage === undefined
+            ? { ...turn, fromPage: passage }
+            : turn
         ),
-      }))
+      }));
+    const known = found.current.get(text);
+    if (known !== undefined) {
+      setPassage(known);
+      return;
+    }
+    if (inFlight.current.has(text)) return;
+    inFlight.current.add(text);
+    const giveUp = new Promise<string>(resolve => setTimeout(() => resolve(''), PAGE_CHECK_MAX_MS));
+    Promise.race([findPageAnswer(context.copy, text, context.user, context.sessionId, context.language), giveUp]).then(
+      passage => {
+        found.current.set(text, passage);
+        inFlight.current.delete(text);
+        setPassage(passage);
+      }
     );
   }, [lastQuestion, lastIndex, context.copy, context.user, context.sessionId, context.language, setChat]);
 
@@ -105,6 +127,8 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
   };
 
   const send = () => {
+    // Enter in the field sends too: not while the page check runs.
+    if (locked) return;
     const text = chat.draft.replace(/\s+/g, ' ').trim();
     if (text) answer(text);
   };
@@ -148,6 +172,9 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
   const lastTurn = chat.turns[chat.turns.length - 1];
   const lastIsQuestion = lastTurn?.from === 'copyzap';
   const onClosing = lastIsQuestion && lastTurn.text === CLOSING_QUESTION;
+  // Quick is still looking in the page for an answer to the question on screen: answering waits for it.
+  const pageCheck = lastIsQuestion && !onClosing && lastTurn.fromPage === undefined && !chat.done;
+  const locked = chat.waiting || pageCheck;
 
   return (
     <div className="flex flex-col gap-4">
@@ -193,6 +220,11 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
           Reading your answer…
         </p>
       )}
+      {!chat.waiting && pageCheck && (
+        <p className="text-gray-600 dark:text-gray-400" aria-live="polite">
+          Checking your page for an answer… a moment.
+        </p>
+      )}
 
       {!chat.done && lastIsQuestion && (
         <div className="flex flex-col gap-2">
@@ -205,19 +237,19 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
             maxLength={USER_FACT_MAX_CHARS}
             onChange={draft => setChat(current => ({ ...current, draft }))}
             onEnter={send}
-            disabled={chat.waiting}
+            disabled={locked}
             placeholder="Your answer, as it is true for you"
             tip={TIPS.factChat}
             className={FIELD}
           />
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={send} disabled={chat.waiting || !chat.draft.trim()} className={PRIMARY}>
+            <button type="button" onClick={send} disabled={locked || !chat.draft.trim()} className={PRIMARY}>
               Send
             </button>
-            <button type="button" onClick={() => answer(SKIPPED_ANSWER)} disabled={chat.waiting} className={SECONDARY}>
+            <button type="button" onClick={() => answer(SKIPPED_ANSWER)} disabled={locked} className={SECONDARY}>
               Skip
             </button>
-            <button type="button" onClick={finish} disabled={chat.waiting} className={SECONDARY}>
+            <button type="button" onClick={finish} disabled={locked} className={SECONDARY}>
               Done
             </button>
             <span className="text-gray-600 dark:text-gray-400">
