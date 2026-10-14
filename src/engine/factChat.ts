@@ -35,6 +35,7 @@ import {
   USER_FACT_MAX_CHARS,
   USER_FACTS_MAX,
 } from './missingFacts';
+import { FROM_PAGE_PREFIX } from './pageAnswers';
 
 const FACT_CHAT_MODEL = 'claude-haiku-4-5';
 /** Questions CopyZap asks in one chat, clarifications included. */
@@ -47,6 +48,12 @@ export interface ChatTurn {
   text: string;
   /** A CopyZap question only: an example answer in the copy's language, with ___ for the user's own values. */
   example?: string;
+  /**
+   * A CopyZap question only: a passage of the user's page that answers it,
+   * found word for word (see pageAnswers.ts). Undefined: not looked for yet;
+   * empty: the page has none.
+   */
+  fromPage?: string;
 }
 
 export interface FactChat {
@@ -189,7 +196,7 @@ You get the copy and the chat so far. Do two things.
 - Write each fact in ${language}, short: the user's own words, plus only the few words needed to say what it is about (an answer "28000 mxn" to the price question becomes "Precio desde 28000 mxn" in Spanish, "Price from 28000 mxn" in English). Never turn it into a long sentence. Keep every number, currency and name exactly as the user wrote it.
 - Never add anything the user did not say: no number, price, currency, date, duration, result or promise of your own, and do not make a fact stronger than the user put it.
 - A fact that is vague stays as vague as the user wrote it. When the user later makes it clear, replace it with the clear version.
-- "no", "skip" or "(skipped)" gives no fact. Something the copy already says is not a new fact.
+- "no", "skip" or "(skipped)" gives no fact. Something the copy already says is not a new fact, unless the user gives it as an answer on purpose (an answer that starts with "${FROM_PAGE_PREFIX}"): then it is a fact, so the rewrite can use it where it helps. Say whose words it is when it is one person's (a testimonial becomes "one client reports ..."), and never make it sound like an average, a guarantee or a promise.
 - At most ${USER_FACTS_MAX} facts.
 
 2. "next": the next question, or null.

@@ -12,6 +12,7 @@ import { KIND_TIPS, PART_TIPS, TIPS } from './tips';
 import type { MissingFactQuestion } from '../engine/missingFacts';
 import type { FactAnswers } from './factAnswers';
 import QuickMissingFacts, { FactChatSwitch } from './QuickMissingFacts';
+import { chatFacts } from '../engine/factChat';
 
 interface QuickConfirmProps {
   copy: string;
@@ -103,6 +104,8 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
 }) => {
   const choiceOf = (section: PageSection): SectionChoice => choices[section.id] ?? 'improve';
   const estimate = estimateRunCredits(usedWords);
+  // Questions were found and the user has given no fact yet: one line next to Generate says it is worth answering.
+  const unansweredFacts = !!factQuestions && factQuestions.length > 0 && chatFacts(factChat.state).length === 0;
   const count = (value: SectionChoice) => sections.filter(section => choiceOf(section) === value).length;
   const couldNotRead = !brief.product && !brief.audience;
   // A page longer than one run works on: parts have to be left out first.
@@ -399,6 +402,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
           </p>
         ) : (
           <p className="text-gray-600 dark:text-gray-400">
+            {unansweredFacts && 'You have not answered "Make it stronger" yet: a few real facts usually raise the score. '}
             Writes {QUICK_DEFAULT_VARIANTS} versions and scores them. Uses{' '}
             {estimate.atLeast ? `at least ${estimate.credits}` : `about ${estimate.credits}`} credits.
             {usedWords >= LONG_RUN_FROM_WORDS &&

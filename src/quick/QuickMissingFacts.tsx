@@ -13,7 +13,10 @@ import type { FactChat, FactChatContext } from '../engine/factChat';
  * copy is missing (see engine/missingFacts.ts), each with one answer field and
  * an example answer inside it, and one field for anything else that is true.
  * Or, when the user ticks "Answer in a chat instead", the same questions as a
- * chat (QuickFactChat.tsx). Everything is optional.
+ * chat (QuickFactChat.tsx). Everything is optional, but the section says
+ * "recommended" and asks for two or three answers: on 2026-10-14 three answers
+ * on Sales Boost raised the best version from 76 to 82, and most of a version's
+ * remaining room is in Persuasion, which needs facts only the user has.
  */
 interface QuickMissingFactsProps {
   /** null while Quick is still looking. Empty: nothing important is missing, only "anything else" is shown. */
@@ -63,13 +66,13 @@ const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answer
     >
       <div className="flex flex-col gap-1">
         <h2 id="quick-facts-title" className="text-base font-semibold text-gray-900 dark:text-gray-100">
-          Make it stronger <span className="font-normal text-gray-600 dark:text-gray-400">(optional)</span>
+          Make it stronger <span className="font-normal text-gray-600 dark:text-gray-400">(recommended)</span>
         </h2>
         {inChat ? (
           <p className="text-gray-600 dark:text-gray-400">
             {nothingMissing
               ? 'CopyZap found nothing important missing. If something true should still be in the copy, say it below.'
-              : 'Your copy is missing a few things that help people act. CopyZap asks about them one at a time and never invents them.'}{' '}
+              : 'Your copy is missing a few things that help people act. Answer two or three questions: real facts give the new versions more to work with, and usually more points. CopyZap never invents them, and when your page already holds an answer it shows it to you.'}{' '}
             Answer only what is true for you, with your own figures and currency; what you answer goes into the new
             versions.
           </p>

@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { MissingFactQuestion } from '../engine/missingFacts';
 import { cleanUserFacts, USER_FACT_MAX_CHARS, USER_FACTS_MAX } from '../engine/missingFacts';
 import {
@@ -12,6 +12,7 @@ import {
   SKIPPED_ANSWER,
   startFactChat,
 } from '../engine/factChat';
+import { findPageAnswer, FROM_PAGE_PREFIX } from '../engine/pageAnswers';
 import GrowingField from './GrowingField';
 import { TIPS } from './tips';
 
@@ -21,6 +22,11 @@ import { TIPS } from './tips';
  * open "anything else?". Below the chat, the facts CopyZap will use: the user
  * can take any out, and add one in their own words at any time. Generating
  * never waits for the chat.
+ *
+ * Under a question, when the user's page already holds an answer (a figure in
+ * a testimonial, say), the passage is shown word for word with "Use this",
+ * which puts it in the answer field (see engine/pageAnswers.ts). The user sends
+ * it or not; nothing is used on its own.
  */
 interface QuickFactChatProps {
   /** null while Quick is still looking for what is missing. */
@@ -51,6 +57,26 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
   useEffect(() => {
     if (questions !== null && chat.turns.length === 0) setChat(startFactChat(questions));
   }, [questions, chat.turns.length, setChat]);
+
+  // For the question on screen: look in the user's page for a passage that answers it. One look per question.
+  const looked = useRef(new Set<string>());
+  const lastIndex = chat.turns.length - 1;
+  const lastQuestion = chat.turns[lastIndex];
+  useEffect(() => {
+    if (!lastQuestion || lastQuestion.from !== 'copyzap' || lastQuestion.fromPage !== undefined) return;
+    if (lastQuestion.text === CLOSING_QUESTION || looked.current.has(lastQuestion.text)) return;
+    const text = lastQuestion.text;
+    const index = lastIndex;
+    looked.current.add(text);
+    findPageAnswer(context.copy, text, context.user, context.sessionId, context.language).then(passage =>
+      setChat(current => ({
+        ...current,
+        turns: current.turns.map((turn, at) =>
+          at === index && turn.from === 'copyzap' && turn.text === text ? { ...turn, fromPage: passage } : turn
+        ),
+      }))
+    );
+  }, [lastQuestion, lastIndex, context.copy, context.user, context.sessionId, context.language, setChat]);
 
   /** Adds the user's answer and asks CopyZap for the next step. A late reply for an older chat is ignored. */
   const answer = (text: string) => {
@@ -132,6 +158,23 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
               <span className="sr-only">CopyZap asks:</span>
               <p className="font-semibold text-gray-900 dark:text-gray-100">{turn.text}</p>
               {turn.example && <p className="text-gray-600 dark:text-gray-400">e.g. {turn.example}</p>}
+              {turn.fromPage && index === chat.turns.length - 1 && !chat.done && (
+                <div className="mt-1.5 flex flex-col gap-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-2">
+                  <p className="text-gray-600 dark:text-gray-400">Your page already says:</p>
+                  <p className="text-gray-900 dark:text-gray-100 break-words">“{turn.fromPage}”</p>
+                  <div>
+                    <button
+                      type="button"
+                      onClick={() => setChat(current => ({ ...current, draft: `${FROM_PAGE_PREFIX} ${turn.fromPage}` }))}
+                      disabled={chat.waiting}
+                      data-tip={TIPS.factFromPage}
+                      className={SECONDARY}
+                    >
+                      Use this
+                    </button>
+                  </div>
+                </div>
+              )}
             </li>
           ) : (
             <li

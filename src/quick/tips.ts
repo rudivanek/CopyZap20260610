@@ -72,6 +72,7 @@ export const TIPS = {
   factChatMode: 'CopyZap asks one question at a time and follows up on your answers. The facts it takes from them are listed below the chat before you generate.',
   factChat: 'Write it as it is true for you, with your own figures and currency. Enter sends it.',
   factRemove: 'Leaves this fact out of the new versions.',
+  factFromPage: 'Puts this passage of your page in the answer field. Check it and send it, or change it first.',
   factAdd: 'A fact that is true for you, in your own words. It goes into the list exactly as you write it. Enter adds it.',
   // Result screen
   copy: 'Copies this version as text, ready to paste.',

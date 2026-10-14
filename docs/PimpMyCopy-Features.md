@@ -1,7 +1,57 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.62
-Last Updated: 2026-10-14T12:00:00Z
+Version: 1.63
+Last Updated: 2026-10-14T18:00:00Z
+
+---
+
+## Quick — "Make it stronger": Answers From the Page, and a Nudge to Answer (2026-10-14)
+
+**Feature:** Under each "Make it stronger" question, when the user's own page already holds an answer (a figure inside a testimonial, a free offer in a button label, a result one client reports), Quick shows that passage word for word with a "Use this" button that puts it in the answer field. The user checks it and sends it, or changes it first, or ignores it — nothing is used until the user sends it. The section is now marked "(recommended)" instead of "(optional)" and its intro asks for two or three answers, explaining that real facts give the new versions more to work with and usually more points. A line next to "Looks right, generate" says when no question has been answered yet: "You have not answered 'Make it stronger' yet: a few real facts usually raise the score."
+
+**Why:** On 2026-10-14 the chat asked Sales Boost for its results; the only figure was in a testimonial ("hemos crecido nuestras ventas 48% año contra año"). Typed in as the answer, it raised the best version from 76 to 82. The page held the answer all along — Quick just was not showing it. Most of a version's remaining score room is in Persuasion, which needs facts only the user has, so the section now nudges the user to answer two or three questions instead of treating them as optional.
+
+**New file — `src/engine/pageAnswers.ts`:** A module that, for each question, makes one small call (Haiku) to read the whole page (up to 40,000 characters, covering a Quick run's 5,000 words) and find a passage that answers it. Nothing invented can get through:
+- `verifiedPassage(passage, page)`: returns the passage, cleaned, only when it is found in the page word for word (after normalising markdown marks, quotation marks, dashes, and spacing). Empty when the passage is not on the page, is longer than 320 characters, or has fewer than 4 words.
+- `sentenceWithFigure(passage, page)`: when the model's passage is not on the page as written but holds a figure (seen 2026-10-14: "Aumento de Ventas 48% año contra año", a heading glued to a testimonial), finds the page's own sentence that contains that figure, cuts it to at most 40 words around the figure, and verifies that cut is on the page. Empty when no figure, or the figure appears in several places (does not guess which), or no such sentence verifies.
+- `findPageAnswer(page, question, user, sessionId?, language?)`: calls the model with a system prompt that names the topic of the question, looks through the whole page (testimonials, lists, button labels, other sections) for a concrete fact on that topic, copies the passage exactly as written, at most 40 words, never changed or translated. Returns `verifiedPassage(...) || sentenceWithFigure(...)`, or `''` on any failure. Never throws.
+- `FROM_PAGE_PREFIX = 'From my page:'`: what the user's answer starts with when it is a passage of their page, so the chat engine reads it as an answer given on purpose.
+- `normalise(text)`: for comparing — strips markdown marks, unifies quotation marks to `"` and `'`, dashes to `-`, collapses whitespace, lowercases.
+
+**Edit — `src/engine/factChat.ts` (3 edits):**
+- **Import:** Added `import { FROM_PAGE_PREFIX } from './pageAnswers';` after the existing `missingFacts` import block.
+- **`ChatTurn` interface:** Gained an optional `fromPage?: string` field — a passage of the user's page that answers the question. Undefined: not looked for yet; empty: the page has none.
+- **System prompt:** The rule that says "Something the copy already says is not a new fact" gained an exception: when the user gives it as an answer on purpose (an answer starting with `${FROM_PAGE_PREFIX}`), it is a fact, so the rewrite can use it where it helps. The writer is told to say whose words it is when it is one person's (a testimonial becomes "one client reports ...") and never to make it sound like an average, a guarantee, or a promise.
+
+**Edit — `src/quick/QuickFactChat.tsx` (5 edits):**
+- **Import:** Changed `import React, { useEffect, useState } from 'react'` to also import `useRef`. Added `import { findPageAnswer, FROM_PAGE_PREFIX } from '../engine/pageAnswers';` after the `factChat` import.
+- **JSDoc:** The component's comment block gained a paragraph explaining the page-answer feature.
+- **Page-answer lookup:** After the chat-start effect, a new block uses a `useRef(new Set<string>())` to look in the user's page for a passage that answers the question on screen, once per question. It calls `findPageAnswer(context.copy, text, context.user, context.sessionId, context.language)` and sets `fromPage` on the matching turn. It skips the closing question and questions already looked at.
+- **"Use this" button:** Under each CopyZap question that has a `fromPage` passage (only on the last turn, when the chat is not done), a box shows "Your page already says:" followed by the passage in quotation marks, and a "Use this" button that puts `${FROM_PAGE_PREFIX} ${turn.fromPage}` into the chat's draft field. The button uses the `SECONDARY` style and `TIPS.factFromPage` tip.
+
+**Edit — `src/quick/QuickMissingFacts.tsx` (2 edits):**
+- **JSDoc:** The component's comment block gained a note that the section says "recommended" and asks for two or three answers, with the 2026-10-14 Sales Boost finding (76 to 82).
+- **Section heading and intro:** The heading changed from "(optional)" to "(recommended)". The chat intro, when something is missing, changed from "CopyZap asks about them one at a time and never invents them." to "Answer two or three questions: real facts give the new versions more to work with, and usually more points. CopyZap never invents them, and when your page already holds an answer it shows it to you."
+
+**Edit — `src/quick/QuickConfirm.tsx` (3 edits):**
+- **Import:** Added `import { chatFacts } from '../engine/factChat';` after the `QuickMissingFacts` import.
+- **Unanswered-facts check:** Added `const unansweredFacts = !!factQuestions && factQuestions.length > 0 && chatFacts(factChat.state).length === 0;` — true when questions were found and the user has given no fact yet.
+- **Generate nudge:** The line next to "Looks right, generate" now starts with `'You have not answered "Make it stronger" yet: a few real facts usually raise the score. '` when `unansweredFacts` is true, before the existing "Writes N versions and scores them" text.
+
+**Edit — `src/quick/tips.ts` (1 edit):**
+- Added `factFromPage: 'Puts this passage of your page in the answer field. Check it and send it, or change it first.',` between `factRemove` and `factAdd` in the `TIPS` object.
+
+**Effect on Copy Maker:** None. The page-answer lookup, the `fromPage` field, the `FROM_PAGE_PREFIX` handling, and the "recommended" / nudge changes are all Quick-only. Copy Maker does not use `pageAnswers.ts`, `factChat.ts`, or the Quick check-screen components.
+
+**Effect on existing results:** None. The page-answer feature runs during the check screen, before a run starts; it is not part of a saved result. The `fromPage` field is on `ChatTurn`, which is ephemeral chat state, not saved data. The "recommended" label and the generate nudge are display-only changes. A result saved before this change is not affected.
+
+**Files touched:** `src/engine/pageAnswers.ts` (new), `src/engine/factChat.ts` (3 edits), `src/quick/QuickFactChat.tsx` (5 edits), `src/quick/QuickMissingFacts.tsx` (2 edits), `src/quick/QuickConfirm.tsx` (3 edits), `src/quick/tips.ts` (1 edit). `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes with no new errors.
+- Under a "Make it stronger" question, when the user's page holds an answer, the passage is shown word for word with a "Use this" button. Clicking it puts the passage in the answer field with a "From my page:" prefix. The user sends it or not.
+- The section heading says "(recommended)" and the intro asks for two or three answers.
+- Next to "Looks right, generate", when no question has been answered, a line says it is worth answering.
 
 ---
 
