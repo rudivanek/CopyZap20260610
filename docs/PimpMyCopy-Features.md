@@ -1,7 +1,35 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.61
-Last Updated: 2026-10-12T12:00:00Z
+Version: 1.62
+Last Updated: 2026-10-14T12:00:00Z
+
+---
+
+## Quick — No Invented Details, and Links That Name Where They Lead Stay Copy (2026-10-14)
+
+**Feature:** Two small fixes to Quick's writing and page-leftover handling:
+1. Quick's writer is now told not to invent details: no scenes, times, places, anecdotes or quoted words that the original does not have. The line was added to `KEEP_TO_ORIGINAL_NOTE` after all three versions of a run on copyzap.app added a scene that was not in the original ("the text your client emailed at 11pm") and one a made-up quote ("trust me, this version is better"). Quick's fact checks flagged both; the new line is there so the writer does not add them in the first place. The facts rule (no adding, dropping, or strengthening claims) already existed; this adds the same rule for invented colour.
+2. A link that names where it leads ("See the sample report", "Ver portafolio completo") is no longer proposed as a page leftover when it stands on its own. Such a link can be the page's call to action, so on its own it stays copy. Links that only say "more" ("Leer más", "Read more »", "Weiterlesen") still are proposed as leftovers. The change came after "See the sample report" was proposed as a leftover on copyzap.app. Inside a run of four or more short labels, a named link is still treated as one of the links in the list (it was already excluded from the "all headings or all plain" uniformity check).
+
+**Replaced file — `src/engine/keepToOriginal.ts`:** The whole file was replaced. The only behaviour change is one new line in `KEEP_TO_ORIGINAL_NOTE`: `'Do not invent details either: no scenes, times, places, anecdotes or quoted words that the original does not have.'` The comment block above was extended with the copyzap.app finding. `QUICK_REWRITE_NOTE` (the page-rewriting freedom added 2026-10-14) and `KEEP_TO_ORIGINAL_CHANGE_NOTE` are unchanged from the prior version of the file.
+
+**Replaced file — `src/engine/pageLeftovers.ts`:** The whole file was replaced. The behaviour change is a new `GENERIC_LINK` regex and its use in `isLoneLeftover`:
+- `LINK_LABEL` (unchanged) matches link labels inside a list of names, including ones that name where they lead.
+- `GENERIC_LINK` (new) matches only link labels that say nothing but "more" — "Leer más", "Read more »", "Weiterlesen", and the like in Quick's languages. A link that names what it leads to does not match it.
+- `isLoneLeftover(line)` now returns true for a capitals label or a line that matches `GENERIC_LINK`. Before, a lone link label of any kind was cut as a leftover; now only a generic "more" link is. A named link on its own stays copy.
+- The run-of-labels path is unchanged: a run of four or more short labels (a portfolio name list, testimonial tab names, a row of "LEER MÁS" buttons) is still cut as one leftover row, and `isLinkLabel` still recognises named links inside such a run so the uniformity check works as before.
+- `splitLeftovers`, `bare`, `isStub`, `isCapitalsLabel`, `leftoverTitle`, and the `TextPiece` interface are otherwise unchanged. The file's plain-text, no-model-call handling is unchanged.
+
+**Effect on Copy Maker:** None. Copy Maker does not use `KEEP_TO_ORIGINAL_NOTE` (it is told to the writer only on Quick runs, and the rewrite rule behind `formState.keepToOriginal` is only set by Quick). Copy Maker does not call `splitLeftovers`. Copy Maker writes as before.
+
+**Effect on existing results:** None. A result saved before this change was written and scored under the prior rules; the new writer note applies to new runs and new changes made after it, and the new leftover detection applies to new readings. The score cache is not affected, since neither the writer note nor the leftover regex is part of the cache key.
+
+**Files touched:** `src/engine/keepToOriginal.ts` (replaced), `src/engine/pageLeftovers.ts` (replaced). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes with no new errors.
+- In Quick, a version no longer adds a scene, a time, a place, an anecdote, or a quote the original does not have.
+- On a page, a link that names where it leads ("See the sample report") is not proposed as a leftover row on the check screen; a link that only says "more" ("Leer más", "Read more »") still is.
 
 ---
 

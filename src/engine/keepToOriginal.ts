@@ -26,6 +26,11 @@
  * the order of the parts, the headings and the opening are now the writer's to
  * change (QUICK_REWRITE_NOTE).
  *
+ * The same day, on copyzap.app, all three versions added a scene that was not
+ * in the original ("the text your client emailed at 11pm") and one a made-up
+ * quote ("trust me, this version is better"). Quick's checks flagged both; the
+ * line about invented details is there so the writer does not add them.
+ *
  * Plain sentences on purpose: the engine reads a line that starts with a label
  * in capitals and a colon as a section to write.
  */
@@ -35,6 +40,7 @@ export const KEEP_TO_ORIGINAL_NOTE = [
   'Every fact in your version must come from the original. Do not add numbers, prices, offers, guarantees, deadlines, limited availability, results, customers, awards, features or services that the original does not state, and do not make a claim stronger than the original makes it.',
   'Keep the facts the original states: its numbers, names, offers, and what it says makes the product different.',
   'The benefits, differentiators and credibility elements listed earlier in these instructions are ideas for emphasis: use one only where the original itself says it.',
+  'Do not invent details either: no scenes, times, places, anecdotes or quoted words that the original does not have.',
   'A new angle or a new order is welcome; new information is not.',
 ].join(' ');
 

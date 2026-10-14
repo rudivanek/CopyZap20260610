@@ -22,9 +22,21 @@ const STUB_MAX_WORDS = 5;
 /** Fewest labels in a row that make a list of names or links. */
 const RUN_MIN_LINES = 4;
 
-/** Link labels that stand for a button or a link, in the languages Quick writes. */
+/**
+ * Link labels that stand for a button or a link, in the languages Quick writes.
+ * Used to recognise them inside a list of names ("... / Ver portafolio completo").
+ */
 const LINK_LABEL =
   /^(leer|ver|saber|conoce|descubre|read|see|view|learn|discover|find out|mehr|weiterlesen|alle|en savoir|voir|lire|scopri|leggi|vedi|saiba|ler|veja)(\s+\S+){0,3}$/i;
+/**
+ * A link label that says nothing but "more": "Leer más", "Read more »",
+ * "Weiterlesen". On its own line it is cut as a leftover. A link that names
+ * what it leads to ("See the sample report", "Ver portafolio completo") can be
+ * the page's call to action, so on its own it stays copy (since 2026-10-14,
+ * after "See the sample report" was proposed as a leftover on copyzap.app).
+ */
+const GENERIC_LINK =
+  /^(leer|ver|saber|read|see|view|learn|find out|mehr|weiterlesen|lire|voir|en savoir|scopri|leggi|vedi|saiba|ler|veja)(\s+(más|mas|more|mehr|plus|tutto|mais|todo|todos|all))?[\s»›→>.…]*$/i;
 
 const MARKER = /\[\[\s*[A-Z]+[-\s_]?\d+\s*\]\]/;
 const BULLET = /^\s*([-*+•]|\d+[.)])\s+/;
@@ -53,14 +65,23 @@ function isStub(line: string): boolean {
   return true;
 }
 
-/** A label in capitals ("LEER MÁS", "NUESTRO EXPERTISE") or a link label ("Ver portafolio completo"). */
+/** A label in capitals ("LEER MÁS", "NUESTRO EXPERTISE"). */
+function isCapitalsLabel(line: string): boolean {
+  if (/^\s{0,3}#/.test(line) || !isStub(line)) return false;
+  const letters = bare(line).replace(/[^\p{L}]/gu, '');
+  return letters.length >= 4 && letters === letters.toUpperCase() && letters !== letters.toLowerCase();
+}
+
+/** A label in capitals or a link label ("Ver portafolio completo"): never one of the names in a list. */
 function isLinkLabel(line: string): boolean {
-  if (/^\s{0,3}#/.test(line)) return false;
-  const text = bare(line);
-  if (!isStub(line)) return false;
-  const letters = text.replace(/[^\p{L}]/gu, '');
-  const capitals = letters.length >= 4 && letters === letters.toUpperCase() && letters !== letters.toLowerCase();
-  return capitals || LINK_LABEL.test(text);
+  if (/^\s{0,3}#/.test(line) || !isStub(line)) return false;
+  return isCapitalsLabel(line) || LINK_LABEL.test(bare(line));
+}
+
+/** A label that is a leftover even on its own: capitals, or a link that only says "more". */
+function isLoneLeftover(line: string): boolean {
+  if (/^\s{0,3}#/.test(line) || !isStub(line)) return false;
+  return isCapitalsLabel(line) || GENERIC_LINK.test(bare(line));
 }
 
 export interface TextPiece {
@@ -77,8 +98,8 @@ export interface TextPiece {
  * at least half are not list items, so an ordinary bulleted list stays copy,
  * and the others are all headings or all plain lines, so a grid of features
  * with short headings and taglines stays copy; or a link label on its own
- * ("LEER MÁS", "Ver portafolio completo"). Returns one ordinary piece when
- * there is nothing to cut.
+ * ("LEER MÁS", "Read more »"). Returns one ordinary piece when there is
+ * nothing to cut.
  */
 export function splitLeftovers(text: string): TextPiece[] {
   const lines = (text || '').replace(/\r\n?/g, '\n').split('\n');
@@ -114,9 +135,10 @@ export function splitLeftovers(text: string): TextPiece[] {
     if (nameList) {
       runs.push({ start: run[0].index, end: run[run.length - 1].index });
     } else {
-      // Link labels inside a shorter run are cut one by one.
+      // Inside a shorter run, labels in capitals and links that only say "more"
+      // are cut one by one; a link that names where it leads stays copy.
       for (const item of run) {
-        if (isLinkLabel(item.line)) runs.push({ start: item.index, end: item.index });
+        if (isLoneLeftover(item.line)) runs.push({ start: item.index, end: item.index });
       }
     }
     at = stop + 1;
