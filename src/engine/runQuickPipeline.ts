@@ -48,7 +48,13 @@ import {
 import type { TestimonialZone } from './quoteLock';
 import { contentToText } from '../services/api/contentText';
 
-/** How many times each version is scored; the middle reading is used. */
+/**
+ * How many readings a version gets when one is not enough: when its first
+ * reading is within QUICK_SCORE_MARGIN of another version or of the original
+ * (see scoreQuickVersions). The middle reading is used. Until 2026-10-14 every
+ * version was read this many times; that day, of seven texts read three times
+ * each, five came back identical and the other two within 4 points.
+ */
 export const QUICK_SCORE_SAMPLES = 3;
 /**
  * Scores this close are "about the same". Measured on 2026-10-06: one page,
@@ -336,22 +342,42 @@ export async function scoreQuickVersions(
   );
 
   // One reading of the scorer is not exact: the same text can come back up to
-  // three points apart. So every version is scored QUICK_SCORE_SAMPLES times and
-  // the middle reading is used. The first reading comes from the comparison
-  // above; the others are asked for here. A reading that failed is left out, so
-  // a failed call never reaches the screen as "0 / 100". Versions that keep an
-  // earlier score are not read again.
+  // three points apart. A reading only matters where it could change the
+  // outcome, so a version is read again (QUICK_SCORE_SAMPLES readings in all,
+  // the middle one used) only when its first reading is within
+  // QUICK_SCORE_MARGIN points of another version's or of the original's, or
+  // when the first reading failed. Otherwise the first reading stands. The
+  // first reading comes from the comparison above; the others are asked for
+  // here. A reading that failed is left out, so a failed call never reaches the
+  // screen as "0 / 100". Versions that keep an earlier score are not read again,
+  // but their score counts when deciding who is close.
   throwIfStopped(signal);
   const kind = quickTextKindOf(formState);
   const context = buildQuickScoringContext(goalKey, kind, formState.quickGoalLabel);
   const fresh = versions.filter(version => !isUsableScore(keepScores?.absoluteByVersion[version.id]));
   const unscoredIds: string[] = [];
+  const firstTotal = (id: string): number | null => {
+    const kept = keepScores?.absoluteByVersion[id];
+    if (isUsableScore(kept)) return kept.total;
+    const read = absoluteByVersion[id];
+    return isUsableScore(read) ? read.total : null;
+  };
+  const needsMoreReadings = (id: string): boolean => {
+    const mine = firstTotal(id);
+    if (mine == null) return true;
+    return versions.some(other => {
+      if (other.id === id) return false;
+      const theirs = firstTotal(other.id);
+      return theirs != null && Math.abs(theirs - mine) <= QUICK_SCORE_MARGIN;
+    });
+  };
 
   const settled = await Promise.all(
     fresh.map(async version => {
       const first = absoluteByVersion[version.id];
+      const extra = needsMoreReadings(version.id) ? QUICK_SCORE_SAMPLES - 1 : 0;
       const more = await Promise.all(
-        Array.from({ length: QUICK_SCORE_SAMPLES - 1 }, async () => {
+        Array.from({ length: extra }, async () => {
           try {
             return await generateAbsoluteScore(
               version.content,

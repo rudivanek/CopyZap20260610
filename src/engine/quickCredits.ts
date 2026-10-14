@@ -56,7 +56,9 @@ export function useSessionCredits(sessionId: string | null | undefined, tick: nu
  * kept parts). Measured on 22 runs of 2026-10-11 and 10-12: 29 to 31 credits
  * up to 150 words, 34 to 36 at about 300, about 60 at 700 to 1,350. Most of a
  * run is the same number of calls whatever the length (3 versions, each
- * scored three times), so short texts all cost about the same.
+ * scored three times), so short texts all cost about the same. Since
+ * 2026-10-14 a version is scored again only when it is close to another
+ * (see scoreQuickVersions), so a run can use fewer; not yet re-measured.
  * Above 1,500 words there are no measurements yet; the estimate is said to be
  * a lower bound there.
  */

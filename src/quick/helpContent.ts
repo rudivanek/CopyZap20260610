@@ -83,7 +83,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       },
       {
         term: 'Improve',
-        text: 'The part is rewritten. This is the starting choice for most parts.',
+        text: 'The part is rewritten. For a web page, CopyZap may reword it, move it, change its heading, or join it with another part, so the new page reads well from top to bottom. It never adds facts your copy does not state. This is the starting choice for most parts.',
       },
       {
         term: 'Keep as is',
@@ -94,9 +94,13 @@ export const HELP_SECTIONS: HelpSection[] = [
         text: 'The part is dropped from the new page. Use it for things that are not copy, such as a list of blog articles.',
       },
       {
+        term: 'Page leftovers',
+        text: 'Lines that only make sense on the live page: a row of client names from a portfolio, "Read more" under a heading, the names on testimonial tabs. CopyZap gives each run of them a row of its own, set to "Leave out", because left in they are scored as copy and pull the score down. They are left out of your original too, so the comparison stays fair. Set a row back to "Improve" or "Keep as is" if it belongs in the copy.',
+      },
+      {
         term: 'Testimonials',
         text:
-          'What your customers said should not be reworded. Testimonials that CopyZap finds get a row of their own, set to "Keep as is". You can change that choice like any other.',
+          'What your customers said should not be reworded. Testimonials that CopyZap finds get a row of their own, set to "Keep as is". They stay word for word, but on a web page CopyZap may move them to where they help most, usually just before the call to action. You can change that choice like any other.',
       },
     ],
   },
@@ -115,7 +119,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       },
       {
         term: 'About the same',
-        text: `Every version is scored ${QUICK_SCORE_SAMPLES} times and the middle result counts. Even so, a score is not exact. Versions within ${QUICK_SCORE_MARGIN} points of each other are marked "About the same as the best": choose between them by reading, not by the number.`,
+        text: `A score is not exact: the same text can come back a few points apart. When a version lands within ${QUICK_SCORE_MARGIN} points of another version or of your original, it is scored ${QUICK_SCORE_SAMPLES} times and the middle result counts. Versions within ${QUICK_SCORE_MARGIN} points of each other are marked "About the same as the best": choose between them by reading, not by the number.`,
       },
       {
         term: 'Comparison & rankings',
