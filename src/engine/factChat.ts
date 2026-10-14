@@ -29,7 +29,7 @@ import {
   FACT_BLANK,
   exampleLanguage,
   goalLine,
-  kindGuidance,
+  kindLineFor,
   MissingFactQuestion,
   safeExample,
   USER_FACT_MAX_CHARS,
@@ -110,9 +110,13 @@ export const questionsAsked = (turns: ChatTurn[]) => turns.filter(turn => turn.f
 
 // --- Only what the user said -------------------------------------------------
 
-/** Numbers as written, without thousands separators: "32,000" and "32.000" are 32000; "1,5" is 1.5. */
+/**
+ * Numbers as written, without thousands separators: "32,000" and "32.000" are
+ * 32000; "1,5" is 1.5. A space is not a separator: with it, "unos 120" and a
+ * next answer "120 sitios" read as 120120, and the fact was dropped (seen 2026-10-13).
+ */
 export function numbersIn(text: string): string[] {
-  const plain = text.replace(/(\d)[.,\s](?=\d{3}(?!\d))/g, '$1');
+  const plain = text.replace(/(\d)[.,](?=\d{3}(?!\d))/g, '$1');
   return (plain.match(/\d+(?:[.,]\d+)?/g) ?? []).map(number => number.replace(',', '.'));
 }
 
@@ -124,6 +128,14 @@ const currenciesIn = (text: string) => text.match(CURRENCY_WORDS) ?? [];
  * figure the model made up is dropped. A currency the user never named is
  * taken out of the fact.
  */
+/**
+ * Words that make a number stronger: "más de 120" claims more than "unos 120".
+ * Taken out of a fact when the user never used them (seen 2026-10-13: the
+ * answer "unos 120" became "Más de 120 sitios").
+ */
+const STRONGER = /(?:\b(?:m[aá]s de|more than|over|at least|al menos|m[ií]nimo)\s+)(?=\d)|\+\s*(?=\d)|(?<=\d)\s*\+/gi;
+const strongerIn = (text: string) => (text.match(STRONGER) ?? []).map(word => word.toLowerCase().replace(/\s+/g, ' ').trim());
+
 export function factsSaidByUser(facts: string[], turns: ChatTurn[]): string[] {
   const said = turns
     .filter(turn => turn.from === 'user')
@@ -132,11 +144,20 @@ export function factsSaidByUser(facts: string[], turns: ChatTurn[]): string[] {
   const saidNumbers = new Set(numbersIn(said));
   const base = (currency: string) => currency.toLowerCase().replace('ó', 'o').replace(/s$|es$/, '');
   const saidCurrencies = new Set(currenciesIn(said).map(base));
+  const saidStronger = new Set(strongerIn(said));
+  const capitalised = (text: string) => text.charAt(0).toUpperCase() + text.slice(1);
   return cleanUserFacts(
     facts
       .filter(fact => numbersIn(fact).every(number => saidNumbers.has(number)))
       // A currency the user never named is taken out, not the whole fact: "$32,000 MXN" for "32,000 MXN".
-      .map(fact => fact.replace(CURRENCY_WORDS, currency => (saidCurrencies.has(base(currency)) ? currency : '')).replace(/\s+/g, ' ').trim())
+      .map(fact => fact.replace(CURRENCY_WORDS, currency => (saidCurrencies.has(base(currency)) ? currency : '')))
+      // "Más de", "more than", "+" the user never wrote are taken out: "Más de 120 sitios" for "unos 120".
+      // ("hasta" / "up to" stay: they make a number weaker, and "hasta el 30" is also a date.)
+      .map(fact => {
+        const lessened = fact.replace(STRONGER, word => (saidStronger.has(word.toLowerCase().replace(/\s+/g, ' ').trim()) ? word : ''));
+        return lessened === fact ? fact : capitalised(lessened.trim());
+      })
+      .map(fact => fact.replace(/\s+/g, ' ').trim())
   );
 }
 
@@ -152,12 +173,11 @@ export const endsChat = (answer: string) => DONE_ANSWER.test(answer.trim().repla
 // --- One step ----------------------------------------------------------------
 
 function systemPrompt(context: FactChatContext, planned: MissingFactQuestion[]): string {
-  const guidance = kindGuidance(context.kind);
   const language = exampleLanguage(context.language);
   const plannedList = planned.length
     ? planned.map(question => `- ${question.question}`).join('\n')
     : '- (nothing important was found missing; ask only what the user offers)';
-  return `You help a business owner add true facts to a piece of marketing copy before it is rewritten. ${goalLine(context.goalKey, context.goalLabel)} ${guidance.line}
+  return `You help a business owner add true facts to a piece of marketing copy before it is rewritten. ${goalLine(context.goalKey, context.goalLabel)} ${kindLineFor(context.goalKey, context.kind)}
 
 The rewrite may only use facts the copy states, plus the facts the user gives in this chat. These gaps were found in the copy, most important first:
 ${plannedList}

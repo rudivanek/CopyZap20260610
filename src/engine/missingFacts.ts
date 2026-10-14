@@ -15,8 +15,9 @@
  * higher on average (branding page 70 -> 77), and invented additions fell by
  * half (22 -> 11 over 15 versions).
  *
- * Asked for the goals Convert and Other only: urgency or a price is the wrong
- * question for copy that informs or builds a brand, and only Convert was measured.
+ * Asked for every goal since 2026-10-13, each with its own gaps (GOAL_GAPS):
+ * Convert and Other ask about offer, urgency, price and proof; Nurture, Inform,
+ * Educate and Brand never ask for a price, an offer or a deadline.
  * Which gaps and how many depend on the kind of text (KIND_GUIDANCE below).
  * Besides the questions the user can add "anything else" in their own words.
  *
@@ -41,12 +42,69 @@ export const USER_FACTS_MAX = 6;
 /** In an example answer: where the user's own number, date or name goes. */
 export const FACT_BLANK = '___';
 
-/** The goals the questions are asked for. */
-const ASKED_FOR: GoalKey[] = ['convert', 'custom'];
+/** The goals the questions are asked for: all of them, each with its own gaps (GOAL_GAPS). */
+const ASKED_FOR: GoalKey[] = ['convert', 'nurture', 'inform', 'educate', 'brand', 'custom'];
 
 export function asksForMissingFacts(goalKey: GoalKey | null | undefined): boolean {
   return !!goalKey && ASKED_FOR.includes(goalKey);
 }
+
+/** Goals that move the reader to act: the gaps are offer, urgency, price and the like. */
+const ACTION_GOALS: GoalKey[] = ['convert', 'custom'];
+
+const ACTION_GAPS = `- what makes the business different: something concrete it does that others do not (a method, something included at no extra cost, a specialty), not a quality every competitor claims
+- what the client gets: what is included and what they have at the end
+- how long it takes: delivery time or response time
+- an offer or first step that lowers the risk (free consultation, trial, quote)
+- a reason to act now (a real date, limited capacity, a season)
+- proof: a result, a number of clients, a named client, a rating, a certification, a partnership, an award
+- a price or price range
+- a guarantee
+- what happens after the reader acts`;
+
+/**
+ * What each other goal needs that only the business can supply. Price, offers
+ * and deadlines are the wrong questions for copy that informs, teaches, keeps
+ * a relationship or builds a brand.
+ */
+const GOAL_GAPS: Partial<Record<GoalKey, { line: string; gaps: string; never: string }>> = {
+  nurture: {
+    line: 'Its goal: Nurture — keep a warm relationship with people who already know the business.',
+    gaps: `- something new or useful for the reader: a tip, a resource, news about the business
+- a concrete detail that shows how the business looks after its clients: support after the sale, how long it has worked with them
+- a true, personal piece of proof: a named client, a short story of a result
+- a gentle next step: what the reader can do if they want to (reply, book, read more)`,
+    never: 'Never ask for a price, an offer, a discount or a deadline.',
+  },
+  inform: {
+    line: 'Its goal: Inform — announce or update.',
+    gaps: `- what exactly is new or changes
+- when: the date it starts or happens
+- who it affects or is for
+- what the reader needs to do, if anything, and by when
+- where to find more details or whom to contact`,
+    never: 'Never ask for a price, an offer or proof, unless the news itself is about them.',
+  },
+  educate: {
+    line: 'Its goal: Educate — teach or onboard.',
+    gaps: `- a concrete example or case the reader can picture
+- the steps, or how long it takes
+- what the reader will be able to do afterwards
+- what the reader needs before starting
+- who teaches it and why they know: experience, credentials
+- where to get help or learn more`,
+    never: 'Never ask for a price, an offer or a reason to act now.',
+  },
+  brand: {
+    line: 'Its goal: Brand — build trust and a clear identity.',
+    gaps: `- what makes the business different: something concrete it does that others do not (a method, a specialty, something included), not a quality every competitor claims
+- proof: years in business, number of clients, a named client, a result, a certification, a partnership, an award
+- the facts behind its values: what it actually does that shows them
+- its story: when and where it started, who is behind it
+- who it is for: the clients it serves best`,
+    never: 'Never ask for a price, an offer, a discount or a deadline.',
+  },
+};
 
 export interface MissingFactQuestion {
   /** difference, included, timing, offer, urgency, proof, price, guarantee, next_step or other. */
@@ -63,6 +121,8 @@ export interface MissingFactQuestion {
 
 export function goalLine(goalKey: GoalKey, goalLabel?: string): string {
   if (goalKey === 'custom' && goalLabel) return `Its goal, in the user's own words: ${goalLabel}.`;
+  const goal = GOAL_GAPS[goalKey];
+  if (goal) return goal.line;
   return 'Its goal: Convert — get the reader to take an action or buy.';
 }
 
@@ -102,21 +162,39 @@ export function exampleLanguage(language?: string | null): string {
   return language?.trim() ? language.trim() : 'the language of the copy';
 }
 
+/** For the goals other than Convert: only the kind of text and how many questions it has room for. */
+const KIND_NAMES: Record<TextKindKey, string> = {
+  web_page: 'a web page',
+  email: 'an email or newsletter',
+  ad: 'an ad',
+  social_post: 'a social media post',
+  short_text: 'a short text (a slogan, headline or USP)',
+  other: 'a piece of copy',
+};
+
+/** The gaps for this goal: Convert and Other ask about action; the other goals have their own. */
+function goalGaps(goalKey: GoalKey) {
+  return ACTION_GOALS.includes(goalKey) ? undefined : GOAL_GAPS[goalKey];
+}
+
+/** What kind of text it is and what that allows, for this goal. Also used by the chat (factChat.ts). */
+export function kindLineFor(goalKey: GoalKey, kind: TextKindKey | null | undefined): string {
+  const goal = goalGaps(goalKey);
+  if (!goal) return kindGuidance(kind).line;
+  const name = KIND_NAMES[kind ?? 'other'] ?? KIND_NAMES.other;
+  const short = kind === 'short_text' ? ' Ask at most one question, and only about what makes the business different.' : '';
+  return `It is ${name}.${short} ${goal.never}`;
+}
+
 function systemPrompt(goalKey: GoalKey, goalLabel?: string, kind?: TextKindKey | null, language?: string | null): string {
   const guidance = kindGuidance(kind);
   const examples = exampleLanguage(language);
-  return `You read a piece of marketing copy before it is rewritten. ${goalLine(goalKey, goalLabel)} ${guidance.line}
+  const goal = goalGaps(goalKey);
+  const kindLine = kindLineFor(goalKey, kind);
+  return `You read a piece of marketing copy before it is rewritten. ${goalLine(goalKey, goalLabel)} ${kindLine}
 
 The rewrite may only use facts the copy states. So find what is MISSING that would most help the copy reach its goal, and that only the business itself can supply. Typical gaps:
-- what makes the business different: something concrete it does that others do not (a method, something included at no extra cost, a specialty), not a quality every competitor claims
-- what the client gets: what is included and what they have at the end
-- how long it takes: delivery time or response time
-- an offer or first step that lowers the risk (free consultation, trial, quote)
-- a reason to act now (a real date, limited capacity, a season)
-- proof: a result, a number of clients, a named client, a rating, a certification, a partnership, an award
-- a price or price range
-- a guarantee
-- what happens after the reader acts
+${goal ? goal.gaps : ACTION_GAPS}
 
 Rules:
 - Up to ${guidance.max} ${guidance.max === 1 ? 'gap' : 'gaps'}, most important first. Fewer is fine. If nothing important is missing, return an empty list.
@@ -128,7 +206,7 @@ Rules:
   - One plain fact. No sales phrases such as "filling fast" or "don't miss out", and never a customer quote or testimonial.
   - For what makes the business different, the example names something concrete (for example "Every site is delivered with ${FACT_BLANK} included"), never a superlative such as "the best" or "the only".
 
-Answer with JSON only: {"gaps":[{"kind":"difference|included|timing|offer|urgency|proof|price|guarantee|next_step|other","question":"(in English)","example":"(in ${examples})"}]}`;
+Answer with JSON only: {"gaps":[{"kind":"difference|included|timing|offer|urgency|proof|price|guarantee|next_step|news|date|audience|example|steps|story|other","question":"(in English)","example":"(in ${examples})"}]}`;
 }
 
 /** Where testimonials were taken out: they are on the page, so they are not asked for. */
@@ -159,8 +237,12 @@ const CURRENCY = /[$€£¥₹]|\b(?:MXN|USD|EUR|GBP|CAD|AUD|CHF|COP|ARS|CLP|PEN
  * Numbers belong in the blanks. A currency is taken out: CopyZap does not
  * guess it.
  */
+/** A web address or domain in an example ("cyclefix.com", "sharpen.studio/soporte"): the user's own goes there. */
+const WEB_ADDRESS = /\b(?:https?:\/\/)?(?:www\.)?[a-z0-9-]+(?:\.[a-z0-9-]+)*\.[a-z]{2,}(?:\/[^\s,;]*)?/gi;
+
 export function safeExample(value: unknown): string {
   const example = oneLine(value, USER_FACT_MAX_CHARS)
+    .replace(WEB_ADDRESS, FACT_BLANK)
     .replace(BLANKS, FACT_BLANK)
     .replace(CURRENCY, '')
     .replace(/\s+/g, ' ')
