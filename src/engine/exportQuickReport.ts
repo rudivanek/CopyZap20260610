@@ -23,7 +23,6 @@ import type { ComparisonResult } from '../services/api/comprehensiveScoring';
 import { deriveQuickLabel } from './buildQuickFormState';
 import { effectiveGates } from './gateRules';
 import { ORIGINAL_VERSION_ID } from './pickWinner';
-import { dropUserFactClaims } from '../services/api/flagOwnership';
 import type { QuickRunResult } from './runQuickPipeline';
 
 export interface QuickReportInput {
@@ -54,15 +53,10 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
   const source = scores.comparisonResult;
   const rows = source.rows
     .filter(row => inReport(row.versionId))
-    .map(row => {
-      // A claim that quotes a fact the user added is not listed as "source unknown": the user is its source.
-      const flags = (row as { verificationFlags?: string[] }).verificationFlags;
-      return {
-        ...row,
-        isWinner: row.versionId === winnerId,
-        ...(Array.isArray(flags) ? { verificationFlags: dropUserFactClaims(flags, result.formState.quickUserFacts) } : {}),
-      };
-    })
+    .map(row => ({
+      ...row,
+      isWinner: row.versionId === winnerId,
+    }))
     // Quick's best version first: with equal scores the report marks the first
     // row it meets, and that has to be the version the screen shows as best.
     .sort((a, b) => Number(b.isWinner) - Number(a.isWinner));

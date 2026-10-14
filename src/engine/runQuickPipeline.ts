@@ -34,6 +34,7 @@ import {
 import { textKindWritingNote } from '../services/api/textKinds';
 import { KEEP_TO_ORIGINAL_NOTE } from './keepToOriginal';
 import { cleanUserFacts, userFactsWritingNote } from './missingFacts';
+import { claimsStatingUserFacts, withoutStatedFacts } from './factClaimCheck';
 import { effectiveGates } from './gateRules';
 import { stopSessionWith, throwIfStopped } from './quickStop';
 import { ORIGINAL_OPTION_LABEL, ORIGINAL_VERSION_ID, pickWinner } from './pickWinner';
@@ -319,6 +320,17 @@ export async function scoreQuickVersions(
   const rows = comparisonResult.rows as ScoredRow[];
   const absoluteByVersion: Record<string, AbsoluteScoreBreakdown> = { ...(unified.absoluteByVersion ?? {}) };
 
+  // While the versions are scored again, an LLM reads the "claims to verify"
+  // and the facts the user added, and by meaning decides which claims only
+  // state a fact (so are not "source unknown"). It never throws: on any
+  // failure nothing is hidden (see factClaimCheck.ts).
+  const statedFacts = claimsStatingUserFacts(
+    rows.flatMap(row => row.verificationFlags ?? []),
+    formState.quickUserFacts,
+    user,
+    formState.sessionId
+  );
+
   // One reading of the scorer is not exact: the same text can come back up to
   // three points apart. So every version is scored QUICK_SCORE_SAMPLES times and
   // the middle reading is used. The first reading comes from the comparison
@@ -406,6 +418,15 @@ export async function scoreQuickVersions(
       }
       const at = unscoredIds.indexOf(version.id);
       if (at >= 0) unscoredIds.splice(at, 1);
+    }
+  }
+
+  // Claims that only state a fact the user added are taken out of every
+  // version's flags; the LLM check ran in parallel with the scoring above.
+  const stated = await statedFacts;
+  for (const row of rows) {
+    if (row.verificationFlags && row.verificationFlags.length > 0) {
+      row.verificationFlags = withoutStatedFacts(row.verificationFlags, stated);
     }
   }
 
