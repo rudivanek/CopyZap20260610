@@ -13,7 +13,7 @@ import { FormState, GeneratedContentItem, GeneratedContentItemType, GoalKey, Use
 import { generateCopy } from '../services/api/copyGeneration';
 import { generateUnifiedComparison } from '../services/api/unifiedComparison';
 import type { ComparisonResult } from '../services/api/comprehensiveScoring';
-import { generateAbsoluteScore } from '../services/api/absoluteScoring';
+import { generateAbsoluteScore, isCompleteScore } from '../services/api/absoluteScoring';
 import type { AbsoluteScoreBreakdown } from '../services/api/absoluteScoring';
 import { calculateTargetWordCount } from '../services/api/utils';
 import { checkUserAccess } from '../services/supabaseClient';
@@ -47,6 +47,7 @@ import {
 } from './quoteLock';
 import type { TestimonialZone } from './quoteLock';
 import { contentToText } from '../services/api/contentText';
+import { removeInventedDetails } from './inventedDetails';
 
 /**
  * How many readings a version gets when one is not enough: when its first
@@ -283,7 +284,7 @@ type ScoredRow = ComparisonResult['rows'][number] & {
  * copy, so 0 is treated as "not scored" rather than shown as a result.
  */
 function isUsableScore(score: AbsoluteScoreBreakdown | null | undefined): score is AbsoluteScoreBreakdown {
-  return !!score && score.total > 0;
+  return isCompleteScore(score);
 }
 
 /** Scores every version against the goal and picks the winner. */
@@ -627,6 +628,19 @@ export async function runQuickPipeline(
       written.firstError || 'No version could be written. Please try again.'
     );
   }
+
+  // Numbers and quoted words the writer added, that neither the original nor
+  // the user's facts state, are taken out before anything is scored, so a
+  // version cannot win with an invented detail (see inventedDetails.ts). Done
+  // before the testimonials go back in, so their words are never edited.
+  const allowedText = [fullCopy, ...userFacts].join('\n\n');
+  await Promise.all(
+    written.items.map(async item => {
+      const cleaned = await removeInventedDetails(contentToText(item.content), allowedText, user, sessionId);
+      if (cleaned.removed.length > 0) item.content = cleaned.text;
+    })
+  );
+  throwIfStopped(input.signal);
 
   // Put the testimonials back, word for word, and check every version for
   // quoted passages that are not in the original.

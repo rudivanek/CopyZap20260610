@@ -1,7 +1,49 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.65
-Last Updated: 2026-10-14T20:00:00Z
+Version: 1.66
+Last Updated: 2026-10-14T21:00:00Z
+
+---
+
+## Quick — Honest Scores: Failed Readings and Invented Details (2026-10-14)
+
+**Feature:** Two fixes so a Quick version's score is honest:
+1. A score reading with a part missing or at 0 (seen 2026-10-14: Audience fit 0/25, total 55) is no longer shown as a score. The scorer's reply is checked for all four parts; when any is missing or at 0, that reading is treated as failed, and the scorer is asked once more before the score counts as failed. Real copy never scores 0 on a part, so a 0 means the scorer's reply was broken.
+2. Right after writing, Quick takes out numbers and quoted words that neither the original nor the user's facts state (for example "Fortune 500", "24 horas"), before any version is scored. One small Haiku call per version that has such a detail; none otherwise. The edits are exact "find" and "replace" pairs applied by plain text replacement, so nothing else in the version can change; an edit whose text is not found exactly once, that touches a marker line (`[[TESTIMONIALS-1]]`, `[[KEEP-1]]`), or that takes out a number that is not one of the details, is not applied. If the edited version has a number or quote the version did not have before, all edits are dropped and the version stays as written. Done before the testimonials go back in, so their words are never edited. It never throws — on any failure the version stays as written, and the checks on the result screen still show what it added.
+
+**Why:** On 2026-10-14, a Sales Boost run's scorer reply had its Audience fit missing; it was read as 0/25 and a version showed 55. The same day, Sales Boost's versions said "empresas Fortune 500" twice, once in the winning version, and other runs added "24 horas" and "11pm". The result-screen checks ("Numbers not in your original", "Quoted words not in your original") showed them, but the version was scored, and could win, with the detail in it. The writer is already told to add no facts (keepToOriginal.ts); this takes out what slips through, before the score.
+
+**New file — `src/engine/inventedDetails.ts`:** A module that checks each version the same way the result screen checks it, and takes out what it added:
+- `inventedDetails(text, allowed)`: the numbers (via `checkNumbers` from `numberCheck.ts`) and quoted words (via `findUnverifiedQuotes` from `quoteLock.ts`) of a text that the allowed text does not have. Each detail carries its sentence as context.
+- `applyEdits(text, edits, details)`: applies the model's "find"/"replace" pairs one by one. An edit is left out when its text is not found exactly once, it or its replacement touches a `[[...]]` marker line, or it takes out a number that is not one of the listed details (seen in a test: "Más de 90 empresas en 20 países … un 35% más de cierres" became "Empresas ya trabajan con nosotros", losing two real facts with the 35%). A sentence taken out can leave a double space or an empty line; these are cleaned.
+- `removeInventedDetails(text, allowed, user, sessionId?)`: the entry point. When a version has no details, or more than `MAX_DETAILS = 8`, it returns the text unchanged. Otherwise one small call (`claude-haiku-4-5`, max 1200 tokens, JSON mode) proposes the smallest edits that take each claim out — the whole claim the detail belongs to, never only the digits, and never a vaguer form of the same claim in its place. The edits are applied; the edited version is checked again for new numbers or quotes, and its `[[...]]` marker lines are compared with the original's. When anything new came in, or a marker line changed, all edits are dropped and the version stays as written. Returns `{ text, removed }` — the removed list is the details taken out, named as the check named them ("500", a quote). Never throws.
+- `CleanedVersion` interface: `{ text: string; removed: string[] }`.
+- `Detail` interface: `{ item: string; context: string }`.
+- `CLEANUP_MODEL = 'claude-haiku-4-5'`, `MAX_DETAILS = 8`, a `SYSTEM_PROMPT` (the editor's instructions), and a `MARKER` regex for `[[...]]` lines.
+
+**Edit — `src/services/api/absoluteScoring.ts` (5 edits):** Each edit was a find-and-replace applied once; nothing else in the file changed.
+- **Edit 1 — the scorer's body becomes `readOnce`:** The `try { const response = await makeApiRequestWithFallback(...)` block that held the whole scoring call was wrapped into a `const readOnce = async (): Promise<AbsoluteScoreBreakdown | null> => { ... }` closure, returning `null` for a failed reading instead of a fallback score. The token tracking and the rest of the call are inside it.
+- **Edit 2 — a failed reading returns `null`:** After `JSON.parse(cleanJsonResponse(raw))`, a new check reads the four parts (`clarity`, `persuasion`, `audience_fit`, `structure`), and returns `null` when any is not a finite number or is `<= 0`. The comment names the 2026-10-14 finding (Audience fit missing, read as 0/25, total 55). The `clamp` helper follows unchanged.
+- **Edit 3 — ask once more before failing:** After the `readOnce` closure's closing `};`, a new `for (let attempt = 0; attempt < 2; attempt += 1)` loop calls `readOnce()` and returns its score when it is not `null`; a thrown error is caught and the loop reads again. After two failed readings, `fallbackScore('Scoring failed')` is returned as before. The `// ── Remembered scores ───` separator follows.
+- **Edit 4 — `rememberAbsoluteScore` uses `isCompleteScore`:** The guard `if (!score || !(score.total > 0)) return;` became `if (!isCompleteScore(score)) return;`, so a reading with a part at 0 is not remembered in the score cache.
+- **Edit 5 — `isCompleteScore` exported:** A new exported `isCompleteScore(score)` type guard returns true only when every part (`total`, `clarity`, `persuasion`, `audience_fit`, `structure`) is above 0. Placed above `fallbackScore`.
+
+**Edit — `src/engine/runQuickPipeline.ts` (4 edits):** Each edit was a find-and-replace applied once; nothing else in the file changed.
+- **Edit 1 — import `isCompleteScore`:** The `import { generateAbsoluteScore } from '../services/api/absoluteScoring';` line became `import { generateAbsoluteScore, isCompleteScore } from '../services/api/absoluteScoring';`.
+- **Edit 2 — import `removeInventedDetails`:** After `import { contentToText } from '../services/api/contentText';`, a new `import { removeInventedDetails } from './inventedDetails';` line was added.
+- **Edit 3 — `isUsableScore` uses `isCompleteScore`:** The body of `isUsableScore` changed from `return !!score && score.total > 0;` to `return isCompleteScore(score);`, with the comment extended to name the 2026-10-14 finding (Audience fit 0/25, total 55). A reading with a part at 0 is now left out and the version is read again.
+- **Edit 4 — take out invented details before scoring:** After the written versions are checked for emptiness and before the testimonials go back in, a new block builds `allowedText = [fullCopy, ...userFacts].join('\n\n')` and calls `removeInventedDetails(contentToText(item.content), allowedText, user, sessionId)` on each version in parallel (`Promise.all`); when details were removed, the version's `content` is replaced with the cleaned text. `throwIfStopped(input.signal)` follows. The comment explains why it is done before the testimonials go back in (so their words are never edited).
+
+**Effect on Copy Maker:** None. Copy Maker does not call `runQuickPipeline`, `inventedDetails.ts`, or the absolute scorer's `readOnce`/`isCompleteScore` path (it uses `generateAbsoluteScore` through the comparison step, which now also benefits from the failed-reading retry, but that is a scoring-correctness fix, not a behaviour change for Copy Maker's own writing). The invented-details removal is Quick-only: it runs inside `runQuickPipeline`, which Copy Maker does not use. Copy Maker writes as before.
+
+**Effect on existing results:** None. The invented-details removal runs right after writing, before a version is scored or saved; it is not part of a saved result. A result saved before this change was scored under the prior rules (a part at 0 was counted); the new failed-reading handling applies to new runs and new rescorings made after it. The score cache is affected only in that a failed reading is no longer cached, which is the intended fix. The `isCompleteScore` check in `rememberAbsoluteScore` means a previously-cached score with a part at 0 (if any) is not re-cached, but such a score was already not useful.
+
+**Files touched:** `src/engine/inventedDetails.ts` (new), `src/services/api/absoluteScoring.ts` (5 edits), `src/engine/runQuickPipeline.ts` (4 edits). `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes with no new errors.
+- A scorer reply with a part missing or at 0 is no longer shown as a score; the scorer is asked once more before the score counts as failed.
+- Right after writing, Quick takes out numbers and quoted words that neither the original nor the user's facts state, before any version is scored. One small Haiku call per version that has such a detail; none otherwise. An edit that is not safe to apply is left out; if the edited version has a new number or quote, all edits are dropped. The testimonials' words are never edited.
 
 ---
 

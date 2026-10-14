@@ -108,7 +108,7 @@ export async function generateAbsoluteScore(
     return fallbackScore('Empty content');
   }
 
-  try {
+  const readOnce = async (): Promise<AbsoluteScoreBreakdown | null> => {
     const response = await makeApiRequestWithFallback(
       ABSOLUTE_SCORE_MODEL,
       [
@@ -140,6 +140,12 @@ export async function generateAbsoluteScore(
     const raw = response.choices[0]?.message?.content ?? '';
     const parsed = JSON.parse(cleanJsonResponse(raw));
 
+    // A reply without all four parts, or with a part at 0, is a failed reading,
+    // not a score: real copy never scores 0 on a part. Seen 2026-10-14: a reply
+    // whose Audience fit was missing was counted as 0/25 and a version showed 55.
+    const parts = [parsed?.clarity, parsed?.persuasion, parsed?.audience_fit, parsed?.structure].map(Number);
+    if (parts.some(part => !Number.isFinite(part) || part <= 0)) return null;
+
     const clamp = (n: unknown, max: number) =>
       Math.min(max, Math.max(0, Math.round(Number(n) || 0)));
 
@@ -163,9 +169,18 @@ export async function generateAbsoluteScore(
       audience_fit_note: String(parsed.audience_fit_note || ''),
       structure_note:    String(parsed.structure_note    || ''),
     };
-  } catch {
-    return fallbackScore('Scoring failed');
+  };
+
+  // A failed reading is asked for once more before the score counts as failed.
+  for (let attempt = 0; attempt < 2; attempt += 1) {
+    try {
+      const score = await readOnce();
+      if (score) return score;
+    } catch {
+      // read again
+    }
   }
+  return fallbackScore('Scoring failed');
 }
 
 // ── Remembered scores ─────────────────────────────────────────────────────────
@@ -208,7 +223,7 @@ export function rememberAbsoluteScore(
   score: AbsoluteScoreBreakdown | null | undefined,
   kind?: TextKindChoice | null
 ): void {
-  if (!score || !(score.total > 0)) return;
+  if (!isCompleteScore(score)) return;
   const key = scoreKey(content, goalKey, goalLabel, kind);
   if (key) rememberedScores.set(key, score);
 }
@@ -263,6 +278,21 @@ export function rememberScoresOfResult(outputData: SavedScores | null | undefine
       structure_note: notes[3] || '',
     }, kind);
   }
+}
+
+/**
+ * True for a real reading: every part above 0. A failed reading comes back as
+ * 0 (fallbackScore), and a part at 0 means the scorer's reply was broken.
+ */
+export function isCompleteScore(score: AbsoluteScoreBreakdown | null | undefined): score is AbsoluteScoreBreakdown {
+  return (
+    !!score &&
+    score.total > 0 &&
+    score.clarity > 0 &&
+    score.persuasion > 0 &&
+    score.audience_fit > 0 &&
+    score.structure > 0
+  );
 }
 
 function fallbackScore(reason: string): AbsoluteScoreBreakdown {
