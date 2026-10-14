@@ -32,6 +32,12 @@ export interface TestimonialZone {
   text: string;
   /** How many testimonials the group holds. */
   count: number;
+  /**
+   * Set on a part the user keeps as it is that holds testimonials (a row of
+   * testimonials on the check screen). Like the groups Quick locks itself, it
+   * may be moved to where it helps the reader most; other kept parts stay put.
+   */
+  testimonials?: boolean;
 }
 
 export interface TestimonialLock {
@@ -282,13 +288,22 @@ export function lockTestimonials(copy: string): TestimonialLock {
 }
 
 /** What the writing step is told about the marker lines. Goes into the special instructions. */
-export function testimonialInstructions(zones: TestimonialZone[]): string {
+export function testimonialInstructions(
+  zones: TestimonialZone[],
+  /**
+   * True when the writer may move the testimonials (a new version of a page);
+   * false keeps them where they are (a change by request to a version).
+   */
+  movable = false
+): string {
   if (zones.length === 0) return '';
   const markers = zones.map(zone => zone.marker).join(', ');
   return [
     'This page has client testimonials that must stay exactly as their authors wrote them.',
     `They have been taken out of the text. Each group is represented by a marker line: ${markers}.`,
-    'Keep every marker line exactly as it is, on its own line, once, at the point where the testimonials belong. A heading above it is fine.',
+    movable
+      ? 'Keep every marker line exactly as it is, on its own line, once. Place it where the testimonials help the reader most, usually just before the final call to action, even if they stood elsewhere in the original. A heading above it is fine.'
+      : 'Keep every marker line exactly as it is, on its own line, once, at the point where the testimonials belong. A heading above it is fine.',
     'Do not write, quote, paraphrase, summarise or invent testimonials or customer quotes, and do not put words in quotation marks as if a customer had said them.',
   ].join('\n');
 }

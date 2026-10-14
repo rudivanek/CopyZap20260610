@@ -163,8 +163,9 @@ export function buildQuickFormState(input: QuickFormInput): FormState {
     // The writer's second pass may not add or remove facts (see keepToOriginal.ts).
     keepToOriginal: true,
     // Copy Maker's heading rule (new "compelling" headings in Title Case) is for
-    // writing new copy. Quick keeps the headings of the original instead (see
-    // QUICK_HEADINGS_NOTE in runQuickPipeline.ts and the kind notes in textKinds.ts).
+    // writing new copy. Quick asks for headings in the original's capitalisation
+    // style instead (see QUICK_HEADINGS_NOTE in runQuickPipeline.ts and the kind
+    // notes in textKinds.ts).
     includeSectionTitles: false,
     // For the goal "Other": the user's own words. Left out for the five fixed goals.
     ...(cleanQuickGoalLabel(input.goalLabel) ? { quickGoalLabel: cleanQuickGoalLabel(input.goalLabel) } : {}),

@@ -32,7 +32,7 @@ import {
   quickTextKindOf,
 } from './buildQuickFormState';
 import { textKindWritingNote } from '../services/api/textKinds';
-import { KEEP_TO_ORIGINAL_NOTE } from './keepToOriginal';
+import { KEEP_TO_ORIGINAL_NOTE, QUICK_REWRITE_NOTE } from './keepToOriginal';
 import { cleanUserFacts, userFactsWritingNote } from './missingFacts';
 import { claimsStatingUserFacts, withoutStatedFacts } from './factClaimCheck';
 import { effectiveGates } from './gateRules';
@@ -199,12 +199,16 @@ function toImprovedCopy(content: GeneratedContentItem['content']) {
 }
 
 /**
- * For a page, or when the kind of text is not known: the headings of the
- * original stay, in its style. The other kinds have their own note, which says
- * not to add headings.
+ * For a page, or when the kind of text is not known: the writer chooses the
+ * headings the new order needs, in the original's capitalisation style. The
+ * other kinds have their own note, which says not to add headings.
+ *
+ * Until 2026-10-14 this kept every heading of the original in its place. On
+ * sharpen.studio that kept a list of thirteen client names (each one a heading
+ * on the page) inside every version; see keepToOriginal.ts.
  */
 const QUICK_HEADINGS_NOTE =
-  'Headings: keep the headings of the original. A heading is a short line that names the part below it, with or without # marks. Write each one as a markdown heading (with the # or ## marks the original uses; where it uses none, # for the first heading and ## for the others), in the same place, and in the same capitalisation style as the original: sentence case stays sentence case, and you do not switch to Title Case. Keep the words of a heading unless other words clearly serve the goal better; then keep it about as short and in the same style. Do not add headings to a text that has none.';
+  'Headings: write the headings your version needs as markdown headings, # for the main heading and ## for the others. You may reword, reorder, merge or drop the headings of the original. Use the capitalisation style of the original: sentence case stays sentence case, and you do not switch to Title Case. Keep headings short. Do not add headings to a text that has none.';
 
 async function writeOneVersion(
   formState: FormState,
@@ -554,12 +558,17 @@ export async function runQuickPipeline(
   // What the writer is told on top of its own rules: to keep to the facts of
   // the original (see keepToOriginal.ts), the kind of text when it is not a
   // page (see textKinds.ts), and the parts it must not touch.
+  // A page may be rewritten freely (see keepToOriginal.ts); testimonials the
+  // user keeps as a row go where they help most, like those Quick locks itself.
+  // Other parts kept as they are stay in their place.
+  const keptTestimonials = keepZones.filter(zone => zone.testimonials);
+  const keptParts = keepZones.filter(zone => !zone.testimonials);
   const writerNotes = [
     KEEP_TO_ORIGINAL_NOTE,
     userFactsWritingNote(userFacts),
-    textKindWritingNote(quickTextKindOf(formState)) || QUICK_HEADINGS_NOTE,
-    keepInstructions(keepZones),
-    testimonialInstructions(lock.zones),
+    textKindWritingNote(quickTextKindOf(formState)) || `${QUICK_REWRITE_NOTE}\n\n${QUICK_HEADINGS_NOTE}`,
+    keepInstructions(keptParts),
+    testimonialInstructions([...lock.zones, ...keptTestimonials], true),
   ]
     .filter(Boolean)
     .join('\n\n');

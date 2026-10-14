@@ -13,6 +13,7 @@
  */
 import { lockTestimonials } from './quoteLock';
 import type { TestimonialZone } from './quoteLock';
+import { leftoverTitle, splitLeftovers } from './pageLeftovers';
 
 export type SectionChoice = 'improve' | 'keep' | 'leave';
 
@@ -33,6 +34,11 @@ export interface PageSection {
    * the testimonials apart from the text around them.
    */
   testimonials?: number;
+  /**
+   * Set on a row of page leftovers Quick found by itself (see pageLeftovers.ts):
+   * names from a portfolio grid, link labels. Proposed as "Leave out".
+   */
+  leftover?: boolean;
 }
 
 export interface SectionPlan {
@@ -117,31 +123,97 @@ export function splitIntoSections(copy: string): PageSection[] {
   // where they stand, so the user decides about them as about any other part.
   // A part that is announced as testimonials by its heading is already such a row.
   const rows: Omit<PageSection, 'id'>[] = [];
+
+  /**
+   * Pushes the text of a part as rows: its ordinary text, and each run of page
+   * leftovers in it as a row of its own, proposed as "Leave out" (see
+   * pageLeftovers.ts). A few words of ordinary text between leftovers (a
+   * heading above a "LEER MÁS") go with the next piece of text of the part, or
+   * with the one before when none follows. Returns the last row of ordinary
+   * text it pushed, or the one it was given.
+   */
+  const pushText = (
+    title: string,
+    text: string,
+    continued: boolean,
+    lastText: Omit<PageSection, 'id'> | null
+  ): Omit<PageSection, 'id'> | null => {
+    const pieces = splitLeftovers(text);
+    let carry = '';
+    let named = continued;
+    pieces.forEach((piece, position) => {
+      if (piece.leftover) {
+        rows.push({
+          title: `Page leftovers: ${leftoverTitle(piece.items)}`,
+          text: piece.text,
+          words: wordCount(piece.text),
+          suggested: 'leave',
+          hint: 'Looks like links or labels',
+          leftover: true,
+        });
+        return;
+      }
+      const body = carry ? `${carry}\n\n${piece.text}` : piece.text;
+      const laterText = pieces.slice(position + 1).some(item => !item.leftover);
+      const onlyHeadings = body.split('\n').every(line => !line.trim() || HEADING.test(line));
+      if ((wordCount(body) < TRAILING_PIECE_MIN_WORDS || onlyHeadings) && laterText) {
+        carry = body;
+        return;
+      }
+      carry = '';
+      if (wordCount(body) < TRAILING_PIECE_MIN_WORDS && lastText) {
+        lastText.text = `${lastText.text}\n\n${body}`;
+        lastText.words = wordCount(lastText.text);
+        return;
+      }
+      lastText = {
+        title: named ? `${title} (continued)` : title,
+        text: body,
+        words: wordCount(body),
+        suggested: 'improve',
+      };
+      named = true;
+      rows.push(lastText);
+    });
+    if (carry) {
+      if (lastText) {
+        lastText.text = `${lastText.text}\n\n${carry}`;
+        lastText.words = wordCount(lastText.text);
+      } else {
+        lastText = { title: named ? `${title} (continued)` : title, text: carry, words: wordCount(carry), suggested: 'improve' };
+        rows.push(lastText);
+      }
+    }
+    return lastText;
+  };
+
   parts.forEach((part, index) => {
     const title = part.title || (parts.length === 1 ? 'Whole text' : index === 0 ? 'Start of the page' : 'Untitled part');
     const proposal = suggest(title, part.text);
-    const lock = proposal.suggested === 'keep' ? null : lockTestimonials(part.text);
-    if (!lock || lock.count === 0) {
-      rows.push({ title, text: part.text, words: wordCount(part.text), ...proposal });
+    if (proposal.suggested === 'keep') {
+      // A part announced as testimonials: counted, so it may be moved like the others (see planSections).
+      const found = lockTestimonials(part.text).count;
+      rows.push({ title, text: part.text, words: wordCount(part.text), ...proposal, ...(found > 0 ? { testimonials: found } : {}) });
+      return;
+    }
+    const lock = lockTestimonials(part.text);
+    if (lock.count === 0) {
+      pushText(title, part.text, false, null);
       return;
     }
     // The part with its testimonials replaced by marker lines, cut at those lines.
     const pieces = lock.lockedCopy.split(/^\[\[TESTIMONIALS-\d+\]\]$/m).map(tidy);
     let lastText: Omit<PageSection, 'id'> | null = null;
+    let named = false;
     pieces.forEach((piece, position) => {
-      if (piece && lastText && wordCount(piece) < TRAILING_PIECE_MIN_WORDS) {
+      if (piece && lastText && wordCount(piece) < TRAILING_PIECE_MIN_WORDS && splitLeftovers(piece).every(item => !item.leftover)) {
         // A few words left behind the testimonials (a stray label) are not a row
         // of their own: they go with the text of the same part before them.
         lastText.text = `${lastText.text}\n\n${piece}`;
         lastText.words = wordCount(lastText.text);
       } else if (piece) {
-        lastText = {
-          title: position === 0 ? title : `${title} (continued)`,
-          text: piece,
-          words: wordCount(piece),
-          suggested: 'improve',
-        };
-        rows.push(lastText);
+        lastText = pushText(title, piece, named, lastText);
+        named = named || !!lastText;
       }
       const zone = lock.zones[position];
       if (zone) {
@@ -175,7 +247,13 @@ export function planSections(sections: PageSection[], choices: Record<string, Se
   const locked = used.map(section => {
     if (choiceOf(section) !== 'keep') return section.text;
     const marker = `[[KEEP-${zones.length + 1}]]`;
-    zones.push({ marker, text: section.text, count: section.testimonials ?? 1 });
+    zones.push({
+      marker,
+      text: section.text,
+      count: section.testimonials ?? 1,
+      // A row of testimonials may be moved by the writer (see testimonialInstructions in quoteLock.ts).
+      ...(section.testimonials ? { testimonials: true } : {}),
+    });
     return marker;
   });
   const keptRows = used.filter(section => choiceOf(section) === 'keep');
