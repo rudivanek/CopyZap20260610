@@ -94,7 +94,8 @@ export interface FactChatContext {
   sessionId?: string;
 }
 
-const NOTHING_MISSING_QUESTION = 'CopyZap found nothing important missing. Is there anything true about your business that should be in the copy?';
+/** When nothing is missing the section's intro says so; the chat only asks. */
+const NOTHING_MISSING_QUESTION = 'Is there anything true about your business that should be in the copy?';
 
 /** The chat's first turn: the first question found, or an open one when nothing is missing. */
 export function startFactChat(questions: MissingFactQuestion[]): FactChat {

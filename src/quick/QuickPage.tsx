@@ -21,6 +21,7 @@ import { asksForMissingFacts, findMissingFacts, MissingFactQuestion } from '../e
 import { FactAnswers, factsFromAnswers, OTHER_FACT_KEY } from './factAnswers';
 import { chatFacts, EMPTY_FACT_CHAT, FactChat } from '../engine/factChat';
 import { readChatChoice, saveChatChoice } from './QuickFactChat';
+import { FACT_FIELDS_OFF } from './QuickMissingFacts';
 import { getTextKind } from '../services/api/textKinds';
 import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
 import { changeQuickVersion, QuickChangeOutcome, QuickChangeParts, validateQuickChange } from '../engine/changeQuickVersion';
@@ -191,7 +192,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [facts, setFacts] = useState<{ key: string; questions: MissingFactQuestion[] | null } | null>(null);
   const [factAnswers, setFactAnswers] = useState<FactAnswers>({});
   // The same questions as a chat (see engine/factChat.ts), when the user chose it.
-  const [chatOn, setChatOn] = useState<boolean>(readChatChoice);
+  // Since 2026-10-13 always the chat: the answer fields are switched off (FACT_FIELDS_OFF in QuickMissingFacts.tsx).
+  const [chatChoice, setChatOn] = useState<boolean>(readChatChoice);
+  const chatOn = FACT_FIELDS_OFF || chatChoice;
   const [factChat, setFactChat] = useState<FactChat>(EMPTY_FACT_CHAT);
   // True while the copy, goal and corrections above are the ones the result on
   // screen was run with: right after a run from this page. False for a result

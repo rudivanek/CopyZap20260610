@@ -342,7 +342,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
     gateProblems.length > 0
       ? `This version may be incomplete: ${Array.from(new Set(gateProblems)).join(' and ')}.`
       : 'This version may be incomplete.';
-  // A claim that quotes a fact the user added on the check screen is not listed: the user is its source.
+  // Claims that only state a fact the user added are taken out when scoring (engine/factClaimCheck.ts).
   const flags = (winnerRow?.verificationFlags ?? []).filter(flag => flag && flag.trim().length > 0);
   // The same wording and grouping as in the rankings table.
   const claimNotes = flags.filter(isClaimNote).map(noteText);

@@ -24,6 +24,14 @@ interface QuickMissingFactsProps {
   chat: FactChatSwitch;
 }
 
+/**
+ * The answer fields are switched off since 2026-10-13: "Make it stronger" is
+ * the chat only (QuickFactChat.tsx), with no tick box. The fields' code stays a
+ * few weeks in case the chat has to be taken back, then it is deleted (with
+ * factAnswers.ts, the tick box and readChatChoice / saveChatChoice).
+ */
+export const FACT_FIELDS_OFF = true;
+
 export interface FactChatSwitch {
   on: boolean;
   onToggle: (on: boolean) => void;
@@ -42,6 +50,8 @@ const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answer
   const used = factsFromAnswers(asked, answers).length;
   const unfinished = unfinishedAnswers(asked, answers);
   const setAnswer = (key: string, value: string) => onAnswersChange({ ...answers, [key]: value });
+  const inChat = FACT_FIELDS_OFF || chat.on;
+  const nothingMissing = questions !== null && questions.length === 0;
 
   return (
     <section
@@ -53,19 +63,31 @@ const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answer
         <h2 id="quick-facts-title" className="text-base font-semibold text-gray-900 dark:text-gray-100">
           Make it stronger <span className="font-normal text-gray-600 dark:text-gray-400">(optional)</span>
         </h2>
-        <p className="text-gray-600 dark:text-gray-400">
-          {questions !== null && questions.length === 0
-            ? 'CopyZap found nothing important missing. If something true should be in the copy, add it below.'
-            : 'Your copy is missing a few things that help people act. CopyZap never invents them.'}{' '}
-          Answer only what is true for you, with your own figures and currency; anything you write goes into the new
-          versions.
-        </p>
-        <SquareCheck checked={chat.on} onChange={chat.onToggle} tip={TIPS.factChatMode}>
-          <span className="text-gray-900 dark:text-gray-100">Answer in a chat instead</span>
-        </SquareCheck>
+        {inChat ? (
+          <p className="text-gray-600 dark:text-gray-400">
+            {nothingMissing
+              ? 'CopyZap found nothing important missing. If something true should still be in the copy, say it below.'
+              : 'Your copy is missing a few things that help people act. CopyZap asks about them one at a time and never invents them.'}{' '}
+            Answer only what is true for you, with your own figures and currency; what you answer goes into the new
+            versions.
+          </p>
+        ) : (
+          <p className="text-gray-600 dark:text-gray-400">
+            {nothingMissing
+              ? 'CopyZap found nothing important missing. If something true should be in the copy, add it below.'
+              : 'Your copy is missing a few things that help people act. CopyZap never invents them.'}{' '}
+            Answer only what is true for you, with your own figures and currency; anything you write goes into the new
+            versions.
+          </p>
+        )}
+        {!FACT_FIELDS_OFF && (
+          <SquareCheck checked={chat.on} onChange={chat.onToggle} tip={TIPS.factChatMode}>
+            <span className="text-gray-900 dark:text-gray-100">Answer in a chat instead</span>
+          </SquareCheck>
+        )}
       </div>
 
-      {chat.on ? (
+      {inChat ? (
         <QuickFactChat questions={questions} chat={chat.state} setChat={chat.setState} context={chat.context} />
       ) : (
         <>
