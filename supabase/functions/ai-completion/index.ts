@@ -164,7 +164,7 @@ Deno.serve(async (req: Request) => {
     // Check user access (subscription date and credits - PHASE 4B-2)
     const { data: userData, error: accessError } = await supabase
       .from('pmc_users')
-      .select('start_date, until_date, credits_allowed, credits_period_start_day, credits_grace_units')
+      .select('start_date, until_date, credits_allowed, credits_period_start_day, credits_grace_units, enforcement_mode')
       .eq('id', user.id)
       .single();
 
@@ -192,6 +192,38 @@ Deno.serve(async (req: Request) => {
       creditsAllowed: userData.credits_allowed,
       creditsGrace: userData.credits_grace_units
     });
+
+    // PREPAID (paywall) accounts: spend bought or trial credits, no dates and no monthly plan.
+    if (userData.enforcement_mode === 'prepaid') {
+      const { data: prepaid, error: prepaidError } = await supabase.rpc('get_prepaid_balance', {
+        p_user_id: user.id
+      });
+      if (prepaidError || !prepaid) {
+        console.error('Prepaid balance could not be read:', prepaidError);
+        return new Response(
+          JSON.stringify({ error: 'Your credits could not be checked right now. Please try again in a moment.' }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 503
+          }
+        );
+      }
+      const prepaidRemaining = Number(prepaid.credits_remaining) || 0;
+      if (prepaidRemaining <= 0) {
+        console.log('❌ Access denied: prepaid credits used up', { userId: user.id });
+        return new Response(
+          JSON.stringify({
+            error: 'OUT_OF_CREDITS',
+            message: "You're out of credits. Buy a credit pack to keep going."
+          }),
+          {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 402
+          }
+        );
+      }
+      console.log('✅ Access granted (prepaid):', { userId: user.id, prepaidRemaining });
+    } else {
 
     // Check subscription date validity
     const todayStr = new Date().toISOString().split('T')[0];
@@ -309,6 +341,7 @@ Deno.serve(async (req: Request) => {
       creditsUsed,
       creditsAllowed
     });
+    } // end of non-prepaid access check
     // ============================================
     // END ACCESS CONTROL CHECK
     // ============================================
