@@ -143,7 +143,8 @@ const BuyCreditsPage: React.FC = () => {
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Buy credits</h1>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
               Pay once, no subscription. Bigger packs stay valid longer, and a new purchase never shortens
-              credits you already have: all your bought credits stay valid until the latest date.
+              credits you already have: all your bought credits stay valid until the latest date. Bought
+              credits that expired less than 15 days ago come back when you buy a new pack.
             </p>
 
             {status === 'success' && (
