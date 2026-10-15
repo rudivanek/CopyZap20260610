@@ -104,7 +104,7 @@ const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answer
         <>
           {questions === null && (
             <p className="text-gray-600 dark:text-gray-400" aria-live="polite">
-              Looking for what is missing… You can generate without waiting.
+              Looking for what is missing…
             </p>
           )}
 

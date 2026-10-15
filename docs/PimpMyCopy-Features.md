@@ -7,6 +7,8 @@ Last Updated: 2026-10-15T01:00:00Z
 
 Quick result: clearer "Make it stronger and run again" card.
 
+Quick check screen: Make it stronger locks the screen while it loads (questions, answers, page check).
+
 ---
 
 ## Quick — "Make it stronger and run again": Weakest Part on the Card (2026-10-15)

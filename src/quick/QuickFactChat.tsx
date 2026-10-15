@@ -163,7 +163,7 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
       <p className="text-gray-600 dark:text-gray-400" aria-live="polite">
         {updating
           ? 'Updating the questions… The screen unlocks in a moment.'
-          : 'Looking for what is missing… You can generate without waiting.'}
+          : 'Looking for what is missing…'}
       </p>
     );
   }

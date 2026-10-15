@@ -19,7 +19,7 @@ import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
 import { asksForMissingFacts, findMissingFacts, MissingFactQuestion, missingInPlainWords } from '../engine/missingFacts';
 import { FactAnswers, factsFromAnswers, OTHER_FACT_KEY } from './factAnswers';
-import { chatFacts, EMPTY_FACT_CHAT, FactChat } from '../engine/factChat';
+import { chatFacts, CLOSING_QUESTION, EMPTY_FACT_CHAT, FactChat } from '../engine/factChat';
 import { readChatChoice, saveChatChoice } from './QuickFactChat';
 import { FACT_FIELDS_OFF } from './QuickMissingFacts';
 import { getTextKind } from '../services/api/textKinds';
@@ -42,6 +42,7 @@ import QuickIntro from './QuickIntro';
 import { hasSeenIntro, markIntroSeen } from './introSeen';
 import QuickTopBar from './QuickTopBar';
 import QuickBusyModal, { QuickBusyKind } from './QuickBusyModal';
+import QuickFactsWait, { FactsWaitKind } from './QuickFactsWait';
 import QuickConfirm from './QuickConfirm';
 import QuickHistory from './QuickHistory';
 import QuickResult from './QuickResult';
@@ -202,6 +203,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   // True while the questions are asked again after a change (kind of text, goal
   // or copy): the check screen is locked until they are there (see QuickConfirm).
   const [factsUpdating, setFactsUpdating] = useState(false);
+  // The facts key (see factsKey below) for which the user skipped the questions while they loaded.
+  const [factsSkipped, setFactsSkipped] = useState<string | null>(null);
   // True while the copy, goal and corrections above are the ones the result on
   // screen was run with: right after a run from this page. False for a result
   // opened from History or from its address.
@@ -288,7 +291,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
 
   // The questions belong to one copy, one goal and one kind of text: a change to any of them asks again.
   const factsKey = `${goalKey}\n${goalKey === 'custom' ? cleanQuickGoalLabel(goalOther) : ''}\n${brief?.kind ?? ''}\n${copy}`;
-  const factQuestions = !asksForMissingFacts(goalKey)
+  // "Skip the questions" in the wait modal: no "Make it stronger" for this copy, goal and kind.
+  const factQuestions = !asksForMissingFacts(goalKey) || factsSkipped === factsKey
     ? undefined
     : facts?.key === factsKey
       ? facts.questions
@@ -788,6 +792,49 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       ? { missing: missingInPlainWords(factQuestions), onClick: handleRunAgainWithAnswers }
       : null;
 
+  /**
+   * "Make it stronger" waits on the check screen (see QuickFactsWait): the
+   * questions loading, the chat reading an answer, and the check of the user's
+   * page under a question. While one runs the screen is locked.
+   */
+  const lastFactTurn = factChat.turns[factChat.turns.length - 1];
+  const factsWait: FactsWaitKind | null =
+    phase !== 'confirm' || busy !== null || factQuestions === undefined
+      ? null
+      : factQuestions === null
+        ? factsKind
+          ? 'questions'
+          : null
+        : !chatOn || factChat.done
+          ? null
+          : factChat.waiting
+            ? 'answer'
+            : lastFactTurn?.from === 'copyzap' && lastFactTurn.text !== CLOSING_QUESTION && lastFactTurn.fromPage === undefined
+              ? 'page'
+              : null;
+
+  const cancelFactsWait = (kind: FactsWaitKind) => {
+    if (kind === 'questions') {
+      setFactsSkipped(factsKey);
+      setFactsUpdating(false);
+      return;
+    }
+    if (kind === 'answer') {
+      // A new turns array: the late reply for the old one is ignored (see QuickFactChat).
+      setFactChat(current => ({ ...current, turns: [...current.turns], waiting: false, done: true }));
+      return;
+    }
+    // No passage from the page for the question on screen.
+    setFactChat(current => ({
+      ...current,
+      turns: current.turns.map((turn, index) =>
+        index === current.turns.length - 1 && turn.from === 'copyzap' && turn.fromPage === undefined
+          ? { ...turn, fromPage: '' }
+          : turn
+      ),
+    }));
+  };
+
   const handleHistory = () => {
     if (busy) return;
     setError(null);
@@ -1070,6 +1117,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       >
         CopyZap {APP_VERSION}
       </footer>
+
+      <QuickFactsWait kind={factsWait} onCancel={cancelFactsWait} />
 
       {busy && (
         <QuickBusyModal kind={busy} elapsed={elapsed} progress={progress} versions={QUICK_DEFAULT_VARIANTS} onStop={stopProcess} />
