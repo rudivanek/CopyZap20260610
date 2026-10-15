@@ -15,6 +15,7 @@ interface Pack {
   usd_cents: number;
   mxn_cents: number;
   sort_order: number;
+  validity_months: number;
 }
 
 interface Balance {
@@ -63,7 +64,7 @@ const BuyCreditsPage: React.FC = () => {
       setAllowed(true);
       const { data: packRows, error: packError } = await supabase
         .from('credit_packs')
-        .select('pack_key, pack_name, credits, usd_cents, mxn_cents, sort_order')
+        .select('pack_key, pack_name, credits, usd_cents, mxn_cents, sort_order, validity_months')
         .eq('is_active', true)
         .order('sort_order');
       if (cancelled) return;
@@ -141,8 +142,8 @@ const BuyCreditsPage: React.FC = () => {
           <>
             <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Buy credits</h1>
             <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Pay once, no subscription. Credits stay valid for 12 months, and every new pack extends all
-              your bought credits to 12 months from that purchase.
+              Pay once, no subscription. Bigger packs stay valid longer, and a new purchase never shortens
+              credits you already have: all your bought credits stay valid until the latest date.
             </p>
 
             {status === 'success' && (
@@ -195,6 +196,9 @@ const BuyCreditsPage: React.FC = () => {
                   </p>
                   <p className="text-sm text-gray-600 dark:text-gray-400">
                     About {Math.floor(pack.credits / CREDITS_PER_PAGE)} web pages of ~1,000 words
+                  </p>
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Valid for {pack.validity_months} months
                   </p>
                   <button
                     type="button"
