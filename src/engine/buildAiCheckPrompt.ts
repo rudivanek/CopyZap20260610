@@ -7,11 +7,13 @@
  *
  * Nothing is attached and no file is made: the text holds everything.
  *
- * The order matters. The other AI gets the rubric and the copy first and is
- * told to write down its own scores before it reads CopyZap's, which come last
- * in their own section. In one paste it still sees everything at once, so this
- * lowers the pull of CopyZap's numbers but does not remove it. The "two steps"
- * variant (step1 then step2, sent as two messages) is fully blind.
+ * The answer is made for a business owner to read: the verdict first, then
+ * one table per text with CopyZap's score and the other AI's side by side, the
+ * gap, and why. The texts are called "Your original" and "CopyZap's best
+ * version", never by letters. CopyZap's scores come last in the text, after
+ * the instruction to score first; in one paste the other AI still sees
+ * everything at once, so this is not blind. The "two steps" variant (step1
+ * then step2, sent as two messages) is fully blind.
  *
  * To keep the text short enough to paste, it holds only two texts: the
  * original and the version Quick shows as best. Everything is in English,
@@ -68,11 +70,16 @@ function rubricText(result: QuickRunResult): string {
 }
 
 interface CheckText {
-  letter: string;
+  /** How the text is called everywhere in the check and in the answer. */
   name: string;
+  /** Marker name around the text, in capitals. */
+  marker: string;
   text: string;
   score?: AbsoluteScoreBreakdown;
 }
+
+const ORIGINAL_NAME = 'Your original';
+const BEST_NAME = "CopyZap's best version";
 
 function checkTexts(result: QuickRunResult, best: GeneratedContentItem): CheckText[] {
   const scores = result.scores?.absoluteByVersion ?? {};
@@ -80,15 +87,15 @@ function checkTexts(result: QuickRunResult, best: GeneratedContentItem): CheckTe
   const texts: CheckText[] = [];
   if (original) {
     texts.push({
-      letter: 'A',
-      name: 'Original',
+      name: ORIGINAL_NAME,
+      marker: 'YOUR ORIGINAL',
       text: contentToText(original.content).trim(),
       score: scores[ORIGINAL_VERSION_ID],
     });
   }
   texts.push({
-    letter: original ? 'B' : 'A',
-    name: `CopyZap's best version${best.sourceDisplayName ? ` (${best.sourceDisplayName})` : ''}`,
+    name: BEST_NAME,
+    marker: 'BEST VERSION',
     text: contentToText(best.content).trim(),
     score: scores[best.id],
   });
@@ -116,65 +123,83 @@ function copySection(texts: CheckText[]): string {
   return texts
     .map(
       item =>
-        `### Text ${item.letter} — ${item.name} (${countWords(item.text)} words)\n\n` +
-        `<<<START TEXT ${item.letter}>>>\n${item.text}\n<<<END TEXT ${item.letter}>>>`
+        `### ${item.name} (${countWords(item.text)} words)\n\n` +
+        `<<<START: ${item.marker}>>>\n${item.text}\n<<<END: ${item.marker}>>>`
     )
     .join('\n\n');
 }
 
 function scoresSection(texts: CheckText[]): string {
-  const header = `| Text | ${DIMENSIONS.map(d => `${d.label} (0–25)`).join(' | ')} | Total (0–100) |`;
-  const divider = `|---|${DIMENSIONS.map(() => '---').join('|')}|---|`;
-  const rows = texts.map(item => {
-    const s = item.score;
-    if (!s) return `| ${item.letter} | ${DIMENSIONS.map(() => '–').join(' | ')} | not scored |`;
-    return `| ${item.letter} | ${DIMENSIONS.map(d => s[d.key]).join(' | ')} | ${s.total} |`;
-  });
-  const notes = texts
-    .filter(item => item.score)
+  return texts
     .map(item => {
-      const s = item.score as AbsoluteScoreBreakdown;
-      const lines = DIMENSIONS.map(d => s[`${d.key}_note` as keyof AbsoluteScoreBreakdown])
-        .map((note, i) => (typeof note === 'string' && note.trim() ? `- ${DIMENSIONS[i].label}: ${note.trim()}` : ''))
-        .filter(Boolean);
-      return lines.length > 0 ? `**CopyZap's reasons for Text ${item.letter}:**\n${lines.join('\n')}` : '';
+      const s = item.score;
+      if (!s) return `### ${item.name}\n\nNot scored.`;
+      const rows = DIMENSIONS.map(d => {
+        const note = s[`${d.key}_note` as keyof AbsoluteScoreBreakdown];
+        return `| ${d.label} | ${s[d.key]} | ${typeof note === 'string' ? note.trim().replace(/\|/g, '/') : ''} |`;
+      });
+      return [
+        `### ${item.name}`,
+        '',
+        "| Part (0–25) | CopyZap | CopyZap's reason |",
+        '|---|---|---|',
+        ...rows,
+        `| **Total (0–100)** | **${s.total}** | |`,
+      ].join('\n');
     })
-    .filter(Boolean);
-  return [header, divider, ...rows].join('\n') + (notes.length > 0 ? `\n\n${notes.join('\n\n')}` : '');
+    .join('\n\n');
 }
 
 const NORMAL_SPREAD =
   'Any scorer, including you, gives the same text slightly different scores on different readings. ' +
-  'Treat a difference of up to 2 points on one dimension, or up to 5 points on the total, as normal variation, not as disagreement.';
+  'Treat a difference of up to 2 points on one part, or up to 5 points on the total, as normal variation, not as disagreement.';
+
+function verdictBands(pair: boolean): string[] {
+  return [
+    '- Agree: every total within 5 points of CopyZap' + (pair ? ", and you also find CopyZap's best version stronger." : '.'),
+    '- Mostly agree: ' + (pair ? 'you also find the best version stronger; ' : '') + 'a total differs by 6–10 points.',
+    '- Partly agree: a total differs by 11–15 points' + (pair ? ', but you still find the best version stronger.' : '.'),
+    pair
+      ? '- Disagree: you find your original stronger than the best version, or a total differs by more than 15 points.'
+      : '- Disagree: a total differs by more than 15 points.',
+  ];
+}
+
+/** One table per text, CopyZap's score and the other AI's side by side. */
+function tableInstructions(texts: CheckText[]): string[] {
+  return [
+    `Then one table for each text, in this order: ${texts.map(t => `"${t.name}"`).join(', then ')}. ` +
+      'Use the text\'s name as a heading above its table. Each table has exactly these columns and rows:',
+    '',
+    '| | CopyZap | <your name, e.g. ChatGPT, Claude or Grok> | Gap | Why |',
+    '|---|---|---|---|---|',
+    '| Clarity | … | … | … | … |',
+    '| Persuasion | … | … | … | … |',
+    '| Audience fit | … | … | … | … |',
+    '| Structure | … | … | … | … |',
+    '| **Total** | … | … | … | |',
+    '',
+    'Rules for the table:',
+    '- Gap = your score minus CopyZap\'s, with a sign (+3, −2, 0). Put the gap in bold when it is beyond normal variation.',
+    '- Why: when the gap is within normal variation, write only "Normal variation". When it is beyond, one short sentence that points to the actual copy (quote a few words).',
+    '- Give each part your own score from 0 to 25 and the total from 0 to 100, using the rubric.',
+  ];
+}
 
 function answerFormat(texts: CheckText[]): string {
-  const letters = texts.map(t => t.letter).join(' and ');
   const pair = texts.length > 1;
   return [
-    'Answer in English, in exactly this structure:',
+    'Answer in English. Keep it short and easy to read for a business owner, not a copywriter. Use exactly this structure and nothing else:',
     '',
-    '## 1. My own scores',
-    `A table with one row per text (${letters}): Clarity, Persuasion, Audience fit, Structure (each 0–25) and Total (0–100). ` +
-      'Below it, one short line of evidence per dimension and text, pointing to the actual copy.',
+    `Start with one line: **Verdict: <Agree / Mostly agree / Partly agree / Disagree>.** followed by one or two plain sentences that say what that means for the user.`,
+    ...verdictBands(pair),
     '',
-    '## 2. Comparison with CopyZap',
-    'A table: Text | Dimension | CopyZap | Mine | Difference. Include the totals.',
+    ...tableInstructions(texts),
     '',
-    '## 3. Where I agree',
-    'Two to four short points.',
+    ...(pair ? [`Then one line: **Is CopyZap's best version a real improvement on your original?** Yes or No, and why in one sentence.`, ''] : []),
+    'Then, only if there is something important the scores do not show (for example, something useful the best version dropped), one short line headed **Worth knowing:**. Leave it out otherwise.',
     '',
-    '## 4. Where I disagree',
-    'Every gap beyond normal variation, with the reason, pointing to the copy. Write "None" if there is none.',
-    '',
-    '## 5. Verdict',
-    'One word first: **Agree**, **Mostly agree**, **Partly agree** or **Disagree**. Then one or two sentences.',
-    '- Agree: every total within 5 points of CopyZap' + (pair ? ', and the same text comes out ahead.' : '.'),
-    '- Mostly agree: ' + (pair ? 'the same text comes out ahead; ' : '') + 'a total differs by 6–10 points.',
-    '- Partly agree: a total differs by 11–15 points' + (pair ? ', but the same text still comes out ahead.' : '.'),
-    pair
-      ? "- Disagree: you would rank the texts the other way round, or a total differs by more than 15 points."
-      : '- Disagree: a total differs by more than 15 points.',
-    ...(pair ? ['', `Finally, answer yes or no: is Text B a real improvement on Text A?`] : []),
+    "Do not add any other sections, introductions or summaries. Call the texts only by the names used here (\"Your original\", \"CopyZap's best version\"), never by letters.",
   ].join('\n');
 }
 
@@ -207,6 +232,9 @@ export function buildAiCheckPrompt(result: QuickRunResult, best: GeneratedConten
     '## Section 2 — The copy',
     '',
     'The copy may be in any language; judge it in its own language.',
+    ...(texts.length > 1
+      ? ['', `"${ORIGINAL_NAME}" is the copy the user gave CopyZap; "${BEST_NAME}" is CopyZap's rewrite of it. The user will read your answer, so these names speak to them.`]
+      : []),
     '',
     copySection(texts),
   ].join('\n');
@@ -216,10 +244,7 @@ export function buildAiCheckPrompt(result: QuickRunResult, best: GeneratedConten
   const full = [
     intro,
     '',
-    '**Work in this order:**',
-    '1. Read Section 1 (the rubric) and Section 2 (the copy) only.',
-    "2. Score the copy yourself and write your scores down in your answer (part 1 below) before you read Section 3.",
-    "3. Only then read Section 3 (CopyZap's scores) and compare.",
+    "Score the copy in Section 2 yourself with the rubric in Section 1 before you look at CopyZap's scores in Section 3, then compare.",
     '',
     NORMAL_SPREAD,
     '',
@@ -231,8 +256,6 @@ export function buildAiCheckPrompt(result: QuickRunResult, best: GeneratedConten
     '',
     '---',
     '',
-    '_Do not read Section 3 until you have written your own scores._',
-    '',
     scores,
   ].join('\n');
 
@@ -241,10 +264,8 @@ export function buildAiCheckPrompt(result: QuickRunResult, best: GeneratedConten
     '',
     "This is step 1 of 2. **Only score the copy now.** I will send CopyZap's scores in a second message; do not guess them.",
     '',
-    'Answer in English with:',
-    '## 1. My own scores',
-    'A table with one row per text: Clarity, Persuasion, Audience fit, Structure (each 0–25) and Total (0–100). ' +
-      'Below it, one short line of evidence per dimension and text, pointing to the actual copy.',
+    'Answer in English with one table per text, using the text\'s name as its heading: Clarity, Persuasion, Audience fit, Structure (each 0–25) and Total (0–100), ' +
+      'with one short reason per part that points to the actual copy. Nothing else.',
     '',
     '---',
     '',
@@ -256,10 +277,7 @@ export function buildAiCheckPrompt(result: QuickRunResult, best: GeneratedConten
     '',
     NORMAL_SPREAD,
     '',
-    answerFormat(texts).replace(
-      /## 1\. My own scores\n[^\n]*\n\n/,
-      '## 1. My own scores\nRepeat your scores from your previous answer, unchanged.\n\n'
-    ),
+    answerFormat(texts),
     '',
     '---',
     '',
