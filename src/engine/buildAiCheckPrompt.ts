@@ -119,6 +119,14 @@ function contextLines(result: QuickRunResult): string[] {
   return lines;
 }
 
+/** "Judged as: Educate — teach or onboard · Web page". Empty when neither is known. */
+function judgedAsLine(result: QuickRunResult): string {
+  const goal = quickGoalName(result.goalKey, result.formState.quickGoalLabel, true);
+  const kind = textKindLabel(quickTextKindOf(result.formState));
+  const parts = [goal, kind].filter(Boolean);
+  return parts.length > 0 ? `*Judged as: ${parts.join(' · ')}*` : '';
+}
+
 function copySection(texts: CheckText[]): string {
   return texts
     .map(
@@ -244,13 +252,20 @@ function summaryInstructions(texts: CheckText[]): string[] {
   ];
 }
 
-function answerFormat(texts: CheckText[]): string {
+function answerFormat(texts: CheckText[], judgedAs = ''): string {
   const pair = texts.length > 1;
   return [
     'Answer in English. Keep it short and easy to read for a business owner, not a copywriter. Use exactly this structure and nothing else:',
     '',
     `Start with one line: **Verdict: <Agree / Mostly agree / Partly agree / Disagree>.** followed by one or two plain sentences that say what that means for the user.`,
     ...verdictBands(pair),
+    ...(judgedAs
+      ? [
+          '',
+          'On the next line, copy this line exactly as it is, so a reader knows what the copy was judged for:',
+          judgedAs,
+        ]
+      : []),
     '',
     ...summaryInstructions(texts),
     '',
@@ -268,6 +283,7 @@ export function buildAiCheckPrompt(result: QuickRunResult, best: GeneratedConten
   const texts = checkTexts(result, best);
   const context = contextLines(result);
   const rubric = rubricText(result);
+  const judgedAs = judgedAsLine(result);
 
   const intro = [
     '# Independent check of a CopyZap score',
@@ -308,7 +324,7 @@ export function buildAiCheckPrompt(result: QuickRunResult, best: GeneratedConten
     '',
     NORMAL_SPREAD,
     '',
-    answerFormat(texts),
+    answerFormat(texts, judgedAs),
     '',
     '---',
     '',
@@ -337,7 +353,7 @@ export function buildAiCheckPrompt(result: QuickRunResult, best: GeneratedConten
     '',
     NORMAL_SPREAD,
     '',
-    answerFormat(texts),
+    answerFormat(texts, judgedAs),
     '',
     '---',
     '',
