@@ -18,6 +18,7 @@ import {
 import type { QuickChangeParts } from '../engine/changeQuickVersion';
 import { prepareQuickEdit, QuickEditDraft, validateQuickEdit } from '../engine/editQuickVersion';
 import { exportQuickReport } from '../engine/exportQuickReport';
+import QuickAiCheck from './QuickAiCheck';
 import { effectiveGates } from '../engine/gateRules';
 import { checkNumbers } from '../engine/numberCheck';
 import type { NumberCheck } from '../engine/numberCheck';
@@ -309,6 +310,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const [openIds, setOpenIds] = useState<string[]>([]);
   // The report is built in the browser and handed over as an HTML file.
   const [exportState, setExportState] = useState<'idle' | 'working' | 'failed'>('idle');
+  // The "Check with another AI" panel under the toolbar.
+  const [aiCheckOpen, setAiCheckOpen] = useState(false);
   const handleExport = async () => {
     if (exportState === 'working') return;
     setExportState('working');
@@ -572,6 +575,16 @@ const QuickResult: React.FC<QuickResultProps> = ({
           </button>
           <button
             type="button"
+            onClick={() => setAiCheckOpen(open => !open)}
+            data-tip={TIPS.checkWithAi}
+            aria-expanded={aiCheckOpen}
+            disabled={!scores || !scores.winnerId || isRescoring}
+            className={`${secondaryButton} shrink-0`}
+          >
+            Check with another AI
+          </button>
+          <button
+            type="button"
             onClick={openEditor}
             data-tip={TIPS.editMyself}
             disabled={!scores || !scores.winnerId || isRescoring || draft !== null}
@@ -597,6 +610,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
             <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-critical" aria-hidden="true" />
             <span>The report could not be built. Try again.</span>
           </p>
+        )}
+        {aiCheckOpen && scores && (
+          <QuickAiCheck result={result} best={winner} onClose={() => setAiCheckOpen(false)} />
         )}
       </div>
 

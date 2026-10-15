@@ -78,6 +78,9 @@ export const TIPS = {
   // Result screen
   copy: 'Copies this version as text, ready to paste.',
   exportReport: 'Saves a report of all versions, scores and reasons as a file you can open or send.',
+  checkWithAi: 'Ask ChatGPT, Claude or Grok to score the copy itself and say whether it agrees with our score.',
+  aiCheckCopyOnly: 'Copies the check without opening an AI. Paste it into any AI chat.',
+  aiCheckTwoSteps: 'The other AI scores the copy first and sees our scores only afterwards, in a second message.',
   editMyself: 'Opens the best version as text. Change it and CopyZap scores your edit.',
   goToChange: 'Jump to "What should change?" below.',
   startOver: 'Back to the start with the same copy and goal, to change something and run again. This result stays in History.',
