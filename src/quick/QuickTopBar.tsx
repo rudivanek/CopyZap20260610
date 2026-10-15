@@ -103,6 +103,64 @@ const AccountName: React.FC<{ userId: string; email: string; metaName?: string }
 };
 
 /**
+ * For prepaid (bought or trial) credits: when the first credits run out, next to the
+ * balance. "250 expire Nov 14" when only part expires first, "until Jan 15" when all
+ * expire together. Amber in the last 7 days; the full list shows on hover.
+ * Accounts on the monthly plan get nothing here.
+ */
+const CreditsExpiry: React.FC<{ userId: string }> = ({ userId }) => {
+  const [note, setNote] = React.useState<{ text: string; title: string; soon: boolean } | null>(null);
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data: balance } = await supabase.rpc('get_user_credits_balance', { user_id_param: userId });
+      if (cancelled || !balance || balance.mode !== 'prepaid') return;
+      const { data: rows } = await supabase
+        .from('credit_grants')
+        .select('remaining, expires_at')
+        .eq('user_id', userId)
+        .gt('remaining', 0)
+        .gt('expires_at', new Date().toISOString())
+        .order('expires_at');
+      if (cancelled || !rows || rows.length === 0) return;
+      const day = (iso: string) => new Date(iso).toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const longDay = (iso: string) =>
+        new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+      // Group by calendar day
+      const groups: { date: string; credits: number }[] = [];
+      for (const r of rows as { remaining: number; expires_at: string }[]) {
+        const last = groups[groups.length - 1];
+        if (last && day(last.date) === day(r.expires_at)) last.credits += r.remaining;
+        else groups.push({ date: r.expires_at, credits: r.remaining });
+      }
+      const total = groups.reduce((sum, g) => sum + g.credits, 0);
+      const first = groups[0];
+      const text = first.credits === total
+        ? `until ${day(first.date)}`
+        : `${first.credits.toLocaleString('en-US')} expire ${day(first.date)}`;
+      const title = groups
+        .map(g => `${g.credits.toLocaleString('en-US')} credits valid until ${longDay(g.date)}`)
+        .join('\n');
+      const soon = new Date(first.date).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000;
+      setNote({ text, title, soon });
+    })();
+    return () => { cancelled = true; };
+  }, [userId]);
+  if (!note) return null;
+  return (
+    <span
+      title={note.title}
+      className={
+        'hidden sm:inline-flex items-center min-h-[44px] -ml-2 pr-2 text-xs tabular-nums whitespace-nowrap ' +
+        (note.soon ? 'text-amber-600 dark:text-amber-400 font-medium' : 'text-gray-500 dark:text-gray-400')
+      }
+    >
+      · {note.text}
+    </span>
+  );
+};
+
+/**
  * "Buy credits" link, shown only to accounts allowed to use the paywall
  * (admins and testers while it is hidden, everyone once it is public).
  */
@@ -199,6 +257,7 @@ const QuickTopBar: React.FC<QuickTopBarProps> = ({
         )}
         <AccountName userId={userId} email={userEmail} metaName={userMetaName} />
         <CreditsLeft key={creditsTick} userId={userId} />
+        <CreditsExpiry key={`expiry-${creditsTick}`} userId={userId} />
         <BuyCreditsLink />
         <button type="button" onClick={onLogout} className={navButton + 'border-transparent'}>
           Log out
