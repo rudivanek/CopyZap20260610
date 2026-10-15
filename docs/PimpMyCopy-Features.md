@@ -5,6 +5,10 @@ Last Updated: 2026-10-15T01:00:00Z
 
 ---
 
+Quick result: clearer "Make it stronger and run again" card.
+
+---
+
 ## Quick — "Make it stronger and run again": Weakest Part on the Card (2026-10-15)
 
 **Feature:** The "Make it stronger and run again" card under a Quick result now starts with the winner's weakest part and the scorer's own sentence about it, for example: "Weakest part: Persuasion 16/25. The CTA 'Cotizar proyecto' … is soft and buried after testimonials …". The score explains itself, and the user sees what answering would fix. No new AI call and no extra credits: the sentence is already part of the score (one of the four part notes the scorer returns).

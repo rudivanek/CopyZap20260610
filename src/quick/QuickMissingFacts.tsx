@@ -72,7 +72,7 @@ const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answer
           <p className="text-gray-600 dark:text-gray-400">
             {nothingMissing
               ? 'CopyZap found nothing important missing. If something true should still be in the copy, say it below.'
-              : 'Your copy is missing a few things that help people act. Answer two or three questions: real facts give the new versions more to work with, and usually more points. CopyZap never invents them, and when your page already holds an answer it shows it to you.'}{' '}
+              : 'Your copy is missing a few details that would make it stronger. Answer two or three questions: real facts give the new versions more to work with, and usually more points. CopyZap never invents them, and when your page already holds an answer it shows it to you.'}{' '}
             Answer only what is true for you, with your own figures and currency; what you answer goes into the new
             versions.
           </p>
@@ -80,7 +80,7 @@ const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answer
           <p className="text-gray-600 dark:text-gray-400">
             {nothingMissing
               ? 'CopyZap found nothing important missing. If something true should be in the copy, add it below.'
-              : 'Your copy is missing a few things that help people act. CopyZap never invents them.'}{' '}
+              : 'Your copy is missing a few details that would make it stronger. CopyZap never invents them.'}{' '}
             Answer only what is true for you, with your own figures and currency; anything you write goes into the new
             versions.
           </p>

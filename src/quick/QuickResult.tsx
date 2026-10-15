@@ -109,6 +109,12 @@ function weakestPart(score: AbsoluteScoreBreakdown | undefined): { label: string
   return { label: low.label, value: low.value, note: low.note.trim() };
 }
 
+/** "a, b and c": the missing items in one plain sentence. */
+function joinList(items: string[]): string {
+  if (items.length <= 1) return items[0] ?? '';
+  return `${items.slice(0, -1).join(', ')} and ${items[items.length - 1]}`;
+}
+
 function reasons(score: AbsoluteScoreBreakdown | undefined): { label: string; note: string }[] {
   if (!score) return [];
   return [
@@ -926,24 +932,24 @@ const QuickResult: React.FC<QuickResultProps> = ({
           {runAgain && winnerTotal != null && (
             <section id="quick-run-again" aria-label="Make it stronger and run again" className={`${card} p-6 flex flex-col gap-3`}>
               <p className="font-semibold text-gray-900 dark:text-gray-100">Make it stronger and run again</p>
-              {weakest && (
-                <p className="text-gray-700 dark:text-gray-300 break-words">
-                  <span className="font-semibold">
-                    Weakest part: {weakest.label} {weakest.value}/25.
-                  </span>{' '}
-                  {weakest.note}
-                </p>
-              )}
-              <p className="text-gray-600 dark:text-gray-400">
-                Your best version scores {winnerTotal}.{' '}
+              <p className="text-gray-900 dark:text-gray-100">
                 {runAgain.missing.length > 0
-                  ? `Your copy is missing things that help people act: ${runAgain.missing.join(', ')}.`
-                  : 'Your copy is missing a few things that help people act.'}{' '}
-                Answer two or three questions and CopyZap writes three new versions with them. A new run uses credits.
+                  ? `Your copy is missing ${joinList(runAgain.missing)}.`
+                  : 'Your copy is missing a few details that would make it stronger.'}{' '}
+                Add them and CopyZap writes three new versions with your answers.
               </p>
               <button type="button" onClick={runAgain.onClick} data-tip={TIPS.runAgain} className={`${primaryButton} self-start`}>
                 Answer and run again
               </button>
+              <p className="text-sm text-gray-600 dark:text-gray-400">A new run uses credits.</p>
+              {weakest && (
+                <details className="text-sm text-gray-600 dark:text-gray-400">
+                  <summary className="cursor-pointer select-none">
+                    Weakest part: {weakest.label} ({weakest.value}/25). <span className="underline">Why?</span>
+                  </summary>
+                  <p className="mt-1 break-words">{weakest.note}</p>
+                </details>
+              )}
             </section>
           )}
 
