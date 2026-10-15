@@ -31,6 +31,13 @@
  * quote ("trust me, this version is better"). Quick's checks flagged both; the
  * line about invented details is there so the writer does not add them.
  *
+ * Also on sharpen.studio (2026-10-14), every version dropped nearly all of
+ * the page's pointers to other pages ("Conoce nuestro servicio de branding",
+ * "Mira nuestro portafolio", the Querétaro pages), read as filler next to "one
+ * clear call to action". ChatGPT and Claude, asked to check the score, both
+ * flagged it. The fetched page holds them as plain text, without the link
+ * addresses, so the writer is told what they are and to keep them.
+ *
  * Plain sentences on purpose: the engine reads a line that starts with a label
  * in capitals and a colon as a section to write.
  */
@@ -52,6 +59,7 @@ export const KEEP_TO_ORIGINAL_NOTE = [
 export const QUICK_REWRITE_NOTE = [
   'Rewrite this copy so it works as well as possible for its goal. You are free to change the wording, the order of the parts, the headings and the opening.',
   'For example, open with the problem the reader has, put the strongest reasons first, cut repetition and filler, and end with one clear call to action.',
+  'Keep every pointer the original gives to another page or next step, such as "See our portfolio", "Learn about our branding service", "How we work" or a mention of a local or service page: they are links on the live page, for readers who are not ready for the main call to action yet, and the site needs them. They are not filler. You may reword them and move them to where they fit best, but keep each one. The one clear call to action is the main ask; these pointers stay besides it.',
 ].join(' ');
 
 /**
