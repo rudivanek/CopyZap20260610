@@ -129,18 +129,6 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
         </p>
       </div>
 
-      {/* Stays at the top of the window while locked, so it is seen however far down the user is. */}
-      {factsUpdating && (
-        <p
-          role="status"
-          className="sticky top-0 z-30 flex items-center gap-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 px-4 py-3 text-gray-900 dark:text-gray-100 shadow-md"
-        >
-          {/* The same pulsing bar as the busy window (QuickBusyModal). */}
-          <span className="w-1.5 h-5 shrink-0 bg-primary-500 animate-pulse" aria-hidden="true" />
-          Updating the questions in “Make it stronger”… The screen unlocks in a moment.
-        </p>
-      )}
-
       {/* Locked while the questions are asked again: a disabled fieldset disables every field and button inside. */}
       <fieldset
         disabled={factsUpdating}

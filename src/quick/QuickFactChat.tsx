@@ -20,8 +20,7 @@ import { TIPS } from './tips';
  * "Make it stronger" as a chat (see engine/factChat.ts): CopyZap asks one
  * question at a time and decides the next one from the answer, and ends with an
  * open "anything else?". Below the chat, the facts CopyZap will use: the user
- * can take any out, and add one in their own words at any time. Generating
- * never waits for the chat.
+ * can take any out, and add one in their own words at any time.
  *
  * Under a question, when the user's page already holds an answer (a figure in
  * a testimonial, say), the passage is shown word for word with "Use this",
@@ -55,7 +54,7 @@ const LINK =
 /** Longest wait for the page check under a question; then the answer field unlocks without a passage. */
 const PAGE_CHECK_MAX_MS = 10000;
 
-const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat, context, updating }) => {
+const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat, context }) => {
   // The chat starts as soon as the questions are known: its first question is the first one found.
   useEffect(() => {
     if (questions !== null && chat.turns.length === 0) setChat(startFactChat(questions));
@@ -161,9 +160,7 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
   if (questions === null) {
     return (
       <p className="text-gray-600 dark:text-gray-400" aria-live="polite">
-        {updating
-          ? 'Updating the questions… The screen unlocks in a moment.'
-          : 'Looking for what is missing…'}
+        Looking for what is missing…
       </p>
     );
   }

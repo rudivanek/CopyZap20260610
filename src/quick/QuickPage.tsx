@@ -439,8 +439,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   /**
    * Looks for what the copy is missing once the check screen is open and the
    * kind of text is known (the questions depend on it; see engine/missingFacts.ts).
-   * Not awaited: the questions appear when they are ready, and generating never
-   * waits for them. The same copy, goal and kind as last time keep their
+   * Not awaited here: while they load, the screen is locked (QuickFactsWait). The same copy, goal and kind as last time keep their
    * questions and answers. When the user changes the kind, Quick asks again and
    * keeps only what was written under "anything else".
    */

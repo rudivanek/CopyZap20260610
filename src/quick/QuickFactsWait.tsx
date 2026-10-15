@@ -5,8 +5,9 @@ import { playSuccessSound } from '../utils/soundEffects';
  * The waits of "Make it stronger" on the check screen. While one runs the whole
  * screen is locked (mouse and keyboard), so the user cannot generate, go back or
  * type before the questions are there. Short waits (most chat steps) only lock:
- * the modal with the running time appears after SHOW_AFTER_MS, and the finish
- * sound plays only when the modal was shown. Back-to-back waits (the questions
+ * the modal with the running time appears after SHOW_AFTER_MS. The finish sound
+ * plays only for the questions loading, and only when the modal was shown: never
+ * for a chat answer or a page check on its own. Back-to-back waits (the questions
  * arrive, then the page check under the first question starts) count as one
  * wait, so the modal and the sound do not flicker in between.
  */
@@ -19,7 +20,7 @@ interface QuickFactsWaitProps {
   onCancel: (kind: FactsWaitKind) => void;
 }
 
-const SHOW_AFTER_MS = 2000;
+const SHOW_AFTER_MS = 3000;
 /** A wait that ends and another that starts within this time are one wait. */
 const JOIN_MS = 400;
 
@@ -59,10 +60,13 @@ const QuickFactsWait: React.FC<QuickFactsWaitProps> = ({ kind, onCancel }) => {
   const [now, setNow] = useState(Date.now());
   const modalShown = useRef(false);
   const cancelled = useRef(false);
+  // This wait included loading the questions: the only wait that ends with the sound.
+  const hadQuestions = useRef(false);
   const overlay = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (kind) {
+      if (kind === 'questions') hadQuestions.current = true;
       setShownKind(kind);
       setStartedAt(at => at ?? Date.now());
       return;
@@ -70,9 +74,10 @@ const QuickFactsWait: React.FC<QuickFactsWaitProps> = ({ kind, onCancel }) => {
     if (shownKind === null) return;
     // Ended: unlock after JOIN_MS unless another wait starts.
     const timer = window.setTimeout(() => {
-      if (modalShown.current && !cancelled.current) playSuccessSound();
+      if (modalShown.current && hadQuestions.current && !cancelled.current) playSuccessSound();
       modalShown.current = false;
       cancelled.current = false;
+      hadQuestions.current = false;
       setShownKind(null);
       setStartedAt(null);
     }, JOIN_MS);
