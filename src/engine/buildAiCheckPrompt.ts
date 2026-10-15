@@ -25,9 +25,17 @@ import type { AbsoluteScoreBreakdown } from '../services/api/absoluteScoring';
 import { contentToText } from '../services/api/contentText';
 import { textKindLabel } from '../services/api/textKinds';
 import { countWords } from '../utils/markdownUtils';
-import { buildQuickScoringContext, quickGoalName, quickTextKindOf } from './buildQuickFormState';
+import { buildQuickScoringContext, deriveQuickLabel, quickGoalName, quickTextKindOf } from './buildQuickFormState';
 import { ORIGINAL_VERSION_ID } from './pickWinner';
 import type { QuickRunResult } from './runQuickPipeline';
+
+/** What identifies the result in the answer, so the user can find it again later. */
+export interface AiCheckLabel {
+  /** The name of the History entry, when it differs from the first line of the copy. */
+  title?: string;
+  /** The address that opens this result in CopyZap. Absent while the result is not saved. */
+  resultUrl?: string;
+}
 
 export interface AiCheckPrompt {
   /** Everything in one message. */
@@ -125,6 +133,37 @@ function judgedAsLine(result: QuickRunResult): string {
   const kind = textKindLabel(quickTextKindOf(result.formState));
   const parts = [goal, kind].filter(Boolean);
   return parts.length > 0 ? `*Judged as: ${parts.join(' · ')}*` : '';
+}
+
+/** Text that goes inside the bold label: no characters that would break Markdown. */
+function plain(text: string): string {
+  return text.replace(/[*_`|\[\]<>"]/g, '').replace(/\s+/g, ' ').trim();
+}
+
+/** The date of the version checked, as "15 Oct 2026". Today when it is not known. */
+function checkDate(best: GeneratedContentItem): string {
+  const when = best.generatedAt ? new Date(best.generatedAt) : new Date();
+  const date = Number.isNaN(when.getTime()) ? new Date() : when;
+  return date.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+}
+
+/**
+ * The lines the other AI copies to the top of its answer, so the answer can be
+ * told apart later, in a chat history, a forwarded email or a screenshot:
+ * what was checked (title, source page, date), what it was judged for, and a
+ * link back to the result. The link only opens for the person who made the
+ * result, logged in.
+ */
+function headerLines(result: QuickRunResult, best: GeneratedContentItem, label: AiCheckLabel): string[] {
+  const original = result.versions.find(version => version.id === ORIGINAL_VERSION_ID);
+  let title = plain(label.title || deriveQuickLabel(original ? contentToText(original.content) : '') || '');
+  if (title.length > 60) title = `${title.slice(0, 57).trimEnd()}…`;
+  const parts = ['CopyZap check', title && `"${title}"`, result.source?.host, checkDate(best)].filter(Boolean);
+  const lines = [`**${parts.join(' · ')}**`];
+  const judgedAs = judgedAsLine(result);
+  if (judgedAs) lines.push(judgedAs);
+  if (label.resultUrl) lines.push(`[Open this result in CopyZap](${label.resultUrl})`);
+  return lines;
 }
 
 function copySection(texts: CheckText[]): string {
@@ -252,20 +291,22 @@ function summaryInstructions(texts: CheckText[]): string[] {
   ];
 }
 
-function answerFormat(texts: CheckText[], judgedAs = ''): string {
+function answerFormat(texts: CheckText[], header: string[] = []): string {
   const pair = texts.length > 1;
   return [
     'Answer in English. Keep it short and easy to read for a business owner, not a copywriter. Use exactly this structure and nothing else:',
     '',
-    `Start with one line: **Verdict: <Agree / Mostly agree / Partly agree / Disagree>.** followed by one or two plain sentences that say what that means for the user.`,
-    ...verdictBands(pair),
-    ...(judgedAs
+    ...(header.length > 0
       ? [
+          'Start with these lines, copied exactly as they are, each on its own line, so a reader knows later which copy this is and what it was judged for:',
           '',
-          'On the next line, copy this line exactly as it is, so a reader knows what the copy was judged for:',
-          judgedAs,
+          ...header.map(line => `${line}  `),
+          '',
+          'Then one line:',
         ]
-      : []),
+      : ['Start with one line:']),
+    `**Verdict: <Agree / Mostly agree / Partly agree / Disagree>.** followed by one or two plain sentences that say what that means for the user.`,
+    ...verdictBands(pair),
     '',
     ...summaryInstructions(texts),
     '',
@@ -279,11 +320,15 @@ function answerFormat(texts: CheckText[], judgedAs = ''): string {
 }
 
 /** The text for the other AI. `best` is the version Quick shows as best. */
-export function buildAiCheckPrompt(result: QuickRunResult, best: GeneratedContentItem): AiCheckPrompt {
+export function buildAiCheckPrompt(
+  result: QuickRunResult,
+  best: GeneratedContentItem,
+  label: AiCheckLabel = {}
+): AiCheckPrompt {
   const texts = checkTexts(result, best);
   const context = contextLines(result);
   const rubric = rubricText(result);
-  const judgedAs = judgedAsLine(result);
+  const header = headerLines(result, best, label);
 
   const intro = [
     '# Independent check of a CopyZap score',
@@ -324,7 +369,7 @@ export function buildAiCheckPrompt(result: QuickRunResult, best: GeneratedConten
     '',
     NORMAL_SPREAD,
     '',
-    answerFormat(texts, judgedAs),
+    answerFormat(texts, header),
     '',
     '---',
     '',
@@ -353,7 +398,7 @@ export function buildAiCheckPrompt(result: QuickRunResult, best: GeneratedConten
     '',
     NORMAL_SPREAD,
     '',
-    answerFormat(texts, judgedAs),
+    answerFormat(texts, header),
     '',
     '---',
     '',

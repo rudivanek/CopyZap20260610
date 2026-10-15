@@ -1044,6 +1044,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             elapsedLabel={runSeconds != null ? formatElapsed(runSeconds) : undefined}
             creditsUsed={resultCredits}
             title={savedTitle ?? undefined}
+            resultId={savedId}
             saveState={saveState}
             onRetrySave={() => persist(result, runSeconds, savedId)}
             onChange={handleChange}

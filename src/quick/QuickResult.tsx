@@ -39,6 +39,8 @@ interface QuickResultProps {
   creditsUsed?: number | null;
   /** The name of the History entry, when it differs from the first line of the copy. */
   title?: string;
+  /** The id of the saved result, for links back to it. Null while it is not saved. */
+  resultId?: string | null;
   /** Where saving stands: null before anything was tried. */
   saveState: 'saving' | 'saved' | 'failed' | null;
   onRetrySave: () => void;
@@ -220,6 +222,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
   elapsedLabel,
   creditsUsed,
   title,
+  resultId = null,
   saveState,
   onRetrySave,
   onChange,
@@ -612,7 +615,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
           </p>
         )}
         {aiCheckOpen && scores && (
-          <QuickAiCheck result={result} best={winner} onClose={() => setAiCheckOpen(false)} />
+          <QuickAiCheck result={result} best={winner} title={title} resultId={resultId} onClose={() => setAiCheckOpen(false)} />
         )}
       </div>
 

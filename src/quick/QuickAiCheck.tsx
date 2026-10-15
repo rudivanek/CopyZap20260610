@@ -16,6 +16,10 @@ import { TIPS } from './tips';
 interface QuickAiCheckProps {
   result: QuickRunResult;
   best: GeneratedContentItem;
+  /** The name of the History entry, when it differs from the first line of the copy. */
+  title?: string;
+  /** The saved result's id, for the link back to it. Null while it is not saved. */
+  resultId?: string | null;
   onClose: () => void;
 }
 
@@ -39,8 +43,14 @@ async function copyText(text: string): Promise<boolean> {
   }
 }
 
-const QuickAiCheck: React.FC<QuickAiCheckProps> = ({ result, best, onClose }) => {
-  const prompt = useMemo(() => buildAiCheckPrompt(result, best), [result, best]);
+const QuickAiCheck: React.FC<QuickAiCheckProps> = ({ result, best, title, resultId, onClose }) => {
+  const prompt = useMemo(() => {
+    // The address that opens this result again: this page with ?r=<id>.
+    const resultUrl = resultId
+      ? `${window.location.origin}${window.location.pathname}?r=${encodeURIComponent(resultId)}`
+      : undefined;
+    return buildAiCheckPrompt(result, best, { title, resultUrl });
+  }, [result, best, title, resultId]);
   // What the last click did, shown as one line under the buttons.
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
   const [twoSteps, setTwoSteps] = useState(false);
