@@ -37,6 +37,7 @@ const Dashboard = lazy(() => import('./components/Dashboard'));
 const CopyMakerTab = lazy(() => import('./components/copy-maker/CopyMakerTab/CopyMakerTab'));
 const CopySnap = lazy(() => import('./components/CopySnap'));
 const QuickPage = lazy(() => import('./quick/QuickPage'));
+const BuyCreditsPage = lazy(() => import('./quick/BuyCreditsPage'));
 // Lazy loaded - Admin components
 const ManageUsers = lazy(() => import('./components/ManageUsers'));
 const ManagePrefills = lazy(() => import('./components/ManagePrefills'));
@@ -643,7 +644,7 @@ const AppRouter: React.FC = () => {
 
   // Determine if we should show the main menu
   const shouldShowMainMenu = () => {
-    const hiddenPaths = ['/', '/login'];
+    const hiddenPaths = ['/', '/login', '/buy'];
     const isHelpPath = location.pathname.startsWith('/help');
     const isQuickPath = location.pathname.startsWith('/quick');
     return !hiddenPaths.includes(location.pathname) && !isHelpPath && !isQuickPath;
@@ -807,6 +808,14 @@ const AppRouter: React.FC = () => {
           }
         />
         <Route path="/privacy" element={<Privacy />} />
+        <Route
+          path="/buy"
+          element={
+            currentUser
+              ? <Suspense fallback={<AppSpinner />}><BuyCreditsPage /></Suspense>
+              : <Navigate to="/login" replace />
+          }
+        />
 
         {/* Videos - Public */}
         <Route path="/videos" element={<Suspense fallback={<AppSpinner />}><VideosPage /></Suspense>} />

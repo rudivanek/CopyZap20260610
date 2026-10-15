@@ -102,6 +102,30 @@ const AccountName: React.FC<{ userId: string; email: string; metaName?: string }
   );
 };
 
+/**
+ * "Buy credits" link, shown only to accounts allowed to use the paywall
+ * (admins and testers while it is hidden, everyone once it is public).
+ */
+const BuyCreditsLink: React.FC = () => {
+  const [show, setShow] = React.useState(false);
+  React.useEffect(() => {
+    let cancelled = false;
+    supabase.rpc('can_use_paywall').then(({ data }) => {
+      if (!cancelled) setShow(data === true);
+    });
+    return () => { cancelled = true; };
+  }, []);
+  if (!show) return null;
+  return (
+    <Link
+      to="/buy"
+      className="inline-flex items-center min-h-[44px] px-2 sm:px-3 font-medium text-primary-700 dark:text-primary-300 underline hover:text-primary-800 dark:hover:text-primary-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+    >
+      Buy credits
+    </Link>
+  );
+};
+
 const navButton =
   'inline-flex items-center min-h-[44px] px-2 sm:px-3 font-medium text-gray-900 dark:text-gray-100 ' +
   'hover:text-primary-700 dark:hover:text-primary-300 disabled:text-gray-400 disabled:cursor-not-allowed ' +
@@ -175,6 +199,7 @@ const QuickTopBar: React.FC<QuickTopBarProps> = ({
         )}
         <AccountName userId={userId} email={userEmail} metaName={userMetaName} />
         <CreditsLeft key={creditsTick} userId={userId} />
+        <BuyCreditsLink />
         <button type="button" onClick={onLogout} className={navButton + 'border-transparent'}>
           Log out
         </button>

@@ -2069,7 +2069,7 @@ export interface AccessCheckResult {
     untilDate: string | null;
   };
   // Phase 4A: Credits enforcement fields
-  enforcementMode?: 'credits' | 'tokens';
+  enforcementMode?: 'credits' | 'tokens' | 'prepaid';
   creditsAllowed?: number;
   creditsUsedInPeriod?: number;
   creditsRemaining?: number;
@@ -2315,6 +2315,39 @@ export const checkUserAccess = async (userId: string, userEmail: string): Promis
       ...userData,
       enforcement_mode: userData.enforcement_mode || 'credits'
     });
+
+    // 0. PREPAID (paywall) accounts: bought or trial credits, no dates and no monthly plan.
+    // The server (ai-completion) enforces the same rule; this check only gives a clear message early.
+    if (userData.enforcement_mode === 'prepaid') {
+      try {
+        const { data: prepaid, error: prepaidError } = await supabase.rpc('get_user_credits_balance', {
+          user_id_param: userId
+        });
+        if (prepaidError || !prepaid) {
+          console.error('⚠️ Prepaid balance could not be read (FAIL OPEN, server still checks):', prepaidError);
+          return { hasAccess: true, message: 'Access granted.', enforcementMode: 'prepaid', creditsCalcError: true };
+        }
+        const prepaidRemaining = Number(prepaid.credits_remaining) || 0;
+        if (prepaidRemaining <= 0) {
+          return {
+            hasAccess: false,
+            message: "You're out of credits. Buy a credit pack to keep going.",
+            enforcementMode: 'prepaid',
+            creditsRemaining: 0
+          };
+        }
+        return {
+          hasAccess: true,
+          message: 'Access granted.',
+          enforcementMode: 'prepaid',
+          creditsAllowed: Number(prepaid.credits_allowed) || 0,
+          creditsRemaining: prepaidRemaining
+        };
+      } catch (err) {
+        console.error('⚠️ Prepaid balance check failed (FAIL OPEN, server still checks):', err);
+        return { hasAccess: true, message: 'Access granted.', enforcementMode: 'prepaid', creditsCalcError: true };
+      }
+    }
 
     // 1. Check subscription date validity (SAME FOR BOTH MODES)
     // Use date-only comparison (YYYY-MM-DD strings) to avoid timezone issues

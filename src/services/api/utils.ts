@@ -311,6 +311,7 @@ export async function makeStreamingReportRequest(
 
   if (!response.ok) {
     const errorText = await response.text();
+    if (response.status === 402) throw new Error("You're out of credits. Buy a credit pack to keep going.");
     throw new Error(`Edge function error (${response.status}): ${errorText}`);
   }
 
@@ -422,6 +423,7 @@ export async function makeApiRequestWithFallback(
           // Not JSON, continue with text error
         }
 
+        if (response.status === 402) throw new Error("You're out of credits. Buy a credit pack to keep going.");
         throw new Error(`Edge function error (${response.status}): ${errorText}`);
       }
 
