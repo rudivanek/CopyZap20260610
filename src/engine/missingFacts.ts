@@ -62,6 +62,24 @@ const ACTION_GAPS = `- what makes the business different: something concrete it 
 - a guarantee
 - what happens after the reader acts`;
 
+/** Kinds of question that ask for the same thing: an offer and what happens after the reader acts. */
+const SAME_KIND: Record<string, string> = { next_step: 'offer' };
+
+/**
+ * One question per kind, in the model's order: the second question never asks
+ * for more of what the first one asked.
+ */
+export function oneQuestionPerKind(questions: MissingFactQuestion[]): MissingFactQuestion[] {
+  const seen = new Set<string>();
+  return questions.filter(question => {
+    const kind = SAME_KIND[question.kind] ?? question.kind;
+    if (kind === 'other') return true;
+    if (seen.has(kind)) return false;
+    seen.add(kind);
+    return true;
+  });
+}
+
 /**
  * What each other goal needs that only the business can supply. Price, offers
  * and deadlines are the wrong questions for copy that informs, teaches, keeps
@@ -198,6 +216,7 @@ ${goal ? goal.gaps : ACTION_GAPS}
 
 Rules:
 - Up to ${guidance.max} ${guidance.max === 1 ? 'gap' : 'gaps'}, most important first. Fewer is fine. If nothing important is missing, return an empty list.
+- Ask about each kind of gap only once: never two questions about proof, for example.
 - Never ask for something the copy already states, even in other words. A line in brackets such as "(customer testimonials, not shown)" stands for a part of the page that is there: do not ask for it.
 - Each question is one short sentence written in ENGLISH, whatever the language of the copy (the user reads the questions in an English interface). It is specific to this copy: name or quote the part it is about; a quote may stay in the copy's language.
 - For each question give one example answer, written in ${examples}, short enough to drop into the copy. It is shown greyed out in an empty field as a hint of what to write, so:
@@ -305,7 +324,7 @@ export async function findMissingFacts(
       'quick_missing_facts',
       sessionId
     );
-    return parseMissingFacts(response.choices[0]?.message?.content ?? '').slice(0, kindGuidance(kind).max);
+    return oneQuestionPerKind(parseMissingFacts(response.choices[0]?.message?.content ?? '')).slice(0, kindGuidance(kind).max);
   } catch {
     return [];
   }

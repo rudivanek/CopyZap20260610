@@ -2,10 +2,18 @@
  * Quick — "Make it stronger" as a chat, a test next to the answer fields.
  *
  * The first question is the first one missingFacts.ts found, so the chat starts
- * at once. After each answer one small call (Haiku) reads the conversation and
- * decides what comes next: ask to clarify a vague answer ("50% of what?"), ask
- * the next missing thing, or stop. It also keeps the list of facts the user has
- * given, in their own words; that list is what the writer gets.
+ * at once. After each answer one small call (Haiku) reads the conversation:
+ * it keeps the list of facts the user has given, in their own words (that list
+ * is what the writer gets), says which of the questions found are already
+ * answered, and may ask once to clarify a vague answer ("50% of what?").
+ *
+ * The next question is chosen in code (nextQuestion): the next question found
+ * that is not asked or answered yet, in the order missingFacts.ts found them,
+ * most important first. Until 2026-10-14 the model chose it, and after a
+ * result figure for Sales Boost it asked for "the actual numbers for the other
+ * metrics" in 4 runs out of 4, also with a rule against it, so the price and
+ * the free diagnosis were asked late or never. A passage of the user's own page
+ * ("From my page: …") is never questioned.
  *
  * Nothing the user did not say may become a fact: a fact with a number the
  * user never typed is dropped in code, and a currency they never named is taken
@@ -46,6 +54,8 @@ export const SKIPPED_ANSWER = '(skipped)';
 export interface ChatTurn {
   from: 'copyzap' | 'user';
   text: string;
+  /** A CopyZap question only: it asks to clarify the answer before it, not a question found. */
+  clarifies?: boolean;
   /** A CopyZap question only: an example answer in the copy's language, with ___ for the user's own values. */
   example?: string;
   /**
@@ -182,14 +192,14 @@ export const endsChat = (answer: string) => DONE_ANSWER.test(answer.trim().repla
 function systemPrompt(context: FactChatContext, planned: MissingFactQuestion[]): string {
   const language = exampleLanguage(context.language);
   const plannedList = planned.length
-    ? planned.map(question => `- ${question.question}`).join('\n')
-    : '- (nothing important was found missing; ask only what the user offers)';
+    ? planned.map((question, index) => `${index + 1}. ${question.question}`).join('\n')
+    : '(nothing important was found missing)';
   return `You help a business owner add true facts to a piece of marketing copy before it is rewritten. ${goalLine(context.goalKey, context.goalLabel)} ${kindLineFor(context.goalKey, context.kind)}
 
-The rewrite may only use facts the copy states, plus the facts the user gives in this chat. These gaps were found in the copy, most important first:
+The rewrite may only use facts the copy states, plus the facts the user gives in this chat. These questions were found for the copy, most important first:
 ${plannedList}
 
-You get the copy and the chat so far. Do two things.
+You get the copy and the chat so far. Do three things.
 
 1. "facts": the full, updated list of facts the user has given in the chat, one short line each.
 - Take every fact from every answer, also a fact that answers a different question than the one asked ("more than 120 sites, and the first review is free" gives two facts).
@@ -199,14 +209,13 @@ You get the copy and the chat so far. Do two things.
 - "no", "skip" or "(skipped)" gives no fact. Something the copy already says is not a new fact, unless the user gives it as an answer on purpose (an answer that starts with "${FROM_PAGE_PREFIX}"): then it is a fact, so the rewrite can use it where it helps. Say whose words it is when it is one person's (a testimonial becomes "one client reports ..."), and never make it sound like an average, a guarantee or a promise.
 - At most ${USER_FACTS_MAX} facts.
 
-2. "next": the next question, or null.
-- If the last answer is vague or unclear (a number without what it refers to, "it depends", "a discount" without how much or on what), ask about that answer first, once: say what is unclear and show what a clear answer looks like.
-- Otherwise ask the next gap from the list above that is not answered or skipped. You may ask one short follow-up when an answer opens something useful for the copy (what a free consultation includes, for example), but never ask the same thing twice, and never for something the copy already states.
-- If the user says they are done, or every gap is answered or skipped, "next" is null. Never ask an open "anything else?" question yourself: CopyZap asks that at the end.
+2. "answered": the numbers of the questions above that the user's answers already answer, also in passing (an answer that also names a price answers a question about the price too). A skipped question is not answered.
+
+3. "clarify": only when the user's last answer is vague or unclear (a number without what it refers to, "it depends", "a discount" without how much or on what): one short question about that answer, which says what is unclear and shows what a clear answer looks like. Otherwise null, which is the usual case: an answer that says what its number refers to is clear, even when it does not cover everything the question asked or leaves out a time frame. Never use it to ask for more facts or more detail, and never about an answer that starts with "${FROM_PAGE_PREFIX}": that is the page's own words.
 - The question is one short sentence in ENGLISH, whatever the language of the copy or of the answers. Be friendly and plain; no praise, no sales talk.
 - "example": one example answer in ${language}, short enough to drop into the copy. Never a number, price, date, duration, percentage, rating, count or client name of your own: leave ${FACT_BLANK} where the user's own value goes. Never a currency symbol or code. Empty when no example helps.
 
-Answer with JSON only: {"facts":["..."],"next":{"question":"(in English)","example":"(in ${language})"}} or {"facts":["..."],"next":null}`;
+Answer with JSON only: {"facts":["..."],"answered":[1],"clarify":{"question":"(in English)","example":"(in ${language})"}} or {"facts":["..."],"answered":[],"clarify":null}`;
 }
 
 function chatText(turns: ChatTurn[]): string {
@@ -218,7 +227,10 @@ const oneLine = (value: unknown, max: number): string =>
 
 export interface FactChatStep {
   facts: string[];
-  next: { question: string; example: string } | null;
+  /** Numbers (from 1) of the questions found that the answers already answer. */
+  answered: number[];
+  /** A question that clarifies the last answer, or null. */
+  clarify: { question: string; example: string } | null;
 }
 
 /** Reads the model's reply. Null when it is not usable. */
@@ -233,21 +245,44 @@ export function parseFactChatStep(raw: string): FactChatStep | null {
   const item = parsed as Record<string, unknown>;
   if (!Array.isArray(item.facts)) return null;
   const facts = item.facts.map(fact => oneLine(fact, USER_FACT_MAX_CHARS)).filter(Boolean);
-  const next = item.next && typeof item.next === 'object' ? (item.next as Record<string, unknown>) : null;
-  const question = next ? oneLine(next.question, 220) : '';
-  return { facts, next: question ? { question, example: safeExample(next?.example) } : null };
+  const answered = Array.isArray(item.answered)
+    ? item.answered.map(Number).filter(number => Number.isInteger(number) && number > 0)
+    : [];
+  const clarify = item.clarify && typeof item.clarify === 'object' ? (item.clarify as Record<string, unknown>) : null;
+  const question = clarify ? oneLine(clarify.question, 220) : '';
+  return { facts, answered, clarify: question ? { question, example: safeExample(clarify?.example) } : null };
+}
+
+/** Without the model: the answer counts as written, and nothing is clarified. */
+function fallbackStep(chat: FactChat): FactChatStep {
+  const last = chat.turns[chat.turns.length - 1];
+  const facts = last?.from === 'user' && !NO_ANSWER.test(last.text) ? [...chat.facts, last.text] : chat.facts;
+  return { facts, answered: [], clarify: null };
 }
 
 /**
- * Without the model: the answer counts as written, and the next question found
- * earlier that has not been asked comes next.
+ * The next question found that is not asked yet and not answered in passing,
+ * in the order found (most important first). Null when there is none.
  */
-function fallbackStep(chat: FactChat, planned: MissingFactQuestion[]): FactChatStep {
-  const last = chat.turns[chat.turns.length - 1];
-  const facts = last?.from === 'user' && !NO_ANSWER.test(last.text) ? [...chat.facts, last.text] : chat.facts;
-  const asked = new Set(chat.turns.filter(turn => turn.from === 'copyzap').map(turn => turn.text));
-  const next = planned.find(question => !asked.has(question.question));
-  return { facts, next: next ? { question: next.question, example: next.example } : null };
+export function nextQuestion(
+  planned: MissingFactQuestion[],
+  turns: ChatTurn[],
+  answered: number[]
+): MissingFactQuestion | null {
+  const asked = new Set(turns.filter(turn => turn.from === 'copyzap').map(turn => turn.text));
+  return planned.find((question, index) => !asked.has(question.question) && !answered.includes(index + 1)) ?? null;
+}
+
+/**
+ * Whether the model's clarifying question is used: only after a real answer
+ * that is not a passage of the page, and never twice in a row.
+ */
+function mayClarify(turns: ChatTurn[]): boolean {
+  const last = turns[turns.length - 1];
+  const before = turns[turns.length - 2];
+  if (!last || last.from !== 'user') return false;
+  if (NO_ANSWER.test(last.text) || last.text.trim().startsWith(FROM_PAGE_PREFIX)) return false;
+  return !before?.clarifies;
 }
 
 /**
@@ -287,7 +322,7 @@ export async function nextFactChatStep(
   } catch {
     step = null;
   }
-  if (!step) step = fallbackStep(chat, planned);
+  if (!step) step = fallbackStep(chat);
 
   const removed = new Set(chat.removed.map(fact => fact.toLowerCase()));
   const facts = factsSaidByUser(step.facts, chat.turns).filter(fact => !removed.has(fact.toLowerCase()));
@@ -295,10 +330,17 @@ export async function nextFactChatStep(
   const userEnded = last?.from === 'user' && endsChat(last.text);
   const closed = closingAsked(chat.turns);
   const limitReached = questionsAsked(chat.turns) >= FACT_CHAT_MAX_QUESTIONS;
-  const next = limitReached || userEnded || closed ? null : step.next;
   const updated: FactChat = { ...chat, facts, waiting: false };
-  if (next) {
-    return { ...updated, done: false, turns: [...chat.turns, { from: 'copyzap', text: next.question, example: next.example || undefined }] };
+  if (!limitReached && !userEnded && !closed) {
+    if (step.clarify && mayClarify(chat.turns)) {
+      // A clarification is about the user's own answer: the page is not searched for it (fromPage empty).
+      const turn: ChatTurn = { from: 'copyzap', text: step.clarify.question, example: step.clarify.example || undefined, clarifies: true, fromPage: '' };
+      return { ...updated, done: false, turns: [...chat.turns, turn] };
+    }
+    const next = nextQuestion(planned, chat.turns, step.answered);
+    if (next) {
+      return { ...updated, done: false, turns: [...chat.turns, { from: 'copyzap', text: next.question, example: next.example || undefined }] };
+    }
   }
   // Nothing more to ask: one last open question, unless the user ended the chat or already had it.
   if (!userEnded && !closed) return withClosingQuestion(updated);

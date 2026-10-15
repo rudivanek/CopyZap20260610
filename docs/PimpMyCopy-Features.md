@@ -1,7 +1,46 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.66
-Last Updated: 2026-10-14T21:00:00Z
+Version: 1.67
+Last Updated: 2026-10-15T00:00:00Z
+
+---
+
+## Quick — "Make it stronger": Most Useful Questions First, No Repeats (2026-10-15)
+
+**Feature:** Three changes to the "Make it stronger" chat so the most useful questions are reached first and none is asked twice:
+1. The chat now asks the questions it found in their order (most important first). The code picks the next question (`nextQuestion`), not the AI: after a result figure, it no longer asks "what are the numbers for the other metrics?" (it did in 4 of 4 Sales Boost test runs on 2026-10-14, also with a rule against it), so the price and the free first step are reached sooner.
+2. A question already answered in passing (an answer that also names a price, for example) is not asked. The model reports which questions the answers already cover; the next-question picker skips them.
+3. The chat asks to clarify only a vague answer ("mejoran como 50%"), at most once in a row, and never about a passage from the user's own page ("From my page: …"). The question finder also asks about each kind of gap only once.
+
+**Why:** On 2026-10-14, the Sales Boost chat was given the first result figure ("48% year over year"), then in 4 runs out of 4 the model asked "what are the actual numbers for the other metrics?" before reaching the price or the offer — even though the prompt told it not to. The price and the free diagnosis were asked late or never. Handing the question choice to code, in the order the questions were found, fixes it without relying on the model to follow the rule. The "already answered in passing" change came from the same finding: one answer often covered a later question, and the chat asked it anyway.
+
+**Edit — `src/engine/missingFacts.ts` (3 edits):** Each edit was a find-and-replace applied once; nothing else in the file changed.
+- **Edit 1 — `SAME_KIND` and `oneQuestionPerKind`:** After the `ACTION_GAPS` constant's closing line, a new `SAME_KIND: Record<string, string> = { next_step: 'offer' }` (an offer and what happens after the reader act are the same kind) and an exported `oneQuestionPerKind(questions)` function were added. It walks the questions in the model's order, keeps the first of each kind (after mapping `next_step` to `offer`), lets `other` through freely, and drops the rest. Comment: "the second question never asks for more of what the first one asked."
+- **Edit 2 — finder rule "each kind only once":** In `systemPrompt`'s Rules block, a new line was added after the "Up to N gaps" line: `- Ask about each kind of gap only once: never two questions about proof, for example.` Nothing else in the rules changed.
+- **Edit 3 — `oneQuestionPerKind` applied to the finder's result:** In `findMissingFacts`, the return line changed from `parseMissingFacts(...).slice(0, kindGuidance(kind).max)` to `oneQuestionPerKind(parseMissingFacts(...)).slice(0, kindGuidance(kind).max)`, so the finder never returns two questions of the same kind.
+
+**Edit — `src/engine/factChat.ts` (8 edits):** Each edit was a find-and-replace applied once; nothing else in the file changed.
+- **Edit 1 — JSDoc:** The module comment's second paragraph was rewritten: the model now keeps the fact list, says which questions are answered, and may clarify once; the next question is chosen in code (`nextQuestion`), in the order found, with the 2026-10-14 Sales Boost finding named ("the actual numbers for the other metrics" in 4 of 4 runs). A passage of the user's own page is never questioned.
+- **Edit 2 — `ChatTurn.clarifies`:** The `ChatTurn` interface gained an optional `clarifies?: boolean` field — true only on a CopyZap question that clarifies the answer before it, not a question found. Placed before `example`.
+- **Edit 3 — system prompt intro and numbered list:** The `plannedList` now numbers the questions (`1.`, `2.`, …) instead of bullet points, and the empty case lost its "ask only what the user offers" tail. "These gaps were found" became "These questions were found". "Do two things" became "Do three things."
+- **Edit 4 — `answered` and `clarify` replace `next`:** The prompt's section 2 ("next": the next question) was replaced by two sections: `2. "answered"` (the numbers of the questions above that the answers already answer, also in passing; a skipped question is not answered) and `3. "clarify"` (only when the last answer is vague; one short question about it; null in the usual case; never about a page passage; never to ask for more facts). The JSON answer shape changed from `{"facts":[...],"next":{...}}` / `{"facts":[...],"next":null}` to `{"facts":[...],"answered":[1],"clarify":{...}}` / `{"facts":[...],"answered":[],"clarify":null}`.
+- **Edit 5 — `FactChatStep` interface:** `next` was replaced by `answered: number[]` (with JSDoc) and `clarify: { question: string; example: string } | null` (with JSDoc).
+- **Edit 6 — `parseFactChatStep`, `fallbackStep`, `nextQuestion`, `mayClarify`:** `parseFactChatStep` now reads `answered` (integers > 0) and `clarify` instead of `next`. `fallbackStep(chat)` (no longer takes `planned`) returns `{ facts, answered: [], clarify: null }`. A new exported `nextQuestion(planned, turns, answered)` returns the next question found that is not asked and not answered in passing, in the order found. A new `mayClarify(turns)` returns true only after a real user answer that is not a skip and not a page passage, and never twice in a row (checks `before?.clarifies`).
+- **Edit 7 — `fallbackStep` call:** `fallbackStep(chat, planned)` became `fallbackStep(chat)`.
+- **Edit 8 — step application:** The block that built `next` from `step.next` and added one turn was replaced: when not at the limit, not ended, not closed, if `step.clarify` and `mayClarify` allow it, a clarifying turn is added (`clarifies: true`, `fromPage: ''` so the page is not searched for it); otherwise `nextQuestion(planned, chat.turns, step.answered)` picks the next found question and adds it. When neither, the chat moves to the closing question as before.
+
+**Effect on Copy Maker:** None. Both files are Quick-only engine modules. Copy Maker does not call `findMissingFacts`, `startFactChat`, or `nextFactChatStep`. Copy Maker writes as before.
+
+**Effect on existing results:** None. The chat runs during the check screen, before a run starts; it is not part of a saved result. The `clarifies` field is on `ChatTurn`, which is ephemeral chat state. The `answered`/`clarify` shape is the in-memory step, not saved data. A result saved before this change is not affected.
+
+**Files touched:** `src/engine/missingFacts.ts` (3 edits), `src/engine/factChat.ts` (8 edits). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes with no new errors.
+- The chat asks the questions it found in their order (most important first), chosen in code; after a result figure it no longer asks for the other metrics' numbers.
+- A question already answered in passing is not asked.
+- A vague answer is clarified at most once in a row, never about a page passage.
+- The question finder asks about each kind of gap only once.
 
 ---
 
