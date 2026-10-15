@@ -1,7 +1,31 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.67
-Last Updated: 2026-10-15T00:00:00Z
+Version: 1.68
+Last Updated: 2026-10-15T01:00:00Z
+
+---
+
+## Quick — "Make it stronger and run again": Weakest Part on the Card (2026-10-15)
+
+**Feature:** The "Make it stronger and run again" card under a Quick result now starts with the winner's weakest part and the scorer's own sentence about it, for example: "Weakest part: Persuasion 16/25. The CTA 'Cotizar proyecto' … is soft and buried after testimonials …". The score explains itself, and the user sees what answering would fix. No new AI call and no extra credits: the sentence is already part of the score (one of the four part notes the scorer returns).
+
+**Why:** On 2026-10-14 the card named what the copy was missing in plain words ("proof with numbers, your price"), but did not say which part of the score was lowest or why. A user who saw "best 76" did not know that Persuasion was the weak part, or that it was weak because the call to action was soft and buried. The weakest-part line makes the score explain itself: the user sees the part that real facts raise most, in the scorer's own words, right above the button that starts the chat.
+
+**Edit — `src/quick/QuickResult.tsx` (3 edits):** Each edit was a find-and-replace applied once; nothing else in the file changed.
+- **Edit 1 — `weakestPart` function:** After the `SUB_SCORES` array's closing `];`, a new `weakestPart(score)` function was added. It takes the winner's `AbsoluteScoreBreakdown`, builds a list of the four parts (Persuasion, Structure, Clarity, Audience fit) each with its value and note, keeps only those with a value above 0 and a non-empty note, and returns the one with the lowest value (on a tie Persuasion wins because it is first in the list and `reduce` keeps the earlier one). Returns `{ label, value, note }` or null when no part has both a score and a note. Placed above `reasons`.
+- **Edit 2 — `weakest` computed:** After `const winnerTotal = winnerScore?.total;`, a new `const weakest = weakestPart(winnerScore);` line was added, so the card can read it.
+- **Edit 3 — weakest-part line on the card:** Inside the "Make it stronger and run again" section, between the heading and the existing "Your best version scores …" paragraph, a new `{weakest && (...)}` paragraph shows "Weakest part: {weakest.label} {weakest.value}/25." in semibold, followed by the scorer's own note in the same line. The paragraph uses `break-words` so a long note wraps. The rest of the card is unchanged.
+
+**Effect on Copy Maker:** None. `QuickResult.tsx` is a Quick-only component. Copy Maker is not changed.
+
+**Effect on existing results:** The weakest-part line uses the winner's score, which is already part of a saved result (the four part notes are stored with each version's `AbsoluteScoreBreakdown`). A result saved before this change has the same scores and notes; the line simply was not shown. Results opened from History do not show the card at all (it requires `runAgain`, which is null for History-opened results), so the line is not shown for them either.
+
+**Files touched:** `src/quick/QuickResult.tsx` (3 edits). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Verification:**
+- `npm run build` passes with no new errors.
+- The "Make it stronger and run again" card under a Quick result starts with the winner's weakest part (label, value out of 25) and the scorer's own sentence about it, when the winner has a complete score with notes. The line does not appear when there is no score or no note.
+- No new AI call or extra credits: the sentence is already part of the score.
 
 ---
 

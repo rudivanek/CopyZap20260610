@@ -85,6 +85,25 @@ const SUB_SCORES: { key: 'clarity' | 'persuasion' | 'audience_fit' | 'structure'
   { key: 'structure', label: 'Structure' },
 ];
 
+/**
+ * The winner's weakest part and the scorer's own words about it, shown on the
+ * "Make it stronger and run again" card, so the score explains itself and the
+ * user sees what an answer would fix. On a tie Persuasion wins: it is the part
+ * real facts raise most. Null when there is no complete score or no note.
+ */
+function weakestPart(score: AbsoluteScoreBreakdown | undefined): { label: string; value: number; note: string } | null {
+  if (!score) return null;
+  const parts = [
+    { label: 'Persuasion', value: score.persuasion, note: score.persuasion_note },
+    { label: 'Structure', value: score.structure, note: score.structure_note },
+    { label: 'Clarity', value: score.clarity, note: score.clarity_note },
+    { label: 'Audience fit', value: score.audience_fit, note: score.audience_fit_note },
+  ].filter(part => part.value > 0 && part.note && part.note.trim().length > 0);
+  if (parts.length === 0) return null;
+  const low = parts.reduce((min, part) => (part.value < min.value ? part : min));
+  return { label: low.label, value: low.value, note: low.note.trim() };
+}
+
 function reasons(score: AbsoluteScoreBreakdown | undefined): { label: string; note: string }[] {
   if (!score) return [];
   return [
@@ -334,6 +353,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const winnerScore = scores?.absoluteByVersion[winner.id];
   const originalScore = scores?.absoluteByVersion[ORIGINAL_VERSION_ID];
   const winnerTotal = winnerScore?.total;
+  const weakest = weakestPart(winnerScore);
   const originalTotal = originalScore?.total;
   const delta = winnerTotal != null && originalTotal != null ? winnerTotal - originalTotal : null;
   const original = versions.find(version => version.id === ORIGINAL_VERSION_ID);
@@ -839,6 +859,14 @@ const QuickResult: React.FC<QuickResultProps> = ({
           {runAgain && winnerTotal != null && (
             <section id="quick-run-again" aria-label="Make it stronger and run again" className={`${card} p-6 flex flex-col gap-3`}>
               <p className="font-semibold text-gray-900 dark:text-gray-100">Make it stronger and run again</p>
+              {weakest && (
+                <p className="text-gray-700 dark:text-gray-300 break-words">
+                  <span className="font-semibold">
+                    Weakest part: {weakest.label} {weakest.value}/25.
+                  </span>{' '}
+                  {weakest.note}
+                </p>
+              )}
               <p className="text-gray-600 dark:text-gray-400">
                 Your best version scores {winnerTotal}.{' '}
                 {runAgain.missing.length > 0
