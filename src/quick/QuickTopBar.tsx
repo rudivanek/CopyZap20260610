@@ -110,11 +110,17 @@ const AccountName: React.FC<{ userId: string; email: string; metaName?: string }
  */
 const CreditsExpiry: React.FC<{ userId: string }> = ({ userId }) => {
   const [note, setNote] = React.useState<{ text: string; title: string; soon: boolean } | null>(null);
+  const [empty, setEmpty] = React.useState(false);
   React.useEffect(() => {
     let cancelled = false;
     (async () => {
       const { data: balance } = await supabase.rpc('get_user_credits_balance', { user_id_param: userId });
       if (cancelled || !balance || balance.mode !== 'prepaid') return;
+      // Prepaid and nothing left: say so, instead of showing no number at all.
+      if ((Number(balance.credits_remaining) || 0) <= 0) {
+        setEmpty(true);
+        return;
+      }
       const { data: rows } = await supabase
         .from('credit_grants')
         .select('remaining, expires_at')
@@ -146,6 +152,13 @@ const CreditsExpiry: React.FC<{ userId: string }> = ({ userId }) => {
     })();
     return () => { cancelled = true; };
   }, [userId]);
+  if (empty) {
+    return (
+      <span className="inline-flex items-center min-h-[44px] px-2 sm:px-3 text-xs font-medium text-status-critical tabular-nums whitespace-nowrap">
+        0 credits<span className="hidden sm:inline">&nbsp;left</span>
+      </span>
+    );
+  }
   if (!note) return null;
   return (
     <span

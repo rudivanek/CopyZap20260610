@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useCompleteAccess } from '../hooks/useCompleteAccess';
 import { GoalKey, User } from '../types';
 import { DEFAULT_GOAL_KEY, GOAL_OPTIONS } from '../utils/scoringContextStorage';
@@ -902,7 +902,17 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           {error && (
             <div role="alert" className="flex items-start gap-2.5 bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 p-4">
               <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-critical" aria-hidden="true" />
-              <p className="text-gray-900 dark:text-gray-100 break-words">{error}</p>
+              <div className="flex flex-col gap-3">
+                <p className="text-gray-900 dark:text-gray-100 break-words">{error}</p>
+                {/out of credits/i.test(error) && (
+                  <Link
+                    to="/buy"
+                    className="self-start inline-flex items-center min-h-[44px] px-4 rounded-md bg-primary-600 text-white font-medium hover:bg-primary-700 focus:outline-none focus:ring-2 focus:ring-primary-500"
+                  >
+                    Buy credits
+                  </Link>
+                )}
+              </div>
             </div>
           )}
 
