@@ -10,7 +10,9 @@
  *
  * So right after writing, each version is checked the same way the result
  * screen checks it: numbers not in the original or the user's facts
- * (numberCheck.ts), and quoted words not in them (findUnverifiedQuotes). When
+ * (numberCheck.ts), quoted words not in them (findUnverifiedQuotes), and
+ * words that make a claim stronger than they do, like "certificada" or "la
+ * máxima autoridad mundial" (claimWords.ts, since 2026-10-15). When
  * a version has any, one small call (Haiku) proposes the smallest edits that
  * take them out, as exact "find" and "replace" pairs. The edits are applied by
  * plain text replacement, so nothing else in the version can change; an edit
@@ -24,6 +26,7 @@
 import { User } from '../types';
 import { cleanJsonResponse, makeApiRequestWithFallback } from '../services/api/utils';
 import { checkNumbers } from './numberCheck';
+import { findUpgradedClaims } from './claimWords';
 import { findUnverifiedQuotes } from './quoteLock';
 
 const CLEANUP_MODEL = 'claude-haiku-4-5';
@@ -37,19 +40,29 @@ export interface CleanedVersion {
 }
 
 interface Detail {
-  /** What to take out: the number as written, or the quoted words. */
+  /** What to take out: the number as written, the quoted words, or the words that make a claim stronger. */
   item: string;
   /** The sentence it stands in. */
   context: string;
+  /** A word that makes a claim stronger ("certificada"): only it goes, not the whole claim. */
+  upgrade?: boolean;
 }
 
-/** The numbers and quoted words of a text that the allowed text does not have. */
+/**
+ * The numbers, quoted words and claim-strengthening words (claimWords.ts) of
+ * a text that the allowed text does not have.
+ */
 export function inventedDetails(text: string, allowed: string): Detail[] {
   const numbers = checkNumbers(text, allowed).added.flatMap(finding =>
     finding.numbers.map(number => ({ item: number, context: finding.context }))
   );
   const quotes = findUnverifiedQuotes(text, allowed).map(quote => ({ item: quote, context: quote }));
-  return [...numbers, ...quotes];
+  const upgrades = findUpgradedClaims(text, allowed).map(claim => ({
+    item: claim.words,
+    context: claim.context,
+    upgrade: true,
+  }));
+  return [...numbers, ...quotes, ...upgrades];
 }
 
 const SYSTEM_PROMPT = `You edit marketing copy so it states only what the business itself said. You get the copy and a list of details in it that the business never stated: numbers, and words put in quotation marks as if someone said them.
@@ -57,6 +70,7 @@ const SYSTEM_PROMPT = `You edit marketing copy so it states only what the busine
 A number is part of a claim: "Fortune 500 companies" is a kind of client, "within 24 hours" is a promise, "3,000 teams" is a count of clients. Take out the whole claim the detail belongs to, never only the digits, and never put a vaguer form of the same claim in its place ("large companies", "leading organisations", "quickly", "many clients"). If the sentence says nothing once the claim is gone, the whole sentence goes. A quotation is removed together with its attribution.
 
 For each edit give "find": text copied character for character from the copy, from a few words up to one sentence, containing the detail; and "replace": that text without the claim, or an empty string. Examples: "Trusted by 3,000 teams like yours, we set it up in a week." becomes "We set it up in a week."; "We reply within 24 hours." becomes "".
+Some details are marked "makes a claim stronger": words such as "certificada", "la máxima autoridad mundial", "oficial", "garantiza" or "guaranteed" that the business never used. For these, take out only those words, so the sentence says what the business said; where the sentence needs a word in their place, use plain wording that claims less. Examples: "psicóloga y logoterapeuta certificada con 32 años de experiencia" becomes "psicóloga y logoterapeuta con 32 años de experiencia"; "del Instituto Viktor Frankl de Viena — la máxima autoridad mundial en esta metodología." becomes "del Instituto Viktor Frankl de Viena."; "coaching que garantiza la adopción real" becomes "coaching para lograr la adopción real".
 - Never add a number, name, result, promise or anything else the copy does not already say.
 - Keep every other fact of the sentence, its other numbers and names included: only the listed details go.
 - Change nothing that is not needed to take the claim out. Never touch a line like [[TESTIMONIALS-1]] or [[KEEP-1]].
@@ -128,7 +142,10 @@ export async function removeInventedDetails(
         {
           role: 'user',
           content: `Copy:\n"""\n${text}\n"""\n\nDetails to take out:\n${details
-            .map((detail, index) => `${index + 1}. ${detail.item} (in: "${detail.context}")`)
+            .map(
+              (detail, index) =>
+                `${index + 1}. ${detail.item}${detail.upgrade ? ' (makes a claim stronger)' : ''} (in: "${detail.context}")`
+            )
             .join('\n')}`,
         },
       ],

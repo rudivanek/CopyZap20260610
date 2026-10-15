@@ -48,6 +48,7 @@ export const KEEP_TO_ORIGINAL_NOTE = [
   'Keep the facts the original states: its numbers, names, offers, and what it says makes the product different.',
   'The benefits, differentiators and credibility elements listed earlier in these instructions are ideas for emphasis: use one only where the original itself says it.',
   'Do not invent details either: no scenes, times, places, anecdotes or quoted words that the original does not have.',
+  'Do not upgrade a claim with words the original does not use about it, in any language: certified, accredited, official, leading, number one, the world authority, award-winning, internationally recognised, guaranteed or proven. If the original says "logoterapeuta", do not write "logoterapeuta certificada"; if it names an institute, do not call it the top authority.',
   'A new angle or a new order is welcome; new information is not.',
 ].join(' ');
 

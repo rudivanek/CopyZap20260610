@@ -22,6 +22,8 @@ import QuickAiCheck from './QuickAiCheck';
 import { effectiveGates } from '../engine/gateRules';
 import { checkNumbers } from '../engine/numberCheck';
 import type { NumberCheck } from '../engine/numberCheck';
+import { findUpgradedClaims } from '../engine/claimWords';
+import type { UpgradedClaim } from '../engine/claimWords';
 import { ORIGINAL_VERSION_ID } from '../engine/pickWinner';
 import { QUICK_SCORE_MARGIN } from '../engine/runQuickPipeline';
 import type { QuickRunResult } from '../engine/runQuickPipeline';
@@ -201,6 +203,33 @@ const NumberNotes: React.FC<{ check: NumberCheck }> = ({ check }) => (
   </>
 );
 
+/** Words that make a claim stronger than the original does ("certificada"), each with its sentence. */
+const UpgradeNotes: React.FC<{ items: UpgradedClaim[] }> = ({ items }) =>
+  items.length === 0 ? null : (
+    <div>
+      <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
+        <span className="w-1 h-4 bg-status-critical" aria-hidden="true" />
+        Claims stronger than your original
+      </p>
+      <ul className="mt-1 list-disc pl-5 text-gray-900 dark:text-gray-100">
+        {items.slice(0, NUMBER_NOTES_SHOWN).map((item, index) => (
+          <li key={index} className="break-words">
+            <span className="font-semibold">{item.words}</span>
+            {item.context !== item.words && (
+              <span className="text-gray-600 dark:text-gray-400"> in “{item.context}”</span>
+            )}
+          </li>
+        ))}
+        {items.length > NUMBER_NOTES_SHOWN && (
+          <li className="list-none text-gray-600 dark:text-gray-400">and {items.length - NUMBER_NOTES_SHOWN} more</li>
+        )}
+      </ul>
+      <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">
+        Your original does not say this. Remove it, or keep it only if it is true and you can prove it.
+      </p>
+    </div>
+  );
+
 const ScoreTag: React.FC<{ total: number | undefined }> = ({ total }) => (
   <span className="inline-flex items-center gap-2 text-xs font-semibold text-gray-900 tabular-nums">
     {total != null ? (
@@ -328,6 +357,22 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const toggleOpen = (id: string) =>
     setOpenIds(current => (current.includes(id) ? current.filter(item => item !== id) : [...current, id]));
 
+  // Words each version uses to make a claim stronger than the original does
+  // ("certificada", "la máxima autoridad mundial"; see claimWords.ts). Worked
+  // out here from the texts (no model call), so it also covers saved results.
+  const upgradesByVersion = useMemo(() => {
+    const byVersion: Record<string, UpgradedClaim[]> = {};
+    const source = result.versions.find(version => version.id === ORIGINAL_VERSION_ID);
+    const userFacts = (result.formState.quickUserFacts ?? []).join('\n');
+    const originalText = source ? [contentToText(source.content), userFacts].filter(Boolean).join('\n\n') : '';
+    if (!originalText.trim()) return byVersion;
+    for (const version of result.versions) {
+      if (version.id === ORIGINAL_VERSION_ID) continue;
+      byVersion[version.id] = findUpgradedClaims(contentToText(version.content), originalText);
+    }
+    return byVersion;
+  }, [result.versions, result.formState.quickUserFacts]);
+
   // The numbers each version adds to the original or leaves out of it. Worked
   // out here from the two texts (no model call), so it also covers results
   // that were saved before this check existed.
@@ -388,6 +433,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const quoteFlags = result.quoteFlags[winner.id] ?? [];
   const numberNotes = numbersByVersion[winner.id] ?? NO_NUMBERS;
   const hasNumberNotes = numberNotes.added.length > 0 || numberNotes.dropped.length > 0;
+  const upgradeNotes = upgradesByVersion[winner.id] ?? [];
   const testimonialsMoved = result.testimonials.movedIds.includes(winner.id);
 
   const others = generated
@@ -420,6 +466,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
       tone: notes.filter(note => !isClaimNote(note)).map(noteText),
       quotes: result.quoteFlags[version.id] ?? [],
       numbers: numbersByVersion[version.id] ?? NO_NUMBERS,
+      upgrades: upgradesByVersion[version.id] ?? [],
     };
   };
   const ranked = generated
@@ -455,7 +502,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const goalName = quickGoalName(result.goalKey, result.formState.quickGoalLabel);
   const scoreLabel = winnerTotal != null ? getAbsoluteScoreLabel(winnerTotal) : '';
 
-  const hasChecks = flags.length > 0 || isIncomplete || quoteFlags.length > 0 || testimonialsMoved || hasNumberNotes;
+  const hasChecks =
+    flags.length > 0 || isIncomplete || quoteFlags.length > 0 || testimonialsMoved || hasNumberNotes || upgradeNotes.length > 0;
   const jumpLink =
     'shrink-0 inline-flex items-center min-h-[40px] text-xs text-gray-900 dark:text-gray-100 hover:underline ' +
     'focus:outline-none focus:ring-2 focus:ring-primary-500';
@@ -1008,6 +1056,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 )}
               </ul>
               )}
+              <UpgradeNotes items={upgradeNotes} />
               <NumberNotes check={numberNotes} />
               {claimNotes.length > 0 && (
                 <div>
@@ -1168,6 +1217,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                     </p>
                   )}
                   {(item.quotes.length > 0 ||
+                    item.upgrades.length > 0 ||
                     item.claims.length > 0 ||
                     item.tone.length > 0 ||
                     item.numbers.added.length > 0 ||
@@ -1186,6 +1236,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                           </ul>
                         </div>
                       )}
+                      <UpgradeNotes items={item.upgrades} />
                       <NumberNotes check={item.numbers} />
                       {item.claims.length > 0 && (
                         <div>
