@@ -486,7 +486,15 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setError(null);
 
     // Same copy as last time: the earlier reading still applies.
+    // The check screen still needs a tracking session ("Start over" cleared it), so the
+    // "Make it stronger" calls made there count on the result.
     if (brief && briefCopy === copy) {
+      try {
+        await ensureSession(copy);
+      } catch (sessionError) {
+        setError(messageOf(sessionError));
+        return;
+      }
       setPhase('confirm');
       window.scrollTo(0, 0);
       return;
@@ -760,8 +768,18 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
    * facts fitted into the finished best version with "Change it" left it at 76;
    * three new versions written with them reached 82 to 83. So this is a new run.
    */
-  const handleRunAgainWithAnswers = () => {
+  const handleRunAgainWithAnswers = async () => {
     if (!result || busy || !inputsFromRun.current || !lastRunKey.current) return;
+    // Start the new run's tracking session first, so the "Make it stronger" chat
+    // answers given next count on the new result (and not on no result at all).
+    let newSessionId: string;
+    try {
+      newSessionId = await startQuickSession(currentUser, copy);
+    } catch (sessionError) {
+      if (isMounted.current) setChangeNotice({ tone: 'bad', text: messageOf(sessionError) });
+      return;
+    }
+    if (!isMounted.current) return;
     const best = result.scores?.winnerId ? result.scores.absoluteByVersion[result.scores.winnerId]?.total : undefined;
     setLastBest(typeof best === 'number' ? { best, key: lastRunKey.current } : null);
     setPreviousBest(null);
@@ -774,7 +792,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setSaveState(null);
     setSearchParams({}, { replace: true });
     setError(null);
-    setSessionId(null);
+    setSessionId(newSessionId);
     setPhase('confirm');
     window.setTimeout(() => document.getElementById('quick-facts-title')?.scrollIntoView({ block: 'start' }), 250);
   };

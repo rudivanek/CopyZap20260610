@@ -43,14 +43,17 @@ async function recordUsage(
 
     let billable_units = 0;
     let billing_rule_name = 'default_fallback';
-    let rule: any = { cost_multiplier: 1.30, usd_per_unit: 0.01, min_units_per_call: 1, rule_name: 'default_fallback' };
+    // Same price as the named rule, used only if the rule can't be read.
+    let rule: any = { cost_multiplier: 1.0, usd_per_unit: 0.01, min_units_per_call: 1, rule_name: 'default_fallback' };
+    // The price rule is picked by NAME, never by date: adding another rule must not change any price.
+    // 'client_report_narrative' (1.0x, US$0.01 per credit) is the rule every call has used since 2026-08-03.
     const { data: ruleData } = await supabase
       .from('llm_billing_rules')
       .select('rule_name, cost_multiplier, usd_per_unit, min_units_per_call, rounding_mode')
       .eq('is_active', true)
-      .order('effective_from', { ascending: false })
+      .eq('rule_name', 'client_report_narrative')
       .limit(1)
-      .single();
+      .maybeSingle();
     if (ruleData) rule = ruleData;
     if (cost_usd > 0) {
       billable_units = Math.max(
@@ -60,7 +63,7 @@ async function recordUsage(
     }
     billing_rule_name = rule.rule_name;
 
-    const { error } = await supabase.from('pmc_user_tokens_used').insert([{
+    const row = {
       user_id: params.userId,
       operation_type: params.operationType || 'llm_call',
       model: params.model,
@@ -74,8 +77,15 @@ async function recordUsage(
       pricing_row_id,
       input_tokens_used: params.inputTokens,
       output_tokens_used: params.outputTokens
-    }]);
-    if (error) console.error('❌ Usage recording insert failed:', error);
+    };
+    // Try twice: a failed insert means the call was free for the user.
+    let { error } = await supabase.from('pmc_user_tokens_used').insert([row]);
+    if (error) {
+      console.error('❌ Usage recording insert failed, retrying once:', error);
+      await new Promise(resolve => setTimeout(resolve, 500));
+      ({ error } = await supabase.from('pmc_user_tokens_used').insert([row]));
+    }
+    if (error) console.error('❌ USAGE NOT RECORDED:', JSON.stringify(row), error);
     else console.log(`✓ Usage recorded: ${params.operationType || 'llm_call'} / ${params.model} / in:${params.inputTokens} out:${params.outputTokens} / $${cost_usd.toFixed(6)} / ${billable_units} credits`);
   } catch (err) {
     console.error('❌ Usage recording failed (non-fatal):', err);
@@ -617,7 +627,31 @@ Deno.serve(async (req: Request) => {
             }
 
             const data = await response.json();
-            content = data.content?.[0]?.text || '';
+            const answerText = data.content?.[0]?.text || '';
+            if (!answerText) {
+              // Claude answered, but with no text (for example a refusal). Anthropic bills it, so record it,
+              // then stop: sending the same request again gives the same empty answer.
+              await recordUsage(supabase, {
+                userId: user.id,
+                model: useModel,
+                inputTokens: data.usage?.input_tokens || 0,
+                outputTokens: data.usage?.output_tokens || 0,
+                operationType,
+                sessionId
+              });
+              console.error('Claude returned an empty answer, stop reason:', data.stop_reason);
+              return new Response(
+                JSON.stringify({
+                  error: 'EMPTY_ANSWER',
+                  message: 'The AI returned an empty answer. Please try again.'
+                }),
+                {
+                  headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+                  status: 502
+                }
+              );
+            }
+            content = answerText;
             usedModel = useModel;
             // Phase 3: Include token breakdown for accurate pricing
             usage = {

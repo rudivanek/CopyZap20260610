@@ -17,6 +17,7 @@ import { generateAbsoluteScore, isCompleteScore } from '../services/api/absolute
 import type { AbsoluteScoreBreakdown } from '../services/api/absoluteScoring';
 import { calculateTargetWordCount } from '../services/api/utils';
 import { checkUserAccess } from '../services/supabaseClient';
+import { estimateRunCredits } from './quickCredits';
 import { sessionManager } from '../services/sessionService';
 import type { GateResult } from '../utils/structuralGate';
 import { countWords } from '../utils/markdownUtils';
@@ -509,8 +510,12 @@ export function withQuickResult(
   };
 }
 
-/** Throws QuickPipelineError('no_access') when the account cannot generate. */
-async function assertQuickAccess(user: User): Promise<void> {
+/**
+ * Throws QuickPipelineError('no_access') when the account cannot generate.
+ * With `needCredits` (a full run), the balance must also cover about what the
+ * run costs, so a run never starts on 1 credit and breaks halfway.
+ */
+async function assertQuickAccess(user: User, needCredits?: number): Promise<void> {
   let access;
   try {
     access = await checkUserAccess(user.id, user.email || '');
@@ -519,6 +524,13 @@ async function assertQuickAccess(user: User): Promise<void> {
   }
   if (!access.hasAccess) {
     throw new QuickPipelineError('no_access', access.message || 'Your account cannot generate copy right now.');
+  }
+  const left = access.creditsRemaining;
+  if (needCredits && typeof left === 'number' && Number.isFinite(left) && left < needCredits) {
+    throw new QuickPipelineError(
+      'no_access',
+      `This run needs about ${needCredits} credits and you have ${Math.max(0, Math.floor(left))} left. Buy a credit pack to keep going.`
+    );
   }
 }
 
@@ -548,9 +560,9 @@ export async function runQuickPipeline(
 ): Promise<QuickRunResult> {
   validateQuickCopy(input.copy);
 
-  // 1 — access
+  // 1 — access, and enough credits for about what this run costs
   onProgress?.({ stage: 'checking' });
-  await assertQuickAccess(user);
+  await assertQuickAccess(user, estimateRunCredits(countWords(input.copy)).credits);
 
   throwIfStopped(input.signal);
 
