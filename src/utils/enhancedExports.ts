@@ -40,6 +40,31 @@ export interface ReportBrand {
 /** Only PNG and JPG data addresses are accepted as logos in a report. */
 const SAFE_LOGO = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/;
 
+/**
+ * A branded report's footer line as safe HTML: everything is escaped, then web
+ * addresses (https://, http://, www.) and email addresses become links.
+ */
+function linkifyFooter(text: string): string {
+  const linkStyle = 'color: inherit; text-decoration: underline;';
+  const re = /(https?:\/\/[^\s<>"']+|www\.[^\s<>"']+|[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]{2,})/gi;
+  let out = '';
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(text)) !== null) {
+    let raw = m[0];
+    const trail = raw.match(/[.,;:!?\)\]]+$/);
+    if (trail) raw = raw.slice(0, -trail[0].length);
+    if (!raw) { re.lastIndex = m.index + 1; continue; }
+    const isWeb = /^(https?:\/\/|www\.)/i.test(raw);
+    const href = isWeb ? (/^www\./i.test(raw) ? `https://${raw}` : raw) : `mailto:${raw}`;
+    out += escapeHtml(text.slice(last, m.index));
+    out += `<a href="${escapeHtml(href)}"${isWeb ? ' target="_blank" rel="noopener"' : ''} style="${linkStyle}">${escapeHtml(raw)}</a>`;
+    last = m.index + raw.length;
+    re.lastIndex = last;
+  }
+  return out + escapeHtml(text.slice(last));
+}
+
 function formatExportTimestamp(d: Date = new Date()): string {
   // Use toLocaleString() to get full date and time in user's locale
   return d.toLocaleString();
@@ -3565,7 +3590,7 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
 
     // FOOTER
     const footerLine = branding
-      ? ((branding.footerLine || '').trim() ? `${escapeHtml(branding.footerLine!.trim())} &mdash; ` : '') + formatExportTimestamp()
+      ? ((branding.footerLine || '').trim() ? `${linkifyFooter(branding.footerLine!.trim())} &mdash; ` : '') + formatExportTimestamp()
       : `${t.generatedBy} &mdash; ${formatExportTimestamp()} &middot; <a href="https://copyzap.app" target="_blank" rel="noopener" style="color: inherit; text-decoration: underline;">CopyZap.app</a>`;
     htmlContent += `<footer style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); text-align: center; font-size: 12px; color: var(--muted); padding-bottom: 56px;">
   ${footerLine}
