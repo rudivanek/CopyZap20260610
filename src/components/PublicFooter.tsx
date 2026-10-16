@@ -21,18 +21,7 @@ const PublicFooter: React.FC = () => {
         </>
       )}
 
-      <div className="mt-4 text-xs text-gray-400">
-        Powered by{' '}
-        <a
-          href="https://sharpen.studio/"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="hover:text-primary-500 transition"
-        >
-          Sharpen.Studio
-        </a>
-      </div>
-      <div className="mt-1 text-xs" style={{ color: '#ff6b35' }}>
+      <div className="mt-4 text-xs" style={{ color: '#ff6b35' }}>
   <span>CopyZap</span>
   <span className="text-[8px] sm:text-[10px] font-normal ml-1">{APP_VERSION}</span>
 </div>

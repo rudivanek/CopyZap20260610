@@ -193,11 +193,8 @@ Deno.serve(async (req: Request) => {
 
                 <!-- Footer -->
                 <div style="background-color: #f9fafb; padding: 30px; text-align: center; border-top: 1px solid #e5e7eb;">
-                  <p style="margin: 0 0 10px 0; color: #6b7280; font-size: 14px;">
-                    The CopyZap Team
-                  </p>
-                  <p style="margin: 15px 0 0 0; color: #9ca3af; font-size: 12px;">
-                    Powered by <a href="https://sharpen.studio" style="color: #6b7280; text-decoration: none;">Sharpen.Studio</a>
+                  <p style="margin: 0; color: #6b7280; font-size: 14px;">
+                    The CopyZap Team · <a href="https://copyzap.app" style="color: #6b7280; text-decoration: none;">copyzap.app</a>
                   </p>
                 </div>
               </div>

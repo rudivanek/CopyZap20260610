@@ -342,10 +342,7 @@ const BetaThanks: React.FC = () => {
           
           <div className="mt-8 pt-8 border-t border-gray-200 dark:border-gray-700">
             <p className="text-sm text-gray-500 dark:text-gray-400">
-              © 2025 CopyZap - Powered by{' '}
-              <a href="https://sharpen.studio" target="_blank" rel="noopener noreferrer" className="text-primary-500 hover:text-primary-400 underline">
-                Sharpen.Studio
-              </a>
+              © 2026 CopyZap
             </p>
           </div>
 

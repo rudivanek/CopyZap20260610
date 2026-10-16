@@ -188,8 +188,8 @@ const Privacy: React.FC = () => {
             <div className="text-gray-700 dark:text-gray-300 space-y-2">
               <p>If you have questions about this privacy policy or our data practices, please contact us:</p>
               <ul className="space-y-1">
-                <li><strong>Email:</strong> privacy@copyzap.com</li>
-                <li><strong>Website:</strong> <a href="https://sharpen.studio" className="text-primary-500 hover:text-primary-400 underline">sharpen.studio</a></li>
+                <li><strong>Email:</strong> <a href="mailto:hi@copyzap.app" className="text-primary-500 hover:text-primary-400 underline">hi@copyzap.app</a></li>
+                <li><strong>Website:</strong> <a href="https://copyzap.app" className="text-primary-500 hover:text-primary-400 underline">copyzap.app</a></li>
               </ul>
               <p className="text-sm text-gray-600 dark:text-gray-400 mt-4">
                 We are committed to protecting your privacy and will respond to your inquiries promptly.

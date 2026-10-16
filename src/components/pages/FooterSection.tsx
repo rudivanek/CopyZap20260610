@@ -75,19 +75,7 @@ const FooterSection: React.FC = () => {
             </Link>
           </div>
 
-          <div className="text-center mt-6">
-            <p className="text-sm text-gray-500 dark:text-gray-400">
-              Powered by{' '}
-              <a
-                href="https://sharpen.studio/en/"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-orange-500 hover:text-orange-400 transition-colors"
-              >
-                Sharpen.Studio
-              </a>
-            </p>
-          </div>
+
         </div>
       </div>
     </motion.footer>

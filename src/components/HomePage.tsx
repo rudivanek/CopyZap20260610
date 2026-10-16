@@ -786,14 +786,7 @@ const Footer: React.FC = () => (
         </div>
         <SocialShare className="justify-center" />
       </div>
-      <div className="mt-6 pt-6 border-t border-gray-800 text-center">
-        <p className="text-xs text-gray-600">
-          Powered by{' '}
-          <a href="https://sharpen.studio/en/" target="_blank" rel="noopener noreferrer" className="text-orange-500 hover:text-orange-400 transition-colors">
-            Sharpen.Studio
-          </a>
-        </p>
-      </div>
+
     </Container>
   </footer>
 );
