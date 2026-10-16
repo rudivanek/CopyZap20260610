@@ -7,5 +7,11 @@
 /robots.txt /robots.txt 200
 /llms.txt /llms.txt 200
 
+# The blog moved to the homepage site (copyzap.app/blog). Old app blog links go there.
+/blog    https://copyzap.app/blog/  301!
+/blog/*  https://copyzap.app/blog/  301!
+/admin/blog    /dashboard  301!
+/admin/blog/*  /dashboard  301!
+
 # All other routes go to the SPA (React app)
 /* /index.html 200

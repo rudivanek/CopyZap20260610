@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { LogOut, Menu, X, HelpCircle, BookOpen, Video } from 'lucide-react';
+import { LogOut, Menu, X, HelpCircle, Video } from 'lucide-react';
 import ThemeToggle from './ThemeToggle';
 import { useAuth } from '../hooks/useAuth';
 import { useCreditsBalance } from '../hooks/useCreditsBalance';
@@ -60,19 +60,6 @@ const MainMenu: React.FC<MainMenuProps> = ({ onLogout, onOpenTemplateSuggestion,
           {/* Desktop Navigation - hidden on mobile */}
           <div className="hidden sm:flex items-center space-x-4">
             {isAdmin && <ThemeToggle />}
-
-            {/* Blog Button */}
-            <Link
-              to="/blog"
-              className={`p-2 rounded-md transition-colors duration-200 ${
-                currentPath.startsWith('/blog')
-                  ? 'bg-primary-500 text-white'
-                  : 'text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
-              }`}
-              title="Read our blog"
-            >
-              <BookOpen size={18} />
-            </Link>
 
             {/* Videos Button */}
             <Link
@@ -156,17 +143,6 @@ const MainMenu: React.FC<MainMenuProps> = ({ onLogout, onOpenTemplateSuggestion,
             <div className="flex items-center justify-between pb-3 border-b border-gray-200 dark:border-gray-700">
               <div className="flex items-center space-x-3">
                 {isAdmin && <ThemeToggle />}
-                <Link
-                  to="/blog"
-                  className={`p-2 rounded-md transition-colors duration-200 ${
-                    currentPath.startsWith('/blog')
-                      ? 'bg-primary-500 text-white'
-                      : 'text-gray-600 dark:text-gray-400 hover:text-black dark:hover:text-white hover:bg-gray-100 dark:hover:bg-gray-800'
-                  }`}
-                  title="Blog"
-                >
-                  <BookOpen size={18} />
-                </Link>
                 <Link
                   to="/videos"
                   className={`p-2 rounded-md transition-colors duration-200 ${

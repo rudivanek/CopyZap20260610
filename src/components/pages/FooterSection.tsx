@@ -53,12 +53,12 @@ const FooterSection: React.FC = () => {
               Help Center
             </Link>
             <span className="text-gray-400 dark:text-gray-600">•</span>
-            <Link
-              to="/blog"
+            <a
+              href="https://copyzap.app/blog/"
               className="text-gray-600 dark:text-gray-400 hover:text-orange-500 dark:hover:text-orange-400 transition-colors"
             >
               Blog
-            </Link>
+            </a>
             <span className="text-gray-400 dark:text-gray-600">•</span>
             <Link
               to="/privacy"

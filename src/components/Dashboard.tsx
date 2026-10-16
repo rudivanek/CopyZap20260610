@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import NavSidebar from './NavSidebar';
-import { BarChart3, FileText, Settings, DollarSign, Users, RefreshCw, Calendar, Zap, Eye, Trash2, CreditCard as Edit, ArrowRight, User, AlertCircle, Filter, Download, Lightbulb, BookOpen, Activity, ChevronDown, ChevronRight, Star, Search, X, Palette } from 'lucide-react';
+import { BarChart3, FileText, Settings, DollarSign, Users, RefreshCw, Calendar, Zap, Eye, Trash2, CreditCard as Edit, ArrowRight, User, AlertCircle, Filter, Download, Lightbulb, Activity, ChevronDown, ChevronRight, Star, Search, X, Palette } from 'lucide-react';
 import { retryFailedTracking, getTrackingQueueStatus } from '../services/api/tokenTracking';
 import { useAuth } from '../hooks/useAuth';
 import { useIsAdmin } from '../hooks/useIsAdmin';
@@ -1091,16 +1091,6 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                   <Lightbulb size={16} />
                 </Link>
 
-                <button
-                  onClick={() => {
-                    console.log('Blog button clicked, navigating to /admin/blog');
-                    navigate('/admin/blog');
-                  }}
-                  className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm flex items-center transition-colors shadow-md hover:shadow-lg"
-                  title="Manage Blog Posts"
-                >
-                  <BookOpen size={16} />
-                </button>
 
                 <button
                   onClick={() => navigate('/admin/report-theme')}

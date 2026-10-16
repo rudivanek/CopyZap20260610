@@ -58,11 +58,6 @@ const StartHubModal = lazy(() => import('./components/StartHubModal'));
 // Lazy loaded - Videos page
 const VideosPage = lazy(() => import('./components/VideosPage'));
 
-// Lazy loaded - Blog components
-const BlogList = lazy(() => import('./components/blog/BlogList'));
-const BlogPost = lazy(() => import('./components/blog/BlogPost'));
-const AdminBlogDashboard = lazy(() => import('./components/blog/AdminBlogDashboard'));
-const AdminBlogEditor = lazy(() => import('./components/blog/AdminBlogEditor'));
 
 // Lazy loaded - Help Center
 const HelpCenter = lazy(() => import('./components/help/HelpCenter'));
@@ -829,39 +824,6 @@ const AppRouter: React.FC = () => {
         {/* Videos - Public */}
         <Route path="/videos" element={<Suspense fallback={<AppSpinner />}><VideosPage /></Suspense>} />
 
-        {/* Blog Routes - Public */}
-        <Route path="/blog" element={<Suspense fallback={<AppSpinner />}><BlogList /></Suspense>} />
-        <Route path="/blog/:slug" element={<Suspense fallback={<AppSpinner />}><BlogPost /></Suspense>} />
-
-        {/* Blog Routes - Admin Only */}
-        <Route
-          path="/admin/blog"
-          element={
-            currentUser ? (
-              <AuthenticatedRoute>
-                <Suspense fallback={<AppSpinner />}>
-                  <AdminBlogDashboard />
-                </Suspense>
-              </AuthenticatedRoute>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
-        <Route
-          path="/admin/blog/:id"
-          element={
-            currentUser ? (
-              <AuthenticatedRoute>
-                <Suspense fallback={<AppSpinner />}>
-                  <AdminBlogEditor />
-                </Suspense>
-              </AuthenticatedRoute>
-            ) : (
-              <Navigate to="/login" replace />
-            )
-          }
-        />
 
         {/* Admin Diagnostics - Admin Only */}
         <Route
