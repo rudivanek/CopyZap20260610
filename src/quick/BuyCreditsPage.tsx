@@ -232,6 +232,18 @@ const BuyCreditsPage: React.FC = () => {
                 Payment is handled by Stripe. A long page or a second run uses more credits; a short text uses fewer.
                 Have a promotion code? Enter it on the payment page.
               </p>
+              <p className="mt-2 !text-[15px] text-gray-700 dark:text-gray-300">
+                By buying a pack, you agree to the{' '}
+                <a
+                  href="https://copyzap.app/terms/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="font-semibold text-primary-600 hover:underline"
+                >
+                  Terms of Service and Refund Policy
+                </a>
+                .
+              </p>
               <p className="mt-2 !text-[15px] text-gray-500 dark:text-gray-400">
                 A new pack never shortens credits you already have, and bought credits that expired less than 15 days
                 ago come back with your next pack.
