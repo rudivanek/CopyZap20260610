@@ -43,6 +43,8 @@ const BuyCreditsPage: React.FC = () => {
   const [balance, setBalance] = useState<Balance | null>(null);
   const [busyPack, setBusyPack] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  // Optional offer line, set by an admin in app_settings (key buy_page_promo); empty = hidden.
+  const [promo, setPromo] = useState<string>('');
 
   const loadBalance = async () => {
     const { data: { user } } = await supabase.auth.getUser();
@@ -61,6 +63,12 @@ const BuyCreditsPage: React.FC = () => {
         return;
       }
       setAllowed(true);
+      const { data: promoRow } = await supabase
+        .from('app_settings')
+        .select('value')
+        .eq('key', 'buy_page_promo')
+        .maybeSingle();
+      if (!cancelled && typeof promoRow?.value === 'string') setPromo(promoRow.value.trim());
       const { data: packRows, error: packError } = await supabase
         .from('credit_packs')
         .select('pack_key, pack_name, credits, usd_cents, mxn_cents, sort_order, validity_months')
@@ -179,6 +187,20 @@ const BuyCreditsPage: React.FC = () => {
             {error && (
               <div role="alert" className="mt-8 max-w-3xl mx-auto rounded-[6px] border !text-base border-red-300 bg-red-50 dark:bg-red-950 dark:border-red-800 p-4 text-center text-red-900 dark:text-red-200">
                 {error}
+              </div>
+            )}
+
+            {promo && (
+              <div className="mt-10 max-w-3xl mx-auto rounded-[6px] border border-dashed border-primary-400 bg-primary-50 dark:bg-gray-900 px-5 py-4 text-center !text-base text-gray-900 dark:text-gray-100">
+                {promo.split(/([A-Z][A-Z0-9]{5,})/).map((part, i) =>
+                  /^[A-Z][A-Z0-9]{5,}$/.test(part) ? (
+                    <span key={i} className="mx-0.5 px-2 py-0.5 rounded-[3px] border border-dashed border-primary-500 font-bold tracking-wide text-primary-600">
+                      {part}
+                    </span>
+                  ) : (
+                    <React.Fragment key={i}>{part}</React.Fragment>
+                  )
+                )}
               </div>
             )}
 
