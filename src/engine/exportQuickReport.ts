@@ -130,22 +130,35 @@ function blobToDataUrl(blob: Blob): Promise<string | null> {
 }
 
 /**
- * The signed-in account's report brand, when it is allowed to brand reports
- * (active bought credits or admin). Null otherwise, so the report keeps the
- * default CopyZap branding.
+ * The signed-in account's report brand, or null when the report keeps CopyZap's.
+ * Used only when branding is switched on (bought credits left, or admin) and a
+ * company name or a logo is saved. The logo is downloaded and put inside the
+ * report as a data address, so the sent report never depends on a link that
+ * expires. Any failure falls back to CopyZap's report.
  */
 async function loadReportBrand(): Promise<ReportBrand | null> {
   try {
-    const { data } = await supabase.rpc('report_branding_active');
-    if (!data) return null;
-    const row = (Array.isArray(data) ? data[0] : data) as
-      | { company_name: string; footer_line: string | null; logo_url: string | null }
-      | null;
-    if (!row || !row.company_name) return null;
+    const { data: active } = await supabase.rpc('report_branding_active');
+    if (active !== true) return null;
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return null;
+    const { data: row } = await supabase
+      .from('report_branding')
+      .select('company_name, footer_line, logo_path')
+      .eq('user_id', user.id)
+      .maybeSingle();
+    if (!row || (!row.company_name && !row.logo_path)) return null;
+    let logoDataUrl: string | null = null;
+    if (row.logo_path) {
+      const { data: file } = await supabase.storage.from('report-logos').download(row.logo_path);
+      if (file && (file.type === 'image/png' || file.type === 'image/jpeg')) {
+        logoDataUrl = await blobToDataUrl(file);
+      }
+    }
     return {
-      companyName: row.company_name,
+      companyName: row.company_name ?? null,
       footerLine: row.footer_line ?? null,
-      logoUrl: row.logo_url ?? null,
+      logoDataUrl,
     };
   } catch {
     return null;

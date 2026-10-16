@@ -27,14 +27,18 @@ import { formatVersionTime, localTimeZoneLabel } from './versionTime';
 
 /**
  * A paying account's own report brand. When passed to `exportAsFormattedHtml`,
- * it replaces all CopyZap branding (logo, kicker, "powered by", footer line).
- * `logoUrl` is a signed private-storage URL; `companyName` is always shown.
+ * it replaces all CopyZap branding (logo, header label, kicker, footer).
+ * `logoDataUrl` is the logo itself as a PNG or JPG data address, so the report
+ * stays one file that works offline and never expires.
  */
 export interface ReportBrand {
-  companyName: string;
+  companyName?: string | null;
   footerLine?: string | null;
-  logoUrl?: string | null;
+  logoDataUrl?: string | null;
 }
+
+/** Only PNG and JPG data addresses are accepted as logos in a report. */
+const SAFE_LOGO = /^data:image\/(png|jpeg);base64,[A-Za-z0-9+/=]+$/;
 
 function formatExportTimestamp(d: Date = new Date()): string {
   // Use toLocaleString() to get full date and time in user's locale
@@ -3036,7 +3040,7 @@ export const exportAsFormattedHtml = (
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Copy Report — ${escapeHtml((formState.projectDescription || 'CopyZap').replace(/^[\s\-–—]+/, ''))}</title>
+  <title>Copy Report — ${escapeHtml((formState.projectDescription || (branding ? 'Report' : 'CopyZap')).replace(/^[\s\-–—]+/, ''))}</title>
   ${getGoogleFontLinkTag(resolvedTheme?.serif ?? DEFAULT_THEME_VARS.serif, resolvedTheme?.sans ?? DEFAULT_THEME_VARS.sans)}
   <style>
 ${buildReportStyles(resolvedTheme)}  </style>
@@ -3096,12 +3100,14 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
     htmlContent += '<section id="doc-header" class="cover" style="padding:56px 0 64px;">\n';
     htmlContent += '<div class="wrap">\n';
     htmlContent += '<div class="brandbar">\n';
+    const brandName = (branding?.companyName || '').trim();
+    const brandLogo = branding?.logoDataUrl && SAFE_LOGO.test(branding.logoDataUrl) ? branding.logoDataUrl : '';
+    const brandLabel = brandName ? `${escapeHtml(brandName)} &mdash; Copy Report` : 'Copy Report';
     if (branding) {
-      const logoHtml = branding.logoUrl
-        ? `<div class="logo"><img src="${branding.logoUrl}" alt="${escapeHtml(branding.companyName)}" style="display:block;height:28px;max-width:200px;width:auto"></div>\n`
-        : `<div class="logo" style="font-weight:700;font-size:20px;letter-spacing:-.01em;">${escapeHtml(branding.companyName)}</div>\n`;
-      htmlContent += logoHtml;
-      htmlContent += '<div class="powered">' + escapeHtml(branding.companyName) + '</div>\n';
+      htmlContent += brandLogo
+        ? `<div class="logo"><img src="${brandLogo}" alt="${escapeHtml(brandName || 'Logo')}" style="display:block;height:28px;width:auto;max-width:220px;object-fit:contain"></div>\n`
+        : `<div class="logo" style="font-weight:700;font-size:20px;letter-spacing:-.01em;">${escapeHtml(brandName)}</div>\n`;
+      htmlContent += '<div class="powered">' + brandLabel + '</div>\n';
     } else {
       htmlContent += logoSrc && logoSrc.startsWith('data:image/')
         ? `<div class="logo"><img src="${logoSrc}" alt="CopyZap" style="display:block;height:28px;width:auto"></div>\n`
@@ -3109,7 +3115,7 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
       htmlContent += '<div class="powered">' + t.copyReportLabel + '</div>\n';
     }
     htmlContent += '</div>\n';
-    htmlContent += `<div class="kicker">${branding ? escapeHtml(branding.companyName) : t.copyReportLabel}</div>\n`;
+    htmlContent += `<div class="kicker">${branding ? brandLabel : t.copyReportLabel}</div>\n`;
     htmlContent += `<h1>${escapeHtml((formState.projectDescription || 'Untitled Project').replace(/^[\s\-–—]+/, ''))}</h1>\n`;
     htmlContent += `<div class="stamp">${t.generatedLabel}: ${showWordCounts ? formatVersionTime(new Date().toISOString()) : formatExportTimestamp()} &nbsp;&middot;&nbsp; ${totalVariants} ${totalVariants !== 1 ? t.variantsEvaluated : t.variantEvaluated} &nbsp;&middot;&nbsp; ${t.languageLabel}: ${lang}</div>\n`;
     // Quick shows when each version was made; say once which time zone those times are in.
@@ -3559,7 +3565,7 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
 
     // FOOTER
     const footerLine = branding
-      ? (branding.footerLine ? escapeHtml(branding.footerLine) : escapeHtml(branding.companyName))
+      ? ((branding.footerLine || '').trim() ? `${escapeHtml(branding.footerLine!.trim())} &mdash; ` : '') + formatExportTimestamp()
       : `${t.generatedBy} &mdash; ${formatExportTimestamp()}`;
     htmlContent += `<footer style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); text-align: center; font-size: 12px; color: var(--muted); padding-bottom: 56px;">
   ${footerLine}

@@ -198,23 +198,17 @@ const BuyCreditsLink: React.FC = () => {
 };
 
 /**
- * "Report branding" link, shown only to accounts that may brand reports:
- * paying accounts (active bought credits) or admins. Uses the same RPC the
- * export reads, with an admin fallback so admins with no brand row yet still
- * see the link.
+ * "Report branding" link, shown to the same accounts as "Buy credits". The page
+ * itself says whether branding is on (bought credits left, or admin), so a
+ * trial user can see what they get with a pack.
  */
 const ReportBrandingLink: React.FC = () => {
   const [show, setShow] = React.useState(false);
   React.useEffect(() => {
     let cancelled = false;
-    (async () => {
-      const { data } = await supabase.rpc('report_branding_active');
-      if (cancelled) return;
-      const row = (Array.isArray(data) ? data[0] : data) as { company_name?: string } | null;
-      if (row) { setShow(true); return; }
-      const { data: adminCheck } = await supabase.rpc('is_admin');
-      if (!cancelled) setShow(adminCheck === true);
-    })();
+    supabase.rpc('can_use_paywall').then(({ data }) => {
+      if (!cancelled) setShow(data === true);
+    });
     return () => { cancelled = true; };
   }, []);
   if (!show) return null;
