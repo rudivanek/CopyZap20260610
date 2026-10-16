@@ -28,9 +28,8 @@ interface Balance {
 /** Credits a typical ~1,000-word web page run uses (measured October 2026). */
 const CREDITS_PER_PAGE = 62;
 
-const formatMoney = (cents: number, currency: 'USD' | 'MXN') =>
-  (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 }) +
-  (currency === 'USD' ? ' USD' : ' MXN');
+const formatAmount = (cents: number) =>
+  (cents / 100).toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
 
 const formatDate = (iso?: string | null) =>
   iso ? new Date(iso).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
@@ -123,7 +122,7 @@ const BuyCreditsPage: React.FC = () => {
         </div>
       </header>
 
-      <main className="max-w-5xl mx-auto px-4 sm:px-6 py-10">
+      <main className="max-w-6xl mx-auto px-4 sm:px-6 py-12 sm:py-16">
         {allowed === null && (
           <p className="text-gray-600 dark:text-gray-400">Loading…</p>
         )}
@@ -140,31 +139,25 @@ const BuyCreditsPage: React.FC = () => {
 
         {allowed === true && (
           <>
-            <h1 className="text-2xl font-semibold text-gray-900 dark:text-gray-100">Buy credits</h1>
-            <p className="mt-2 text-gray-600 dark:text-gray-400">
-              Pay once, no subscription. Bigger packs stay valid longer, and a new purchase never shortens
-              credits you already have: all your bought credits stay valid until the latest date. Bought
-              credits that expired less than 15 days ago come back when you buy a new pack.
-            </p>
-
-            {status === 'success' && (
-              <div className="mt-6 rounded-md border border-green-300 bg-green-50 dark:bg-green-950 dark:border-green-800 p-4 text-green-900 dark:text-green-200">
-                Thank you, your payment went through. Your credits appear here within a minute. If you paid
-                with OXXO, they are added as soon as OXXO confirms the payment (usually within a day).
-              </div>
-            )}
-            {status === 'cancelled' && (
-              <div className="mt-6 rounded-md border border-gray-300 bg-white dark:bg-gray-900 dark:border-gray-700 p-4 text-gray-700 dark:text-gray-300">
-                The payment was cancelled. Nothing was charged.
-              </div>
-            )}
+            <div className="max-w-2xl mx-auto text-center">
+              <p className="inline-flex items-center gap-2.5 text-[13px] font-semibold tracking-[.12em] uppercase text-primary-500">
+                <span className="w-[22px] h-0.5 bg-primary-500" aria-hidden="true" />
+                Buy credits
+              </p>
+              <h1 className="mt-3.5 !mb-0 !text-[30px] sm:!text-[42px] !leading-tight font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+                Pay once. No subscription.
+              </h1>
+              <p className="mt-3.5 !text-lg text-gray-700 dark:text-gray-300">
+                Buy a pack of credits and use them when you have work. Bigger packs stay valid longer.
+              </p>
+            </div>
 
             {balance?.mode === 'prepaid' && (
-              <p className="mt-6 text-gray-900 dark:text-gray-100">
+              <p className="mt-8 text-center !text-base text-gray-900 dark:text-gray-100">
+                You have{' '}
                 <span className="font-semibold tabular-nums">
                   {(balance.credits_remaining ?? 0).toLocaleString('en-US')} credits
-                </span>{' '}
-                left
+                </span>
                 {balance.purchase_expiry && (
                   <span className="text-gray-600 dark:text-gray-400">
                     {' '}· bought credits valid until {formatDate(balance.purchase_expiry)}
@@ -173,51 +166,77 @@ const BuyCreditsPage: React.FC = () => {
               </p>
             )}
 
+            {status === 'success' && (
+              <div role="status" className="mt-8 max-w-3xl mx-auto rounded-[6px] border !text-base border-green-300 bg-green-50 dark:bg-green-950 dark:border-green-800 p-4 text-center text-green-900 dark:text-green-200">
+                Thank you, your payment went through. Your credits appear here within a minute.
+              </div>
+            )}
+            {status === 'cancelled' && (
+              <div role="status" className="mt-8 max-w-3xl mx-auto rounded-[6px] border !text-base border-gray-300 bg-white dark:bg-gray-900 dark:border-gray-700 p-4 text-center text-gray-700 dark:text-gray-300">
+                The payment was cancelled. Nothing was charged.
+              </div>
+            )}
             {error && (
-              <div role="alert" className="mt-6 rounded-md border border-red-300 bg-red-50 dark:bg-red-950 dark:border-red-800 p-4 text-red-900 dark:text-red-200">
+              <div role="alert" className="mt-8 max-w-3xl mx-auto rounded-[6px] border !text-base border-red-300 bg-red-50 dark:bg-red-950 dark:border-red-800 p-4 text-center text-red-900 dark:text-red-200">
                 {error}
               </div>
             )}
 
-            <div className="mt-8 grid gap-6 md:grid-cols-3">
-              {packs.map(pack => (
-                <div
-                  key={pack.pack_key}
-                  className="flex flex-col rounded-lg border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-6"
-                >
-                  <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">{pack.pack_name}</h2>
-                  <p className="mt-1 text-3xl font-bold text-gray-900 dark:text-gray-100">
-                    ${formatMoney(pack.usd_cents, 'USD')}
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    In Mexico: ${formatMoney(pack.mxn_cents, 'MXN')}, IVA included
-                  </p>
-                  <p className="mt-4 font-medium text-gray-900 dark:text-gray-100 tabular-nums">
-                    {pack.credits.toLocaleString('en-US')} credits
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    About {Math.floor(pack.credits / CREDITS_PER_PAGE)} web pages of ~1,000 words
-                  </p>
-                  <p className="text-sm text-gray-600 dark:text-gray-400">
-                    Valid for {pack.validity_months} months
-                  </p>
-                  <button
-                    type="button"
-                    onClick={() => buy(pack.pack_key)}
-                    disabled={busyPack !== null}
-                    className="mt-6 inline-flex justify-center items-center min-h-[44px] px-4 rounded-md bg-primary-600 text-white font-medium hover:bg-primary-700 disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500"
+            <div className="mt-12 grid gap-7 md:grid-cols-3">
+              {packs.map((pack, i) => {
+                const highlighted = packs.length === 3 && i === 1;
+                return (
+                  <div
+                    key={pack.pack_key}
+                    className={
+                      'flex flex-col rounded-[6px] bg-white dark:bg-gray-900 px-7 py-8 border ' +
+                      (highlighted
+                        ? 'border-gray-900 dark:border-gray-300 shadow-[0_20px_40px_-24px_rgba(17,24,39,.25)]'
+                        : 'border-gray-200 dark:border-gray-700')
+                    }
                   >
-                    {busyPack === pack.pack_key ? 'Opening payment…' : `Buy ${pack.pack_name}`}
-                  </button>
-                </div>
-              ))}
+                    <h2 className="!mb-0 !text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">{pack.pack_name}</h2>
+                    <p className="mt-4 mb-1 !leading-none text-gray-900 dark:text-gray-100">
+                      <span className="text-[44px] font-semibold tracking-tight">${formatAmount(pack.usd_cents)}</span>
+                      <span className="ml-1 text-base font-medium text-gray-500 dark:text-gray-400">USD</span>
+                    </p>
+                    <p className="text-sm text-gray-500 dark:text-gray-400">
+                      In Mexico: MX${formatAmount(pack.mxn_cents)}, IVA included
+                    </p>
+                    <ul className="mt-6 mb-7 text-base text-gray-700 dark:text-gray-300">
+                      <li className="py-2 border-t border-gray-200 dark:border-gray-700 font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
+                        {pack.credits.toLocaleString('en-US')} credits
+                      </li>
+                      <li className="py-2 border-t border-gray-200 dark:border-gray-700">
+                        About {Math.floor(pack.credits / CREDITS_PER_PAGE)} web pages of ~1,000 words
+                      </li>
+                      <li className="py-2 border-t border-gray-200 dark:border-gray-700">
+                        Valid for {pack.validity_months} months
+                      </li>
+                    </ul>
+                    <button
+                      type="button"
+                      onClick={() => buy(pack.pack_key)}
+                      disabled={busyPack !== null}
+                      className="mt-auto w-full inline-flex justify-center items-center min-h-[48px] px-5 rounded-[4px] bg-primary-500 text-white !text-base !font-semibold hover:bg-primary-600 disabled:opacity-60 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+                    >
+                      {busyPack === pack.pack_key ? 'Opening payment…' : `Buy ${pack.pack_name}`}
+                    </button>
+                  </div>
+                );
+              })}
             </div>
 
-            <p className="mt-8 text-sm text-gray-600 dark:text-gray-400">
-              Payment is handled by Stripe. Pay by card, or with OXXO in Mexico. A long page or a
-              second run uses more credits; a short text uses fewer. Have a promotion code? Enter it on
-              the payment page.
-            </p>
+            <div className="mt-9 max-w-3xl mx-auto text-center text-gray-700 dark:text-gray-300">
+              <p className="!text-base">
+                Payment is handled by Stripe. A long page or a second run uses more credits; a short text uses fewer.
+                Have a promotion code? Enter it on the payment page.
+              </p>
+              <p className="mt-2 !text-[15px] text-gray-500 dark:text-gray-400">
+                A new pack never shortens credits you already have, and bought credits that expired less than 15 days
+                ago come back with your next pack.
+              </p>
+            </div>
           </>
         )}
       </main>
