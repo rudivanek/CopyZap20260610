@@ -17,6 +17,9 @@
  * as on the result screen.
  *
  * The report code is large, so it is loaded only when a report is exported.
+ * When the signed-in account is allowed to brand reports (active bought
+ * credits or admin), its own logo, company name and footer line replace all
+ * CopyZap branding on the export.
  */
 import { FormState, GeneratedContentItem } from '../types';
 import type { ComparisonResult } from '../services/api/comprehensiveScoring';
@@ -24,6 +27,8 @@ import { deriveQuickLabel } from './buildQuickFormState';
 import { effectiveGates } from './gateRules';
 import { ORIGINAL_VERSION_ID } from './pickWinner';
 import type { QuickRunResult } from './runQuickPipeline';
+import { supabase } from '../services/supabaseClient';
+import type { ReportBrand } from '../utils/enhancedExports';
 
 export interface QuickReportInput {
   formState: FormState;
@@ -108,12 +113,40 @@ async function logoDataUrl(): Promise<string | null> {
     if (!response.ok) return null;
     const blob = await response.blob();
     if (!blob.type.startsWith('image/')) return null;
-    return await new Promise<string | null>(resolve => {
-      const reader = new FileReader();
-      reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
-      reader.onerror = () => resolve(null);
-      reader.readAsDataURL(blob);
-    });
+    return await blobToDataUrl(blob);
+  } catch {
+    return null;
+  }
+}
+
+/** Reads a Blob as a data: URL string. Returns null on any failure. */
+function blobToDataUrl(blob: Blob): Promise<string | null> {
+  return new Promise<string | null>(resolve => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : null);
+    reader.onerror = () => resolve(null);
+    reader.readAsDataURL(blob);
+  });
+}
+
+/**
+ * The signed-in account's report brand, when it is allowed to brand reports
+ * (active bought credits or admin). Null otherwise, so the report keeps the
+ * default CopyZap branding.
+ */
+async function loadReportBrand(): Promise<ReportBrand | null> {
+  try {
+    const { data } = await supabase.rpc('report_branding_active');
+    if (!data) return null;
+    const row = (Array.isArray(data) ? data[0] : data) as
+      | { company_name: string; footer_line: string | null; logo_url: string | null }
+      | null;
+    if (!row || !row.company_name) return null;
+    return {
+      companyName: row.company_name,
+      footerLine: row.footer_line ?? null,
+      logoUrl: row.logo_url ?? null,
+    };
   } catch {
     return null;
   }
@@ -122,7 +155,10 @@ async function logoDataUrl(): Promise<string | null> {
 /** Builds the report and hands it to the browser as an HTML file. */
 export async function exportQuickReport(result: QuickRunResult, title?: string): Promise<void> {
   const input = buildQuickReportInput(result, title);
-  const [{ exportAsFormattedHtml }, logo] = await Promise.all([import('../utils/enhancedExports'), logoDataUrl()]);
+  const { exportAsFormattedHtml } = await import('../utils/enhancedExports');
+  const brand = await loadReportBrand();
+  // The default CopyZap logo is only needed when no account brand applies.
+  const logo = brand ? null : await logoDataUrl();
   exportAsFormattedHtml(
     input.formState,
     input.cards,
@@ -135,6 +171,7 @@ export async function exportQuickReport(result: QuickRunResult, title?: string):
     undefined,
     input.extraRows,
     true,
-    logo ?? undefined
+    logo ?? undefined,
+    brand ?? undefined
   );
 }

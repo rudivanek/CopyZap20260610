@@ -25,6 +25,17 @@ import { calculateTargetWordCount } from '../services/api/utils';
 import jsPDF from 'jspdf';
 import { formatVersionTime, localTimeZoneLabel } from './versionTime';
 
+/**
+ * A paying account's own report brand. When passed to `exportAsFormattedHtml`,
+ * it replaces all CopyZap branding (logo, kicker, "powered by", footer line).
+ * `logoUrl` is a signed private-storage URL; `companyName` is always shown.
+ */
+export interface ReportBrand {
+  companyName: string;
+  footerLine?: string | null;
+  logoUrl?: string | null;
+}
+
 function formatExportTimestamp(d: Date = new Date()): string {
   // Use toLocaleString() to get full date and time in user's locale
   return d.toLocaleString();
@@ -2974,7 +2985,9 @@ export const exportAsFormattedHtml = (
   /** Quick: show the length of the original and of every version, as its result screen does. */
   showWordCounts?: boolean,
   /** The CopyZap logo as a data address (data:image/png;base64,...). Without it the name is written as text. */
-  logoSrc?: string
+  logoSrc?: string,
+  /** When set, replaces all CopyZap branding on the report with the paying account's own brand. */
+  branding?: ReportBrand
 ): void => {
   try {
     
@@ -3083,12 +3096,20 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
     htmlContent += '<section id="doc-header" class="cover" style="padding:56px 0 64px;">\n';
     htmlContent += '<div class="wrap">\n';
     htmlContent += '<div class="brandbar">\n';
-    htmlContent += logoSrc && logoSrc.startsWith('data:image/')
-      ? `<div class="logo"><img src="${logoSrc}" alt="CopyZap" style="display:block;height:28px;width:auto"></div>\n`
-      : '<div class="logo">Copy<span>Zap</span></div>\n';
-    htmlContent += '<div class="powered">' + t.copyReportLabel + '</div>\n';
+    if (branding) {
+      const logoHtml = branding.logoUrl
+        ? `<div class="logo"><img src="${branding.logoUrl}" alt="${escapeHtml(branding.companyName)}" style="display:block;height:28px;max-width:200px;width:auto"></div>\n`
+        : `<div class="logo" style="font-weight:700;font-size:20px;letter-spacing:-.01em;">${escapeHtml(branding.companyName)}</div>\n`;
+      htmlContent += logoHtml;
+      htmlContent += '<div class="powered">' + escapeHtml(branding.companyName) + '</div>\n';
+    } else {
+      htmlContent += logoSrc && logoSrc.startsWith('data:image/')
+        ? `<div class="logo"><img src="${logoSrc}" alt="CopyZap" style="display:block;height:28px;width:auto"></div>\n`
+        : '<div class="logo">Copy<span>Zap</span></div>\n';
+      htmlContent += '<div class="powered">' + t.copyReportLabel + '</div>\n';
+    }
     htmlContent += '</div>\n';
-    htmlContent += `<div class="kicker">${t.copyReportLabel}</div>\n`;
+    htmlContent += `<div class="kicker">${branding ? escapeHtml(branding.companyName) : t.copyReportLabel}</div>\n`;
     htmlContent += `<h1>${escapeHtml((formState.projectDescription || 'Untitled Project').replace(/^[\s\-–—]+/, ''))}</h1>\n`;
     htmlContent += `<div class="stamp">${t.generatedLabel}: ${showWordCounts ? formatVersionTime(new Date().toISOString()) : formatExportTimestamp()} &nbsp;&middot;&nbsp; ${totalVariants} ${totalVariants !== 1 ? t.variantsEvaluated : t.variantEvaluated} &nbsp;&middot;&nbsp; ${t.languageLabel}: ${lang}</div>\n`;
     // Quick shows when each version was made; say once which time zone those times are in.
@@ -3537,8 +3558,11 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
     }
 
     // FOOTER
+    const footerLine = branding
+      ? (branding.footerLine ? escapeHtml(branding.footerLine) : escapeHtml(branding.companyName))
+      : `${t.generatedBy} &mdash; ${formatExportTimestamp()}`;
     htmlContent += `<footer style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); text-align: center; font-size: 12px; color: var(--muted); padding-bottom: 56px;">
-  ${t.generatedBy} &mdash; ${formatExportTimestamp()}
+  ${footerLine}
 </footer>\n`;
 
     // FIXED BREADCRUMB NAV (no-print)

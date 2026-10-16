@@ -197,6 +197,37 @@ const BuyCreditsLink: React.FC = () => {
   );
 };
 
+/**
+ * "Report branding" link, shown only to accounts that may brand reports:
+ * paying accounts (active bought credits) or admins. Uses the same RPC the
+ * export reads, with an admin fallback so admins with no brand row yet still
+ * see the link.
+ */
+const ReportBrandingLink: React.FC = () => {
+  const [show, setShow] = React.useState(false);
+  React.useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const { data } = await supabase.rpc('report_branding_active');
+      if (cancelled) return;
+      const row = (Array.isArray(data) ? data[0] : data) as { company_name?: string } | null;
+      if (row) { setShow(true); return; }
+      const { data: adminCheck } = await supabase.rpc('is_admin');
+      if (!cancelled) setShow(adminCheck === true);
+    })();
+    return () => { cancelled = true; };
+  }, []);
+  if (!show) return null;
+  return (
+    <Link
+      to="/branding"
+      className="hidden sm:inline-flex items-center min-h-[44px] px-2 sm:px-3 font-medium text-gray-600 dark:text-gray-400 underline hover:text-gray-900 dark:hover:text-gray-100 focus:outline-none focus:ring-2 focus:ring-primary-500"
+    >
+      Report branding
+    </Link>
+  );
+};
+
 const navButton =
   'inline-flex items-center min-h-[44px] px-2 sm:px-3 font-medium text-gray-900 dark:text-gray-100 ' +
   'hover:text-primary-700 dark:hover:text-primary-300 disabled:text-gray-400 disabled:cursor-not-allowed ' +
@@ -272,6 +303,7 @@ const QuickTopBar: React.FC<QuickTopBarProps> = ({
         <CreditsLeft key={creditsTick} userId={userId} />
         <CreditsExpiry key={`expiry-${creditsTick}`} userId={userId} />
         <BuyCreditsLink />
+        <ReportBrandingLink />
         <button type="button" onClick={onLogout} className={navButton + 'border-transparent'}>
           Log out
         </button>
