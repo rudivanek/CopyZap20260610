@@ -3566,7 +3566,7 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
     // FOOTER
     const footerLine = branding
       ? ((branding.footerLine || '').trim() ? `${escapeHtml(branding.footerLine!.trim())} &mdash; ` : '') + formatExportTimestamp()
-      : `${t.generatedBy} &mdash; ${formatExportTimestamp()}`;
+      : `${t.generatedBy} &mdash; ${formatExportTimestamp()} &middot; <a href="https://copyzap.app" target="_blank" rel="noopener" style="color: inherit; text-decoration: underline;">CopyZap.app</a>`;
     htmlContent += `<footer style="margin-top: 48px; padding-top: 24px; border-top: 1px solid var(--line); text-align: center; font-size: 12px; color: var(--muted); padding-bottom: 56px;">
   ${footerLine}
 </footer>\n`;
