@@ -107,6 +107,10 @@ Deno.serve(async (req: Request) => {
         .replace(/'/g, '&#39;');
     const displayName = escapeHtml(String(name || email.split('@')[0]).slice(0, 80));
 
+    // The trial the account was given at sign-up (set by app_settings.trial_credits).
+    const trialCredits = Number(claimed[0]?.credits_allowed) || 0;
+    const trialPages = Math.max(1, Math.floor(trialCredits / 62));
+
     let resendResponse: Response;
     try {
       // Send welcome email via Resend
@@ -161,8 +165,9 @@ Deno.serve(async (req: Request) => {
                   <div style="background-color: #f9fafb; border-left: 4px solid #4b5563; padding: 20px; margin: 30px 0;">
                     <h2 style="margin: 0 0 10px 0; font-size: 18px; color: #1f2937;">Your trial</h2>
                     <p style="margin: 0; color: #374151; font-size: 15px; line-height: 1.6;">
-                      <strong>1,000 credits</strong>, valid for <strong>30 days</strong>.<br>
-                      That is enough for about 15 pages: a page of about 1,000 words uses roughly 60 credits.
+                      <strong>${trialCredits.toLocaleString('en-US')} credits</strong>, valid for <strong>30 days</strong>.<br>
+                      That is enough for about ${trialPages} pages: a page of about 1,000 words uses roughly 60 credits.
+                      After that, you can buy a credit pack inside CopyZap. No subscription.
                     </p>
                   </div>
 
