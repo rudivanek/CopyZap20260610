@@ -35,7 +35,8 @@ import {
 import { textKindWritingNote } from '../services/api/textKinds';
 import { KEEP_TO_ORIGINAL_NOTE, QUICK_REWRITE_NOTE } from './keepToOriginal';
 import { cleanUserFacts, userFactsWritingNote } from './missingFacts';
-import { findUnsupportedClaims } from './sourceClaims';
+import { findUnsupportedClaims, rememberClaims, shareClaims, standsIn } from './sourceClaims';
+import { findLeftOutFacts, leftOutPenalty, listKeyFacts } from './keyFacts';
 import { effectiveGates } from './gateRules';
 import { stopSessionWith, throwIfStopped } from './quickStop';
 import { ORIGINAL_OPTION_LABEL, ORIGINAL_VERSION_ID, pickWinner } from './pickWinner';
@@ -347,11 +348,41 @@ export async function scoreQuickVersions(
   const claimsByVersion = Promise.all(
     versions
       .filter(version => version.id !== ORIGINAL_VERSION_ID)
-      .map(async version => ({
-        id: version.id,
-        claims: await findUnsupportedClaims(contentToText(version.content), allowedForClaims, user, formState.sessionId),
-      }))
+      .map(async version => {
+        const text = contentToText(version.content);
+        return {
+          id: version.id,
+          text,
+          claims: await findUnsupportedClaims(text, allowedForClaims, user, formState.sessionId),
+        };
+      })
+  ).then(shareClaims);
+
+  // Also in parallel: the key facts of the original that each newly scored
+  // version leaves out (see keyFacts.ts). A version that keeps an earlier
+  // score keeps what was found then. It never throws: on any failure nothing
+  // is listed and no score changes.
+  const scoredFresh = versions.filter(
+    version => version.id !== ORIGINAL_VERSION_ID && !isUsableScore(keepScores?.absoluteByVersion[version.id])
   );
+  const leftOutByVersion: Promise<Record<string, string[]>> = (async () => {
+    const found: Record<string, string[]> = {};
+    if (scoredFresh.length === 0) return found;
+    const facts = await listKeyFacts(
+      formState.originalCopy || '',
+      cleanUserFacts(formState.quickUserFacts),
+      user,
+      formState.sessionId
+    );
+    if (!facts || facts.length === 0) return found;
+    await Promise.all(
+      scoredFresh.map(async version => {
+        const left = await findLeftOutFacts(facts, contentToText(version.content), user, formState.sessionId);
+        if (left) found[version.id] = left;
+      })
+    );
+    return found;
+  })().catch(() => ({}));
 
   // One reading of the scorer is not exact: the same text can come back up to
   // three points apart. A reading only matters where it could change the
@@ -461,6 +492,26 @@ export async function scoreQuickVersions(
       const at = unscoredIds.indexOf(version.id);
       if (at >= 0) unscoredIds.splice(at, 1);
     }
+  }
+
+  // A newly scored version that leaves out key facts of the original loses
+  // LEFT_OUT_POINTS per fact, up to LEFT_OUT_MAX_POINTS (see keyFacts.ts), so
+  // the version that keeps them wins. The facts are kept with the score.
+  const leftOut = await leftOutByVersion;
+  for (const version of scoredFresh) {
+    const score = absoluteByVersion[version.id];
+    const left = leftOut[version.id];
+    if (!isUsableScore(score) || !left) continue;
+    const penalty = leftOutPenalty(left.length);
+    const adjusted: AbsoluteScoreBreakdown = {
+      ...score,
+      total: Math.max(1, score.total - penalty),
+      left_out: left,
+      left_out_penalty: penalty,
+    };
+    absoluteByVersion[version.id] = adjusted;
+    const row = rows.find(item => item.versionId === version.id);
+    if (row) row.absoluteTotal = adjusted.total;
   }
 
   // Each version's claims are the facts not in the original (the check ran in
@@ -666,12 +717,23 @@ export async function runQuickPipeline(
   // inventedDetails.ts and sourceClaims.ts). Done before the testimonials go
   // back in, so their words are never edited.
   const allowedText = [fullCopy, ...userFacts].join('\n\n');
+  const checked = shareClaims(
+    await Promise.all(
+      written.items.map(async item => {
+        const text = contentToText(item.content);
+        return { item, text, claims: await findUnsupportedClaims(text, allowedText, user, sessionId) };
+      })
+    )
+  );
+  // What each version still holds after the cleanup; remembered below, once
+  // the testimonials are back, so scoring lists the same and checks nothing twice.
+  const claimsLeft = new Map<string, string[] | null>();
   await Promise.all(
-    written.items.map(async item => {
-      const text = contentToText(item.content);
-      const claims = (await findUnsupportedClaims(text, allowedText, user, sessionId)) ?? [];
-      const cleaned = await removeInventedDetails(text, allowedText, user, sessionId, claims);
+    checked.map(async ({ item, text, claims }) => {
+      const cleaned = await removeInventedDetails(text, allowedText, user, sessionId, claims ?? []);
       if (cleaned.removed.length > 0) item.content = cleaned.text;
+      const now = cleaned.removed.length > 0 ? cleaned.text : text;
+      claimsLeft.set(item.id, claims ? claims.filter(claim => standsIn(claim, now)) : null);
     })
   );
   throwIfStopped(input.signal);
@@ -689,6 +751,8 @@ export async function runQuickPipeline(
     }
     const flagged = findUnverifiedQuotes(contentToText(item.content), fullCopy);
     if (flagged.length > 0) quoteFlags[item.id] = flagged;
+    const left = claimsLeft.get(item.id);
+    if (left) rememberClaims(contentToText(item.content), allowedText, left);
   }
   // From here on the settings describe the whole page again.
   formState = { ...formState, originalCopy: fullCopy, specialInstructions: '' };
