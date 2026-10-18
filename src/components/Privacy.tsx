@@ -13,8 +13,8 @@ const Privacy: React.FC = () => {
         
         <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-300 dark:border-gray-800 p-8 space-y-8">
           <div className="text-sm text-gray-600 dark:text-gray-400 mb-6">
-            <p><strong>Last Updated:</strong> January 2025</p>
-            <p><strong>Effective Date:</strong> January 1, 2025</p>
+            <p><strong>Last Updated:</strong> October 18, 2026</p>
+            <p><strong>Effective Date:</strong> October 18, 2026</p>
           </div>
 
           <section>
@@ -57,7 +57,8 @@ const Privacy: React.FC = () => {
 
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Service Improvement</h3>
               <ul className="list-disc pl-6 space-y-2">
-                <li>Analyze usage patterns to improve our AI models and features</li>
+                <li>Analyze usage patterns (not the content of your copy) to improve our features</li>
+                <li>Your copy is never used to train AI models</li>
                 <li>Monitor system performance and reliability</li>
                 <li>Develop new features based on user needs</li>
               </ul>
@@ -81,10 +82,10 @@ const Privacy: React.FC = () => {
 
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">AI Processing</h3>
               <ul className="list-disc pl-6 space-y-2">
-                <li>Your content is processed by third-party AI providers (OpenAI, DeepSeek)</li>
-                <li>We do not store your content permanently with AI providers</li>
-                <li>AI providers may temporarily process data according to their privacy policies</li>
-                <li>We recommend reviewing OpenAI and DeepSeek privacy policies</li>
+                <li>Your content is sent to our AI providers, Anthropic (Claude) and OpenAI, to write and score copy</li>
+                <li>When you fetch a web page, the page is retrieved through a web page fetching service</li>
+                <li>Your copy is never used to train AI models, by us or by our AI providers, whose business terms exclude training on customer data</li>
+                <li>AI providers may keep requests for a limited time for safety and abuse monitoring, under their own privacy policies</li>
               </ul>
             </div>
           </section>
@@ -100,7 +101,8 @@ const Privacy: React.FC = () => {
               <h3 className="text-lg font-semibold text-gray-800 dark:text-gray-200">Service Providers</h3>
               <ul className="list-disc pl-6 space-y-2">
                 <li><strong>Supabase:</strong> Database hosting and authentication services</li>
-                <li><strong>OpenAI & DeepSeek:</strong> AI content generation processing</li>
+                <li><strong>Anthropic & OpenAI:</strong> AI processing to write and score copy</li>
+                <li><strong>Stripe:</strong> Payment processing (we never see or store your card details)</li>
                 <li><strong>Hosting providers:</strong> Infrastructure and content delivery</li>
               </ul>
 
@@ -144,6 +146,7 @@ const Privacy: React.FC = () => {
               <ul className="list-disc pl-6 space-y-2">
                 <li><strong>Essential cookies:</strong> For authentication and session management</li>
                 <li><strong>Preference cookies:</strong> To remember your theme and mode settings</li>
+                <li><strong>Analytics cookies:</strong> Google Analytics, to understand how visitors use the site</li>
                 <li><strong>No advertising cookies:</strong> We do not use third-party advertising trackers</li>
                 <li>You can disable cookies in your browser, but this may affect functionality</li>
               </ul>
