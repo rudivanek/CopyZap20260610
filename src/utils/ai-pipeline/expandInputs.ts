@@ -17,6 +17,16 @@ export interface ExpandedInputs {
 }
 
 /**
+ * Quick (formState.keepToOriginal): the copy is rewritten without new facts,
+ * so the lists the writer is told to emphasise may only hold what the copy
+ * states. Inferred ones became invented claims ("a seasoned team",
+ * "scratch-made") in an outside test on 2026-10-18.
+ */
+const KEEP_FACTS_RULE = `
+
+The copy will be rewritten without adding any facts. In "inferredBenefits", "inferredDifferentiators" and "credibilityFactors", list only what the content itself states, in its own words; use an empty list when it states none. Never add a benefit, feature, quality, process, credential, experience, reputation or result the content does not state.`;
+
+/**
  * Expands and enriches user inputs using AI to clarify intent and infer missing details
  */
 export async function expandInputs(
@@ -63,7 +73,7 @@ Expand and clarify these inputs. Return a JSON object with the following structu
 Return ONLY valid JSON. No explanations or additional text.`;
 
   const messages = [
-    { role: 'system', content: systemPrompt },
+    { role: 'system', content: systemPrompt + (formState.keepToOriginal ? KEEP_FACTS_RULE : '') },
     { role: 'user', content: userPrompt }
   ];
 

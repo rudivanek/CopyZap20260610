@@ -137,8 +137,8 @@ export const HELP_SECTIONS: HelpSection[] = [
     intro: 'CopyZap does not know your business beyond the copy you gave it. These points are yours to check.',
     items: [
       {
-        term: 'Claims to verify',
-        text: 'Figures and statements the scorer could not confirm, such as "more than 90 companies" or "the only partner in Mexico". Make sure each one is true and that you can prove it.',
+        term: 'Not in your original',
+        text: 'Statements about your business that a version makes and your copy does not, such as "a seasoned team" or "the only partner in Mexico". CopyZap takes most of them out before scoring; any left are listed here. Make sure each one is true and that you can prove it, or take it out.',
       },
       {
         term: 'Brand voice and tone to review',

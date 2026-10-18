@@ -78,6 +78,17 @@ CORE REQUIREMENTS:
 • Maintain clarity, rhythm, and specificity in every sentence
 • Write as a professional human copywriter would`;
 
+  // Quick adds no facts to the copy (see engine/keepToOriginal.ts). These lines
+  // asked the writer for new insights and credibility, which is where invented
+  // claims like "a seasoned team" came from (outside test, 2026-10-18).
+  if (formState.keepToOriginal) {
+    systemPrompt = systemPrompt
+      .replace('\n• Fresh insights that go beyond obvious points', '')
+      .replace('\n• Industry-appropriate credibility and authority', '')
+      .replace('\n• Add at least one fresh insight or angle not present in the user input', '')
+      .replace('\n• Use industry-appropriate terminology and credibility markers', '\n• Use industry-appropriate terminology');
+  }
+
   // Add TL;DR formatting requirement at the beginning if enabled
   if (formState.enhanceForGEO && formState.addTldrSummary) {
     systemPrompt = `ABSOLUTE MANDATORY REQUIREMENT - TL;DR SUMMARY:
