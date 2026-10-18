@@ -3474,17 +3474,43 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
 
           // Verification flags — split factual claims (need a source) from brand-voice / tone notes.
           if (row.verificationFlags && row.verificationFlags.length > 0) {
+            // Quick (showWordCounts) lists claims "not in your original" and the key facts a version
+            // left out (engine/sourceClaims.ts, engine/keyFacts.ts), each with only its words.
+            const isLeftOutFlag = (f: string) => /^left out/i.test(f);
+            const flagWords = (f: string) => {
+              const cut = f.indexOf(': ');
+              return cut >= 0 ? f.slice(cut + 2).trim() : f;
+            };
             const htmlClaimFlags = row.verificationFlags.filter((f: string) => /^unverified claim/i.test(f));
-            const htmlVoiceFlags = row.verificationFlags.filter((f: string) => !/^unverified claim/i.test(f));
-            const claimHeader = exportLangCode === 'es' ? 'Afirmaciones por verificar' : 'Claims to verify';
+            const htmlLeftOutFlags = row.verificationFlags.filter((f: string) => isLeftOutFlag(f));
+            const htmlVoiceFlags = row.verificationFlags.filter((f: string) => !/^unverified claim/i.test(f) && !isLeftOutFlag(f));
+            const claimHeader = showWordCounts
+              ? (exportLangCode === 'es' ? 'No está en tu original' : 'Not in your original')
+              : (exportLangCode === 'es' ? 'Afirmaciones por verificar' : 'Claims to verify');
+            const leftOutHeader = exportLangCode === 'es' ? 'Omitido de tu original' : 'Left out from your original';
             const voiceHeader = exportLangCode === 'es' ? 'Revisión de voz de marca / tono' : 'Brand-voice / tone review';
             if (htmlClaimFlags.length > 0) {
               htmlContent += '<div class="rank-row" style="display:block;padding:10px 22px 12px 70px;background:var(--warn-soft);border-bottom:1px solid var(--line-soft);">\n';
               htmlContent += `<p style="margin:0 0 4px 0;font-size:10px;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:.05em;">&#9888; ${claimHeader}</p>\n`;
               htmlContent += '<ul style="margin:0;padding:0;list-style:none;">\n';
               htmlClaimFlags.forEach((flag: string) => {
+                if (showWordCounts) {
+                  const ef = flagWords(flag).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                  htmlContent += `<li style="font-size:11px;color:var(--ink-soft);line-height:1.5;margin-bottom:2px;">&bull; "${ef}"</li>\n`;
+                  return;
+                }
                 const ef = String(translateVerificationFlag(flag, exportLangCode)).replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 htmlContent += `<li style="font-size:11px;color:var(--ink-soft);line-height:1.5;margin-bottom:2px;">&bull; "${ef}" &mdash; ${t.sourceUnknown}</li>\n`;
+              });
+              htmlContent += '</ul>\n</div>\n';
+            }
+            if (htmlLeftOutFlags.length > 0) {
+              htmlContent += '<div class="rank-row" style="display:block;padding:10px 22px 12px 70px;background:var(--warn-soft);border-bottom:1px solid var(--line-soft);">\n';
+              htmlContent += `<p style="margin:0 0 4px 0;font-size:10px;font-weight:700;color:var(--warn);text-transform:uppercase;letter-spacing:.05em;">&#9888; ${leftOutHeader}</p>\n`;
+              htmlContent += '<ul style="margin:0;padding:0;list-style:none;">\n';
+              htmlLeftOutFlags.forEach((flag: string) => {
+                const ef = flagWords(flag).replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                htmlContent += `<li style="font-size:11px;color:var(--ink-soft);line-height:1.5;margin-bottom:2px;">&bull; ${ef}</li>\n`;
               });
               htmlContent += '</ul>\n</div>\n';
             }

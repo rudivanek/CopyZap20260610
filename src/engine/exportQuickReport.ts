@@ -26,6 +26,7 @@ import type { ComparisonResult } from '../services/api/comprehensiveScoring';
 import { deriveQuickLabel } from './buildQuickFormState';
 import { effectiveGates } from './gateRules';
 import { ORIGINAL_VERSION_ID } from './pickWinner';
+import { LEFT_OUT_NOTE_PREFIX } from './keyFacts';
 import type { QuickRunResult } from './runQuickPipeline';
 import { supabase } from '../services/supabaseClient';
 import type { ReportBrand } from '../utils/enhancedExports';
@@ -58,10 +59,17 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
   const source = scores.comparisonResult;
   const rows = source.rows
     .filter(row => inReport(row.versionId))
-    .map(row => ({
-      ...row,
-      isWinner: row.versionId === winnerId,
-    }))
+    .map(row => {
+      // Key facts the version left out (see keyFacts.ts) go into the report as notes of their own kind.
+      const leftOut = scores.absoluteByVersion[row.versionId]?.left_out ?? [];
+      return {
+        ...row,
+        isWinner: row.versionId === winnerId,
+        ...(leftOut.length > 0
+          ? { verificationFlags: [...(row.verificationFlags ?? []), ...leftOut.map(fact => `${LEFT_OUT_NOTE_PREFIX} ${fact}`)] }
+          : {}),
+      };
+    })
     // Quick's best version first: with equal scores the report marks the first
     // row it meets, and that has to be the version the screen shows as best.
     .sort((a, b) => Number(b.isWinner) - Number(a.isWinner));

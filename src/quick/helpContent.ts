@@ -141,6 +141,10 @@ export const HELP_SECTIONS: HelpSection[] = [
         text: 'Statements about your business that a version makes and your copy does not, such as "a seasoned team" or "the only partner in Mexico". CopyZap takes most of them out before scoring; any left are listed here. Make sure each one is true and that you can prove it, or take it out.',
       },
       {
+        term: 'Left out from your original',
+        text: 'Key facts of your copy that a version does not state: an offer, a price, a date, a licence, a rating, your phone number. Each one lowers that version\'s score by 3 points, up to 12, so a version that keeps your facts wins over one that drops them. Parts of a page you chose to leave out do not count.',
+      },
+      {
         term: 'Brand voice and tone to review',
         text: 'Wording that may not sound like you: figures of speech, or a tone that is stronger than your original.',
       },
