@@ -35,7 +35,7 @@ import {
 import { textKindWritingNote } from '../services/api/textKinds';
 import { KEEP_TO_ORIGINAL_NOTE, QUICK_REWRITE_NOTE } from './keepToOriginal';
 import { cleanUserFacts, userFactsWritingNote } from './missingFacts';
-import { claimsStatingUserFacts, withoutStatedFacts } from './factClaimCheck';
+import { findUnsupportedClaims } from './sourceClaims';
 import { effectiveGates } from './gateRules';
 import { stopSessionWith, throwIfStopped } from './quickStop';
 import { ORIGINAL_OPTION_LABEL, ORIGINAL_VERSION_ID, pickWinner } from './pickWinner';
@@ -49,6 +49,10 @@ import {
 import type { TestimonialZone } from './quoteLock';
 import { contentToText } from '../services/api/contentText';
 import { removeInventedDetails } from './inventedDetails';
+
+/** A scorer's claim note, and the start of the ones Quick writes (read by the result screen and the exports). */
+const CLAIM_NOTE = /^\s*unverified claim\b/i;
+const CLAIM_NOTE_PREFIX = 'unverified claim — verify before publishing:';
 
 /**
  * How many readings a version gets when one is not enough: when its first
@@ -332,15 +336,21 @@ export async function scoreQuickVersions(
   const rows = comparisonResult.rows as ScoredRow[];
   const absoluteByVersion: Record<string, AbsoluteScoreBreakdown> = { ...(unified.absoluteByVersion ?? {}) };
 
-  // While the versions are scored again, an LLM reads the "claims to verify"
-  // and the facts the user added, and by meaning decides which claims only
-  // state a fact (so are not "source unknown"). It never throws: on any
-  // failure nothing is hidden (see factClaimCheck.ts).
-  const statedFacts = claimsStatingUserFacts(
-    rows.flatMap(row => row.verificationFlags ?? []),
-    formState.quickUserFacts,
-    user,
-    formState.sessionId
+  // While the versions are scored again, every version is checked against
+  // the original and the facts the user added: the facts about the business
+  // it states that they do not (see sourceClaims.ts). These replace the
+  // scorer's "claims to verify", which listed every number, true or not.
+  // It never throws: a version whose check fails keeps the scorer's notes.
+  const allowedForClaims = [formState.originalCopy || '', ...cleanUserFacts(formState.quickUserFacts)]
+    .filter(Boolean)
+    .join('\n\n');
+  const claimsByVersion = Promise.all(
+    versions
+      .filter(version => version.id !== ORIGINAL_VERSION_ID)
+      .map(async version => ({
+        id: version.id,
+        claims: await findUnsupportedClaims(contentToText(version.content), allowedForClaims, user, formState.sessionId),
+      }))
   );
 
   // One reading of the scorer is not exact: the same text can come back up to
@@ -453,13 +463,22 @@ export async function scoreQuickVersions(
     }
   }
 
-  // Claims that only state a fact the user added are taken out of every
-  // version's flags; the LLM check ran in parallel with the scoring above.
-  const stated = await statedFacts;
+  // Each version's claims are the facts not in the original (the check ran in
+  // parallel with the scoring above). The scorer's tone notes stay. The
+  // original lists no claims: it is the source.
+  const claimResults = await claimsByVersion;
   for (const row of rows) {
-    if (row.verificationFlags && row.verificationFlags.length > 0) {
-      row.verificationFlags = withoutStatedFacts(row.verificationFlags, stated);
+    const notes = row.verificationFlags ?? [];
+    if (row.versionId === ORIGINAL_VERSION_ID) {
+      row.verificationFlags = notes.filter(note => !CLAIM_NOTE.test(note));
+      continue;
     }
+    const checked = claimResults.find(entry => entry.id === row.versionId)?.claims;
+    if (!checked) continue;
+    row.verificationFlags = [
+      ...checked.map(claim => `${CLAIM_NOTE_PREFIX} ${claim}`),
+      ...notes.filter(note => !CLAIM_NOTE.test(note)),
+    ];
   }
 
   // A repetition the original has itself is not held against a version (see gateRules.ts).
@@ -641,14 +660,17 @@ export async function runQuickPipeline(
     );
   }
 
-  // Numbers and quoted words the writer added, that neither the original nor
-  // the user's facts state, are taken out before anything is scored, so a
-  // version cannot win with an invented detail (see inventedDetails.ts). Done
-  // before the testimonials go back in, so their words are never edited.
+  // Numbers, quoted words and facts about the business the writer added, that
+  // neither the original nor the user's facts state, are taken out before
+  // anything is scored, so a version cannot win with an invented detail (see
+  // inventedDetails.ts and sourceClaims.ts). Done before the testimonials go
+  // back in, so their words are never edited.
   const allowedText = [fullCopy, ...userFacts].join('\n\n');
   await Promise.all(
     written.items.map(async item => {
-      const cleaned = await removeInventedDetails(contentToText(item.content), allowedText, user, sessionId);
+      const text = contentToText(item.content);
+      const claims = (await findUnsupportedClaims(text, allowedText, user, sessionId)) ?? [];
+      const cleaned = await removeInventedDetails(text, allowedText, user, sessionId, claims);
       if (cleaned.removed.length > 0) item.content = cleaned.text;
     })
   );

@@ -1068,7 +1068,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 <div>
                   <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
                     <span className="w-1 h-4 bg-status-warning" aria-hidden="true" />
-                    Claims to verify
+                    Not in your original
                   </p>
                   <ul className="mt-1 list-disc pl-5 text-gray-900 dark:text-gray-100">
                     {claimNotes.map((claim, index) => (
@@ -1248,7 +1248,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                         <div>
                           <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
                             <span className="w-1 h-4 bg-status-warning" aria-hidden="true" />
-                            Claims to verify
+                            Not in your original
                           </p>
                           <ul className="mt-1 list-disc pl-5 text-gray-900 dark:text-gray-100">
                             {item.claims.map((claim, n) => (
