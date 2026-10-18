@@ -28,10 +28,15 @@ import { cleanJsonResponse, makeApiRequestWithFallback } from '../services/api/u
 import { checkNumbers } from './numberCheck';
 import { findUpgradedClaims } from './claimWords';
 import { findUnverifiedQuotes } from './quoteLock';
+import { standsIn } from './sourceClaims';
 
 const CLEANUP_MODEL = 'claude-haiku-4-5';
-/** Most details taken out of one version; a version with more stays as written. */
-const MAX_DETAILS = 8;
+/**
+ * Most details taken out of one version; a version with more stays as written.
+ * 8 until 2026-10-18; raised when facts not in the original (sourceClaims.ts)
+ * joined the list, since one version can hold ten of them.
+ */
+const MAX_DETAILS = 20;
 
 export interface CleanedVersion {
   text: string;
@@ -46,6 +51,8 @@ interface Detail {
   context: string;
   /** A word that makes a claim stronger ("certificada"): only it goes, not the whole claim. */
   upgrade?: boolean;
+  /** A fact about the business the original does not state ("scratch-made"; see sourceClaims.ts). */
+  claim?: boolean;
 }
 
 /**
@@ -71,6 +78,7 @@ A number is part of a claim: "Fortune 500 companies" is a kind of client, "withi
 
 For each edit give "find": text copied character for character from the copy, from a few words up to one sentence, containing the detail; and "replace": that text without the claim, or an empty string. Examples: "Trusted by 3,000 teams like yours, we set it up in a week." becomes "We set it up in a week."; "We reply within 24 hours." becomes "".
 Some details are marked "makes a claim stronger": words such as "certificada", "la máxima autoridad mundial", "oficial", "garantiza" or "guaranteed" that the business never used. For these, take out only those words, so the sentence says what the business said; where the sentence needs a word in their place, use plain wording that claims less. Examples: "psicóloga y logoterapeuta certificada con 32 años de experiencia" becomes "psicóloga y logoterapeuta con 32 años de experiencia"; "del Instituto Viktor Frankl de Viena — la máxima autoridad mundial en esta metodología." becomes "del Instituto Viktor Frankl de Viena."; "coaching que garantiza la adopción real" becomes "coaching para lograr la adopción real".
+Some details are marked "not in the original": words that state a fact about the business the business never stated, such as "scratch-made", "a seasoned team", "honest pricing" or "Austin hosts choose us". Take out those words; keep the rest of the sentence when it still says something, and take out the whole sentence when nothing is left. Never put a vaguer claim of the same kind in their place. Examples: "Our scratch-made Italian menu — handcrafted lasagna, fresh pasta, tiramisu" becomes "Our Italian menu — lasagna, pasta, tiramisu"; "A seasoned team that arrives ready." becomes "".
 - Never add a number, name, result, promise or anything else the copy does not already say.
 - Keep every other fact of the sentence, its other numbers and names included: only the listed details go.
 - Change nothing that is not needed to take the claim out. Never touch a line like [[TESTIMONIALS-1]] or [[KEEP-1]].
@@ -123,16 +131,22 @@ export function applyEdits(text: string, edits: unknown, details: string[] = [])
 
 /**
  * The version with the details it added taken out. The allowed text is the
- * original and the facts the user added. Never throws.
+ * original and the facts the user added. `claims` are the facts about the
+ * business the original does not state, from sourceClaims.ts. Never throws.
  */
 export async function removeInventedDetails(
   text: string,
   allowed: string,
   user: User,
-  sessionId?: string
+  sessionId?: string,
+  claims: string[] = []
 ): Promise<CleanedVersion> {
   const unchanged: CleanedVersion = { text, removed: [] };
-  const details = inventedDetails(text, allowed);
+  const found = inventedDetails(text, allowed);
+  const claimDetails: Detail[] = claims
+    .filter(claim => !found.some(detail => standsIn(detail.item, claim) || standsIn(claim, detail.item)))
+    .map(claim => ({ item: claim, context: claim, claim: true }));
+  const details = [...found, ...claimDetails];
   if (details.length === 0 || details.length > MAX_DETAILS) return unchanged;
   try {
     const response = await makeApiRequestWithFallback(
@@ -144,7 +158,9 @@ export async function removeInventedDetails(
           content: `Copy:\n"""\n${text}\n"""\n\nDetails to take out:\n${details
             .map(
               (detail, index) =>
-                `${index + 1}. ${detail.item}${detail.upgrade ? ' (makes a claim stronger)' : ''} (in: "${detail.context}")`
+                `${index + 1}. ${detail.item}${
+                  detail.upgrade ? ' (makes a claim stronger)' : detail.claim ? ' (not in the original)' : ''
+                } (in: "${detail.context}")`
             )
             .join('\n')}`,
         },
@@ -172,7 +188,10 @@ export async function removeInventedDetails(
     if (markers(edited) !== markers(text)) return unchanged;
 
     const left = new Set(after.map(detail => detail.item));
-    const removed = [...before].filter(item => !left.has(item));
+    // A fact not in the original is gone when its words no longer stand in the version.
+    const removed = details
+      .filter(detail => (detail.claim ? !standsIn(detail.item, edited) : !left.has(detail.item)))
+      .map(detail => detail.item);
     return removed.length > 0 ? { text: edited, removed } : unchanged;
   } catch {
     return unchanged;
