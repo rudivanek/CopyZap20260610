@@ -731,9 +731,17 @@ export async function runQuickPipeline(
   await Promise.all(
     checked.map(async ({ item, text, claims }) => {
       const cleaned = await removeInventedDetails(text, allowedText, user, sessionId, claims ?? []);
-      if (cleaned.removed.length > 0) item.content = cleaned.text;
-      const now = cleaned.removed.length > 0 ? cleaned.text : text;
-      claimsLeft.set(item.id, claims ? claims.filter(claim => standsIn(claim, now)) : null);
+      if (cleaned.removed.length === 0) {
+        claimsLeft.set(item.id, claims);
+        return;
+      }
+      item.content = cleaned.text;
+      // The cleaned text is checked again rather than assumed clean: what the
+      // first check found and is still there, plus anything the second finds.
+      const kept = (claims ?? []).filter(claim => standsIn(claim, cleaned.text));
+      const again = await findUnsupportedClaims(cleaned.text, allowedText, user, sessionId);
+      const extra = (again ?? []).filter(claim => !kept.some(other => standsIn(claim, other) && standsIn(other, claim)));
+      claimsLeft.set(item.id, again === null && claims === null ? null : [...kept, ...extra]);
     })
   );
   throwIfStopped(input.signal);

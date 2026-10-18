@@ -77,7 +77,8 @@ const SYSTEM_PROMPT = `You edit marketing copy so it states only what the busine
 A number is part of a claim: "Fortune 500 companies" is a kind of client, "within 24 hours" is a promise, "3,000 teams" is a count of clients. Take out the whole claim the detail belongs to, never only the digits, and never put a vaguer form of the same claim in its place ("large companies", "leading organisations", "quickly", "many clients"). If the sentence says nothing once the claim is gone, the whole sentence goes. A quotation is removed together with its attribution.
 
 For each edit give "find": text copied character for character from the copy, from a few words up to one sentence, containing the detail; and "replace": that text without the claim, or an empty string. Examples: "Trusted by 3,000 teams like yours, we set it up in a week." becomes "We set it up in a week."; "We reply within 24 hours." becomes "".
-Some details are marked "makes a claim stronger": words such as "certificada", "la máxima autoridad mundial", "oficial", "garantiza" or "guaranteed" that the business never used. For these, take out only those words, so the sentence says what the business said; where the sentence needs a word in their place, use plain wording that claims less. Examples: "psicóloga y logoterapeuta certificada con 32 años de experiencia" becomes "psicóloga y logoterapeuta con 32 años de experiencia"; "del Instituto Viktor Frankl de Viena — la máxima autoridad mundial en esta metodología." becomes "del Instituto Viktor Frankl de Viena."; "coaching que garantiza la adopción real" becomes "coaching para lograr la adopción real".
+Some details are marked "makes a claim stronger": words such as "certificada", "la máxima autoridad mundial", "oficial", "garantiza" or "guaranteed" that the business never used. For these, take out only those words, so the sentence says what the business said. Examples: "psicóloga y logoterapeuta certificada con 32 años de experiencia" becomes "psicóloga y logoterapeuta con 32 años de experiencia"; "del Instituto Viktor Frankl de Viena — la máxima autoridad mundial en esta metodología." becomes "del Instituto Viktor Frankl de Viena."; "Repairs the same day, guaranteed." becomes "Repairs the same day."
+Every edit only deletes words: "replace" is "find" with words taken out. Never add a word, and never swap a word for another one (not "handcrafted" for "beautifully crafted", not "transparent" for "honest"); an edit that adds a word is not applied.
 Some details are marked "not in the original": words that state a fact about the business the business never stated, such as "scratch-made", "a seasoned team", "honest pricing" or "Austin hosts choose us". Take out those words; keep the rest of the sentence when it still says something, and take out the whole sentence when nothing is left. Never put a vaguer claim of the same kind in their place, and never take out words that are not listed: a word like "fresh" stays when it is not in the list. Examples: "Our scratch-made Italian menu — handcrafted lasagna, fresh pasta, tiramisu" (listed: "scratch-made", "handcrafted") becomes "Our Italian menu — lasagna, fresh pasta, tiramisu"; "A seasoned team that arrives ready." (listed: "A seasoned team that arrives ready") becomes "".
 - Never add a number, name, result, promise or anything else the copy does not already say.
 - Keep every other fact of the sentence, its other numbers and names included: only the listed details go.
@@ -105,6 +106,20 @@ function occurrences(text: string, part: string): number {
  * test: "Más de 90 empresas en 20 países … un 35% más de cierres" became
  * "Empresas ya trabajan con nosotros", losing two real facts with the 35%).
  */
+/** Words of up to this many letters ("y", "and", "de") may be added, so a sentence still reads after a cut. */
+const SMALL_WORD_LETTERS = 3;
+
+/** The words of a text: letters and digits, lowercase. */
+function wordsOf(text: string): string[] {
+  return (text || '').normalize('NFKC').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+}
+
+/** True when `replace` has a word (longer than SMALL_WORD_LETTERS) that `find` does not have. */
+export function addsWords(find: string, replace: string): boolean {
+  const had = new Set(wordsOf(find));
+  return wordsOf(replace).some(word => word.length > SMALL_WORD_LETTERS && !had.has(word));
+}
+
 export function applyEdits(text: string, edits: unknown, details: string[] = []): string {
   if (!Array.isArray(edits)) return text;
   let result = text;
@@ -117,6 +132,10 @@ export function applyEdits(text: string, edits: unknown, details: string[] = [])
     if (occurrences(result, find) !== 1) continue;
     const lost = checkNumbers(replace, find).dropped.flatMap(finding => finding.numbers);
     if (lost.some(number => !details.includes(number))) continue;
+    // An edit may only take words out. Seen 2026-10-18: asked to take out
+    // "scratch-made" and "transparent pricing", the cleanup put "beautifully
+    // crafted" and "honest food built from quality ingredients" in their place.
+    if (addsWords(find, replace)) continue;
     result = result.replace(find, () => replace);
     applied += 1;
   }
