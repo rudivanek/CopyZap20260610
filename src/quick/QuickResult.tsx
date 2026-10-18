@@ -175,6 +175,23 @@ const RANKING_SUMMARY_MAX = 5;
 /** How many number findings of one kind are listed before "and N more". */
 const NUMBER_NOTES_SHOWN = 6;
 
+/** Key facts of the original a version leaves out, and the points it lost for them (engine/keyFacts.ts). */
+const LeftOutNotes: React.FC<{ facts: string[]; penalty?: number }> = ({ facts, penalty }) =>
+  facts.length > 0 ? (
+    <div>
+      <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
+        <span className="w-1 h-4 bg-status-warning" aria-hidden="true" />
+        Left out from your original
+        {penalty ? <span className="font-normal text-gray-600 dark:text-gray-400">(−{penalty} points)</span> : null}
+      </p>
+      <ul className="mt-1 list-disc pl-5 text-gray-900 dark:text-gray-100">
+        {facts.map((fact, index) => (
+          <li key={index} className="break-words">{fact}</li>
+        ))}
+      </ul>
+    </div>
+  ) : null;
+
 /** Numbers a version adds or leaves out, each with the sentence it stands in. */
 const NumberNotes: React.FC<{ check: NumberCheck }> = ({ check }) => (
   <>
@@ -440,6 +457,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const numberNotes = numbersByVersion[winner.id] ?? NO_NUMBERS;
   const hasNumberNotes = numberNotes.added.length > 0 || numberNotes.dropped.length > 0;
   const upgradeNotes = upgradesByVersion[winner.id] ?? [];
+  const leftOutNotes = winnerScore?.left_out ?? [];
   const testimonialsMoved = result.testimonials.movedIds.includes(winner.id);
 
   const others = generated
@@ -509,7 +527,13 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const scoreLabel = winnerTotal != null ? getAbsoluteScoreLabel(winnerTotal) : '';
 
   const hasChecks =
-    flags.length > 0 || isIncomplete || quoteFlags.length > 0 || testimonialsMoved || hasNumberNotes || upgradeNotes.length > 0;
+    flags.length > 0 ||
+    isIncomplete ||
+    quoteFlags.length > 0 ||
+    testimonialsMoved ||
+    hasNumberNotes ||
+    upgradeNotes.length > 0 ||
+    leftOutNotes.length > 0;
   const jumpLink =
     'shrink-0 inline-flex items-center min-h-[40px] text-xs text-gray-900 dark:text-gray-100 hover:underline ' +
     'focus:outline-none focus:ring-2 focus:ring-primary-500';
@@ -1062,6 +1086,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 )}
               </ul>
               )}
+              <LeftOutNotes facts={leftOutNotes} penalty={winnerScore?.left_out_penalty} />
               <UpgradeNotes items={upgradeNotes} />
               <NumberNotes check={numberNotes} />
               {claimNotes.length > 0 && (
@@ -1220,9 +1245,11 @@ const QuickResult: React.FC<QuickResultProps> = ({
                     <p className="pl-11 text-xs text-gray-600 dark:text-gray-400 tabular-nums">
                       Clarity {item.score.clarity}/25 · Persuasion {item.score.persuasion}/25 · Audience fit{' '}
                       {item.score.audience_fit}/25 · Structure {item.score.structure}/25
+                      {item.score.left_out_penalty ? ` · Left-out facts −${item.score.left_out_penalty}` : ''}
                     </p>
                   )}
                   {(item.quotes.length > 0 ||
+                    (item.score?.left_out?.length ?? 0) > 0 ||
                     item.upgrades.length > 0 ||
                     item.claims.length > 0 ||
                     item.tone.length > 0 ||
@@ -1242,6 +1269,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                           </ul>
                         </div>
                       )}
+                      <LeftOutNotes facts={item.score?.left_out ?? []} penalty={item.score?.left_out_penalty} />
                       <UpgradeNotes items={item.upgrades} />
                       <NumberNotes check={item.numbers} />
                       {item.claims.length > 0 && (
