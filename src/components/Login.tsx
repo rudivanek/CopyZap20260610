@@ -406,11 +406,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onLoginSuccess }) => {
               Back to Sign In
             </button>
           
-          <div className="text-center">
-            <p className="text-xs text-gray-500 dark:text-gray-400">
-              Beta users: your initial password is "letmein"
-            </p>
-          </div>
           </div>
         </div>
       </div>
