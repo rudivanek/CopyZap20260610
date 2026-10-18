@@ -31,6 +31,10 @@ export interface AbsoluteScoreBreakdown {
   persuasion_note: string;
   audience_fit_note: string;
   structure_note: string;
+  /** Quick: key facts of the original this version leaves out (see engine/keyFacts.ts). */
+  left_out?: string[];
+  /** Quick: points already taken off `total` for them. */
+  left_out_penalty?: number;
 }
 
 const ABSOLUTE_SCORE_SYSTEM_PROMPT = `You are a professional copy evaluator. Score the following copy on four dimensions, each from 0-25. Evaluate in complete isolation — do not compare to any other version. Apply the same fixed standard regardless of copy type, industry, length, or subject matter.
