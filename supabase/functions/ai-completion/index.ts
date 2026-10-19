@@ -7,6 +7,34 @@ const corsHeaders = {
   "Access-Control-Allow-Headers": "Content-Type, Authorization, X-Client-Info, Apikey",
 };
 
+/** Anthropic's prices for prompt caching, as a share of the plain input price (5-minute cache). */
+const CACHE_WRITE_FACTOR = 1.25;
+const CACHE_READ_FACTOR = 0.1;
+
+/** The text of a message's content: a string, or a list of text blocks. */
+function textOf(content: any): string {
+  if (typeof content === 'string') return content;
+  if (!Array.isArray(content)) return '';
+  return content.map((block: any) => (typeof block?.text === 'string' ? block.text : '')).join('');
+}
+
+/**
+ * A message's content for Claude. A list of text blocks stays a list, and a
+ * block with `cache: true` is cached (prompt caching): a long part every call
+ * repeats, such as the original copy, is then charged at a tenth after the
+ * first call. Other models get the plain text (textOf).
+ */
+function claudeContent(content: any): any {
+  if (!Array.isArray(content)) return content;
+  return content
+    .filter((block: any) => typeof block?.text === 'string' && block.text.length > 0)
+    .map((block: any) =>
+      block.cache
+        ? { type: 'text', text: block.text, cache_control: { type: 'ephemeral' } }
+        : { type: 'text', text: block.text }
+    );
+}
+
 async function recordUsage(
   supabase: any,
   params: {
@@ -16,9 +44,16 @@ async function recordUsage(
     outputTokens: number;
     operationType?: string;
     sessionId?: string | null;
+    /** Claude prompt caching: input written to the cache (charged at 1.25x) and read from it (0.1x). */
+    cacheWriteTokens?: number;
+    cacheReadTokens?: number;
   }
 ): Promise<void> {
   try {
+    const cacheWrite = Math.max(0, Number(params.cacheWriteTokens) || 0);
+    const cacheRead = Math.max(0, Number(params.cacheReadTokens) || 0);
+    // Input charged as if it were plain input: cached reads cost a tenth, cache writes a quarter more.
+    const chargedInput = params.inputTokens + cacheWrite * CACHE_WRITE_FACTOR + cacheRead * CACHE_READ_FACTOR;
     let cost_usd = 0;
     let cost_source = 'legacy';
     let pricing_row_id: string | null = null;
@@ -29,14 +64,14 @@ async function recordUsage(
     const pricing = pricingData?.[0];
     if (pricing) {
       cost_usd =
-        (params.inputTokens / 1000) * Number(pricing.input_usd_per_1k || 0) +
+        (chargedInput / 1000) * Number(pricing.input_usd_per_1k || 0) +
         (params.outputTokens / 1000) * Number(pricing.output_usd_per_1k || 0);
       cost_source = 'db_pricing';
       pricing_row_id = pricing.id;
     } else {
       // No price row found: charge at the highest listed rate instead of nothing.
       cost_usd =
-        (params.inputTokens / 1000) * 0.015 +
+        (chargedInput / 1000) * 0.015 +
         (params.outputTokens / 1000) * 0.075;
     }
     if (!Number.isFinite(cost_usd) || cost_usd < 0) cost_usd = 0;
@@ -75,7 +110,7 @@ async function recordUsage(
       created_at: new Date().toISOString(),
       cost_source,
       pricing_row_id,
-      input_tokens_used: params.inputTokens,
+      input_tokens_used: params.inputTokens + cacheWrite + cacheRead,
       output_tokens_used: params.outputTokens
     };
     // Try twice: a failed insert means the call was free for the user.
@@ -86,7 +121,7 @@ async function recordUsage(
       ({ error } = await supabase.from('pmc_user_tokens_used').insert([row]));
     }
     if (error) console.error('❌ USAGE NOT RECORDED:', JSON.stringify(row), error);
-    else console.log(`✓ Usage recorded: ${params.operationType || 'llm_call'} / ${params.model} / in:${params.inputTokens} out:${params.outputTokens} / $${cost_usd.toFixed(6)} / ${billable_units} credits`);
+    else console.log(`✓ Usage recorded: ${params.operationType || 'llm_call'} / ${params.model} / in:${params.inputTokens} cache write:${cacheWrite} cache read:${cacheRead} out:${params.outputTokens} / ${cost_usd.toFixed(6)} / ${billable_units} credits`);
   } catch (err) {
     console.error('❌ Usage recording failed (non-fatal):', err);
   }
@@ -116,7 +151,19 @@ Deno.serve(async (req: Request) => {
       );
     }
 
-    const { messages, model, temperature, maxTokens, responseFormat, stream: useStream, operationType, sessionId } = requestBody;
+    const { messages: rawMessages, model, temperature, maxTokens, responseFormat, stream: useStream, operationType, sessionId } = requestBody;
+    // Every model gets plain text; Claude gets the text blocks as sent, so cached blocks stay cached.
+    const messages = Array.isArray(rawMessages)
+      ? rawMessages.map((msg: any) => ({ role: msg?.role, content: textOf(msg?.content) }))
+      : rawMessages;
+    const claudeMessages = Array.isArray(rawMessages)
+      ? rawMessages
+          .filter((msg: any) => msg?.role !== 'system')
+          .map((msg: any) => ({
+            role: msg.role === 'assistant' ? 'assistant' : 'user',
+            content: claudeContent(msg.content)
+          }))
+      : [];
 
     if (!messages || !Array.isArray(messages) || messages.length === 0) {
       return new Response(
@@ -437,16 +484,12 @@ Deno.serve(async (req: Request) => {
       console.log('Attempting streaming request with Claude...');
 
       const systemMessage = messages.find((msg: any) => msg.role === 'system');
-      const userMessages = messages.filter((msg: any) => msg.role !== 'system');
 
       const requestBody: any = {
         model: useModel,
         max_tokens: useMaxTokens,
         stream: true,
-        messages: userMessages.map((msg: any) => ({
-          role: msg.role === 'assistant' ? 'assistant' : 'user',
-          content: msg.content
-        })),
+        messages: claudeMessages,
       };
       // claude-sonnet-5 rejects temperature with a 400 error — omit it for that model
       if (useModel !== 'claude-sonnet-5') {
@@ -481,6 +524,8 @@ Deno.serve(async (req: Request) => {
         const reader = anthropicResponse.body!.getReader();
         const decoder = new TextDecoder();
         let streamInputTokens = 0;
+        let streamCacheWrite = 0;
+        let streamCacheRead = 0;
         let streamOutputTokens = 0;
         let gotFinalUsage = false;
         let streamedChars = 0;
@@ -501,6 +546,8 @@ Deno.serve(async (req: Request) => {
                 const evt = JSON.parse(line.slice(5).trim());
                 if (evt.type === 'message_start') {
                   streamInputTokens = evt.message?.usage?.input_tokens || 0;
+                  streamCacheWrite = evt.message?.usage?.cache_creation_input_tokens || 0;
+                  streamCacheRead = evt.message?.usage?.cache_read_input_tokens || 0;
                 } else if (evt.type === 'content_block_delta' && typeof evt.delta?.text === 'string') {
                   streamedChars += evt.delta.text.length;
                 } else if (evt.type === 'message_delta' && evt.usage?.output_tokens !== undefined) {
@@ -526,14 +573,16 @@ Deno.serve(async (req: Request) => {
           }
           // Charge for what was produced. When the final count never arrived, estimate it from the text.
           const outputTokens = gotFinalUsage ? streamOutputTokens : Math.ceil(streamedChars / 3);
-          if (streamInputTokens > 0 || outputTokens > 0) {
+          if (streamInputTokens > 0 || streamCacheWrite > 0 || streamCacheRead > 0 || outputTokens > 0) {
             await recordUsage(supabase, {
               userId: user.id,
               model: useModel,
               inputTokens: streamInputTokens,
               outputTokens,
               operationType,
-              sessionId
+              sessionId,
+              cacheWriteTokens: streamCacheWrite,
+              cacheReadTokens: streamCacheRead
             });
           }
           if (!clientGone) {
@@ -579,15 +628,11 @@ Deno.serve(async (req: Request) => {
 
             // Convert OpenAI-style messages to Claude format
             const systemMessage = messages.find((msg: any) => msg.role === 'system');
-            const userMessages = messages.filter((msg: any) => msg.role !== 'system');
 
             const requestBody: any = {
               model: useModel,
               max_tokens: useMaxTokens,
-              messages: userMessages.map((msg: any) => ({
-                role: msg.role === 'assistant' ? 'assistant' : 'user',
-                content: msg.content
-              })),
+              messages: claudeMessages,
             };
             // claude-sonnet-5 rejects temperature with a 400 error — omit it for that model
             if (useModel !== 'claude-sonnet-5') {
@@ -637,7 +682,9 @@ Deno.serve(async (req: Request) => {
                 inputTokens: data.usage?.input_tokens || 0,
                 outputTokens: data.usage?.output_tokens || 0,
                 operationType,
-                sessionId
+                sessionId,
+                cacheWriteTokens: data.usage?.cache_creation_input_tokens || 0,
+                cacheReadTokens: data.usage?.cache_read_input_tokens || 0
               });
               console.error('Claude returned an empty answer, stop reason:', data.stop_reason);
               return new Response(
@@ -657,7 +704,9 @@ Deno.serve(async (req: Request) => {
             usage = {
               total_tokens: (data.usage?.input_tokens || 0) + (data.usage?.output_tokens || 0),
               prompt_tokens: data.usage?.input_tokens || 0,
-              completion_tokens: data.usage?.output_tokens || 0
+              completion_tokens: data.usage?.output_tokens || 0,
+              cache_creation_input_tokens: data.usage?.cache_creation_input_tokens || 0,
+              cache_read_input_tokens: data.usage?.cache_read_input_tokens || 0
             };
             console.log('Claude request successful');
           } catch (error: any) {
@@ -913,7 +962,9 @@ Deno.serve(async (req: Request) => {
         inputTokens: usage.prompt_tokens || usage.input_tokens || 0,
         outputTokens: usage.completion_tokens || usage.output_tokens || 0,
         operationType,
-        sessionId
+        sessionId,
+        cacheWriteTokens: usage.cache_creation_input_tokens || 0,
+        cacheReadTokens: usage.cache_read_input_tokens || 0
       });
     }
 
