@@ -79,12 +79,47 @@ interface NumberToken {
 
 const blank = (length: number) => ' '.repeat(length);
 
-/** Hides what looks like a number but is not a fact of the copy: list numbering, footnote marks, links, marker lines. */
+/** A list number at the start of a line: "3. ", "3) ", "3\\. " (as a fetched page writes it), also in bold or after a heading mark. */
+const LIST_NUMBER = /^(\s{0,3}(?:#{1,6}\s+)?(?:[-*+]\s+)?(?:\*{1,2}|_{1,2})?)(\d{1,3}\\?[.)])(?=[\s*_])/;
+
+/**
+ * Hides what looks like a number but is not a fact of the copy: list
+ * numbering, footnote marks, links, marker lines; and, since 2026-10-19, page
+ * leftovers that kept showing as "missing" on fetched pages: list numbers the
+ * fetch wrote as "06\\. Vestavia Hills", step labels ("05 · They keep it",
+ * "01 Paste02 Web address"), the minutes of a time ("10:55am"), file sizes
+ * ("1.86 MB") and calendar grids ("2829301234 567891011").
+ */
 function maskLine(line: string): string {
   return line
     .replace(/(?:https?:\/\/|www\.)\S+|\S+@\S+\.\S+/g, match => blank(match.length))
     .replace(/\[\[[^\]]*\]\]|\[(?:\\?\[)?\d{1,3}(?:\\?\])?\]/g, match => blank(match.length))
-    .replace(/^(\s{0,3}(?:#{1,6}\s+)?(?:[-*+]\s+)?)(\d{1,3}[.)])(?=\s)/, (_, lead: string, mark: string) => lead + blank(mark.length));
+    .replace(LIST_NUMBER, (_, lead: string, mark: string) => lead + blank(mark.length))
+    // A step label: "05 · They keep it" at the start of a line, or a zero-padded "01".."09" anywhere.
+    .replace(/^(\s{0,3})(\d{1,2}\s?[·•|]\s)/, (_, lead: string, mark: string) => lead + blank(mark.length))
+    .replace(/(?<![\d.,:/-])0\d(?![\d.,:/-]?\d)/g, match => blank(match.length))
+    // The minutes of a time: "10:55" counts as the hour only.
+    .replace(/(?<=\b\d{1,2}):\d{2}\b/g, match => blank(match.length))
+    // A file size: "1.86 MB", "640KB".
+    .replace(/\d+(?:[.,]\d+)?\s?(?:KB|MB|GB|kB)\b/g, match => blank(match.length))
+    // A calendar grid: day numbers run together ("567891011", "2829301234").
+    .replace(/\d{6,}/g, match => (isDayRun(match) ? blank(match.length) : match));
+}
+
+/** True when the digits are day numbers written one after another (28 29 30 1 2 …), at least four of them. */
+function isDayRun(digits: string): boolean {
+  const walk = (at: number, previous: number, count: number): boolean => {
+    if (at === digits.length) return count >= 4;
+    for (const size of [1, 2]) {
+      const part = digits.slice(at, at + size);
+      if (part.length < size || part.startsWith('0')) continue;
+      const value = Number(part);
+      const follows = previous === 0 || value === previous + 1 || (value === 1 && previous >= 28);
+      if (value >= 1 && value <= 31 && follows && walk(at + size, value, count + 1)) return true;
+    }
+    return false;
+  };
+  return walk(0, 0, 0);
 }
 
 /** "1,200" and "1.200" are 1200; "14.99" and "14,99" are 14.99; "442.167.1862" is three numbers. */
@@ -271,11 +306,24 @@ function gluedValuesIn(text: string): string[] {
   return values;
 }
 
+/**
+ * The numbers of a numbered list. Never reported, but they count as present:
+ * a list of seven steps in the original backs "7 steps" in a version.
+ */
+function listValuesIn(text: string): string[] {
+  const values: string[] = [];
+  for (const line of (text || '').replace(/\r\n?/g, '\n').split('\n')) {
+    const match = LIST_NUMBER.exec(line);
+    if (match) values.push(String(Number(match[2].replace(/\D/g, ''))));
+  }
+  return values;
+}
+
 export function checkNumbers(versionText: string, originalText: string): NumberCheck {
   const version = numbersIn(versionText);
   const original = numbersIn(originalText);
   const keysOf = (tokens: NumberToken[], text: string) =>
-    new Set([...tokens.flatMap(token => token.keys), ...gluedValuesIn(text)]);
+    new Set([...tokens.flatMap(token => token.keys), ...gluedValuesIn(text), ...listValuesIn(text)]);
 
   return {
     added: missingFrom(version, keysOf(original.tokens, originalText), wordValuesIn(originalText)),
