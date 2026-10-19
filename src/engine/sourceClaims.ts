@@ -38,24 +38,31 @@
 import { User } from '../types';
 import { cleanJsonResponse, makeApiRequestWithFallback } from '../services/api/utils';
 
-const SOURCE_CHECK_MODEL = 'claude-haiku-4-5';
+/**
+ * Sonnet, not Haiku (2026-10-18): asked through the live app, Haiku matched
+ * "Seasoned staff" to "our staff is very professional" (the prompt's own
+ * counter-example) and left "we've earned our place" and "our customers
+ * return" off its list. Sonnet, same prompt, found all three, twice, and
+ * flagged no true fact on the other versions.
+ */
+const SOURCE_CHECK_MODEL = 'claude-sonnet-4-6';
 /** Most claims taken from one part of a version. */
 const MAX_CLAIMS = 40;
 /** Shortest source accepted, in letters and digits: one or two letters match anywhere. */
 const MIN_SOURCE_CHARS = 3;
 /** About this many words of a version are checked per call. */
-const PART_WORDS = 220;
+const PART_WORDS = 450;
 /** At most this many calls per version; longer versions get larger parts. */
-const MAX_PARTS = 12;
+const MAX_PARTS = 6;
 /** Versions remembered (see rememberClaims). */
 const MEMORY_SIZE = 200;
 
 const SYSTEM_PROMPT = `You compare a rewritten piece of marketing copy with the original it was written from. The business wrote the original; the rewrite must not tell the reader anything about the business that the original does not.
 
-You may get only part of the rewrite. Go through that part sentence by sentence and list every statement of fact about the business: what it offers or sells, how its product is made or what it is made of, how it works with customers, its team and their experience, its prices or how it prices, offers, discounts, limits and deadlines, guarantees and promises, policies, results it gets, its customers and how many there are, its reputation or popularity, awards, credentials, memberships and accreditations, the places it serves, dates, and stories about its past work.
+You may get only part of the rewrite. Go through that part sentence by sentence and list every statement of fact about the business: what it offers or sells, how its product is made or what it is made of, how it works with customers, its team and their experience, its prices or how it prices, offers, discounts, limits and deadlines, guarantees and promises, policies, results it gets, its customers and how many there are, how often they come back, its reputation or popularity, awards, credentials, memberships and accreditations, the places it serves, dates, and stories about its past work. List every one, also the ones you think are supported.
 
 Do not list wording that states no fact about the business: the framing of the reader's situation, how the reader will feel, invitations and calls to action ("Claim your free consultation", "Ready to plan your event?"), general persuasion ("Make sure it's worth remembering") and words that only set the mood ("exciting", "we'd love to", "worth celebrating", "it means everything"). Ignore lines like [[TESTIMONIALS-1]] or [[KEEP-1]].
-Do list words a reader could rely on as a fact about the business, such as "authentic", "trusted", "affordable", "experienced", "carefully sourced" or "flexible". The test: if a customer could ask "is that true?", it is a fact.
+Do list words a reader could rely on as a fact about the business, such as "authentic", "trusted", "affordable", "experienced", "seasoned", "carefully sourced" or "flexible". The test: if a customer could ask "is that true?", it is a fact.
 
 For each statement give:
 - "claim": the words copied exactly from the rewrite, as few as carry the fact.
