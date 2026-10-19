@@ -741,7 +741,17 @@ export async function runQuickPipeline(
       const kept = (claims ?? []).filter(claim => standsIn(claim, cleaned.text));
       const again = await findUnsupportedClaims(cleaned.text, allowedText, user, sessionId);
       const extra = (again ?? []).filter(claim => !kept.some(other => standsIn(claim, other) && standsIn(other, claim)));
-      claimsLeft.set(item.id, again === null && claims === null ? null : [...kept, ...extra]);
+      let left = [...kept, ...extra];
+      // One more cleanup for what is still there. Edits only take words out,
+      // so nothing new can come in: no third check is needed.
+      if (left.length > 0) {
+        const second = await removeInventedDetails(cleaned.text, allowedText, user, sessionId, left);
+        if (second.removed.length > 0) {
+          item.content = second.text;
+          left = left.filter(claim => standsIn(claim, second.text));
+        }
+      }
+      claimsLeft.set(item.id, again === null && claims === null ? null : left);
     })
   );
   throwIfStopped(input.signal);

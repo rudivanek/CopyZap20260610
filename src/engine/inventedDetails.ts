@@ -30,7 +30,15 @@ import { findUpgradedClaims } from './claimWords';
 import { findUnverifiedQuotes } from './quoteLock';
 import { standsIn } from './sourceClaims';
 
-const CLEANUP_MODEL = 'claude-haiku-4-5';
+/**
+ * Sonnet since 2026-10-19: on a 2,000-word page (GrokBot's Long Time Plumbing
+ * run) Haiku's answer was cut off at the output limit, so nothing was taken
+ * out, and the version won with "Jefferson and Shelby County" and "no
+ * callbacks" in it.
+ */
+const CLEANUP_MODEL = 'claude-sonnet-4-6';
+/** Room for the answer: one edit per sentence on a long page. 1,200 until 2026-10-19. */
+const CLEANUP_MAX_TOKENS = 4000;
 /**
  * Most details taken out of one version; a version with more stays as written.
  * 8 until 2026-10-18; raised when facts not in the original (sourceClaims.ts)
@@ -76,7 +84,7 @@ const SYSTEM_PROMPT = `You edit marketing copy so it states only what the busine
 
 A number is part of a claim: "Fortune 500 companies" is a kind of client, "within 24 hours" is a promise, "3,000 teams" is a count of clients. Take out the whole claim the detail belongs to, never only the digits, and never put a vaguer form of the same claim in its place ("large companies", "leading organisations", "quickly", "many clients"). If the sentence says nothing once the claim is gone, the whole sentence goes. A quotation is removed together with its attribution.
 
-For each edit give "find": text copied character for character from the copy, from a few words up to one sentence, containing the detail; and "replace": that text without the claim, or an empty string. Examples: "Trusted by 3,000 teams like yours, we set it up in a week." becomes "We set it up in a week."; "We reply within 24 hours." becomes "".
+For each edit give "find": text copied character for character from the copy, one whole sentence (or a whole list item or heading) containing the detail, so that it appears only once in the copy; when the same words appear in several sentences, give one edit for each of those sentences; and "replace": that text without the claim, or an empty string. Examples: "Trusted by 3,000 teams like yours, we set it up in a week." becomes "We set it up in a week."; "We reply within 24 hours." becomes "".
 Some details are marked "makes a claim stronger": words such as "certificada", "la máxima autoridad mundial", "oficial", "garantiza" or "guaranteed" that the business never used. For these, take out only those words, so the sentence says what the business said. Examples: "psicóloga y logoterapeuta certificada con 32 años de experiencia" becomes "psicóloga y logoterapeuta con 32 años de experiencia"; "del Instituto Viktor Frankl de Viena — la máxima autoridad mundial en esta metodología." becomes "del Instituto Viktor Frankl de Viena."; "Repairs the same day, guaranteed." becomes "Repairs the same day."
 Every edit only deletes words: "replace" is "find" with words taken out. Never add a word, and never swap a word for another one (not "handcrafted" for "beautifully crafted", not "transparent" for "honest"); an edit that adds a word is not applied.
 Some details are marked "not in the original": words that state a fact about the business the business never stated, such as "scratch-made", "a seasoned team", "honest pricing" or "Austin hosts choose us". Take out those words; keep the rest of the sentence when it still says something, and take out the whole sentence when nothing is left. Never put a vaguer claim of the same kind in their place, and never take out words that are not listed: a word like "fresh" stays when it is not in the list. Examples: "Our scratch-made Italian menu — handcrafted lasagna, fresh pasta, tiramisu" (listed: "scratch-made", "handcrafted") becomes "Our Italian menu — lasagna, fresh pasta, tiramisu"; "A seasoned team that arrives ready." (listed: "A seasoned team that arrives ready") becomes "".
@@ -185,7 +193,7 @@ export async function removeInventedDetails(
         },
       ],
       0,
-      1200,
+      CLEANUP_MAX_TOKENS,
       { type: 'json_object' },
       user.email,
       'quick_detail_cleanup',
