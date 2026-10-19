@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { QuickProgress, QuickStage } from '../engine/runQuickPipeline';
 
 /** The processes that show the modal. */
-export type QuickBusyKind = 'fetch' | 'reading' | 'running' | 'rescoring' | 'opening' | 'changing' | 'editing';
+export type QuickBusyKind = 'fetch' | 'reading' | 'running' | 'rescoring' | 'opening' | 'changing' | 'editing' | 'reviewing';
 
 interface QuickBusyModalProps {
   kind: QuickBusyKind;
@@ -26,6 +26,7 @@ const TEXT: Record<QuickBusyKind, { title: string; detail: string }> = {
   opening: { title: 'Opening your result', detail: 'Loading the saved versions and scores.' },
   changing: { title: 'Changing your copy', detail: 'Rewriting the best version, then scoring it. About a minute; several minutes for a long page.' },
   editing: { title: 'Scoring your edit', detail: 'Nothing is rewritten. Your version is scored against your goal. About a minute.' },
+  reviewing: { title: 'Scoring your changes', detail: 'Nothing is rewritten. The best version with your changes is scored against your goal. About 30 seconds.' },
 };
 
 /** What the user is asked before a process is stopped. Opening a result uses no credits. */
@@ -37,6 +38,7 @@ const STOP_QUESTION: Record<QuickBusyKind, string> = {
   opening: 'Stop opening this result?',
   changing: 'Stop now? Your result stays as it is. Credits already used are not returned.',
   editing: 'Stop now? Your result stays as it is. Credits already used are not returned.',
+  reviewing: 'Stop now? Your changes stay; the score stays as it was. Credits already used are not returned.',
 };
 
 const stopButton =

@@ -37,6 +37,7 @@ import { KEEP_TO_ORIGINAL_NOTE, QUICK_REWRITE_NOTE } from './keepToOriginal';
 import { cleanUserFacts, userFactsWritingNote } from './missingFacts';
 import { findUnsupportedClaims, rememberClaims, shareClaims, standsIn } from './sourceClaims';
 import { findLeftOutFacts, leftOutPenalty, listKeyFacts } from './keyFacts';
+import type { ClaimReview } from './claimReview';
 import { effectiveGates } from './gateRules';
 import { stopSessionWith, throwIfStopped } from './quickStop';
 import { ORIGINAL_OPTION_LABEL, ORIGINAL_VERSION_ID, pickWinner } from './pickWinner';
@@ -183,6 +184,12 @@ export interface QuickRunResult {
    * needs them to keep those parts untouched again.
    */
   keptTexts: string[];
+  /**
+   * When the best version has claims the page does not back, the decisions the
+   * user made about each one (see claimReview.ts). Absent until the user is
+   * asked, and when no claims were found.
+   */
+  claimReview?: ClaimReview;
 }
 
 type ProgressFn = (progress: QuickProgress) => void;

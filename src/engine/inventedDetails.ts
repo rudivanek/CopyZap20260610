@@ -166,10 +166,17 @@ export async function removeInventedDetails(
   allowed: string,
   user: User,
   sessionId?: string,
-  claims: string[] = []
+  claims: string[] = [],
+  /**
+   * onlyClaims: take out only the claims given, nothing else the version adds
+   * (the user's "Remove it" on one claim; see claimReview.ts).
+   */
+  options: { onlyClaims?: boolean } = {}
 ): Promise<CleanedVersion> {
   const unchanged: CleanedVersion = { text, removed: [] };
-  const found = inventedDetails(text, allowed);
+  // What the version adds before any edit: an edit may not bring in anything else.
+  const existing = inventedDetails(text, allowed);
+  const found = options.onlyClaims ? [] : existing;
   const claimDetails: Detail[] = claims
     .filter(claim => !found.some(detail => standsIn(detail.item, claim) || standsIn(claim, detail.item)))
     .map(claim => ({ item: claim, context: claim, claim: true }));
@@ -208,7 +215,7 @@ export async function removeInventedDetails(
     if (edited === text || !edited.trim()) return unchanged;
 
     // Nothing new may come in, and the marker lines must all still be there.
-    const before = new Set(details.map(detail => detail.item));
+    const before = new Set([...details, ...existing].map(detail => detail.item));
     const after = inventedDetails(edited, allowed);
     if (after.some(detail => !before.has(detail.item))) return unchanged;
     const markers = (value: string) => (value.match(/\[\[[^\]]*\]\]/g) ?? []).sort().join('|');

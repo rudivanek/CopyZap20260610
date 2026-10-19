@@ -64,6 +64,8 @@ interface QuickExtras {
   source?: QuickRunResult['source'];
   /** The kept parts' text. Absent in entries saved before versions could be changed. */
   keptTexts?: string[];
+  /** The user's decisions about claims in the best version (see claimReview.ts). Absent when none were found or asked. */
+  claimReview?: QuickRunResult['claimReview'];
   runSeconds: number | null;
 }
 
@@ -101,6 +103,7 @@ function toRow(result: QuickRunResult, runSeconds: number | null) {
     quoteFlags: result.quoteFlags,
     parts: result.parts,
     keptTexts: result.keptTexts,
+    ...(result.claimReview ? { claimReview: result.claimReview } : {}),
     ...(result.source ? { source: result.source } : {}),
     runSeconds,
   };
@@ -217,6 +220,9 @@ export function rowToQuickResult(row: Record<string, unknown> | null | undefined
     quoteFlags: quick.quoteFlags ?? {},
     parts: quick.parts ?? { kept: 0, leftOut: 0 },
     keptTexts: Array.isArray(quick.keptTexts) ? quick.keptTexts.filter(text => typeof text === 'string') : [],
+    ...(quick.claimReview && typeof quick.claimReview.versionId === 'string' && Array.isArray(quick.claimReview.decisions)
+      ? { claimReview: quick.claimReview }
+      : {}),
     ...(quick.source && typeof quick.source.url === 'string' && typeof quick.source.host === 'string'
       ? { source: { url: quick.source.url, host: quick.source.host } }
       : {}),
