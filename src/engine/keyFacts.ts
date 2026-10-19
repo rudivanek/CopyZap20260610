@@ -122,6 +122,12 @@ export async function findLeftOutFacts(
 ): Promise<string[] | null> {
   if (facts.length === 0) return [];
   if (!text.trim()) return null;
+  // A fact whose words all stand in the version is kept, whatever the model
+  // says. Seen 2026-10-19: a list of 13 towns, numbered on the page and
+  // bulleted in the version, was called "left out" in all three versions.
+  const words = new Set(wordsOf(text));
+  const open = facts.filter(fact => !wordsKept(fact, words));
+  if (open.length === 0) return [];
   try {
     const response = await makeApiRequestWithFallback(
       KEY_FACTS_MODEL,
@@ -129,11 +135,11 @@ export async function findLeftOutFacts(
         { role: 'system', content: CHECK_PROMPT },
         {
           role: 'user',
-          content: `FACTS:\n${facts.map((fact, index) => `${index + 1}. ${fact}`).join('\n')}\n\nREWRITE:\n"""\n${text}\n"""`,
+          content: `FACTS:\n${open.map((fact, index) => `${index + 1}. ${fact}`).join('\n')}\n\nREWRITE:\n"""\n${text}\n"""`,
         },
       ],
       0,
-      Math.min(800, 60 + facts.length * 8),
+      Math.min(800, 60 + open.length * 8),
       { type: 'json_object' },
       user.email,
       'quick_key_facts_check',
@@ -142,13 +148,29 @@ export async function findLeftOutFacts(
     const parsed = JSON.parse(cleanJsonResponse(response.choices[0]?.message?.content ?? '')) as { kept?: unknown };
     const kept = parsed?.kept;
     // A reply that does not answer every fact is not trusted.
-    if (!Array.isArray(kept) || kept.length !== facts.length) return null;
-    return facts.filter((_, index) => kept[index] === false);
+    if (!Array.isArray(kept) || kept.length !== open.length) return null;
+    return open.filter((_, index) => kept[index] === false);
   } catch {
     return null;
   }
 }
 
+/** The words of a text: letters and digits, lowercase. */
+function wordsOf(text: string): string[] {
+  return (text || '').normalize('NFKC').toLowerCase().split(/[^\p{L}\p{N}]+/u).filter(Boolean);
+}
+/** Small words that carry no fact ("the", "de", "AL"): ignored when comparing. */
+const SMALL_WORD_LETTERS = 2;
+/**
+ * True when every word of the fact (after a label such as "Service areas:"),
+ * beyond the smallest ones, stands in the version.
+ */
+function wordsKept(fact: string, words: Set<string>): boolean {
+  const cut = fact.indexOf(': ');
+  const body = cut >= 0 && cut < 40 ? fact.slice(cut + 2) : fact;
+  const needed = wordsOf(body).filter(word => word.length > SMALL_WORD_LETTERS || /\d/.test(word));
+  return needed.length > 0 && needed.every(word => words.has(word));
+}
 /** Points taken off for this many left-out facts. */
 export function leftOutPenalty(count: number): number {
   return Math.min(LEFT_OUT_MAX_POINTS, Math.max(0, count) * LEFT_OUT_POINTS);
