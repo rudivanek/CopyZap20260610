@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { GeneratedContentItem } from '../types';
 import FormattedContent from '../components/ui/FormattedContent';
 import { contentToText } from '../services/api/contentText';
@@ -25,8 +25,21 @@ import type { NumberCheck } from '../engine/numberCheck';
 import { findUpgradedClaims } from '../engine/claimWords';
 import type { UpgradedClaim } from '../engine/claimWords';
 import { ORIGINAL_VERSION_ID } from '../engine/pickWinner';
+import {
+  claimsOf,
+  editDecision,
+  resultWithReview,
+  reviewFor,
+  reviewScore,
+  scoreIsStale,
+  sentenceAround,
+  withDecision,
+  withoutDecision,
+} from '../engine/claimReview';
+import ClaimChecklist, { CLAIM_MARK_BACKGROUND, CLAIM_MARK_LINE, ClaimItem, RescoreDialog } from './ClaimChecklist';
 import { QUICK_SCORE_MARGIN } from '../engine/runQuickPipeline';
 import type { QuickRunResult } from '../engine/runQuickPipeline';
+import type { ClaimReview } from '../engine/claimReview';
 import SquareCheck from './SquareCheck';
 import { CHANGE_TIPS, TIPS } from './tips';
 
@@ -54,6 +67,12 @@ interface QuickResultProps {
   changeNotice: { tone: 'good' | 'neutral' | 'bad'; text: string } | null;
   /** Scores a version the user edited by hand. The page runs it behind the modal. */
   onScoreEdit: (draft: QuickEditDraft, text: string) => void;
+  /** The user's decisions about the best version's claims changed (see engine/claimReview.ts). */
+  onReview: (review: ClaimReview | null) => void;
+  /** "Remove it" on one claim. The page runs it; the checklist shows "Removing…" meanwhile. */
+  onRemoveClaim: (claim: string) => Promise<void>;
+  /** "Re-score" the best version with the user's changes, after the user said yes. */
+  onRescoreReview: () => void;
   /**
    * "Make it stronger and run again", under the score: shown when the run used
    * no facts and "Make it stronger" found questions for this copy. `missing`
@@ -281,9 +300,14 @@ const QuickResult: React.FC<QuickResultProps> = ({
   changeBlocked,
   changeNotice,
   onScoreEdit,
+  onReview,
+  onRemoveClaim,
+  onRescoreReview,
   runAgain = null,
   previousBest = null,
 }) => {
+  // The result as it shows: the best version with the user's decisions about its claims applied.
+  const shown = useMemo(() => resultWithReview(result), [result]);
   // Editing by hand: the best version as plain text, protected parts as bracketed lines.
   const [draft, setDraft] = useState<QuickEditDraft | null>(null);
   const [editText, setEditText] = useState('');
@@ -293,7 +317,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
     setDraft(null);
   }, [versionCount]);
   const openEditor = () => {
-    const prepared = prepareQuickEdit(result);
+    const prepared = prepareQuickEdit(shown);
     if (!prepared) return;
     setDraft(prepared);
     setEditText(prepared.text);
@@ -367,11 +391,19 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const [exportState, setExportState] = useState<'idle' | 'working' | 'failed'>('idle');
   // The "Check with another AI" panel under the toolbar.
   const [aiCheckOpen, setAiCheckOpen] = useState(false);
+  // Copy or Export asked while claims are still open: the question under the toolbar.
+  const [pendingAction, setPendingAction] = useState<'copy' | 'export' | null>(null);
+  const [copied, setCopied] = useState(false);
+  // The box that asks before "Re-score".
+  const [askRescore, setAskRescore] = useState(false);
+  // The best version's copy, where its open claims are marked.
+  const copyRef = useRef<HTMLDivElement>(null);
   const handleExport = async () => {
     if (exportState === 'working') return;
     setExportState('working');
     try {
-      await exportQuickReport(result, title);
+      // The report shows the copy the user publishes: their decisions applied, and the score after "Re-score".
+      await exportQuickReport(resultWithReview(result, true), title);
       setExportState('idle');
     } catch {
       setExportState('failed');
@@ -385,38 +417,102 @@ const QuickResult: React.FC<QuickResultProps> = ({
   // out here from the texts (no model call), so it also covers saved results.
   const upgradesByVersion = useMemo(() => {
     const byVersion: Record<string, UpgradedClaim[]> = {};
-    const source = result.versions.find(version => version.id === ORIGINAL_VERSION_ID);
+    const source = shown.versions.find(version => version.id === ORIGINAL_VERSION_ID);
     const userFacts = (result.formState.quickUserFacts ?? []).join('\n');
     const originalText = source ? [contentToText(source.content), userFacts].filter(Boolean).join('\n\n') : '';
     if (!originalText.trim()) return byVersion;
-    for (const version of result.versions) {
+    for (const version of shown.versions) {
       if (version.id === ORIGINAL_VERSION_ID) continue;
       byVersion[version.id] = findUpgradedClaims(contentToText(version.content), originalText);
     }
     return byVersion;
-  }, [result.versions, result.formState.quickUserFacts]);
+  }, [shown.versions, result.formState.quickUserFacts]);
 
   // The numbers each version adds to the original or leaves out of it. Worked
   // out here from the two texts (no model call), so it also covers results
   // that were saved before this check existed.
   const numbersByVersion = useMemo(() => {
     const byVersion: Record<string, NumberCheck> = {};
-    const source = result.versions.find(version => version.id === ORIGINAL_VERSION_ID);
+    const source = shown.versions.find(version => version.id === ORIGINAL_VERSION_ID);
     // Facts the user added on the check screen count as part of the original:
     // a price they typed is not a figure to verify.
     const userFacts = (result.formState.quickUserFacts ?? []).join('\n');
     const originalText = source ? [contentToText(source.content), userFacts].filter(Boolean).join('\n\n') : '';
     if (!originalText.trim()) return byVersion;
-    for (const version of result.versions) {
+    for (const version of shown.versions) {
       if (version.id === ORIGINAL_VERSION_ID) continue;
       byVersion[version.id] = checkNumbers(contentToText(version.content), originalText);
     }
     return byVersion;
-  }, [result.versions, result.formState.quickUserFacts]);
+  }, [shown.versions, result.formState.quickUserFacts]);
 
-  const { scores, versions } = result;
+  // The scores are the run's; the texts and the notes are as they show (see resultWithReview).
+  const { scores } = result;
+  const { versions } = shown;
   const generated = versions.filter(version => version.id !== ORIGINAL_VERSION_ID);
   const winner = (scores?.winnerId ? generated.find(version => version.id === scores.winnerId) : undefined) ?? generated[0];
+
+  // "Check before you publish": the best version's claims, each with what the user decided.
+  const review = winner ? reviewFor(result, winner.id) : null;
+  const shownText = winner ? contentToText(winner.content) : '';
+  const claimItems: ClaimItem[] =
+    winner && scores?.winnerId === winner.id
+      ? claimsOf(result, winner.id)
+          .map(claim => ({
+            claim,
+            decision: review?.decisions.find(decision => decision.claim === claim) ?? null,
+            sentence: sentenceAround(shownText, claim)?.sentence ?? null,
+          }))
+          // A claim that went with another one's sentence is no longer there to check.
+          .filter(item => item.decision || item.sentence)
+      : [];
+  const openClaims = claimItems.filter(item => !item.decision).length;
+  // Mark each open claim in the copy, numbered as in the checklist. Done on the
+  // rendered copy, so the copy itself stays as it is.
+  const markKey = JSON.stringify(claimItems.map(item => (item.decision ? '' : item.claim)));
+  useEffect(() => {
+    const root = copyRef.current;
+    if (!root) return;
+    root.querySelectorAll('mark[data-claim]').forEach(mark => {
+      mark.querySelector('sup')?.remove();
+      const parent = mark.parentNode;
+      if (!parent) return;
+      parent.replaceChild(document.createTextNode(mark.textContent || ''), mark);
+      parent.normalize();
+    });
+    const claims: string[] = JSON.parse(markKey);
+    claims.forEach((claim, index) => {
+      if (!claim) return;
+      const needle = claim.toLowerCase();
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      for (let node = walker.nextNode() as Text | null; node; node = walker.nextNode() as Text | null) {
+        const at = node.data.toLowerCase().indexOf(needle);
+        if (at < 0) continue;
+        const range = document.createRange();
+        range.setStart(node, at);
+        range.setEnd(node, at + claim.length);
+        const mark = document.createElement('mark');
+        mark.dataset.claim = String(index + 1);
+        mark.title = 'Not in your original: check it under the copy';
+        mark.style.background = CLAIM_MARK_BACKGROUND;
+        mark.style.borderBottom = `2px solid ${CLAIM_MARK_LINE}`;
+        mark.style.color = 'inherit';
+        mark.style.padding = '0 2px';
+        mark.style.cursor = 'pointer';
+        range.surroundContents(mark);
+        const sup = document.createElement('sup');
+        sup.textContent = String(index + 1);
+        sup.style.fontSize = '11px';
+        sup.style.fontWeight = '700';
+        sup.style.marginLeft = '2px';
+        mark.appendChild(sup);
+        mark.addEventListener('click', () =>
+          document.getElementById(`quick-claim-${index + 1}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })
+        );
+        break;
+      }
+    });
+  }, [markKey, shownText]);
 
   if (!winner) return null;
   // The best version's name, as in the rankings and under Other versions: "Generated Copy 1".
