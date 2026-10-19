@@ -26,6 +26,7 @@ import { getTextKind } from '../services/api/textKinds';
 import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
 import { changeQuickVersion, QuickChangeOutcome, QuickChangeParts, validateQuickChange } from '../engine/changeQuickVersion';
 import { QuickEditDraft, scoreQuickEdit } from '../engine/editQuickVersion';
+import { ClaimReview, removeDecision, reviewedText, reviewFor, scoreReviewedText, withDecision } from '../engine/claimReview';
 import { defaultChoices, planSections, SectionChoice, splitIntoSections } from '../engine/pageSections';
 import {
   QUICK_SCORE_MARGIN,
@@ -673,6 +674,59 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     }
   };
 
+  /** The user's decisions about the best version's claims changed ("It's true", "Edit it", Undo): keep them. */
+  const handleReview = (review: ClaimReview | null) => {
+    if (!result || busy) return;
+    const next: QuickRunResult = { ...result, claimReview: review ?? undefined };
+    setResult(next);
+    persist(next, runSeconds, savedId);
+  };
+
+  /** "Remove it" on one claim: the smallest edit that takes it out (one small call). */
+  const handleRemoveClaim = async (claim: string) => {
+    const winnerId = result?.scores?.winnerId;
+    if (!result || busy || !winnerId) return;
+    const text = reviewedText(result, winnerId);
+    if (text === null) return;
+    try {
+      const decision = await removeDecision(result, text, claim, currentUser);
+      if (!isMounted.current) return;
+      if (!decision) {
+        setChangeNotice({ tone: 'bad', text: 'That claim could not be found in the text any more.' });
+        return;
+      }
+      const next: QuickRunResult = { ...result, claimReview: withDecision(reviewFor(result, winnerId), winnerId, decision) };
+      setResult(next);
+      persist(next, runSeconds, savedId);
+    } catch (removeError) {
+      if (isMounted.current) setChangeNotice({ tone: 'bad', text: messageOf(removeError) });
+    } finally {
+      if (isMounted.current) setCreditsTick(tick => tick + 1);
+    }
+  };
+
+  /** "Re-score": scores the best version with the user's changes. The score is kept with the decisions. */
+  const handleRescoreReview = async () => {
+    const winnerId = result?.scores?.winnerId;
+    if (!result || busy || !winnerId) return;
+    setChangeNotice(null);
+    setBusy('reviewing');
+    const { alive: isMounted, signal } = startProcess();
+    try {
+      const review = await scoreReviewedText(result, winnerId, currentUser, signal);
+      if (!isMounted.current) return;
+      const next: QuickRunResult = { ...result, claimReview: review };
+      setResult(next);
+      playSuccessSound();
+      persist(next, runSeconds, savedId);
+    } catch (scoreError) {
+      if (!isMounted.current) return;
+      setChangeNotice({ tone: 'bad', text: messageOf(scoreError) });
+    } finally {
+      if (isMounted.current) setBusy(null);
+    }
+  };
+
   const handleNew = () => {
     inputsFromRun.current = false;
     setLastBest(null);
@@ -1125,6 +1179,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             changeBlocked={text => validateQuickChange(result, text)}
             changeNotice={changeNotice}
             onScoreEdit={handleScoreEdit}
+            onReview={handleReview}
+            onRemoveClaim={handleRemoveClaim}
+            onRescoreReview={handleRescoreReview}
             runAgain={runAgainOffer}
             previousBest={previousBest}
           />
