@@ -56,6 +56,23 @@ const PART_WORDS = 450;
 const MAX_PARTS = 6;
 /** Versions remembered (see rememberClaims). */
 const MEMORY_SIZE = 200;
+/**
+ * Prompt caching (2026-10-19). Every call sends the whole original, so on a
+ * long page most of the cost was the same original sent again: 26 calls,
+ * 80 credits, on a 2,800-word page. The original is now a cached block: after
+ * the first call Claude charges it at a tenth. Below about this many words
+ * the instructions and the original stay under Sonnet's 1,024-token minimum
+ * and nothing is cached, so nothing is changed.
+ */
+const CACHE_MIN_WORDS = 700;
+/**
+ * A cache exists only once a call has begun its answer, so calls sent at the
+ * same moment all pay full price. The first call for an original therefore
+ * goes alone, and the others start when it is done. A cache lives five
+ * minutes; after CACHE_FRESH_MS it is filled again the same way.
+ */
+const CACHE_FRESH_MS = 4 * 60 * 1000;
+const warmed = new Map<string, { at: number; done: Promise<unknown> }>();
 
 const SYSTEM_PROMPT = `You compare a rewritten piece of marketing copy with the original it was written from. The business wrote the original; the rewrite must not tell the reader anything about the business that the original does not.
 
@@ -143,6 +160,31 @@ export function splitIntoParts(text: string): string[] {
   return parts.length > 0 ? parts : [text];
 }
 
+/** True when the original is long enough for Claude to cache it. */
+function worthCaching(allowed: string): boolean {
+  return allowed.split(/\s+/).filter(Boolean).length >= CACHE_MIN_WORDS;
+}
+
+/**
+ * Runs the calls of one check. With a long original, the first call for it
+ * goes alone so the others can read it from the cache (see CACHE_FRESH_MS).
+ */
+async function withWarmCache<T>(allowed: string, calls: (() => Promise<T>)[]): Promise<T[]> {
+  if (calls.length === 0) return [];
+  if (!worthCaching(allowed)) return Promise.all(calls.map(call => call()));
+  const key = hashText(allowed);
+  const known = warmed.get(key);
+  if (known && Date.now() - known.at < CACHE_FRESH_MS) {
+    await known.done;
+    return Promise.all(calls.map(call => call()));
+  }
+  const first = calls[0]();
+  warmed.set(key, { at: Date.now(), done: first.catch(() => undefined) });
+  const firstResult = await first;
+  const rest = await Promise.all(calls.slice(1).map(call => call()));
+  return [firstResult, ...rest];
+}
+
 /** One call: the unsupported claims of one part. Null on failure. */
 async function checkPart(
   part: string,
@@ -156,7 +198,14 @@ async function checkPart(
       SOURCE_CHECK_MODEL,
       [
         { role: 'system', content: SYSTEM_PROMPT },
-        { role: 'user', content: `ORIGINAL:\n"""\n${allowed}\n"""\n\n${label}:\n"""\n${part}\n"""` },
+        {
+          role: 'user',
+          // The same text as before, in two blocks: the original (cached) and the part.
+          content: [
+            { type: 'text', text: `ORIGINAL:\n"""\n${allowed}\n"""\n\n`, cache: worthCaching(allowed) },
+            { type: 'text', text: `${label}:\n"""\n${part}\n"""` },
+          ],
+        },
       ],
       0,
       3000,
@@ -209,8 +258,9 @@ export async function findUnsupportedClaims(
   const known = memory.get(memoryKey(text, allowed));
   if (known) return [...known];
   const parts = splitIntoParts(text);
-  const results = await Promise.all(
-    parts.map((part, index) =>
+  const results = await withWarmCache(
+    allowed,
+    parts.map((part, index) => () =>
       checkPart(
         part,
         allowed,

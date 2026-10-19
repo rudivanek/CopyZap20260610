@@ -351,9 +351,17 @@ export async function makeStreamingReportRequest(
 /**
  * Make an API request using the selected model (no fallback)
  */
+/**
+ * A message's content: text, or a list of text blocks. A block with
+ * `cache: true` is cached by Claude (prompt caching, see the ai-completion
+ * edge function): a long part that every call repeats, such as the original
+ * copy, then costs a tenth after the first call. Other models get the text.
+ */
+export type MessageContent = string | { type: 'text'; text: string; cache?: boolean }[];
+
 export async function makeApiRequestWithFallback(
   model: Model,
-  messages: { role: string; content: string }[],
+  messages: { role: string; content: MessageContent }[],
   temperature: number,
   maxTokens: number,
   responseFormat?: { type: string },
