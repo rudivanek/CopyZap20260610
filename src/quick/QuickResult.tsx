@@ -518,9 +518,13 @@ const QuickResult: React.FC<QuickResultProps> = ({
   // The best version's name, as in the rankings and under Other versions: "Generated Copy 1".
   const winnerName = winner.sourceDisplayName || 'Version';
 
-  const rows = scores?.comparisonResult.rows ?? [];
+  const rows = shown.scores?.comparisonResult.rows ?? [];
   const winnerRow = rows.find(row => row.versionId === winner.id);
-  const winnerScore = scores?.absoluteByVersion[winner.id];
+  // After "Re-score", the score of the text as it is now; until then, the run's.
+  const runWinnerTotal = scores?.absoluteByVersion[winner.id]?.total;
+  const rescored = reviewScore(result, winner.id);
+  const scoreStale = scoreIsStale(result, winner.id);
+  const winnerScore = rescored ?? scores?.absoluteByVersion[winner.id];
   const originalScore = scores?.absoluteByVersion[ORIGINAL_VERSION_ID];
   const winnerTotal = winnerScore?.total;
   const weakest = weakestPart(winnerScore);
@@ -622,6 +626,46 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const goalName = quickGoalName(result.goalKey, result.formState.quickGoalLabel);
   const scoreLabel = winnerTotal != null ? getAbsoluteScoreLabel(winnerTotal) : '';
 
+  const copyBest = async () => {
+    try {
+      await navigator.clipboard.writeText(contentToText(winner.content));
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      setCopied(false);
+    }
+  };
+  /** Copy and Export ask first while claims are still open; one click goes ahead anyway. */
+  const askFirst = (action: 'copy' | 'export') => {
+    if (openClaims > 0) {
+      setPendingAction(action);
+      return;
+    }
+    setPendingAction(null);
+    if (action === 'copy') copyBest();
+    else handleExport();
+  };
+  const goAhead = () => {
+    const action = pendingAction;
+    setPendingAction(null);
+    if (action === 'copy') copyBest();
+    if (action === 'export') handleExport();
+  };
+  const reviewClaims = () => {
+    setPendingAction(null);
+    jumpTo('quick-claims');
+  };
+  const keepClaim = (claim: string) => onReview(withDecision(review, winner.id, { claim, action: 'kept' }));
+  const editClaim = (claim: string, sentence: string) => {
+    const decision = editDecision(shownText, claim, sentence);
+    if (decision) onReview(withDecision(review, winner.id, decision));
+  };
+  const undoClaim = (claim: string) => {
+    if (!review) return;
+    const left = withoutDecision(review, claim);
+    onReview(left.decisions.length > 0 || left.score ? left : null);
+  };
+
   const hasChecks =
     flags.length > 0 ||
     isIncomplete ||
@@ -629,7 +673,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
     testimonialsMoved ||
     hasNumberNotes ||
     upgradeNotes.length > 0 ||
-    leftOutNotes.length > 0;
+    leftOutNotes.length > 0 ||
+    claimItems.length > 0;
   const jumpLink =
     'shrink-0 inline-flex items-center min-h-[40px] text-xs text-gray-900 dark:text-gray-100 hover:underline ' +
     'focus:outline-none focus:ring-2 focus:ring-primary-500';
@@ -740,10 +785,12 @@ const QuickResult: React.FC<QuickResultProps> = ({
         className="sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 bg-gray-50 dark:bg-black border-b border-gray-300 dark:border-gray-700 flex flex-col gap-2"
       >
         <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
-          <CopyButton content={winner.content} className={`${primaryButton} shrink-0`} />
+          <button type="button" onClick={() => askFirst('copy')} data-tip={TIPS.copy} className={`${primaryButton} shrink-0`}>
+            {copied ? 'Copied' : 'Copy'}
+          </button>
           <button
             type="button"
-            onClick={handleExport}
+            onClick={() => askFirst('export')}
             data-tip={TIPS.exportReport}
             disabled={!scores || exportState === 'working'}
             className={`${secondaryButton} shrink-0`}
@@ -782,6 +829,21 @@ const QuickResult: React.FC<QuickResultProps> = ({
             Start over
           </button>
         </div>
+        {pendingAction && openClaims > 0 && (
+          <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-2 text-gray-900 dark:text-gray-100">
+            <span className="w-1 h-5 shrink-0 bg-status-warning" aria-hidden="true" />
+            <span>
+              {openClaims === 1 ? '1 claim is' : `${openClaims} claims are`} not checked yet.{' '}
+              {pendingAction === 'copy' ? 'Copy' : 'Export'} anyway?
+            </span>
+            <button type="button" onClick={reviewClaims} className={secondaryButton}>
+              Review them
+            </button>
+            <button type="button" onClick={goAhead} className={secondaryButton}>
+              {pendingAction === 'copy' ? 'Copy anyway' : 'Export anyway'}
+            </button>
+          </div>
+        )}
         {exportState === 'failed' && (
           <p role="alert" className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
             <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-critical" aria-hidden="true" />
@@ -789,7 +851,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
           </p>
         )}
         {aiCheckOpen && scores && (
-          <QuickAiCheck result={result} best={winner} title={title} resultId={resultId} onClose={() => setAiCheckOpen(false)} />
+          <QuickAiCheck result={shown} best={winner} title={title} resultId={resultId} onClose={() => setAiCheckOpen(false)} />
         )}
       </div>
 
@@ -810,8 +872,19 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 </span>
               )}
             </div>
-            <FormattedContent content={winner.content} className={copyText} colorScores={false} />
+            <div ref={copyRef}>
+              <FormattedContent content={winner.content} className={copyText} colorScores={false} />
+            </div>
           </article>
+
+          <ClaimChecklist
+            items={claimItems}
+            disabled={isRescoring}
+            onKeep={keepClaim}
+            onRemove={onRemoveClaim}
+            onEdit={editClaim}
+            onUndo={undoClaim}
+          />
 
           {draft && (
             <section id="quick-editor" aria-label="Edit it yourself" className={`${card} p-5 flex flex-col gap-3 scroll-mt-20`}>
@@ -983,6 +1056,24 @@ const QuickResult: React.FC<QuickResultProps> = ({
                       <span className="font-semibold text-gray-900 dark:text-gray-100">{scoreLabel}</span>
                     )}
                   </div>
+                  {scoreStale && (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-gray-600 dark:text-gray-400">Score is for the version before your changes.</p>
+                      <button
+                        type="button"
+                        onClick={() => setAskRescore(true)}
+                        disabled={isRescoring}
+                        className={`${secondaryButton} self-start`}
+                      >
+                        Re-score
+                      </button>
+                    </div>
+                  )}
+                  {rescored && runWinnerTotal != null && (
+                    <p className="text-gray-600 dark:text-gray-400 tabular-nums">
+                      Scored again with your changes. Before your changes: {runWinnerTotal} / 100.
+                    </p>
+                  )}
                   {delta != null && originalTotal != null ? (
                     <div className="flex flex-col gap-1">
                       <p className="font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
@@ -1185,18 +1276,39 @@ const QuickResult: React.FC<QuickResultProps> = ({
               <LeftOutNotes facts={leftOutNotes} penalty={winnerScore?.left_out_penalty} />
               <UpgradeNotes items={upgradeNotes} />
               <NumberNotes check={numberNotes} />
-              {claimNotes.length > 0 && (
+              {claimItems.length > 0 ? (
                 <div>
                   <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
-                    <span className="w-1 h-4 bg-status-warning" aria-hidden="true" />
+                    <span className={`w-1 h-4 ${openClaims > 0 ? 'bg-status-warning' : 'bg-status-good'}`} aria-hidden="true" />
                     Not in your original
                   </p>
-                  <ul className="mt-1 list-disc pl-5 text-gray-900 dark:text-gray-100">
-                    {claimNotes.map((claim, index) => (
-                      <li key={index} className="break-words">{claim}</li>
-                    ))}
-                  </ul>
+                  <p className="mt-1 text-gray-900 dark:text-gray-100">
+                    {openClaims > 0
+                      ? `${openClaims} of ${claimItems.length} ${claimItems.length === 1 ? 'claim' : 'claims'} to check.`
+                      : 'All claims checked.'}{' '}
+                    <button
+                      type="button"
+                      onClick={() => jumpTo('quick-claims')}
+                      className="min-h-[44px] text-primary-800 dark:text-primary-300 underline focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      See them under the copy
+                    </button>
+                  </p>
                 </div>
+              ) : (
+                claimNotes.length > 0 && (
+                  <div>
+                    <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
+                      <span className="w-1 h-4 bg-status-warning" aria-hidden="true" />
+                      Not in your original
+                    </p>
+                    <ul className="mt-1 list-disc pl-5 text-gray-900 dark:text-gray-100">
+                      {claimNotes.map((claim, index) => (
+                        <li key={index} className="break-words">{claim}</li>
+                      ))}
+                    </ul>
+                  </div>
+                )
               )}
               {toneNotes.length > 0 && (
                 <div>
@@ -1398,6 +1510,16 @@ const QuickResult: React.FC<QuickResultProps> = ({
             })}
           </ol>
         </section>
+      )}
+
+      {askRescore && (
+        <RescoreDialog
+          onYes={() => {
+            setAskRescore(false);
+            onRescoreReview();
+          }}
+          onNo={() => setAskRescore(false)}
+        />
       )}
     </div>
   );
