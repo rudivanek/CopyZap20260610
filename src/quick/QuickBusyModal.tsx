@@ -12,6 +12,8 @@ interface QuickBusyModalProps {
   progress?: QuickProgress;
   /** How many versions a run writes. */
   versions: number;
+  /** For a run: how long it takes, in words ("about 2 minutes"), and whether to ask to keep the tab open. */
+  runTime?: { label: string; keepOpen: boolean } | null;
   /** Stops the process. Called after the user has confirmed. */
   onStop: () => void;
 }
@@ -56,8 +58,13 @@ function formatElapsed(seconds: number): string {
   return `${minutes}:${rest < 10 ? '0' : ''}${rest}`;
 }
 
-const QuickBusyModal: React.FC<QuickBusyModalProps> = ({ kind, elapsed, progress, versions, onStop }) => {
-  const { title, detail } = TEXT[kind];
+const QuickBusyModal: React.FC<QuickBusyModalProps> = ({ kind, elapsed, progress, versions, runTime = null, onStop }) => {
+  const { title } = TEXT[kind];
+  // A run says how long it takes for this length, measured (see estimateRunTime).
+  const detail =
+    kind === 'running' && runTime
+      ? `This takes ${runTime.label} for copy of this length.${runTime.keepOpen ? ' Keep this tab open until it is done.' : ''}`
+      : TEXT[kind].detail;
   // Cancel asks first. The process keeps running while the question is open.
   const [asking, setAsking] = useState(false);
   // Scoring an edit has no writing step.

@@ -51,7 +51,7 @@ import SquareRadio from './SquareRadio';
 import QuickTips from './QuickTips';
 import { GOAL_TIPS, TIPS } from './tips';
 import { APP_VERSION } from '../lib/version';
-import { useSessionCredits } from '../engine/quickCredits';
+import { estimateRunTime, KEEP_TAB_OPEN_FROM_WORDS, useSessionCredits } from '../engine/quickCredits';
 
 interface QuickPageProps {
   currentUser: User;
@@ -1205,7 +1205,18 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       <QuickFactsWait kind={factsWait} onCancel={cancelFactsWait} />
 
       {busy && (
-        <QuickBusyModal kind={busy} elapsed={elapsed} progress={progress} versions={QUICK_DEFAULT_VARIANTS} onStop={stopProcess} />
+        <QuickBusyModal
+          kind={busy}
+          elapsed={elapsed}
+          progress={progress}
+          versions={QUICK_DEFAULT_VARIANTS}
+          runTime={
+            usedWords > 0
+              ? { label: estimateRunTime(usedWords), keepOpen: usedWords >= KEEP_TAB_OPEN_FROM_WORDS }
+              : null
+          }
+          onStop={stopProcess}
+        />
       )}
     </div>
   );

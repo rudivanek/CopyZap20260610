@@ -62,6 +62,24 @@ export function useSessionCredits(sessionId: string | null | undefined, tick: nu
  * Above 1,500 words there are no measurements yet; the estimate is said to be
  * a lower bound there.
  */
+/**
+ * About how long a run takes, from the words it works on, as words for the
+ * screen ("about 2 minutes"). Measured on the runs of 2026-10-18 and 10-19,
+ * with the claim check: 80 to 125 seconds up to 400 words, 140 to 200 at 550
+ * to 950, 165 to 260 at 1,000 to 1,800, 165 to 300 at 2,250 to 2,850, and 6
+ * minutes at 3,400. Rounded up, so the run is seldom longer than it says.
+ */
+export function estimateRunTime(words: number): string {
+  if (words <= 400) return 'about 2 minutes';
+  if (words <= 1000) return '2 to 3 minutes';
+  if (words <= 2000) return '3 to 4 minutes';
+  if (words <= 3000) return '4 to 5 minutes';
+  return '5 minutes or more';
+}
+
+/** From this many words on, the screens also ask to keep the tab open: the run happens in this tab. */
+export const KEEP_TAB_OPEN_FROM_WORDS = 1000;
+
 export function estimateRunCredits(words: number): { credits: number; atLeast: boolean } {
   if (words <= 250) return { credits: 30, atLeast: false };
   if (words <= 500) return { credits: 35, atLeast: false };

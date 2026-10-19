@@ -5,7 +5,7 @@ import { QUICK_LANGUAGES, QUICK_TONES, QuickBrief } from '../engine/inferQuickBr
 import type { PageSection, SectionChoice } from '../engine/pageSections';
 import { TEXT_KIND_OTHER_MAX_CHARS, TEXT_KINDS, TextKindKey } from '../services/api/textKinds';
 import { stripMarkdown } from '../utils/markdownUtils';
-import { estimateRunCredits } from '../engine/quickCredits';
+import { estimateRunCredits, estimateRunTime, KEEP_TAB_OPEN_FROM_WORDS } from '../engine/quickCredits';
 import SquareRadio from './SquareRadio';
 import GrowingField from './GrowingField';
 import { KIND_TIPS, PART_TIPS, TIPS } from './tips';
@@ -65,14 +65,6 @@ const CHOICES: { value: SectionChoice; label: string }[] = [
 ];
 
 const PREVIEW_CHARS = 220;
-/** From this many words on, the screen says how long the run will take. */
-const LONG_RUN_FROM_WORDS = 2000;
-/**
- * Measured on 2026-10-08 and 10-09: a run takes about a minute for every 500 to
- * 670 words (German slowest, English fastest). 550 keeps the estimate from
- * being too low.
- */
-const WORDS_PER_MINUTE = 550;
 const asNumber = (value: number) => value.toLocaleString('en-US');
 
 const field =
@@ -408,9 +400,9 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
           <p className="text-gray-600 dark:text-gray-400">
             {unansweredFacts && 'You have not answered "Make it stronger" yet: a few real facts usually raise the score. '}
             Writes {QUICK_DEFAULT_VARIANTS} versions and scores them. Uses{' '}
-            {estimate.atLeast ? `at least ${estimate.credits}` : `about ${estimate.credits}`} credits.
-            {usedWords >= LONG_RUN_FROM_WORDS &&
-              ` A page of this length takes about ${Math.round(usedWords / WORDS_PER_MINUTE)} minutes. Keep this tab open.`}
+            {estimate.atLeast ? `at least ${estimate.credits}` : `about ${estimate.credits}`} credits and takes{' '}
+            {estimateRunTime(usedWords)}.
+            {usedWords >= KEEP_TAB_OPEN_FROM_WORDS && ' Keep this tab open until it is done.'}
           </p>
         )}
       </div>
