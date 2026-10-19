@@ -128,6 +128,18 @@ const COOKIE_TAIL_LINES = 12;
 /** The accessibility link most sites put first: "Skip to content", in the languages Quick writes. */
 const SKIP_LINK =
   /^(skip to (the )?(main )?content|ir al contenido( principal)?|saltar al contenido( principal)?|zum inhalt (springen|wechseln)|aller au contenu( principal)?|vai al contenuto( principale)?|(ir|saltar|pular) para o conteúdo( principal)?)$/i;
+/**
+ * Lines a map widget, a "show more" counter or a details button brings along
+ * (seen 2026-10-19 on longtimeplumb.com: "© Mapbox © OpenStreetMap Improve
+ * this map", "Use two fingers to move the map", "List viewMap view", "+1 more",
+ * and "View Drain Cleaning details" under each of eleven services). They are
+ * controls, not copy. Only short lines: a sentence that mentions a map stays.
+ */
+const WIDGET_LINE =
+  /(©\s*(mapbox|openstreetmap|google)|improve this map|mapbox homepage|map data ©|report a map error|use (two fingers|ctrl \+ scroll|⌘ \+ scroll|cmd \+ scroll) to (move|zoom)( the map)?|^list ?view ?map ?view$|^(vista de )?lista ?(vista de )?mapa$)/i;
+const MORE_COUNTER = /^\+\s?\d+\s+(more|más|mas|mehr|plus|altri|mais)$/i;
+const DETAILS_BUTTON = /^(view|see|ver|veja|voir|vedi|mehr zu|details zu)\s+(.{1,60}\s+)?(details|detalles|detalhes|détails|dettagli)(\s+(de|del|de la|of|von|du|des|di)\s+.{1,60})?$/i;
+const WIDGET_MAX_WORDS = 12;
 const COOKIE_MAX_LINE_WORDS = 45;
 const COOKIE_MAX_TOTAL_WORDS = 150;
 
@@ -142,6 +154,7 @@ const COOKIE_MAX_TOTAL_WORDS = 150;
  *  - a "skip to content" link at the top
  *  - a block the page contains twice (a slider's second copy of its slides)
  *  - the same label twice in a row
+ *  - map widget controls, "+1 more" counters and "View … details" buttons
  *
  * It only ever removes whole lines of that kind. Sentences are never touched.
  * Used for fetched pages only; pasted text is left exactly as the user gave it.
@@ -227,6 +240,10 @@ export function stripPageFurniture(text: string): { text: string; removed: numbe
     if (!isRuleLine(line) && !/[\p{L}\p{N}]/u.test(key)) return false;
     if (/^[+-]?\s*0\s*%?$/.test(key)) return false;
     if (SKIP_LINK.test(key)) return false;
+    const plain = key.replace(/^([-*+]|\d+[.)])\s+/, '').replace(/[*_`]/g, '').trim();
+    if (wordsIn(plain) <= WIDGET_MAX_WORDS && !/[.!?]$/.test(plain)) {
+      if (WIDGET_LINE.test(plain) || MORE_COUNTER.test(key) || DETAILS_BUTTON.test(plain)) return false;
+    }
     return true;
   });
 

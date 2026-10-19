@@ -71,7 +71,34 @@ const wordCount = (text: string) => (text.trim() ? text.trim().split(/\s+/).leng
 const plainTitle = (text: string) => text.replace(/[*_`]/g, '').replace(/\s+#+\s*$/, '').replace(/\s+/g, ' ').trim();
 const tidy = (text: string) => text.replace(/\n{3,}/g, '\n\n').trim();
 
+/**
+ * Headings that announce a collection: projects, a portfolio, case studies,
+ * articles or news. Such a part is real copy (the business wrote it), but it is
+ * a set of separate stories, not the page's message.
+ */
+const COLLECTION_TITLE =
+  /project|portfolio|case stud|our work|recent work|proyecto|portafolio|casos? de [ée]xito|trabajos|art[íi]culos|articles?\b|\bblog\b|news|noticias|latest posts|[úu]ltimas entradas|projekte|referenzen|r[ée]alisations|progetti|projetos|artigos/i;
+/** A collection is proposed as "keep" only when it is this long… */
+const COLLECTION_MIN_WORDS = 150;
+/** …and holds at least this many items (each with its own title). */
+const COLLECTION_MIN_ITEMS = 3;
+
+/** Item titles inside a part: a line that is only bold text, or a heading below the part's own. */
+function itemTitles(text: string): number {
+  const lines = text.split('\n').slice(1);
+  return lines.filter(line => /^\s*\*\*[^*]+\*\*\s*$/.test(line) || /^\s{0,3}#{2,6}\s+\S/.test(line)).length;
+}
+
 function suggest(title: string, text: string): { suggested: SectionChoice; hint?: string } {
+  // A long list of projects, case studies or articles is proposed as "keep":
+  // it stays complete and word for word, but the writer does not rework it or
+  // lift details from it into the main message. Seen 2026-10-19 on
+  // longtimeplumb.com: 2,072 of the page's 2,848 words were project stories;
+  // rewriting them made the run slow and moved "BBB accredited", said once in
+  // one story, into the opening.
+  if (COLLECTION_TITLE.test(title) && wordCount(text) >= COLLECTION_MIN_WORDS && itemTitles(text) >= COLLECTION_MIN_ITEMS) {
+    return { suggested: 'keep', hint: 'Looks like a list of projects or articles' };
+  }
   // A part announced as testimonials is proposed as "keep". Testimonials inside
   // other parts need no proposal: the automatic lock already keeps them word
   // for word while the rest of that part is improved.
@@ -192,7 +219,7 @@ export function splitIntoSections(copy: string): PageSection[] {
     const proposal = suggest(title, part.text);
     if (proposal.suggested === 'keep') {
       // A part announced as testimonials: counted, so it may be moved like the others (see planSections).
-      const found = lockTestimonials(part.text).count;
+      const found = proposal.hint === 'Looks like testimonials' ? lockTestimonials(part.text).count : 0;
       rows.push({ title, text: part.text, words: wordCount(part.text), ...proposal, ...(found > 0 ? { testimonials: found } : {}) });
       return;
     }
