@@ -183,6 +183,12 @@ export interface FormData {
   quickGoalLabel?: string;
   // Quick: facts the user added on the check screen (what the copy was missing). The writer may use them; see engine/missingFacts.ts
   quickUserFacts?: string[];
+  // Quick: free-text style/length/voice instructions the user typed on the check screen. The writer follows them below its own rules; the scorer never sees them.
+  quickInstructions?: string;
+  // Quick: facts the writer extracted from the instructions (e.g. "we have 500 clients"). Treated like quickUserFacts. Empty when none were found.
+  quickInstructionFacts?: string[];
+  // Quick: any instruction the writer could not follow, and why (e.g. "Kept in Spanish, the language you chose."). Shown under the result.
+  quickInstructionsNote?: string;
   // Section titles for structured output
   includeSectionTitles?: boolean; // Generate AI titles for each section in structured output (default: true)
   // AI Engine Mode for A/B testing

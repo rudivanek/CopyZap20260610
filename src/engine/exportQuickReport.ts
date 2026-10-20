@@ -96,6 +96,8 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
   // Facts the user added on the check screen: a reader of the report sees where those claims came from.
   const userFacts = result.formState.quickUserFacts ?? [];
   if (userFacts.length > 0) extraRows.push(['Facts you added', userFacts.join(' · ')]);
+  // The user's free-text instructions for how the copy should sound or read.
+  if (result.formState.quickInstructions) extraRows.push(['Your instructions', result.formState.quickInstructions]);
 
   return {
     // The report takes its title and file name from the project description.

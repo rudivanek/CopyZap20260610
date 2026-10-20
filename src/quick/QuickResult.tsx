@@ -761,6 +761,14 @@ const QuickResult: React.FC<QuickResultProps> = ({
           {saveState === 'saved' && ' · Saved'}
           {saveState === 'saving' && ' · Saving…'}
         </p>
+        {result.formState.quickInstructions && (
+          <p className="text-gray-600 dark:text-gray-400 break-words" title={result.formState.quickInstructions}>
+            Your instructions:{' '}
+            {result.formState.quickInstructions.length > 120
+              ? `${result.formState.quickInstructions.slice(0, 120).trimEnd()}…`
+              : result.formState.quickInstructions}
+          </p>
+        )}
         {saveState === 'failed' && (
           <p role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-900 dark:text-gray-100">
             <span className="w-1 h-5 shrink-0 bg-status-warning" aria-hidden="true" />
@@ -876,6 +884,14 @@ const QuickResult: React.FC<QuickResultProps> = ({
             <div ref={copyRef}>
               <FormattedContent content={winner.content} className={copyText} colorScores={false} />
             </div>
+            {result.formState.quickInstructionsNote && (
+              <p className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
+                <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-warning" aria-hidden="true" />
+                <span>
+                  Could not follow every instruction: {result.formState.quickInstructionsNote}
+                </span>
+              </p>
+            )}
           </article>
 
           <ClaimChecklist

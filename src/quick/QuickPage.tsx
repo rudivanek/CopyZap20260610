@@ -201,6 +201,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [chatChoice, setChatOn] = useState<boolean>(readChatChoice);
   const chatOn = FACT_FIELDS_OFF || chatChoice;
   const [factChat, setFactChat] = useState<FactChat>(EMPTY_FACT_CHAT);
+  // "Your instructions" (see QuickConfirm.tsx): free-text notes for how the copy
+  // should sound or read, written on the check screen before the run.
+  const [instructions, setInstructions] = useState('');
   // True while the questions are asked again after a change (kind of text, goal
   // or copy): the check screen is locked until they are there (see QuickConfirm).
   const [factsUpdating, setFactsUpdating] = useState(false);
@@ -558,6 +561,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           sessionId: sessionId ?? undefined,
           signal,
           userFacts,
+          instructions: instructions.trim() ? instructions.trim() : undefined,
           brief: brief
             ? {
                 product: brief.product,
@@ -750,6 +754,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setFacts(null);
     setFactAnswers({});
     setFactChat(EMPTY_FACT_CHAT);
+    setInstructions('');
     setCopy('');
     setPhase('start');
     window.scrollTo(0, 0);
@@ -798,6 +803,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       setFacts(null);
       setFactAnswers({});
       setFactChat(EMPTY_FACT_CHAT);
+      setInstructions(result.formState.quickInstructions ?? '');
     }
     inputsFromRun.current = false;
     setChangeNotice(null);
@@ -1154,6 +1160,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             },
           }}
           lastBest={lastBest && lastBest.key === runKey ? lastBest.best : null}
+          instructions={instructions}
+          onInstructionsChange={setInstructions}
           onGenerate={handleRun}
           onBack={() => {
             setPhase('start');

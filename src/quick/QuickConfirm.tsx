@@ -49,8 +49,16 @@ interface QuickConfirmProps {
   factsUpdating?: boolean;
   factAnswers: FactAnswers;
   onFactAnswersChange: (answers: FactAnswers) => void;
-  /** The same questions as a chat, when the user ticks it. */
+  /**
+   * "The same questions as a chat, when the user ticks it.
+   */
   factChat: FactChatSwitch;
+  /**
+   * "Your instructions" (see QuickConfirm.tsx): free-text style/length/voice
+   * notes the user writes before the run. Up to 500 chars. Empty: as before.
+   */
+  instructions: string;
+  onInstructionsChange: (value: string) => void;
   /**
    * The best score of the run the user came back from with "Run again with
    * your answers". Shown above "Make it stronger". Null otherwise.
@@ -98,6 +106,8 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
   factAnswers,
   onFactAnswersChange,
   factChat,
+  instructions,
+  onInstructionsChange,
   lastBest = null,
 }) => {
   const choiceOf = (section: PageSection): SectionChoice => choices[section.id] ?? 'improve';
@@ -370,6 +380,26 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
             </p>
           </div>
         )}
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="quick-instructions" className={label}>
+            Your instructions <span className="font-normal text-gray-600 dark:text-gray-400">(optional)</span>
+          </label>
+          <textarea
+            id="quick-instructions"
+            value={instructions}
+            maxLength={500}
+            onChange={event => onInstructionsChange(event.target.value.slice(0, 500))}
+            placeholder="e.g. shorter and punchier, no exclamation marks, sound confident"
+            className={field + ' min-h-[88px] py-2.5 leading-relaxed resize-y'}
+          />
+          <p className="text-gray-600 dark:text-gray-400">
+            Say how it should sound or read. Facts go in Make it stronger above.
+          </p>
+          <p className="text-gray-600 dark:text-gray-400 tabular-nums" aria-live="polite">
+            {instructions.length} / 500
+          </p>
+        </div>
       </fieldset>
 
       <div className="flex flex-col gap-3">
