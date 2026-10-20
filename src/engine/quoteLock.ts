@@ -75,6 +75,48 @@ export function isAttributionLine(line: string): boolean {
   return wordCount(name) <= 10;
 }
 
+/**
+ * A name on a line of its own, with no dash: "Kierstin Sellers". Only taken
+ * as an attribution right under a passage that closes with a quotation mark
+ * (see quotedBodyStart). Two to five words, each starting with a capital or
+ * an initial, no digits, no sentence ending.
+ */
+function isBareNameLine(line: string): boolean {
+  const text = bare(line).replace(/[*_]/g, '').trim();
+  if (text.length < 4 || text.length > 60 || /\d/.test(text) || /[!?:;:"“”«»]$/.test(text)) return false;
+  const words = text.replace(/,.*$/, '').split(/\s+/);
+  if (words.length < 2 || words.length > 5) return false;
+  return words.every(word => /^\p{Lu}[\p{L}'’.-]*$/u.test(word));
+}
+
+const endsWithQuoteMark = (line: string) => /["”»][\s*_]*$/.test(line.trim());
+
+/**
+ * Where a quoted passage ending just above line `nameAt` begins: the nearest
+ * paragraph above that opens with a quotation mark, within the usual limits
+ * of a testimonial. -1 when there is none, or when the line above the name
+ * does not close a quotation.
+ */
+function quotedBodyStart(lines: string[], nameAt: number, floor: number): number {
+  let above = nameAt - 1;
+  while (above >= floor && isBlank(lines[above])) above -= 1;
+  if (above < floor || !endsWithQuoteMark(lines[above])) return -1;
+  let words = 0;
+  let paragraphs = 0;
+  for (let j = above; j >= floor; j--) {
+    const line = lines[j];
+    if (isHeading(line) || isRule(line)) return -1;
+    if (isBlank(line)) continue;
+    words += wordCount(line);
+    if (words > MAX_BODY_WORDS) return -1;
+    const startsParagraph = j === floor || isBlank(lines[j - 1]);
+    if (startsParagraph) paragraphs += 1;
+    if (paragraphs > MAX_BODY_PARAGRAPHS) return -1;
+    if (startsParagraph && startsWithQuoteMark(line)) return j;
+  }
+  return -1;
+}
+
 /** A whole testimonial on one line: "Quoted words." — Name */
 function isOneLineTestimonial(line: string): boolean {
   return /^["“«].{20,}["”»][\s*_]*(?:[—–]|--|-)\s*\p{Lu}.{1,80}$/u.test(bare(line)) && !/[!?:;]$/.test(line.trim());
@@ -133,6 +175,16 @@ function findTestimonials(lines: string[]): Found[] {
     if (isOneLineTestimonial(lines[i])) {
       found.push({ start: i, end: i, strong: true });
       floor = i + 1;
+      continue;
+    }
+    // A name with no dash under a quoted passage (2026-10-20: a four-paragraph
+    // review signed "Kierstin Sellers" was not seen, and every version dropped it).
+    if (!isAttributionLine(lines[i]) && isBareNameLine(lines[i])) {
+      const start = quotedBodyStart(lines, i, floor);
+      if (start >= 0 && wordCount(lines.slice(start, i).join(' ')) >= MIN_BODY_WORDS) {
+        found.push({ start, end: i, strong: true });
+        floor = i + 1;
+      }
       continue;
     }
     if (!isAttributionLine(lines[i])) continue;

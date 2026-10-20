@@ -50,18 +50,61 @@ const NUMBER_WORDS: [string, string][] = [
   ['10', 'ten diez zehn dix dieci dez'],
   ['11', 'eleven once elf onze undici'],
   ['12', 'twelve doce zwölf douze dodici doze dozen docena dutzend douzaine dozzina dúzia'],
+  ['13', 'thirteen trece treize tredici treze'],
+  ['14', 'fourteen catorce quatorze quattordici'],
   ['15', 'fifteen quince fünfzehn quinze quindici'],
+  ['16', 'sixteen dieciséis dieciseis seize sedici dezesseis'],
+  ['17', 'seventeen diecisiete diciassette dezessete'],
+  ['18', 'eighteen dieciocho diciotto dezoito'],
+  ['19', 'nineteen diecinueve diciannove dezenove'],
   ['20', 'twenty veinte zwanzig vingt venti vinte'],
+  ['21', 'veintiuno veintiún veintiun veintiuna ventuno'],
+  ['22', 'veintidós veintidos'],
+  ['23', 'veintitrés veintitres'],
+  ['24', 'veinticuatro'],
+  ['25', 'veinticinco'],
+  ['26', 'veintiséis veintiseis'],
+  ['27', 'veintisiete'],
+  ['28', 'veintiocho'],
+  ['29', 'veintinueve'],
   ['30', 'thirty treinta dreißig dreissig trente trenta trinta'],
   ['40', 'forty cuarenta vierzig quarante quaranta quarenta'],
   ['50', 'fifty cincuenta fünfzig cinquante cinquanta cinquenta'],
   ['60', 'sixty sesenta sechzig soixante sessanta sessenta'],
+  ['70', 'seventy setenta siebzig settanta'],
+  ['80', 'eighty ochenta achtzig ottanta oitenta'],
+  ['90', 'ninety noventa neunzig novanta'],
   ['100', 'hundred cien ciento hundert cent cento cem'],
   ['1000', 'thousand mil tausend mille'],
 ];
 const WORD_VALUE = new Map<string, string>(
   NUMBER_WORDS.flatMap(([value, words]) => words.split(' ').map(word => [word, value] as [string, string]))
 );
+/** English tens and units written together: "twenty-one", "forty five". */
+const TENS_AND_UNIT = /\b(twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)[-\s](one|two|three|four|five|six|seven|eight|nine)\b/giu;
+/** Spanish tens and units: "treinta y cinco". */
+const TENS_Y_UNIT = /(?<![\p{L}])(treinta|cuarenta|cincuenta|sesenta|setenta|ochenta|noventa)\s+y\s+(uno|un|una|dos|tres|cuatro|cinco|seis|siete|ocho|nueve)(?![\p{L}])/giu;
+
+/** Words after a number that make it a percentage: "50%", "50 por ciento", "50 percent". */
+const PERCENT_AFTER = /^\s?(?:%|por\s?ciento|per\s?cent|percent|pour\s?cent|prozent|per\s?cento|por\s?cento)(?![\p{L}])/iu;
+
+/**
+ * A line that is only a copyright notice ("© 2021 Todos los derechos
+ * reservados…"): its year is not a fact of the copy (Grok, 2026-10-20).
+ */
+const COPYRIGHT_LINE = /©|\(c\)\s*\d{4}|copyright|all rights reserved|derechos reservados|tous droits réservés|alle rechte vorbehalten/i;
+
+/** A date written with digits: 13/10/2026, 13.10.2026, 2026-10-13, 10/13/26. */
+const DIGIT_DATE = /(?<![\p{L}\p{N}/.-])(?:\d{1,2}[/.-]\d{1,2}[/.-](?:\d{4}|\d{2})|\d{4}-\d{1,2}-\d{1,2})(?![\p{N}/]|[.-]\d)/gu;
+
+/**
+ * A phone number: "+52 442 456 0288", "(205) 555-0134", "442.167.1862",
+ * "555-0134". Read as one number, compared on its digits, so a version that
+ * writes it differently still has it, and one that drops it shows it once
+ * rather than in pieces (Grok, 2026-10-20: "52, 442, 456, 0288").
+ */
+const PHONE = /(?<![\p{L}\p{N}+])(?:\+\s?\d{1,3}[\s.-]?)?(?:\(\d{1,4}\)[\s.-]?)?\d{2,4}(?:[\s.-]\d{2,5}){1,4}(?![\p{N}]|[.,]\d)/gu;
+const PHONE_WORDS = /tel|phone|call|llam|whats|móvil|movil|celular|fax|cel\b|contact/i;
 
 /** Words after a number that multiply it: "28 millones", "10 thousand". */
 const THOUSAND_WORD = /^\s?(?:thousand|mil|tausend|mille|mila)(?![\p{L}])/iu;
@@ -72,6 +115,14 @@ interface NumberToken {
   display: string;
   /** Every value the token can stand for; the first one is the number itself. */
   keys: string[];
+  /**
+   * Values that count as present in this text because of this token, but are
+   * not enough for the token itself: "50%" makes a plain 50 present, while a
+   * plain "50 idiomas" does not make "50%" present.
+   */
+  alsoCounts?: string[];
+  /** For a date: the day and the year, enough when the other text writes the month as a word. */
+  dateParts?: [string, string];
   line: number;
   /** Where it starts in its line. */
   at: number;
@@ -89,6 +140,9 @@ const LIST_NUMBER = /^(\s{0,3}(?:#{1,6}\s+)?(?:[-*+]\s+)?(?:\*{1,2}|_{1,2})?)(\d
  * fetch wrote as "06\\. Vestavia Hills", step labels ("05 · They keep it",
  * "01 Paste02 Web address"), the minutes of a time ("10:55am"), file sizes
  * ("1.86 MB") and calendar grids ("2829301234 567891011").
+ * Since 2026-10-20 (numbersIn): copyright lines and lines that are only a
+ * date are skipped; dates and phone numbers are read whole; a percentage only
+ * counts as kept when the other text has the same percentage.
  */
 function maskLine(line: string): string {
   return line
@@ -161,12 +215,47 @@ function scaled(value: string, factor: number): string {
   return Number.isFinite(result) ? String(result) : value;
 }
 
+/** A phone number compared on its last ten digits, so "+52 442 456 0288" and "442 456 0288" match. */
+function phoneKey(digits: string): string {
+  return `tel:${digits.slice(-10)}`;
+}
+
+/** True when a line holds a date and nothing else (markdown and a time allowed). */
+function isDateOnlyLine(line: string): boolean {
+  if (!line.match(DIGIT_DATE)) return false;
+  const rest = line.replace(DIGIT_DATE, '').replace(/\b\d{1,2}(?::\d{2})?\s?(?:am|pm)?\b/gi, '');
+  return !/[\p{L}\p{N}]/u.test(rest.replace(/[*_#>|-]/g, ''));
+}
+
 function numbersIn(text: string): { tokens: NumberToken[]; lines: string[] } {
   const lines = (text || '').replace(/\r\n?/g, '\n').split('\n');
   const tokens: NumberToken[] = [];
 
   lines.forEach((line, lineIndex) => {
-    const masked = maskLine(line);
+    // A copyright line and a line that is only a date (the date of an article
+    // in a list) say nothing a reader acts on.
+    if (COPYRIGHT_LINE.test(line) && line.length < 200) return;
+    let masked = maskLine(line);
+    if (isDateOnlyLine(masked)) return;
+    // Dates and phone numbers: one token each, then hidden from the number search.
+    masked = masked.replace(DIGIT_DATE, (date, at: number) => {
+      const parts = date.split(/[/.-]/).map(part => part.replace(/^0+(?=\d)/, ''));
+      const [day, year] = parts[0].length === 4 ? [parts[2], parts[0]] : [parts[0], parts[2]];
+      tokens.push({ display: date, keys: [`date:${parts.join('-')}`], dateParts: [day, year], line: lineIndex, at });
+      return blank(date.length);
+    });
+    masked = masked.replace(PHONE, (phone, at: number) => {
+      const digits = phone.replace(/\D/g, '');
+      const groups = phone.trim().split(/[\s.()-]+/).filter(Boolean).length;
+      const looksLikePhone =
+        digits.length >= 7 &&
+        digits.length <= 15 &&
+        groups >= 2 &&
+        (/^\s?[+(]/.test(phone) || digits.length >= 10 || PHONE_WORDS.test(line));
+      if (!looksLikePhone) return phone;
+      tokens.push({ display: phone.trim(), keys: [phoneKey(digits)], line: lineIndex, at });
+      return blank(phone.length);
+    });
     for (const match of masked.matchAll(/(?<![\p{L}\p{N}_])\d+(?:[.,]\d+)*/gu)) {
       const raw = match[0];
       const at = match.index ?? 0;
@@ -187,13 +276,18 @@ function numbersIn(text: string): { tokens: NumberToken[]; lines: string[] } {
         } else if (MILLION_WORD.test(after)) {
           keys.push(scaled(values[0], 1000000));
         }
-        const percent = after.slice(short ? short[0].length : 0).match(/^\s?%/);
+        const percent = after.slice(short ? short[0].length : 0).match(PERCENT_AFTER);
         const currencyAfter = !short && after.match(/^\s?[€$£¥]/);
         const currencyBefore = before.match(/(?:US\$|[$€£¥])\s?$/);
         if (percent) display += '%';
         else if (currencyAfter) display += currencyAfter[0].trim();
         if (currencyBefore) display = currencyBefore[0].trim() + display;
-        tokens.push({ display, keys, line: lineIndex, at });
+        // A percentage is its own fact: "50% de descuento" is not kept by "50 idiomas".
+        if (percent) {
+          tokens.push({ display, keys: [`${values[0]}%`], alsoCounts: [values[0]], line: lineIndex, at });
+        } else {
+          tokens.push({ display, keys, line: lineIndex, at });
+        }
       } else {
         // A row of numbers written with dots or commas: each one counts by itself.
         let offset = at;
@@ -211,9 +305,15 @@ function numbersIn(text: string): { tokens: NumberToken[]; lines: string[] } {
 /** The values of the number words in a text. */
 function wordValuesIn(text: string): Set<string> {
   const values = new Set<string>();
-  for (const match of (text || '').toLowerCase().matchAll(/\p{L}+/gu)) {
+  const lower = (text || '').toLowerCase();
+  for (const match of lower.matchAll(/\p{L}+/gu)) {
     const value = WORD_VALUE.get(match[0]);
     if (value) values.add(value);
+  }
+  for (const match of [...lower.matchAll(TENS_AND_UNIT), ...lower.matchAll(TENS_Y_UNIT)]) {
+    const tens = Number(WORD_VALUE.get(match[1]));
+    const unit = Number(WORD_VALUE.get(match[2]));
+    if (tens && unit) values.add(String(tens + unit));
   }
   return values;
 }
@@ -263,7 +363,9 @@ function missingFrom(
   const reported = new Set<string>();
 
   for (const token of source.tokens) {
-    const known = token.keys.some(key => otherKeys.has(key) || otherWords.has(key));
+    const known =
+      token.keys.some(key => otherKeys.has(key) || otherWords.has(key)) ||
+      (token.dateParts !== undefined && token.dateParts.every(part => otherKeys.has(part)));
     if (known || reported.has(token.keys[0])) continue;
     reported.add(token.keys[0]);
 
@@ -323,7 +425,11 @@ export function checkNumbers(versionText: string, originalText: string): NumberC
   const version = numbersIn(versionText);
   const original = numbersIn(originalText);
   const keysOf = (tokens: NumberToken[], text: string) =>
-    new Set([...tokens.flatMap(token => token.keys), ...gluedValuesIn(text), ...listValuesIn(text)]);
+    new Set([
+      ...tokens.flatMap(token => [...token.keys, ...(token.alsoCounts ?? []), ...(token.dateParts ?? [])]),
+      ...gluedValuesIn(text),
+      ...listValuesIn(text),
+    ]);
 
   return {
     added: missingFrom(version, keysOf(original.tokens, originalText), wordValuesIn(originalText)),
