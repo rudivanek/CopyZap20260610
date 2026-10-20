@@ -33,10 +33,17 @@
  * - a claim found in one version is also listed in any other version that has
  *   the same words (shareClaims), so versions are treated alike.
  *
+ * Third version, 2026-10-20, after GrokBot's fifth round (three inventions
+ * missed, "reliable" flagged although the page says it): a sentence's
+ * promises are listed by themselves ("no drips, no callbacks"), names the
+ * original does not have are pointed out to the model (namesNote), and a
+ * claim whose words stand in the original is never listed.
+ *
  * It never throws. On any failure it returns null and nothing changes.
  */
 import { User } from '../types';
 import { cleanJsonResponse, makeApiRequestWithFallback } from '../services/api/utils';
+import { findNewNames } from './nameCheck';
 
 /**
  * Sonnet, not Haiku (2026-10-18): asked through the live app, Haiku matched
@@ -76,7 +83,7 @@ const warmed = new Map<string, { at: number; done: Promise<unknown> }>();
 
 const SYSTEM_PROMPT = `You compare a rewritten piece of marketing copy with the original it was written from. The business wrote the original; the rewrite must not tell the reader anything about the business that the original does not.
 
-You may get only part of the rewrite. Go through that part sentence by sentence and list every statement of fact about the business: what it offers or sells, how its product is made or what it is made of, how it works with customers, its team and their experience, its prices or how it prices, offers, discounts, limits and deadlines, guarantees and promises, policies, results it gets, its customers and how many there are, how often they come back, its reputation or popularity, awards, credentials, memberships and accreditations, the places it serves, dates, and stories about its past work. List every one, also the ones you think are supported.
+You may get only part of the rewrite. Go through that part sentence by sentence and list every statement of fact about the business: what it offers or sells, how its product is made or what it is made of, how it works with customers, its team and their experience, its prices or how it prices, offers, discounts, limits and deadlines, guarantees and promises, policies, results it gets, its customers and how many there are, how often they come back, its reputation or popularity, awards, credentials, memberships and accreditations, the places it serves, dates, and stories about its past work. List every one, also the ones you think are supported. A sentence often holds several facts: list each one by itself. "We install and repair fixtures so they work right — no drips, no callbacks" holds two: the service, and the promise of no drips and no callbacks. Promises about results and timing ("no callbacks", "done right the first time", "open again by morning", "never a surprise bill") are facts too.
 
 Do not list wording that states no fact about the business: the framing of the reader's situation, how the reader will feel, invitations and calls to action ("Claim your free consultation", "Ready to plan your event?"), general persuasion ("Make sure it's worth remembering") and words that only set the mood ("exciting", "we'd love to", "worth celebrating", "it means everything"). Ignore lines like [[TESTIMONIALS-1]] or [[KEEP-1]].
 Do list words a reader could rely on as a fact about the business, such as "authentic", "trusted", "affordable", "experienced", "seasoned", "carefully sourced" or "flexible". The test: if a customer could ask "is that true?", it is a fact.
@@ -85,7 +92,7 @@ For each statement give:
 - "claim": the words copied exactly from the rewrite, as few as carry the fact.
 - "sources": a list of passages copied exactly from the ORIGINAL, as written there (keep its digits and its spelling), that together state the same fact; one passage when one is enough, several when the rewrite merges facts from different sentences; an empty list when the original does not state it.
 
-A fact is supported when the original states it, in any wording or language, or when it follows from the original by plain arithmetic ("since 2011" supports "over a decade"; "10 am to 1 pm" supports "three hours"). It is NOT supported when the rewrite makes it stronger, more specific, more general or different: "fresh ingredients" does not support "scratch-made" or "hand-rolled"; "competitive prices" does not support "honest" or "transparent pricing"; "many customers are happy" does not support "Austin hosts choose us" or "a reputation earned"; "very professional staff" does not support "a seasoned team"; "web design" does not support "high-converting websites"; a list of towns does not support the name of the county they are in; what happened on one job is not a policy for every job; "good for beginners" supports "designed for beginners" but not "Priya brings real warmth and patience". When unsure, give an empty list.
+A fact is supported when the original states it, in any wording or language, or when it follows from the original by plain arithmetic ("since 2011" supports "over a decade"; "10 am to 1 pm" supports "three hours"). It is NOT supported when the rewrite makes it stronger, more specific, more general or different: "fresh ingredients" does not support "scratch-made" or "hand-rolled"; "competitive prices" does not support "honest" or "transparent pricing"; "many customers are happy" does not support "Austin hosts choose us" or "a reputation earned"; "very professional staff" does not support "a seasoned team"; "web design" does not support "high-converting websites"; a list of towns does not support the name of the county they are in; what happened on one job is not a policy for every job; "reliable fixtures" does not support "no callbacks", and "up to standard before morning" does not support "open by morning"; "good for beginners" supports "designed for beginners" but not "Priya brings real warmth and patience". When unsure, give an empty list.
 
 Answer with JSON only: {"claims":[{"claim":"...","sources":["..."]}]}`;
 
@@ -185,6 +192,21 @@ async function withWarmCache<T>(allowed: string, calls: (() => Promise<T>)[]): P
   return [firstResult, ...rest];
 }
 
+/**
+ * The names in a part that the original does not have (see nameCheck.ts),
+ * as a note after the part. Added 2026-10-20: "Jefferson County" passed the
+ * check in a plumber's best version, and turned up in many earlier runs. The
+ * model still decides which of them state a fact: "a Zoom invite" or "last
+ * Tuesday" in a story about the reader is not one.
+ */
+function namesNote(part: string, allowed: string): string {
+  const names = findNewNames(part, allowed);
+  if (names.length === 0) return '';
+  return `\n\nNAMES TO CHECK: the rewrite uses these names, which the original does not contain: ${names
+    .map(name => `"${name}"`)
+    .join(', ')}. Each one that tells the reader a fact about the business (a place it serves, a client, a partner, a tool or method it uses, an award) is a fact like any other: list it as a claim.`;
+}
+
 /** One call: the unsupported claims of one part. Null on failure. */
 async function checkPart(
   part: string,
@@ -200,10 +222,10 @@ async function checkPart(
         { role: 'system', content: SYSTEM_PROMPT },
         {
           role: 'user',
-          // The same text as before, in two blocks: the original (cached) and the part.
+          // The original (cached), the part, and the names in the part the original does not have.
           content: [
             { type: 'text', text: `ORIGINAL:\n"""\n${allowed}\n"""\n\n`, cache: worthCaching(allowed) },
-            { type: 'text', text: `${label}:\n"""\n${part}\n"""` },
+            { type: 'text', text: `${label}:\n"""\n${part}\n"""${namesNote(part, allowed)}` },
           ],
         },
       ],
@@ -221,6 +243,9 @@ async function checkPart(
       const claim = typeof entry?.claim === 'string' ? entry.claim.trim() : '';
       // A claim that is not in the version is the model's own wording: nothing to take out or show.
       if (!claim || !standsIn(claim, part)) continue;
+      // Words that stand in the original as they are need no source (seen 2026-10-20:
+      // "reliable" flagged on a page that says "reliable" several times).
+      if (standsIn(claim, allowed)) continue;
       const listed: unknown[] = Array.isArray(entry?.sources)
         ? entry.sources
         : typeof entry?.source === 'string'
