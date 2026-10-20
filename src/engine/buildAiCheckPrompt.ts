@@ -13,7 +13,15 @@
  * version", never by letters. CopyZap's scores come last in the text, after
  * the instruction to score first; in one paste the other AI still sees
  * everything at once, so this is not blind. The "two steps" variant (step1
- * then step2, sent as two messages) is fully blind.
+ * then step2, sent as two messages) is fully blind, and since 2026-10-19 it is
+ * the default: with our scores in view, GPT-4o landed within a few points of
+ * them every time (tested on 6 results), so the one-paste check proved
+ * little. Blind, on 15 results, Claude Opus and GPT-4o found the best version
+ * better than the original every time they scored both texts.
+ *
+ * The answer opens with the question that matters to the user: is the best
+ * version better than the original? A few points between AIs is normal: they
+ * grade on slightly different scales (GPT-4o about 3 to 5 points milder).
  *
  * To keep the text short enough to paste, it holds only two texts: the
  * original and the version Quick shows as best. Everything is in English,
@@ -198,7 +206,7 @@ function scoresSection(texts: CheckText[]): string {
 }
 
 const NORMAL_SPREAD =
-  'Any scorer, including you, gives the same text slightly different scores on different readings. ' +
+  'Any scorer, including you, gives the same text slightly different scores on different readings, and different AIs grade on slightly different scales. ' +
   'Treat a difference of up to 2 points on one part, or up to 5 points on the total, as normal variation, not as disagreement.';
 
 function verdictBands(pair: boolean): string[] {
@@ -305,6 +313,13 @@ function answerFormat(texts: CheckText[], header: string[] = []): string {
           'Then one line:',
         ]
       : ['Start with one line:']),
+    ...(pair
+      ? [
+          `**Is CopyZap's best version better than your original?** Yes or No, by your own scores, and why in one plain sentence.`,
+          '',
+          'Then one line:',
+        ]
+      : []),
     `**Verdict: <Agree / Mostly agree / Partly agree / Disagree>.** followed by one or two plain sentences that say what that means for the user.`,
     ...verdictBands(pair),
     '',
@@ -312,12 +327,23 @@ function answerFormat(texts: CheckText[], header: string[] = []): string {
     '',
     ...tableInstructions(texts).map((line, i) => (i === 0 ? line.replace(/^Then one table/, 'Then the details: one table') : line)),
     '',
-    ...(pair ? [`Then one line: **Is CopyZap's best version a real improvement on your original?** Yes or No, and why in one sentence.`, ''] : []),
     'Then, only if there is something important the scores do not show (for example, something useful the best version dropped), one short line headed **Worth knowing:**. Leave it out otherwise.',
     '',
     "Do not add any other sections, introductions or summaries, and do not draw any other chart or image. Call the texts only by the names used here (\"Your original\", \"CopyZap's best version\"), never by letters.",
   ].join('\n');
 }
+
+/** What step 1 asks for: one table per text, every text scored. */
+function stepOneAnswer(texts: CheckText[]): string {
+  const several = texts.length > 1;
+  return (
+    `Answer in English with ${several ? `${texts.length} tables, one per text` : 'one table'}, using the text's name as its heading: ` +
+    'Clarity, Persuasion, Audience fit, Structure (each 0–25) and Total (0–100), with one short reason per part that points to the actual copy. ' +
+    (several ? 'Score every text; do not stop after the first one. ' : '') +
+    'Nothing else.'
+  );
+}
+
 
 /** The text for the other AI. `best` is the version Quick shows as best. */
 export function buildAiCheckPrompt(
@@ -385,12 +411,18 @@ export function buildAiCheckPrompt(
     '',
     "This is step 1 of 2. **Only score the copy now.** I will send CopyZap's scores in a second message; do not guess them.",
     '',
-    'Answer in English with one table per text, using the text\'s name as its heading: Clarity, Persuasion, Audience fit, Structure (each 0–25) and Total (0–100), ' +
-      'with one short reason per part that points to the actual copy. Nothing else.',
+    stepOneAnswer(texts),
     '',
     '---',
     '',
     materials,
+    '',
+    '---',
+    '',
+    // Repeated after the texts: on long pages GPT-4o scored the first text and
+    // stopped (tested 2026-10-19), having lost the instruction above them.
+    `**Now score ${texts.length > 1 ? `both texts, ${texts.map(t => `"${t.name}"`).join(' and then ')}` : `"${texts[0].name}"`}.** ` +
+      stepOneAnswer(texts),
   ].join('\n');
 
   const step2 = [

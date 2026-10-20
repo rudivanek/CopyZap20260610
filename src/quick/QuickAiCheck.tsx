@@ -53,19 +53,20 @@ const QuickAiCheck: React.FC<QuickAiCheckProps> = ({ result, best, title, result
   }, [result, best, title, resultId]);
   // What the last click did, shown as one line under the buttons.
   const [status, setStatus] = useState<{ ok: boolean; text: string } | null>(null);
-  const [twoSteps, setTwoSteps] = useState(false);
+  // The one-message check, where the other AI sees our scores with the copy. Not the default (see buildAiCheckPrompt.ts).
+  const [oneMessage, setOneMessage] = useState(false);
 
   // Copy first, then open: copying needs this page to have the focus.
   const copyAndOpen = async (target: (typeof AI_CHECK_TARGETS)[number]) => {
-    const ok = await copyText(prompt.full);
+    const ok = await copyText(prompt.step1);
     if (!ok) {
-      setStatus({ ok: false, text: 'Copying did not work in this browser. Use "Copy only" and try again.' });
+      setStatus({ ok: false, text: 'Copying did not work in this browser. Use "Copy step 1 only" and try again.' });
       return;
     }
     window.open(target.url, '_blank', 'noopener,noreferrer');
     setStatus({
       ok: true,
-      text: `Copied. In the ${target.name} tab, paste it into the message box (Ctrl+V or ⌘V) and send.`,
+      text: `Step 1 copied. In the ${target.name} tab, paste it into the message box (Ctrl+V or ⌘V) and send. When it has scored, come back for step 2.`,
     });
   };
 
@@ -83,8 +84,9 @@ const QuickAiCheck: React.FC<QuickAiCheckProps> = ({ result, best, title, result
         <div className="flex flex-col gap-1">
           <h2 className="text-base font-semibold text-gray-900 dark:text-gray-100">Check this score with another AI</h2>
           <p className="text-sm text-gray-700 dark:text-gray-300">
-            Don't take our word for it. Pick an AI: we copy a ready-made check and open it. Paste, send, and it scores the
-            copy itself with our rubric, then tells you where it agrees and where it doesn't.
+            Don't take our word for it. Pick an AI: we copy a ready-made check and open it. It scores your original and our
+            best version with our rubric before it sees our scores. Then you send our scores, and it tells you whether the
+            new version is better and where it agrees with us.
           </p>
         </div>
         <button type="button" onClick={onClose} className={`${button} shrink-0 px-3`} aria-label="Close">
@@ -92,6 +94,7 @@ const QuickAiCheck: React.FC<QuickAiCheckProps> = ({ result, best, title, result
         </button>
       </div>
 
+      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Step 1: the copy, without our scores</p>
       <div className="flex flex-wrap items-center gap-2">
         {AI_CHECK_TARGETS.map(target => (
           <button key={target.key} type="button" onClick={() => copyAndOpen(target)} className={primary}>
@@ -100,11 +103,24 @@ const QuickAiCheck: React.FC<QuickAiCheckProps> = ({ result, best, title, result
         ))}
         <button
           type="button"
-          onClick={() => copyOnly(prompt.full, 'Copied. Paste it into any AI chat and send.')}
+          onClick={() =>
+            copyOnly(prompt.step1, 'Step 1 copied. Paste it into any AI chat, send, and wait for its scores.')
+          }
           data-tip={TIPS.aiCheckCopyOnly}
           className={button}
         >
-          Copy only
+          Copy step 1 only
+        </button>
+      </div>
+      <p className="text-sm font-semibold text-gray-900 dark:text-gray-100">Step 2: our scores, in the same chat</p>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={() => copyOnly(prompt.step2, 'Step 2 copied. Paste it into the same chat and send.')}
+          data-tip={TIPS.aiCheckTwoSteps}
+          className={button}
+        >
+          Copy step 2: our scores
         </button>
       </div>
 
@@ -120,38 +136,32 @@ const QuickAiCheck: React.FC<QuickAiCheckProps> = ({ result, best, title, result
 
       <p className="text-xs text-gray-600 dark:text-gray-400">
         Small differences are normal: any AI, including ours, scores the same text a few points apart on different
-        readings. A gap of up to 5 points on the total is not a disagreement.
+        readings, and some AIs grade a little more generously than others. What matters most is the first line of its
+        answer: is the new version better than your original?
       </p>
 
       <div className="flex flex-col gap-2">
         <button
           type="button"
-          onClick={() => setTwoSteps(open => !open)}
-          aria-expanded={twoSteps}
-          data-tip={TIPS.aiCheckTwoSteps}
+          onClick={() => setOneMessage(open => !open)}
+          aria-expanded={oneMessage}
           className={`${link} self-start`}
         >
-          {twoSteps ? 'Hide the strict check' : 'Strict check: the other AI scores before it sees our scores'}
+          {oneMessage ? 'Hide the one-message check' : 'Prefer one message? Quick check, with our scores included'}
         </button>
-        {twoSteps && (
+        {oneMessage && (
           <div className="flex flex-col gap-2 pl-3 border-l-2 border-gray-300 dark:border-gray-700">
             <p className="text-sm text-gray-700 dark:text-gray-300">
-              Two messages in the same chat. Send step 1, wait for the answer, then send step 2.
+              Everything in one message: faster, but the other AI sees our scores while it scores, so it is less
+              independent than the two steps above.
             </p>
             <div className="flex flex-wrap items-center gap-2">
               <button
                 type="button"
-                onClick={() => copyOnly(prompt.step1, 'Step 1 copied. Paste it into an AI chat, send, and wait for its scores.')}
+                onClick={() => copyOnly(prompt.full, 'Copied. Paste it into any AI chat and send.')}
                 className={button}
               >
-                Copy step 1: the copy
-              </button>
-              <button
-                type="button"
-                onClick={() => copyOnly(prompt.step2, 'Step 2 copied. Paste it into the same chat and send.')}
-                className={button}
-              >
-                Copy step 2: our scores
+                Copy the one-message check
               </button>
             </div>
           </div>
