@@ -109,12 +109,12 @@ const CookieConsent: React.FC = () => {
               <Cookie size={24} className="text-primary-500 mt-1 flex-shrink-0" />
               <div className="text-sm text-gray-700 dark:text-gray-300">
                 <p className="mb-2">
-                  <strong>We use cookies to enhance your experience.</strong>
+                  <strong>Can we use analytics cookies?</strong>
                 </p>
                 <p className="text-xs text-gray-600 dark:text-gray-400">
-                  This website uses essential cookies for authentication and preferences. 
-                  We do not use advertising or tracking cookies. By continuing to use this site, 
-                  you consent to our use of essential cookies.{' '}
+                  We always use essential cookies to keep you signed in and remember your settings. With your OK, we
+                  also use Google Analytics cookies to see how the app is used. We never use advertising cookies. If you
+                  decline or close this, no analytics cookies are set.{' '}
                   <Link 
                     to="/privacy" 
                     className="text-primary-500 hover:text-primary-400 underline inline-flex items-center"
@@ -139,7 +139,7 @@ const CookieConsent: React.FC = () => {
                 onClick={handleAccept}
                 className="px-6 py-2 text-sm font-medium bg-primary-600 hover:bg-primary-500 text-white rounded-md transition-colors duration-200"
               >
-                Accept All Cookies
+                Accept analytics
               </button>
               <button
                 onClick={hideBanner}

@@ -678,7 +678,7 @@ const AppRouter: React.FC = () => {
 
   return (
     <div>
-      {/* Global Main Menu - Show on all pages except homepage, login, and beta-thanks */}
+      {/* Global Main Menu - Show on all pages except homepage and login */}
       {shouldShowMainMenu() && currentUser && (
         <MainMenu
           onLogout={handleEnhancedLogout}

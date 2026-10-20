@@ -3,11 +3,7 @@ import { Link } from 'react-router-dom';
 import { Menu, X } from 'lucide-react';
 import { useCompleteAccess } from '../../hooks/useCompleteAccess';
 
-interface TopNavigationProps {
-  onOpenBetaModal: () => void;
-}
-
-const TopNavigation: React.FC<TopNavigationProps> = ({ onOpenBetaModal }) => {
+const TopNavigation: React.FC = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
   // The Help Center describes the Advanced interface; its link is shown only to those who can open it.
   const canOpenHelp = useCompleteAccess() === true;

@@ -3,7 +3,6 @@ import { Link, useLocation } from 'react-router-dom';
 import { ChevronRight, Home, Menu, X } from 'lucide-react';
 import PublicFooter from '../PublicFooter';
 import TopNavigation from '../pages/TopNavigation';
-import BetaRegistrationModal from '../BetaRegistrationModal';
 import HelpSearch from './HelpSearch';
 import HelpSidebar from './HelpSidebar';
 
@@ -22,13 +21,12 @@ interface HelpLayoutProps {
 }
 
 const HelpLayout: React.FC<HelpLayoutProps> = ({ title, breadcrumbs, children, sidebar, hideSearch = false, hideSidebar = false }) => {
-  const [isBetaModalOpen, setIsBetaModalOpen] = useState(false);
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
 
   return (
     <div className="help-center-root min-h-screen bg-white dark:bg-black" style={{ fontFamily: 'Inter, sans-serif' }}>
       {/* Top Navigation */}
-      <TopNavigation onOpenBetaModal={() => setIsBetaModalOpen(true)} />
+      <TopNavigation />
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12 pb-24">
         {/* Mobile Sidebar Toggle Button - Only shown when sidebar is not hidden */}
@@ -131,12 +129,6 @@ const HelpLayout: React.FC<HelpLayoutProps> = ({ title, breadcrumbs, children, s
           <PublicFooter />
         </div>
       </div>
-
-      {/* Beta Registration Modal */}
-      <BetaRegistrationModal
-        isOpen={isBetaModalOpen}
-        onClose={() => setIsBetaModalOpen(false)}
-      />
 
       {/* Fixed Bottom Breadcrumb */}
       <nav className="fixed bottom-0 left-0 right-0 bg-white dark:bg-gray-900 border-t border-gray-200 dark:border-gray-800 py-3 px-4 z-50 shadow-lg">

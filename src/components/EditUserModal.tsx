@@ -123,8 +123,8 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
     const newErrors: Record<string, string> = {};
 
     // Password validation (only if provided)
-    if (formData.password && formData.password.length < 6) {
-      newErrors.password = 'Password must be at least 6 characters long';
+    if (formData.password && formData.password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters long';
     }
 
     // Date validation
@@ -237,7 +237,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
                   className={`bg-white dark:bg-gray-900 border${errors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'} text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-2.5`}
                   placeholder="Leave blank to keep current password"
                   disabled={isUpdating}
-                  minLength={6}
+                  minLength={8}
                 />
               </div>
               {errors.password && (

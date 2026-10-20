@@ -12,7 +12,6 @@ const PUBLIC_ROUTES = new Set([
   '/reset-password',
   '/auth/callback',
   '/privacy',
-  '/beta-thanks',
 ]);
 
 function isPublicRoute(pathname: string): boolean {

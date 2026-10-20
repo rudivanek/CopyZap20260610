@@ -6,7 +6,6 @@ import { useAuth } from '../hooks/useAuth';
 import { useCreditsBalance } from '../hooks/useCreditsBalance';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { useCompleteAccess } from '../hooks/useCompleteAccess';
-import BetaRegistrationModal from './BetaRegistrationModal';
 import TemplateSuggestionModal from './TemplateSuggestionModal';
 
 interface MainMenuProps {
@@ -24,7 +23,6 @@ const MainMenu: React.FC<MainMenuProps> = ({ onLogout, onOpenTemplateSuggestion,
   const { isAdmin } = useIsAdmin(currentUser);
   // The Help Center describes the Advanced interface; its links are shown only to those who can open it.
   const canOpenHelp = useCompleteAccess() === true;
-  const [isBetaModalOpen, setIsBetaModalOpen] = React.useState(false);
   const [isMobileMenuOpen, setIsMobileMenuOpen] = React.useState(false);
 
   // Format credits for display
@@ -92,12 +90,12 @@ const MainMenu: React.FC<MainMenuProps> = ({ onLogout, onOpenTemplateSuggestion,
             {/* Auth buttons - desktop */}
             {!currentUser ? (
               <div className="flex items-center space-x-3">
-                <button
-                  onClick={() => setIsBetaModalOpen(true)}
+                <Link
+                  to="/create-account"
                   className="bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 transform hover:scale-105 border border-gray-300 dark:border-gray-700 text-sm"
                 >
-                  Register for Beta
-                </button>
+                  Create account
+                </Link>
                 <Link
                   to="/login"
                   className="bg-primary-600 hover:bg-primary-500 text-white font-medium py-2 px-4 rounded-lg transition-colors duration-200 transform hover:scale-105 text-sm"
@@ -185,12 +183,12 @@ const MainMenu: React.FC<MainMenuProps> = ({ onLogout, onOpenTemplateSuggestion,
             {/* Auth buttons */}
             {!currentUser ? (
               <div className="space-y-2 pt-3 border-t border-gray-200 dark:border-gray-700">
-                <button
-                  onClick={() => setIsBetaModalOpen(true)}
-                  className="w-full bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-white font-medium py-2 px-4 rounded-lg transition-colors border border-gray-300 dark:border-gray-700 text-sm"
+                <Link
+                  to="/create-account"
+                  className="block w-full bg-white dark:bg-gray-900 hover:bg-gray-100 dark:hover:bg-gray-800 text-gray-900 dark:text-white font-medium py-2 px-4 rounded-lg transition-colors border border-gray-300 dark:border-gray-700 text-sm text-center"
                 >
-                  Register for Beta
-                </button>
+                  Create account
+                </Link>
                 <Link
                   to="/login"
                   className="block w-full bg-primary-600 hover:bg-primary-500 text-white font-medium py-2 px-4 rounded-lg transition-colors text-sm text-center"
@@ -215,11 +213,6 @@ const MainMenu: React.FC<MainMenuProps> = ({ onLogout, onOpenTemplateSuggestion,
       </div>
     </header>
     
-    {/* Beta Registration Modal */}
-    <BetaRegistrationModal
-      isOpen={isBetaModalOpen}
-      onClose={() => setIsBetaModalOpen(false)}
-    />
     </>
   );
 };

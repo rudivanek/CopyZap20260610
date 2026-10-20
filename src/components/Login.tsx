@@ -181,8 +181,9 @@ const Login: React.FC<LoginProps> = ({ onLogin, onLoginSuccess }) => {
       return;
     }
 
-    if (password.length < 6) {
-      setError('Password must be at least 6 characters long');
+    // No length rule at sign-in: the rule (8 characters) is checked where a password is set.
+    if (!password) {
+      setError('Please enter your password');
       setIsLoading(false);
       return;
     }
@@ -505,7 +506,6 @@ const Login: React.FC<LoginProps> = ({ onLogin, onLoginSuccess }) => {
                 onChange={(e) => setPassword(e.target.value)}
                 className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white pl-10 pr-4 py-2 focus:ring-gray-500 focus:border-gray-500 block w-full"
                 placeholder="Enter password"
-                minLength={6}
               />
             </div>
           </div>
