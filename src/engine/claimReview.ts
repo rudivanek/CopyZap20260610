@@ -56,8 +56,12 @@ export interface ClaimReview {
   scoredText?: string;
 }
 
-/** About what one "Re-score" costs: three scoring readings and one key-facts check. */
-export const RESCORE_CREDITS_ESTIMATE = 7;
+/**
+ * What one "Re-score" costs: three scoring readings and one key-facts check.
+ * It grows with the length of the copy: 5 and 9 credits were measured on
+ * 2026-10-20 (GrokBot) against the "about 7" shown before, so a range is shown.
+ */
+export const RESCORE_CREDITS_RANGE = '5 to 10';
 /** About how long one "Re-score" takes, in seconds. */
 export const RESCORE_SECONDS_ESTIMATE = 30;
 /** Readings of the scorer for one "Re-score"; the middle one counts, as in the run. */

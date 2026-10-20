@@ -217,6 +217,8 @@ function verdictBands(pair: boolean): string[] {
     pair
       ? '- Disagree: you find your original stronger than the best version, or a total differs by more than 15 points.'
       : '- Disagree: a total differs by more than 15 points.',
+    // 2026-10-20 (GrokBot): an answer said "Mostly agree" with a 19-point gap on one total.
+    '- The largest gap on any total decides the verdict, even when the other totals are close. Check it against these bands before you write the verdict.',
   ];
 }
 

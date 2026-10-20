@@ -323,7 +323,7 @@ export const markdownToHtml = (
     // Check for unordered list items (- or *)
     const unorderedListMatch = line.match(/^(\s*)([-*])\s+(.+)$/);
     // Check for ordered list items (1., 2., etc.)
-    const orderedListMatch = line.match(/^(\s*)\d+\.\s+(.+)$/);
+    const orderedListMatch = line.match(/^(\s*)(\d+)\.\s+(.+)$/);
     
     if (unorderedListMatch) {
       const [, indent, marker, content] = unorderedListMatch;
@@ -342,7 +342,7 @@ export const markdownToHtml = (
       }
       processedLines.push(inline ? `  <li style="margin: 6px 0;">${content}</li>` : `  <li class="md-li">${content}</li>`);
     } else if (orderedListMatch) {
-      const [, indent, content] = orderedListMatch;
+      const [, indent, number, content] = orderedListMatch;
       const currentIndent = indent.length;
       
       // Close unordered list if we were in one
@@ -352,7 +352,10 @@ export const markdownToHtml = (
       }
       
       if (!inOrderedList) {
-        processedLines.push(inline ? '<ol style="margin: 12px 0; padding-left: 24px; color: #4b5563; line-height: 1.6;">' : '<ol class="md-ul">');
+        // Items with blank lines between them each open a list of their own:
+        // the list starts at the item's own number, so they read 1, 2, 3, not 1, 1, 1.
+        const start = Number(number) > 1 ? ` start="${Number(number)}"` : '';
+        processedLines.push(inline ? `<ol${start} style="margin: 12px 0; padding-left: 24px; color: #4b5563; line-height: 1.6;">` : `<ol class="md-ul"${start}>`);
         inOrderedList = true;
         listIndentLevel = currentIndent;
       }

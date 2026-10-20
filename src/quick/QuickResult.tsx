@@ -36,7 +36,7 @@ import {
   withDecision,
   withoutDecision,
 } from '../engine/claimReview';
-import ClaimChecklist, { CLAIM_MARK_BACKGROUND, CLAIM_MARK_LINE, ClaimItem, RescoreDialog } from './ClaimChecklist';
+import ClaimChecklist, { CLAIM_MARK_BACKGROUND, CLAIM_MARK_LINE, ClaimItem, isOpen, RescoreDialog } from './ClaimChecklist';
 import { QUICK_SCORE_MARGIN } from '../engine/runQuickPipeline';
 import type { QuickRunResult } from '../engine/runQuickPipeline';
 import type { ClaimReview } from '../engine/claimReview';
@@ -463,13 +463,13 @@ const QuickResult: React.FC<QuickResultProps> = ({
             decision: review?.decisions.find(decision => decision.claim === claim) ?? null,
             sentence: sentenceAround(shownText, claim)?.sentence ?? null,
           }))
-          // A claim that went with another one's sentence is no longer there to check.
-          .filter(item => item.decision || item.sentence)
       : [];
-  const openClaims = claimItems.filter(item => !item.decision).length;
+  // A claim that went with another one's sentence stays in the list, settled,
+  // so the numbers and the Undo buttons of the others do not move.
+  const openClaims = claimItems.filter(isOpen).length;
   // Mark each open claim in the copy, numbered as in the checklist. Done on the
   // rendered copy, so the copy itself stays as it is.
-  const markKey = JSON.stringify(claimItems.map(item => (item.decision ? '' : item.claim)));
+  const markKey = JSON.stringify(claimItems.map(item => (isOpen(item) ? item.claim : '')));
   useEffect(() => {
     const root = copyRef.current;
     if (!root) return;
@@ -756,7 +756,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
             ` · ${result.testimonials.count} ${result.testimonials.count === 1 ? 'testimonial' : 'testimonials'} kept word for word`}
           {result.parts.kept > 0 &&
             ` · ${result.parts.kept} ${result.parts.kept === 1 ? 'part kept as it is' : 'parts kept as they are'}`}
-          {result.parts.leftOut > 0 && ` · ${result.parts.leftOut} left out`}
+          {result.parts.leftOut > 0 &&
+            ` · ${result.parts.leftOut} ${result.parts.leftOut === 1 ? 'part' : 'parts'} you left out before the run`}
           {saveState === 'saved' && ' · Saved'}
           {saveState === 'saving' && ' · Saving…'}
         </p>
@@ -1229,6 +1230,11 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 <h2 className="text-gray-900 dark:text-white">Why this version</h2>
                 <span className="text-xs text-gray-600 dark:text-gray-400 break-words">{winnerName}</span>
               </div>
+              {scoreStale && (
+                <p className="text-sm text-gray-600 dark:text-gray-400">
+                  Written about the version before your changes, so it may quote words you changed. Re-score to update it.
+                </p>
+              )}
               <ul className="flex flex-col gap-2 text-gray-700 dark:text-gray-300">
                 {whyNotes.map(item => (
                   <li key={item.label}>

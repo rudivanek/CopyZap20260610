@@ -6,7 +6,7 @@
  */
 import React, { useEffect, useRef, useState } from 'react';
 import type { ClaimDecision } from '../engine/claimReview';
-import { findClaim, RESCORE_CREDITS_ESTIMATE, RESCORE_SECONDS_ESTIMATE } from '../engine/claimReview';
+import { findClaim, RESCORE_CREDITS_RANGE, RESCORE_SECONDS_ESTIMATE } from '../engine/claimReview';
 import GrowingField from './GrowingField';
 
 export interface ClaimItem {
@@ -16,6 +16,15 @@ export interface ClaimItem {
   /** The sentence the claim stands in now. Null when it is no longer in the text. */
   sentence: string | null;
 }
+
+/**
+ * True when a claim left the copy with another one's change (its sentence was
+ * rewritten or removed): nothing is left to decide. It keeps its place and its
+ * number in the list, so the other cards do not move.
+ */
+export const isGone = (item: ClaimItem) => !item.decision && !item.sentence;
+/** True while a claim still waits for a decision. */
+export const isOpen = (item: ClaimItem) => !item.decision && !!item.sentence;
 
 interface ClaimChecklistProps {
   items: ClaimItem[];
@@ -59,7 +68,7 @@ const ClaimChecklist: React.FC<ClaimChecklistProps> = ({ items, disabled, onKeep
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [removing, setRemoving] = useState<string | null>(null);
-  const open = items.filter(item => !item.decision).length;
+  const open = items.filter(isOpen).length;
   const busy = disabled || removing !== null;
 
   const startEdit = (item: ClaimItem) => {
@@ -106,6 +115,14 @@ const ClaimChecklist: React.FC<ClaimChecklistProps> = ({ items, disabled, onKeep
           const n = index + 1;
           const isEditing = editing === item.claim && !item.decision;
           const action = item.decision?.action;
+          const gone = isGone(item);
+          // Other open claims in the same sentence: the new wording settles them too.
+          const sharing = isEditing
+            ? items
+                .map((other, at) => ({ other, number: at + 1 }))
+                .filter(({ other }) => other !== item && isOpen(other) && other.sentence === item.sentence)
+                .map(({ number }) => number)
+            : [];
           return (
             <li
               key={item.claim}
@@ -130,7 +147,7 @@ const ClaimChecklist: React.FC<ClaimChecklistProps> = ({ items, disabled, onKeep
                 )}
               </div>
               <div className="flex-[1_1_auto] flex flex-wrap items-center justify-end gap-2">
-                {!item.decision && !isEditing && (
+                {isOpen(item) && !isEditing && (
                   <>
                     <button type="button" onClick={() => startEdit(item)} disabled={busy || !item.sentence} className={lightButton}>
                       Edit it
@@ -142,6 +159,9 @@ const ClaimChecklist: React.FC<ClaimChecklistProps> = ({ items, disabled, onKeep
                       {removing === item.claim ? 'Removing…' : 'Remove it'}
                     </button>
                   </>
+                )}
+                {gone && (
+                  <span className="text-sm font-semibold text-gray-900">No longer in the copy: it went with another change</span>
                 )}
                 {action === 'kept' && (
                   <span className="text-sm font-semibold text-gray-900">Kept: you confirmed it</span>
@@ -163,6 +183,12 @@ const ClaimChecklist: React.FC<ClaimChecklistProps> = ({ items, disabled, onKeep
                   <label htmlFor={`quick-claim-edit-${n}`} className="text-sm font-semibold text-gray-900">
                     Your wording for this sentence <span className="font-normal text-gray-600">(empty removes it)</span>
                   </label>
+                  {sharing.length > 0 && (
+                    <p className="text-sm text-gray-600">
+                      This sentence also holds {sharing.length === 1 ? 'claim' : 'claims'} {sharing.join(' and ')}. Your wording
+                      replaces the whole sentence, so it settles {sharing.length === 1 ? 'that one' : 'those'} too.
+                    </p>
+                  )}
                   <GrowingField
                     id={`quick-claim-edit-${n}`}
                     value={draft}
@@ -225,7 +251,7 @@ export const RescoreDialog: React.FC<{ onYes: () => void; onNo: () => void }> = 
         <dl className="border border-gray-200 dark:border-gray-700 px-4 py-3 flex flex-col gap-1.5">
           <div className="flex justify-between gap-4">
             <dt className="text-gray-600 dark:text-gray-400">Cost</dt>
-            <dd className="font-semibold text-gray-900 dark:text-gray-100">about {RESCORE_CREDITS_ESTIMATE} credits</dd>
+            <dd className="font-semibold text-gray-900 dark:text-gray-100">{RESCORE_CREDITS_RANGE} credits, more for long copy</dd>
           </div>
           <div className="flex justify-between gap-4">
             <dt className="text-gray-600 dark:text-gray-400">Time</dt>
