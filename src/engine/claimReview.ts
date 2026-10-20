@@ -30,6 +30,7 @@ import { buildQuickScoringContext, quickTextKindOf } from './buildQuickFormState
 import { removeInventedDetails } from './inventedDetails';
 import { findLeftOutFacts, leftOutPenalty, listKeyFacts } from './keyFacts';
 import { cleanUserFacts } from './missingFacts';
+import { claimsPenalty } from './sourceClaims';
 import { ORIGINAL_VERSION_ID } from './pickWinner';
 import type { QuickRunResult } from './runQuickPipeline';
 import { throwIfStopped } from './quickStop';
@@ -264,13 +265,32 @@ export async function removeDecision(
   return replacement ? { claim, action: 'removed', ...replacement } : null;
 }
 
-/** True when the text changed since the run (or since the last "Re-score"), so the score is out of date. */
+/** The claims still in the text that the user has not confirmed: they still cost points (see sourceClaims.ts). */
+export function openClaimCount(result: QuickRunResult, versionId: string, decisions: ClaimDecision[], text: string): number {
+  const lower = text.toLowerCase();
+  return claimsOf(result, versionId).filter(
+    claim =>
+      lower.includes(claim.toLowerCase()) &&
+      !decisions.some(decision => decision.claim === claim && decision.action === 'kept')
+  ).length;
+}
+
+/**
+ * True when the score is out of date: the text changed since the run (or
+ * since the last "Re-score"), or claims that cost points were confirmed since.
+ */
 export function scoreIsStale(result: QuickRunResult, versionId: string): boolean {
   const review = reviewFor(result, versionId);
   if (!review) return false;
   const version = result.versions.find(item => item.id === versionId);
   if (!version) return false;
   const text = applyDecisions(contentToText(version.content), review.decisions);
+  const current =
+    review.score && review.scoredText === text ? review.score : result.scores?.absoluteByVersion[versionId];
+  // Fewer open claims than the score counted: "Re-score" gives the points back.
+  if (current?.claims_open !== undefined && openClaimCount(result, versionId, review.decisions, text) < current.claims_open) {
+    return true;
+  }
   if (review.score && review.scoredText === text) return false;
   return text !== tidy(contentToText(version.content));
 }
@@ -330,6 +350,14 @@ export async function scoreReviewedText(
   if (left && left.length > 0) {
     const penalty = leftOutPenalty(left.length);
     score = { ...score, total: Math.max(1, score.total - penalty), left_out: left, left_out_penalty: penalty };
+  }
+  // Claims the user has not confirmed still cost points, as in the run; the ones confirmed no longer do.
+  const open = openClaimCount(result, versionId, review.decisions, text);
+  if (open > 0) {
+    const penalty = claimsPenalty(open);
+    score = { ...score, total: Math.max(1, score.total - penalty), claims_open: open, claims_penalty: penalty };
+  } else {
+    score = { ...score, claims_open: 0, claims_penalty: 0 };
   }
   return { ...review, score, scoredText: text };
 }

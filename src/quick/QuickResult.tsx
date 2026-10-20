@@ -1287,6 +1287,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
                   <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
                     <span className={`w-1 h-4 ${openClaims > 0 ? 'bg-status-warning' : 'bg-status-good'}`} aria-hidden="true" />
                     Not in your original
+                    {winnerScore?.claims_penalty ? (
+                      <span className="font-normal text-gray-600 dark:text-gray-400">(−{winnerScore.claims_penalty} points)</span>
+                    ) : null}
                   </p>
                   <p className="mt-1 text-gray-900 dark:text-gray-100">
                     {openClaims > 0
@@ -1460,6 +1463,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                       Clarity {item.score.clarity}/25 · Persuasion {item.score.persuasion}/25 · Audience fit{' '}
                       {item.score.audience_fit}/25 · Structure {item.score.structure}/25
                       {item.score.left_out_penalty ? ` · Left-out facts −${item.score.left_out_penalty}` : ''}
+                      {item.score.claims_penalty ? ` · Claims to check −${item.score.claims_penalty}` : ''}
                     </p>
                   )}
                   {(item.quotes.length > 0 ||

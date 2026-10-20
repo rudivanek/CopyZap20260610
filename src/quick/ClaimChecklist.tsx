@@ -7,6 +7,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { ClaimDecision } from '../engine/claimReview';
 import { findClaim, RESCORE_CREDITS_RANGE, RESCORE_SECONDS_ESTIMATE } from '../engine/claimReview';
+import { CLAIM_MAX_POINTS, CLAIM_POINTS } from '../engine/sourceClaims';
 import GrowingField from './GrowingField';
 
 export interface ClaimItem {
@@ -107,7 +108,9 @@ const ClaimChecklist: React.FC<ClaimChecklistProps> = ({ items, disabled, onKeep
         </span>
       </div>
       <p className="text-gray-700">
-        We couldn't find these in your original. Keep what's true, remove the rest, or say it in your own words.
+        We couldn't find these in your original. Keep what's true, remove the rest, or say it in your own words. Each
+        open claim costs {CLAIM_POINTS} points (up to {CLAIM_MAX_POINTS}); once you've checked them, Re-score gives the
+        points back.
       </p>
 
       <ol className="flex flex-col gap-3">
