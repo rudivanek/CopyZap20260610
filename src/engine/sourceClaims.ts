@@ -49,6 +49,14 @@
  * Bella Cucina were missed in 2 of 3 checks, so words that say it always
  * works are named as facts (4 of 4 after).
  *
+ * Fifth version, same day: a live Bella Cucina run won with "scratch-made
+ * Italian cooking", the prompt's own example, unflagged. The model listed it
+ * with "fresh ingredients" as its source: a real passage, so the code passed
+ * it. The model now also says "supported" true or false, and false counts.
+ * Same text: "scratch-made" 3 of 3 (before 0 of 2), "Austin hosts have
+ * trusted" 3 of 3, "every time" 3 of 3; on 7 saved results about one or two
+ * claims more per version.
+ *
  * It never throws. On any failure it returns null and nothing changes.
  */
 import { User } from '../types';
@@ -101,10 +109,11 @@ Do list words a reader could rely on as a fact about the business, such as "auth
 For each statement give:
 - "claim": the words copied exactly from the rewrite, as few as carry the fact.
 - "sources": a list of passages copied exactly from the ORIGINAL, as written there (keep its digits and its spelling), that together state the same fact; one passage when one is enough, several when the rewrite merges facts from different sentences; an empty list when the original does not state it.
+- "supported": true only when those passages, read on their own, state the same fact at the same strength; false when the claim is stronger, more specific or different from what they say (for example "scratch-made" from "fresh ingredients").
 
 A fact is supported when the original states it, in any wording or language, or when it follows from the original by plain arithmetic ("since 2011" supports "over a decade"; "10 am to 1 pm" supports "three hours"). It is NOT supported when the rewrite makes it stronger, more specific, more general or different: "fresh ingredients" does not support "scratch-made" or "hand-rolled"; "competitive prices" does not support "honest" or "transparent pricing"; "many customers are happy" does not support "Austin hosts choose us", "trusted by Austin hosts" or "a reputation earned"; "very professional staff" does not support "a seasoned team"; "web design" does not support "high-converting websites"; a list of towns does not support the name of the county they are in; what happened on one job is not a policy for every job; "reliable fixtures" does not support "no callbacks", and "up to standard before morning" does not support "open by morning"; "good for beginners" supports "designed for beginners" but not "Priya brings real warmth and patience". When unsure, give an empty list.
 
-Answer with JSON only: {"claims":[{"claim":"...","sources":["..."]}]}`;
+Answer with JSON only: {"claims":[{"claim":"...","sources":["..."],"supported":true}]}`;
 
 /**
  * Points taken off a version's score for each fact not in the original that
@@ -293,8 +302,12 @@ async function checkPart(
         .filter((source): source is string => typeof source === 'string')
         .map(source => source.trim())
         .filter(source => normaliseForMatch(source).length > 0);
-      // Supported only when there is a source and every source really is in the original.
+      // Supported only when the model says so, there is a source, and every
+      // source really is in the original. The model's own "supported: false"
+      // counts (2026-10-20): it gave "fresh ingredients" as the source of
+      // "scratch-made Italian cooking", a real passage, so the claim passed.
       const supported =
+        entry?.supported !== false &&
         sources.length > 0 &&
         sources.some(source => normaliseForMatch(source).replace(/ /g, '').length >= MIN_SOURCE_CHARS) &&
         sources.every(source => standsIn(source, allowed));
