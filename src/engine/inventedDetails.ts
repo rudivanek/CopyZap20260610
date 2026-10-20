@@ -40,11 +40,17 @@ const CLEANUP_MODEL = 'claude-sonnet-4-6';
 /** Room for the answer: one edit per sentence on a long page. 1,200 until 2026-10-19. */
 const CLEANUP_MAX_TOKENS = 4000;
 /**
- * Most details taken out of one version; a version with more stays as written.
- * 8 until 2026-10-18; raised when facts not in the original (sourceClaims.ts)
- * joined the list, since one version can hold ten of them.
+ * Details sent in one cleanup call. A version with more is cleaned in rounds
+ * of this many, each on the text the round before left.
  */
-const MAX_DETAILS = 20;
+const DETAILS_PER_CALL = 20;
+/**
+ * Most details taken out of one version; a version with more stays as written.
+ * Until 2026-10-20 this was DETAILS_PER_CALL (20), so a version with 21 or
+ * more was not cleaned at all: in a live run of the plumber page the best
+ * version kept all 22 of its claims and won with them.
+ */
+const MAX_DETAILS = 60;
 
 export interface CleanedVersion {
   text: string;
@@ -183,35 +189,40 @@ export async function removeInventedDetails(
   const details = [...found, ...claimDetails];
   if (details.length === 0 || details.length > MAX_DETAILS) return unchanged;
   try {
-    const response = await makeApiRequestWithFallback(
-      CLEANUP_MODEL,
-      [
-        { role: 'system', content: SYSTEM_PROMPT },
-        {
-          role: 'user',
-          content: `Copy:\n"""\n${text}\n"""\n\nDetails to take out:\n${details
-            .map(
-              (detail, index) =>
-                `${index + 1}. ${detail.item}${
-                  detail.upgrade ? ' (makes a claim stronger)' : detail.claim ? ' (not in the original)' : ''
-                } (in: "${detail.context}")`
-            )
-            .join('\n')}`,
-        },
-      ],
-      0,
-      CLEANUP_MAX_TOKENS,
-      { type: 'json_object' },
-      user.email,
-      'quick_detail_cleanup',
-      sessionId
-    );
-    const parsed = JSON.parse(cleanJsonResponse(response.choices[0]?.message?.content ?? '')) as { edits?: unknown };
-    const edited = applyEdits(
-      text,
-      parsed?.edits,
-      details.map(detail => detail.item)
-    );
+    // In rounds of DETAILS_PER_CALL, each on the text the round before left.
+    let edited = text;
+    for (let start = 0; start < details.length; start += DETAILS_PER_CALL) {
+      const round = details.slice(start, start + DETAILS_PER_CALL);
+      const response = await makeApiRequestWithFallback(
+        CLEANUP_MODEL,
+        [
+          { role: 'system', content: SYSTEM_PROMPT },
+          {
+            role: 'user',
+            content: `Copy:\n"""\n${edited}\n"""\n\nDetails to take out:\n${round
+              .map(
+                (detail, index) =>
+                  `${index + 1}. ${detail.item}${
+                    detail.upgrade ? ' (makes a claim stronger)' : detail.claim ? ' (not in the original)' : ''
+                  } (in: "${detail.context}")`
+              )
+              .join('\n')}`,
+          },
+        ],
+        0,
+        CLEANUP_MAX_TOKENS,
+        { type: 'json_object' },
+        user.email,
+        'quick_detail_cleanup',
+        sessionId
+      );
+      const parsed = JSON.parse(cleanJsonResponse(response.choices[0]?.message?.content ?? '')) as { edits?: unknown };
+      edited = applyEdits(
+        edited,
+        parsed?.edits,
+        details.map(detail => detail.item)
+      );
+    }
     if (edited === text || !edited.trim()) return unchanged;
 
     // Nothing new may come in, and the marker lines must all still be there.

@@ -39,6 +39,14 @@
  * original does not have are pointed out to the model (namesNote), and a
  * claim whose words stand in the original is never listed.
  *
+ * Fourth version, the same day, after a live run of the plumber page: the best
+ * version had 22 claims to check, about half of them the version describing
+ * its own listed services ("we install garbage disposals cleanly and
+ * correctly", "every connection is made to last"). Such wording is no longer
+ * listed unless it adds a promise, result, number, name or place. Same text:
+ * 24 claims before, 8 to 15 after, with every invention Grok and the run
+ * found still listed.
+ *
  * It never throws. On any failure it returns null and nothing changes.
  */
 import { User } from '../types';
@@ -85,7 +93,7 @@ const SYSTEM_PROMPT = `You compare a rewritten piece of marketing copy with the 
 
 You may get only part of the rewrite. Go through that part sentence by sentence and list every statement of fact about the business: what it offers or sells, how its product is made or what it is made of, how it works with customers, its team and their experience, its prices or how it prices, offers, discounts, limits and deadlines, guarantees and promises, policies, results it gets, its customers and how many there are, how often they come back, its reputation or popularity, awards, credentials, memberships and accreditations, the places it serves, dates, and stories about its past work. List every one, also the ones you think are supported. A sentence often holds several facts: list each one by itself. "We install and repair fixtures so they work right — no drips, no callbacks" holds two: the service, and the promise of no drips and no callbacks. Promises about results and timing ("no callbacks", "done right the first time", "open again by morning", "never a surprise bill") are facts too.
 
-Do not list wording that states no fact about the business: the framing of the reader's situation, how the reader will feel, invitations and calls to action ("Claim your free consultation", "Ready to plan your event?"), general persuasion ("Make sure it's worth remembering") and words that only set the mood ("exciting", "we'd love to", "worth celebrating", "it means everything"). Ignore lines like [[TESTIMONIALS-1]] or [[KEEP-1]].
+Do not list wording that states no fact about the business: the framing of the reader's situation, how the reader will feel, invitations and calls to action ("Claim your free consultation", "Ready to plan your event?"), general persuasion ("Make sure it's worth remembering") and words that only set the mood ("exciting", "we'd love to", "worth celebrating", "it means everything"). Also do not list how carefully or how well the business says it does a service the original already names, in general words ("cleanly", "efficiently", "with precision", "properly sealed", "built to last", "with attention to detail", "we explain what we find in plain language"), nor general truths about the trade ("clean parts last longer"). List such a sentence only for what it adds that a customer could hold the business to: a concrete promise, guarantee, result, number, name or place ("no callbacks", "passed city inspection", "the same problem won't return in three months"). Credentials and standards ("licensed", "certified", "meets code") and the results of past jobs ("passed inspection", "the restaurant opened on time") are always facts, however the sentence is worded. Ignore lines like [[TESTIMONIALS-1]] or [[KEEP-1]].
 Do list words a reader could rely on as a fact about the business, such as "authentic", "trusted", "affordable", "experienced", "seasoned", "carefully sourced" or "flexible". The test: if a customer could ask "is that true?", it is a fact.
 
 For each statement give:
@@ -95,6 +103,34 @@ For each statement give:
 A fact is supported when the original states it, in any wording or language, or when it follows from the original by plain arithmetic ("since 2011" supports "over a decade"; "10 am to 1 pm" supports "three hours"). It is NOT supported when the rewrite makes it stronger, more specific, more general or different: "fresh ingredients" does not support "scratch-made" or "hand-rolled"; "competitive prices" does not support "honest" or "transparent pricing"; "many customers are happy" does not support "Austin hosts choose us" or "a reputation earned"; "very professional staff" does not support "a seasoned team"; "web design" does not support "high-converting websites"; a list of towns does not support the name of the county they are in; what happened on one job is not a policy for every job; "reliable fixtures" does not support "no callbacks", and "up to standard before morning" does not support "open by morning"; "good for beginners" supports "designed for beginners" but not "Priya brings real warmth and patience". When unsure, give an empty list.
 
 Answer with JSON only: {"claims":[{"claim":"...","sources":["..."]}]}`;
+
+/**
+ * Points taken off a version's score for each fact not in the original that
+ * is still in it after the cleanup, up to CLAIM_MAX_POINTS (2026-10-20). In a
+ * live run of the plumber page, the version with 22 such claims scored 80 and
+ * won over one with 1 claim at 74: what the reader would have to check did
+ * not count. Like the key facts a version leaves out (keyFacts.ts), so a
+ * cleaner version wins, but one claim does not sink a strong version.
+ */
+export const CLAIM_POINTS = 2;
+export const CLAIM_MAX_POINTS = 8;
+
+/** Points taken off for this many claims. */
+export function claimsPenalty(count: number): number {
+  return Math.min(CLAIM_MAX_POINTS, Math.max(0, count) * CLAIM_POINTS);
+}
+
+/**
+ * The claims without one that is part of another ("Jefferson" inside "the
+ * Jefferson and Shelby County communities"), as the checklist lists them.
+ */
+export function distinctClaims(claims: string[]): string[] {
+  const unique = Array.from(new Set(claims));
+  const lower = unique.map(claim => claim.toLowerCase());
+  return unique.filter(
+    (_, index) => !lower.some((other, at) => at !== index && other.length > lower[index].length && other.includes(lower[index]))
+  );
+}
 
 /** Small numbers written as words (English, Spanish), read as digits when matching. */
 const NUMBER_WORDS: Record<string, string> = {

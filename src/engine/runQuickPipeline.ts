@@ -35,7 +35,7 @@ import {
 import { textKindWritingNote } from '../services/api/textKinds';
 import { KEEP_TO_ORIGINAL_NOTE, QUICK_REWRITE_NOTE } from './keepToOriginal';
 import { cleanUserFacts, userFactsWritingNote } from './missingFacts';
-import { findUnsupportedClaims, rememberClaims, shareClaims, standsIn } from './sourceClaims';
+import { claimsPenalty, distinctClaims, findUnsupportedClaims, rememberClaims, shareClaims, standsIn } from './sourceClaims';
 import { findLeftOutFacts, leftOutPenalty, listKeyFacts } from './keyFacts';
 import type { ClaimReview } from './claimReview';
 import { effectiveGates } from './gateRules';
@@ -522,9 +522,30 @@ export async function scoreQuickVersions(
   }
 
   // Each version's claims are the facts not in the original (the check ran in
-  // parallel with the scoring above). The scorer's tone notes stay. The
-  // original lists no claims: it is the source.
+  // parallel with the scoring above). A newly scored version loses
+  // CLAIM_POINTS for each claim it still holds, up to CLAIM_MAX_POINTS (see
+  // sourceClaims.ts), so the version the reader has least to check wins.
   const claimResults = await claimsByVersion;
+  for (const version of scoredFresh) {
+    const score = absoluteByVersion[version.id];
+    const found = claimResults.find(entry => entry.id === version.id)?.claims;
+    if (!isUsableScore(score) || !found) continue;
+    const open = distinctClaims(found).length;
+    if (open === 0) continue;
+    const penalty = claimsPenalty(open);
+    const adjusted: AbsoluteScoreBreakdown = {
+      ...score,
+      total: Math.max(1, score.total - penalty),
+      claims_open: open,
+      claims_penalty: penalty,
+    };
+    absoluteByVersion[version.id] = adjusted;
+    const row = rows.find(item => item.versionId === version.id);
+    if (row) row.absoluteTotal = adjusted.total;
+  }
+
+  // The claims become the versions' "not in your original" notes. The
+  // scorer's tone notes stay. The original lists no claims: it is the source.
   for (const row of rows) {
     const notes = row.verificationFlags ?? [];
     if (row.versionId === ORIGINAL_VERSION_ID) {
