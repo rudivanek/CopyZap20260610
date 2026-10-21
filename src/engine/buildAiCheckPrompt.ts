@@ -372,7 +372,7 @@ function stepOneAnswer(texts: CheckText[]): string {
     `Answer in English with ${several ? `${texts.length} tables, one per text` : 'one table'}, using the text's name as its heading: ` +
     'Clarity, Persuasion, Audience fit, Structure (each 0–25) and Total (0–100), with one short reason per part that points to the actual copy. ' +
     (several ? 'Score every text; do not stop after the first one. ' : '') +
-    'Nothing else.'
+    'Nothing else, except this last line, copied exactly as it is, on its own line at the very end of your answer: "**Step 1 of 2 done — this is only half the check.** Go back to CopyZap, click **Copy step 2: our scores**, and paste it here. Then I will tell you whether CopyZap\'s best version is better than your original and whether I agree with CopyZap\'s scores."'
   );
 }
 

@@ -46,6 +46,8 @@
 export const KEEP_TO_ORIGINAL_NOTE = [
   'Every fact in your version must come from the original. Do not add numbers, prices, offers, guarantees, deadlines, limited availability, results, customers, awards, features or services that the original does not state, and do not make a claim stronger than the original makes it.',
   'Keep the facts the original states: its numbers, names, offers, and what it says makes the product different.',
+  'Keep every list the original gives the reader, such as a programme, a syllabus or temario, an agenda, a menu, what is included, or the topics of each session: you may word each item more shortly, but keep every item.',
+  'Never refer to something your version does not contain: do not write "see above", "below", "as listed", "the full programme is above" or the same in any language ("está arriba", "más abajo", "a continuación") unless that part is in your version, in that place.',
   'The benefits, differentiators and credibility elements listed earlier in these instructions are ideas for emphasis: use one only where the original itself says it.',
   'Do not invent details either: no scenes, times, places, anecdotes or quoted words that the original does not have.',
   'Do not upgrade a claim with words the original does not use about it, in any language: certified, accredited, official, leading, number one, the world authority, award-winning, internationally recognised, guaranteed or proven. If the original says "logoterapeuta", do not write "logoterapeuta certificada"; if it names an institute, do not call it the top authority.',
@@ -68,4 +70,4 @@ export const QUICK_REWRITE_NOTE = [
  * comes first: "add our guarantee" or "shorter" is the user's decision.
  */
 export const KEEP_TO_ORIGINAL_CHANGE_NOTE =
-  'Apart from what the request asks for, change how the text says things, not what it says: do not add numbers, offers, guarantees, deadlines, limited availability, results or customers that the text does not state, and keep the facts it states.';
+  'Apart from what the request asks for, change how the text says things, not what it says: do not add numbers, offers, guarantees, deadlines, limited availability, results or customers that the text does not state, and keep the facts it states. Never refer to something the text does not contain, such as "see above" or "the full programme is above", unless that part is in the text.';

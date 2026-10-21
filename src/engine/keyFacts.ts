@@ -43,6 +43,7 @@ const LIST_PROMPT = `You read a piece of marketing copy and list its key facts: 
 - offers, discounts and anything free, with their conditions;
 - prices;
 - dates, times, schedules and deadlines of offers, events or courses;
+- a programme, syllabus or temario, agenda, list of sessions or topics, or what is included: as ONE fact that names every item, shortly (such as "temario de 6 sesiones: qué es sentido; Viktor Frankl; autoconocimiento; lo creativo y la actitud; jerarquía de valores; mi huella");
 - credentials, licences, accreditations, memberships and awards;
 - guarantees;
 - proof: ratings, years in business, numbers of customers or projects, named testimonials;
@@ -53,7 +54,7 @@ Do not list navigation, menus, links to social media, cookie or legal text, copy
 
 Answer with JSON only: {"facts":["...","..."]}`;
 
-const CHECK_PROMPT = `You check whether a rewritten piece of marketing copy still states facts from the original. For each fact, answer true when the rewrite states it, in any wording or language, with the same numbers, names and conditions; answer false when the rewrite leaves it out, states only part of it (a price without its condition, a credential reduced to a vague word), or changes it. Answer with JSON only: {"kept":[true,false,...]} with one entry per fact, in order.`;
+const CHECK_PROMPT = `You check whether a rewritten piece of marketing copy still states facts from the original. For each fact, answer true when the rewrite states it, in any wording or language, with the same numbers, names and conditions; answer false when the rewrite leaves it out, states only part of it (a price without its condition, a credential reduced to a vague word), or changes it. A programme, syllabus, agenda or list counts as kept only when the rewrite still names every item, in a list or in a sentence; a sentence that says the list is somewhere else ("the full programme is above") does not keep it. Answer with JSON only: {"kept":[true,false,...]} with one entry per fact, in order.`;
 
 const memory = new Map<string, string[]>();
 

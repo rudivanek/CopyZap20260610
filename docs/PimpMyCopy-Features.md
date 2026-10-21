@@ -1,11 +1,50 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.72
-Last Updated: 2026-10-21T18:00:00Z
+Version: 1.73
+Last Updated: 2026-10-21T19:00:00Z
 
 ---
 
-Quick — The percentage next to the score gain is restored on the result screen and in the exported report (the headline under the best version's score, the ranking list, the report's journey-foot summary line, and the report's ranking-table delta cell). The percent is computed as `Math.round((gain / originalTotal) * 100)`, where gain is the shown total of the version minus the original's total — the same numbers the points already use. No percent is shown when the original's total is 0 or missing, or when the best version is "About the same as your original".
+Quick — "Check with another AI" now ends step 1 with a bold reminder line the other AI writes back to the user ("Step 1 of 2 done — this is only half the check. Go back to CopyZap, click Copy step 2: our scores, and paste it here…"); on the CopyZap side, once step 1 is copied the step 2 button turns orange and its heading reads "do this next", and when the user returns from the other AI's tab without having sent step 2 a reminder box appears above step 2 with its own orange "Copy step 2: our scores" button. Separately, versions now keep every list the original gives (a programme, syllabus or temario, agenda, menu, what is included, session topics) — wording each item more shortly is allowed, dropping any is not — and never refer to something the version does not contain ("the full programme is above", "está arriba", "más abajo", "a continuación"); a temario is now treated as one key fact that names every item, and counts as kept only when every item is still named in a list or sentence, so a version that drops it shows "Left out from your original" with −3 points.
+
+---
+
+## Quick — Two Fixes: Make Users Send Step 2, and Keep Lists Like a Temario (2026-10-21)
+
+**Feature:** Two fixes, both found in a live test on 2026-10-21 (result 24cb9d10-ed2d-4dd3-b596-d8c8edc9486c, Spanish workshop announcement "Acercamiento al Sentido de mi vida").
+
+**Part A — users must send step 2 of "Check with another AI":** Three changes so a user who pastes step 1 and reads the other AI's two score tables does not stop there, never sending step 2 and so never seeing the verdict, the totals table, the chart and "Worth knowing".
+1. `src/engine/buildAiCheckPrompt.ts`, `stepOneAnswer(texts)`: the closing "Nothing else." is replaced by a longer closing that asks the other AI to copy a specific bold line onto its own answer's last line, word for word: "**Step 1 of 2 done — this is only half the check.** Go back to CopyZap, click **Copy step 2: our scores**, and paste it here. Then I will tell you whether CopyZap's best version is better than your original and whether I agree with CopyZap's scores." `stepOneAnswer` is used twice in step 1 (before and after the texts), so both copies get the new wording. Step 2 and the one-message check (full) are unchanged.
+2. `src/quick/QuickAiCheck.tsx`, step 2 becomes the obvious next click: new `step1Copied` and `step2Copied` state. After a successful copy in `copyAndOpen()` or in the "Copy step 1 only" handler, `step1Copied` is set true; after a successful copy in the "Copy step 2: our scores" handler, `step2Copied` is set true. While `step1Copied && !step2Copied`, the step 2 button uses the `primary` (orange) class and the three step 1 buttons (the "Copy & open …" buttons and "Copy step 1 only") use the outline `button` class; otherwise today's styles hold. In the same condition the step 2 heading reads "Step 2: our scores, in the same chat — do this next".
+3. `src/quick/QuickAiCheck.tsx`, a reminder when the user comes back from the AI tab: a `useEffect` listens to window `focus` and document `visibilitychange` (when `visibilityState` becomes `visible`); when `step1Copied && !step2Copied` it sets `backAfterStep1 = true`. The listeners are removed on unmount. While `backAfterStep1 && !step2Copied`, a box shows directly above the step 2 heading and scrolls into view (`block: 'nearest'`, via a ref + a second `useEffect`): first line bold "Back from the other AI? Now send step 2."; second line "Without it you only have the other AI's own scores. Step 2 shows whether it finds the best version better and whether it agrees with ours."; styled like the status line with an orange left bar and `text-sm`; under the text a `primary` button "Copy step 2: our scores" that calls the same step 2 handler. When step 2 is copied the box is hidden and the usual status line ("Step 2 copied. Paste it into the same chat and send.") shows. Closing and reopening the panel starts fresh (step 1 buttons orange again), because the state is component-local.
+
+**Part B — keep lists like a temario, and never point to something that is not there:** The original had a 6-part "Temario" (session topics). The winning version dropped the list and then wrote "El temario completo está arriba." — pointing to something the version no longer had. ChatGPT flagged it as confusing. The other two versions kept the temario. No points were taken off, because `keyFacts.ts` did not treat a programme or syllabus as a key fact.
+1. `src/engine/keepToOriginal.ts`, `KEEP_TO_ORIGINAL_NOTE`: two sentences added right after "Keep the facts the original states…": "Keep every list the original gives the reader, such as a programme, a syllabus or temario, an agenda, a menu, what is included, or the topics of each session: you may word each item more shortly, but keep every item." and "Never refer to something your version does not contain: do not write \"see above\", \"below\", \"as listed\", \"the full programme is above\" or the same in any language (\"está arriba\", \"más abajo\", \"a continuación\") unless that part is in your version, in that place." Plain sentences, no label in capitals with a colon, as the file's comment requires.
+2. `src/engine/keepToOriginal.ts`, `KEEP_TO_ORIGINAL_CHANGE_NOTE`: appended to the end of the string: " Never refer to something the text does not contain, such as \"see above\" or \"the full programme is above\", unless that part is in the text."
+3. `src/engine/keyFacts.ts`, `LIST_PROMPT`: a new bullet added after the "dates, times, schedules…" bullet: "- a programme, syllabus or temario, agenda, list of sessions or topics, or what is included: as ONE fact that names every item, shortly (such as \"temario de 6 sesiones: qué es sentido; Viktor Frankl; autoconocimiento; lo creativo y la actitud; jerarquía de valores; mi huella\");".
+4. `src/engine/keyFacts.ts`, `CHECK_PROMPT`: a new sentence added before "Answer with JSON only": "A programme, syllabus, agenda or list counts as kept only when the rewrite still names every item, in a list or in a sentence; a sentence that says the list is somewhere else (\"the full programme is above\") does not keep it."
+
+**What did not change:** `LEFT_OUT_POINTS` (3) and `LEFT_OUT_MAX_POINTS` (12) stay, so a dropped temario costs 3 points and shows under "Left out from your original". The rubric, the step 2 text, the verdict rules, the one-message check, the scoring, and the invented-details cleanup are unchanged. `claimReview.ts` calls the same `applyEdits` and is unaffected. No credit amounts, Stripe logic, or welcome-email behaviour changed.
+
+**Effect on Copy Maker:** None. All four files are Quick-only engine modules or a Quick-only component. Copy Maker does not call `buildAiCheckPrompt`, `KEEP_TO_ORIGINAL_NOTE`, `KEEP_TO_ORIGINAL_CHANGE_NOTE`, `LIST_PROMPT`, or `CHECK_PROMPT` (it uses its own writer notes and its own comparison step). Copy Maker writes as before.
+
+**Effect on existing results:** None for Part A — the check prompt is built when the user opens "Check with another AI", not saved with the result; the new step 1 closing line and the new UI state apply the next time any result (old or new) is checked. For Part B, the writer notes and the key-facts prompts apply to new runs and new rescorings made after this change; a result saved before it was written and scored under the prior notes and prompts.
+
+**Files touched:** `src/engine/buildAiCheckPrompt.ts` (1 edit), `src/quick/QuickAiCheck.tsx` (rewritten: new state, focus/visibility effect, scroll-into-view effect, step 1 / step 2 button-style swap, step 2 heading change, reminder box), `src/engine/keepToOriginal.ts` (2 edits), `src/engine/keyFacts.ts` (2 edits). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Expected behaviour (to check in the app):**
+A. Check with another AI
+1. Open result 24cb9d10-ed2d-4dd3-b596-d8c8edc9486c, click "Check with another AI", then "Copy & open ChatGPT". Paste and send in ChatGPT. The answer ends with the bold line "Step 1 of 2 done — this is only half the check. …".
+2. Switch back to the CopyZap tab. The "Back from the other AI? Now send step 2." box appears above step 2 with its own orange "Copy step 2: our scores" button, and the step 2 heading says "— do this next".
+3. Click that button, paste into the same ChatGPT chat and send. The full answer (verdict, totals table, chart, details) appears; the box is gone; the status line says "Step 2 copied…".
+4. Close and reopen the panel: it starts fresh (step 1 buttons orange again).
+B. Temario
+5. Run the same original as result 24cb9d10 again, twice, with Goal Convert and Kind of text "Email / newsletter", same facts as before. Every version names all 6 temario topics (as a list or in a sentence); no version says the temario or programme is "arriba", "abajo" or elsewhere; any version that still drops topics shows "Left out from your original" with the temario and −3 points.
+6. Run Tidewell once (as on Oct 21) to confirm nothing else changed: same kinds of facts kept, no new "Left out" items that make no sense.
+
+**Verification:**
+- `npm run build` passes.
+- The Part A and Part B expected-behaviour cases above hold (to be checked in the running app — Part A's prompt is built from saved result data; Part B's behaviour depends on a fresh LLM run).
 
 ---
 
