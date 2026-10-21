@@ -213,7 +213,7 @@ export function applyEdits(text: string, edits: unknown, details: string[] = [])
     .replace(/(\S)[ \t]{2,}(?=\S)/g, '$1 ')
     .replace(/ +([.,;:!?])/g, '$1')
     .replace(/\n{3,}/g, '\n\n')
-    .replace(/^[ \t]+(?![-*•]|\d+[.)])/gm, '')
+    .replace(/^[ \t]+(?![ \t]|[-*•]|\d+[.)])/gm, '')
     .trim();
 }
 
