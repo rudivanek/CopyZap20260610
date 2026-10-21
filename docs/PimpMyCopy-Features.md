@@ -1,11 +1,49 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.68
-Last Updated: 2026-10-15T01:00:00Z
+Version: 1.69
+Last Updated: 2026-10-21T00:00:00Z
 
 ---
 
-Quick result: clearer "Make it stronger and run again" card.
+Quick — four corrections to the engine: strengthening prefixes stripped not claimed, testimonials with single line breaks found, language notice blocks only once, empty headings removed on every run.
+
+---
+
+## Quick — Four Engine Corrections (2026-10-21)
+
+**Feature:** Four corrections to the Quick engine, each fixing a case the prior change got wrong:
+
+1. **Strengthening prefixes stripped, not claimed.** A version that writes "over 500" when the source says only "500" now has the prefix dropped — "over 500" becomes "500" — keeping the user's own number. Before, the prefix was fed into the invented-detail cleanup, whose prompt says "take out the whole claim", so a flagged "over 500" deleted the user's 500-clients fact. Only the upgrade prefixes "over", "more than", "at least" and a "+" suffix are checked; weakening prefixes ("less than", "up to", "about") are not. A prefix is allowed when the source uses the same prefix phrase for the same number, so "over 200" in both version and source is not flagged. A new `stripStrengtheners(text, allowed)` function does the stripping in plain text, before the invented-detail cleanup runs, so the cleanup never sees the prefix as a detail to take out.
+
+2. **Testimonials found with single line breaks.** A testimonial whose paragraphs are separated by single line breaks (not blank lines) and whose name has no dash ("Marta Ruiz, owner, Ruiz Flower Studio") was not found. The bare-name path goes through `quotedBodyStart`, which stopped at an opening quotation mark only at a paragraph start. It now stops at any line that opens with a quotation mark, with or without blank lines between paragraphs.
+
+3. **Language notice blocks the run only once.** When the instructions ask for a different language than the one chosen on the check screen, the notice now shows once (on blur or the first click), and the next click runs. Before, it blocked every click, so the user could never generate without deleting the words. The notice also shows after the blur read, not only on the generate click. The pipeline keeps the chosen language and shows "Kept in English, the language you chose."
+
+4. **Empty-heading cleanup runs on every run.** Lines that are only heading marks with no text (`##`, `###`) are now removed from every run, not only when the user wrote instructions. The cleanup loop was moved out of the `if (instructionsText)` block.
+
+**Why:** Correction 1 was found by running four cases: "more than 200" / same, "at least 24" / same, "500+" / same all wrongly flagged, because the source map stored only one word before each number and never recorded a "+". Correction 2 was a misplaced fix — the attribution walk-back was changed, but the bare-name path uses `quotedBodyStart`. Correction 3 blocked the run forever. Correction 4 only ran with instructions.
+
+**Edit — `src/engine/numberCheck.ts`:** `strengthenedNumbers` was rewritten: the source prefix map now uses the same `UPGRADE_PREFIX` regex (`/(over|more\s+than|at\s+least)\s+$/i`) and records a "+" suffix, so multi-word prefixes and "+" in the source match. The version-side regex was narrowed to the same three prefixes plus "+". A new `stripStrengtheners(text, allowed)` function replaces each finding's prefixed/plus form with the bare number: "over 500" → "500", "500+" → "500".
+
+**Edit — `src/engine/inventedDetails.ts`:** Reverted — `strengthenedNumbers` is no longer fed into `inventedDetails()`, so the cleanup does not delete whole claims for a prefix.
+
+**Edit — `src/engine/runQuickPipeline.ts`:** Imports `stripStrengtheners`. After the NOTE split and the empty-heading cleanup (now outside the `if (instructionsText)` block), each version is run through `stripStrengtheners(item.content, allowedText)` before the invented-detail cleanup.
+
+**Edit — `src/engine/quoteLock.ts`:** In `quotedBodyStart`, `if (startsParagraph && startsWithQuoteMark(line)) return j;` became `if (startsWithQuoteMark(line)) return j;`.
+
+**Edit — `src/quick/QuickPage.tsx`:** Added `languageNoticeFor` state (the instructions text the notice was shown for). In `handleRun`, the language check returns only when `languageNoticeFor !== instructionsText`; otherwise it runs. The notice is also set in `readInstructionsNow` after a blur read. `languageNoticeFor` is reset in `handleNew`, `handleStartOver`, when the instructions box is emptied, and when the language no longer differs.
+
+**Effect on Copy Maker:** None. All changes are in Quick-only engine modules and `QuickPage.tsx`. Copy Maker is not changed.
+
+**Files touched:** `src/engine/numberCheck.ts`, `src/engine/inventedDetails.ts`, `src/engine/runQuickPipeline.ts`, `src/engine/quoteLock.ts`, `src/quick/QuickPage.tsx`.
+
+**Verification:**
+- `npx tsc --noEmit -p tsconfig.app.json` passes with no errors in changed files.
+- `npm run build` passes.
+- "more than 200" / same → [], "at least 24" / same → [], "500+" / same → [], "over 500" / "we have 500 clients" → [["over 500"]].
+- A testimonial with single line breaks and a bare-name attribution is found.
+- The language notice shows once; the next click runs.
+- Empty heading lines are removed on every run.
 
 Quick check screen: Make it stronger locks the screen while it loads (questions, answers, page check).
 

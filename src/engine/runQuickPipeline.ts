@@ -51,6 +51,7 @@ import {
 import type { TestimonialZone } from './quoteLock';
 import { contentToText } from '../services/api/contentText';
 import { removeInventedDetails } from './inventedDetails';
+import { stripStrengtheners } from './numberCheck';
 
 /** Pulls the "NOTE: …" line the writer adds at the end, and the copy without it. */
 function splitWriterNote(content: string): { copy: string; note: string | null } {
@@ -886,14 +887,15 @@ export async function runQuickPipeline(
         item.content = split.copy;
       }
     }
-    // Remove empty heading lines (a line that is only heading marks, no text).
-    for (const item of written.items) {
-      if (typeof item.content !== 'string') continue;
-      item.content = item.content
-        .split('\n')
-        .filter(line => !/^\s*#{1,6}\s*$/.test(line))
-        .join('\n');
-    }
+  }
+  // Remove empty heading lines (a line that is only heading marks, no text),
+  // for every run — the writer leaves these behind with or without instructions.
+  for (const item of written.items) {
+    if (typeof item.content !== 'string') continue;
+    item.content = item.content
+      .split('\n')
+      .filter(line => !/^\s*#{1,6}\s*$/.test(line))
+      .join('\n');
   }
 
   // Numbers, quoted words and facts about the business the writer added, that
@@ -904,6 +906,14 @@ export async function runQuickPipeline(
   // Instruction facts count as user facts for the claim check, so a fact the
   // user wrote in their instructions is not flagged as "not in your original".
   const allowedText = [fullCopy, ...allFacts].join('\n\n');
+  // Drop the strengthening prefixes ("over", "more than", "at least") and "+"
+  // suffixes the writer added to numbers the source states plainly, before the
+  // invented-detail cleanup: the cleanup takes out whole claims, but a prefix
+  // only weakens by going further than the source, so the number itself stays.
+  for (const item of written.items) {
+    if (typeof item.content !== 'string') continue;
+    item.content = stripStrengtheners(item.content, allowedText);
+  }
   const checked = shareClaims(
     await Promise.all(
       written.items.map(async item => {

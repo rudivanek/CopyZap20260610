@@ -25,7 +25,7 @@
  */
 import { User } from '../types';
 import { cleanJsonResponse, makeApiRequestWithFallback } from '../services/api/utils';
-import { checkNumbers, strengthenedNumbers } from './numberCheck';
+import { checkNumbers } from './numberCheck';
 import { findUpgradedClaims } from './claimWords';
 import { findUnverifiedQuotes } from './quoteLock';
 import { standsIn } from './sourceClaims';
@@ -77,16 +77,13 @@ export function inventedDetails(text: string, allowed: string): Detail[] {
   const numbers = checkNumbers(text, allowed).added.flatMap(finding =>
     finding.numbers.map(number => ({ item: number, context: finding.context }))
   );
-  const strengthened = strengthenedNumbers(text, allowed).flatMap(finding =>
-    finding.numbers.map(number => ({ item: number, context: finding.context }))
-  );
   const quotes = findUnverifiedQuotes(text, allowed).map(quote => ({ item: quote, context: quote }));
   const upgrades = findUpgradedClaims(text, allowed).map(claim => ({
     item: claim.words,
     context: claim.context,
     upgrade: true,
   }));
-  return [...numbers, ...strengthened, ...quotes, ...upgrades];
+  return [...numbers, ...quotes, ...upgrades];
 }
 
 const SYSTEM_PROMPT = `You edit marketing copy so it states only what the business itself said. You get the copy and a list of details in it that the business never stated: numbers, and words put in quotation marks as if someone said them.

@@ -218,6 +218,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   // Set when a read triggered by "Looks right, generate" found facts the user has
   // not reviewed yet, so the run did not start; cleared once the user reviews.
   const [instructionsNotice, setInstructionsNotice] = useState<string | null>(null);
+  /** The instructions text the language-conflict notice was shown for, so the next click runs. */
+  const [languageNoticeFor, setLanguageNoticeFor] = useState<string | null>(null);
   // True while the questions are asked again after a change (kind of text, goal
   // or copy): the check screen is locked until they are there (see QuickConfirm).
   const [factsUpdating, setFactsUpdating] = useState(false);
@@ -559,6 +561,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       const text = instructions.trim();
       if (!text) {
         setInstructionsRead(null);
+        setLanguageNoticeFor(null);
         return null;
       }
       if (instructionsRead?.text === text) return instructionsRead;
@@ -569,6 +572,17 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         const kept = reading.facts.filter(fact => !instructionFactsRemoved.includes(fact));
         const next = { ...reading, facts: kept, text };
         setInstructionsRead(next);
+        // Show the language-conflict notice right after a blur read, so the first
+        // generate click runs. The chosen language wins; the notice is advisory.
+        if (reading.language && brief && reading.language.toLowerCase() !== brief.language.toLowerCase()) {
+          setInstructionsNotice(
+            `CopyZap writes in the language you choose under Language. To write in ${reading.language}, choose it there.`
+          );
+          setLanguageNoticeFor(text);
+        } else if (languageNoticeFor === text) {
+          setInstructionsNotice(null);
+          setLanguageNoticeFor(null);
+        }
         return next;
       } catch {
         if (!isMounted.current) return null;
@@ -620,11 +634,15 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       }
     }
     // When the instructions ask for a different language than the one chosen on
-    // the check screen, tell the user instead of running: the chosen language wins.
-    if (reading?.language && brief && reading.language.toLowerCase() !== brief.language.toLowerCase()) {
+    // the check screen, tell the user once, then run: the chosen language wins.
+    const instructionLanguage = reading?.language ?? null;
+    const languageDiffers =
+      instructionLanguage && brief && instructionLanguage.toLowerCase() !== brief.language.toLowerCase();
+    if (languageDiffers && languageNoticeFor !== instructionsText) {
       setInstructionsNotice(
-        `CopyZap writes in the language you choose under Language. To write in ${reading.language}, choose it there.`
+        `CopyZap writes in the language you choose under Language. To write in ${instructionLanguage}, choose it there.`
       );
+      setLanguageNoticeFor(instructionsText);
       return;
     }
     setInstructionsNotice(null);
@@ -861,6 +879,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setFactChat(EMPTY_FACT_CHAT);
     setInstructions('');
     setInstructionsRead(null);
+    setLanguageNoticeFor(null);
     setInstructionFactsRemoved([]);
     setInstructionsNotice(null);
     setCopy('');
@@ -931,6 +950,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       );
       setInstructionFactsRemoved([]);
       setInstructionsNotice(null);
+      setLanguageNoticeFor(null);
     }
     inputsFromRun.current = false;
     setChangeNotice(null);
@@ -1295,6 +1315,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             // instruction facts, and the "Facts from your instructions" list goes away.
             if (!value.trim()) {
               setInstructionsRead(null);
+              setLanguageNoticeFor(null);
               setInstructionFactsRemoved([]);
             }
             // A change to the box makes the last read stale: clear the notice too.

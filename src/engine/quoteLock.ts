@@ -112,7 +112,7 @@ function quotedBodyStart(lines: string[], nameAt: number, floor: number): number
     const startsParagraph = j === floor || isBlank(lines[j - 1]);
     if (startsParagraph) paragraphs += 1;
     if (paragraphs > MAX_BODY_PARAGRAPHS) return -1;
-    if (startsParagraph && startsWithQuoteMark(line)) return j;
+    if (startsWithQuoteMark(line)) return j;
   }
   return -1;
 }
