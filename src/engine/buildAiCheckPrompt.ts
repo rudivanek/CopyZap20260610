@@ -193,12 +193,31 @@ function scoresSection(texts: CheckText[]): string {
         const note = s[`${d.key}_note` as keyof AbsoluteScoreBreakdown];
         return `| ${d.label} | ${s[d.key]} | ${typeof note === 'string' ? note.trim().replace(/\|/g, '/') : ''} |`;
       });
+      const leftOutPenalty = s.left_out_penalty ?? 0;
+      const claimsPenalty = s.claims_penalty ?? 0;
+      const hasPointsOff = leftOutPenalty > 0 || claimsPenalty > 0;
+      const partsSum = s.clarity + s.persuasion + s.audience_fit + s.structure;
+      const extraRows: string[] = [];
+      if (hasPointsOff) {
+        extraRows.push(`| Parts add up to | ${partsSum} | |`);
+        if (leftOutPenalty > 0) {
+          const leftOutItems = (s.left_out ?? []).map(item => item.replace(/\|/g, '/')).join('; ');
+          extraRows.push(`| Points off: leaves out facts your original states | −${leftOutPenalty} | ${leftOutItems} |`);
+        }
+        if (claimsPenalty > 0) {
+          const claimsOpen = s.claims_open ?? 0;
+          extraRows.push(
+            `| Points off: claims not in your original | −${claimsPenalty} | ${claimsOpen} claim(s) CopyZap could not find in the original |`
+          );
+        }
+      }
       return [
         `### ${item.name}`,
         '',
         "| Part (0–25) | CopyZap | CopyZap's reason |",
         '|---|---|---|',
         ...rows,
+        ...extraRows,
         `| **Total (0–100)** | **${s.total}** | |`,
       ].join('\n');
     })
@@ -218,7 +237,7 @@ function verdictBands(pair: boolean): string[] {
       ? '- Disagree: you find your original stronger than the best version, or a total differs by more than 15 points.'
       : '- Disagree: a total differs by more than 15 points.',
     // 2026-10-20 (GrokBot): an answer said "Mostly agree" with a 19-point gap on one total.
-    '- The largest gap on any total decides the verdict, even when the other totals are close. Check it against these bands before you write the verdict.',
+    '- The largest gap on any total decides the verdict, even when the other totals are close. For a text with points off, use the gap to CopyZap\'s \'Parts add up to\' number. Check it against these bands before you write the verdict.',
   ];
 }
 
@@ -240,6 +259,7 @@ function tableInstructions(texts: CheckText[]): string[] {
     '- Gap = your score minus CopyZap\'s, with a sign (+3, −2, 0). Put the gap in bold when it is beyond normal variation.',
     '- Why: when the gap is within normal variation, write only "Normal variation". When it is beyond, one short sentence that points to the actual copy (quote a few words).',
     '- Give each part your own score from 0 to 25 and the total from 0 to 100, using the rubric.',
+    '- Your scores use only the rubric, without CopyZap\'s points off. When CopyZap\'s total shows points off, compute the gap on the total from CopyZap\'s \'Parts add up to\' number, not from its total.',
   ];
 }
 
@@ -268,7 +288,17 @@ const SHORT_NAME: Record<string, string> = {
 function summaryInstructions(texts: CheckText[]): string[] {
   const pair = texts.length > 1;
   const scored = texts.filter(t => t.score);
-  const total = (t: CheckText) => (t.score ? String(t.score.total) : '–');
+  const total = (t: CheckText) => {
+    if (!t.score) return '–';
+    const leftOutPenalty = t.score.left_out_penalty ?? 0;
+    const claimsPenalty = t.score.claims_penalty ?? 0;
+    const pointsOff = leftOutPenalty + claimsPenalty;
+    if (pointsOff > 0) {
+      const partsSum = t.score.clarity + t.score.persuasion + t.score.audience_fit + t.score.structure;
+      return `${t.score.total} (${partsSum} before ${pointsOff} points off)`;
+    }
+    return String(t.score.total);
+  };
   const improvement =
     pair && texts[0].score && texts[1].score ? texts[1].score.total - texts[0].score.total : null;
   const signed = (n: number) => (n > 0 ? `+${n}` : String(n));
@@ -329,7 +359,7 @@ function answerFormat(texts: CheckText[], header: string[] = []): string {
     '',
     ...tableInstructions(texts).map((line, i) => (i === 0 ? line.replace(/^Then one table/, 'Then the details: one table') : line)),
     '',
-    'Then, only if there is something important the scores do not show (for example, something useful the best version dropped), one short line headed **Worth knowing:**. Leave it out otherwise.',
+    'Then, only if you find any of these in CopyZap\'s best version, a short section headed **Worth knowing:** with one line for each item: a fact it states that neither your original nor the facts the user supplied state (it may not be true; quote it); a fact from your original it leaves out; a sentence that is broken or incomplete (quote it). Leave the section out when there are none. These do not change your scores.',
     '',
     "Do not add any other sections, introductions or summaries, and do not draw any other chart or image. Call the texts only by the names used here (\"Your original\", \"CopyZap's best version\"), never by letters.",
   ].join('\n');

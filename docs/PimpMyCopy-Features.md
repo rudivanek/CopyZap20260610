@@ -1,11 +1,48 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.70
-Last Updated: 2026-10-21T16:30:00Z
+Version: 1.71
+Last Updated: 2026-10-21T17:00:00Z
 
 ---
 
-Quick — invented-details cleanup no longer leaves broken sentences: the prompt tells the model to take out the whole sentence when only a fragment would remain, two code helpers drop fragments the model still returns and capitalise the leftover start of a sentence, and a final cleanup step strips leading spaces from lines that are not list items.
+Quick — "Check with another AI" now shows CopyZap's points off (facts left out, claims not in the original) so the gap to the other AI's rubric-only total is explained, asks the other AI to compute the gap on the parts sum rather than the penalised total, and widens "Worth knowing" to cover invented claims, dropped facts and broken sentences.
+
+---
+
+## Quick — "Check with Another AI": Points Off Shown, Verdict on Parts Sum, Wider "Worth Knowing" (2026-10-21)
+
+**Feature:** Three changes to `src/engine/buildAiCheckPrompt.ts` so the prompt CopyZap builds for the other AI (ChatGPT, Claude, Grok) explains CopyZap's points off and asks the other AI to judge against the parts sum rather than the penalised total, and so the "Worth knowing" section covers more than dropped facts:
+1. **Per-text score table shows the points off.** For a text whose score has `left_out_penalty > 0` or `claims_penalty > 0`, three rows are inserted between the Structure row and the Total row: "Parts add up to" (the sum of the four parts), "Points off: leaves out facts your original states" (the penalty and the left-out items joined with "; ", pipes replaced by "/") when `left_out_penalty > 0`, and "Points off: claims not in your original" (the penalty and the open-claims count) when `claims_penalty > 0`. Texts with no points off keep their table exactly as before.
+2. **Summary table and verdict use the parts sum.** In the summary table, a text with points off shows its CopyZap total as "<total> (<parts sum> before <points off> points off)", e.g. "70 (73 before 3 points off)"; texts without points off stay as now. The CopyZap bar in the chart stays on the total. Two rules were added/changed so the other AI compares like for like: the table rules gained "Your scores use only the rubric, without CopyZap's points off. When CopyZap's total shows points off, compute the gap on the total from CopyZap's 'Parts add up to' number, not from its total.", and the verdict bands' last line became "The largest gap on any total decides the verdict, even when the other totals are close. For a text with points off, use the gap to CopyZap's 'Parts add up to' number. Check it against these bands before you write the verdict."
+3. **"Worth knowing" widened.** The line that asked only for "something useful the best version dropped" was replaced with a line that asks for a short "Worth knowing:" section with one line per item when the other AI finds any of these in CopyZap's best version: a fact it states that neither the original nor the user's supplied facts state (quote it; it may not be true); a fact from the original it leaves out; a sentence that is broken or incomplete (quote it). The section is left out when there are none, and the items do not change the other AI's scores.
+
+**Why:** In a live Tidewell run on 2026-10-21 (result dbb4dffb-eac3-41d1-8ab6-5122efef5e04), the best version's four parts added up to 73 but its total showed 70, because CopyZap took 3 points off in code for facts the version left out (`left_out_penalty`). The check prompt showed only the parts and the total, never the points off, so the other AI — which scores with the rubric only and has no points-off step — saw a total about 3 points off for no visible reason. Because "the largest gap on any total decides the verdict", that invisible gap could lower the verdict a band. The same run also showed that the old "Worth knowing" line only asked for "something useful the best version dropped", so the other AI was never asked to point out claims not in the original or broken sentences — the very problems the invented-details cleanup (fixed the same day) can leave behind.
+
+**Edit — `src/engine/buildAiCheckPrompt.ts` (5 edits):** Each edit was a find-and-replace applied once; nothing else in the file changed.
+- **Edit 1 — `scoresSection(texts)`:** Inside the `.map`, after the four dimension rows are built, a block reads `left_out_penalty` and `claims_penalty` (defaulting to 0), and when either is above 0 builds an `extraRows` array: "Parts add up to | <partsSum> |", then (when `left_out_penalty > 0`) "Points off: leaves out facts your original states | −<penalty> | <left_out items joined with '; ', pipes replaced by '/'>", then (when `claims_penalty > 0`) "Points off: claims not in your original | −<penalty> | <claims_open> claim(s) CopyZap could not find in the original". The `extraRows` are spread into the table between the dimension rows and the Total row. Texts with no points off produce no `extraRows` and look exactly as before.
+- **Edit 2 — `verdictBands(pair)` last line:** The last array entry changed from "...even when the other totals are close. Check it against these bands..." to "...even when the other totals are close. For a text with points off, use the gap to CopyZap's 'Parts add up to' number. Check it against these bands before you write the verdict."
+- **Edit 3 — `tableInstructions(texts)` rules:** After the "Give each part your own score..." rule, a new rule was added: "Your scores use only the rubric, without CopyZap's points off. When CopyZap's total shows points off, compute the gap on the total from CopyZap's 'Parts add up to' number, not from its total."
+- **Edit 4 — `summaryInstructions(texts)` total helper:** The `const total = (t: CheckText) => (t.score ? String(t.score.total) : '–');` line was replaced with a function that, when a score has `left_out_penalty + claims_penalty > 0`, returns "<total> (<partsSum> before <pointsOff> points off)"; otherwise returns `String(t.score.total)`; and "–" when there is no score. The CopyZap bar in the chart is unchanged (still on `t.score.total`).
+- **Edit 5 — `answerFormat(texts, header)` "Worth knowing" line:** The line beginning "Then, only if there is something important the scores do not show..." was replaced with the new line asking for a "Worth knowing:" section with one line per item for: a fact the best version states that neither the original nor the user's supplied facts state (quote it; it may not be true); a fact from the original it leaves out; a sentence that is broken or incomplete (quote it). Leave the section out when there are none. These do not change the scores.
+
+**What did not change:** The rubric (`rubricText` / `buildAbsoluteSystemPrompt`), step 1, the verdict bands' numbers, `NORMAL_SPREAD`, the texts' names, the chart's CopyZap bars, and anything outside this file.
+
+**Effect on Copy Maker:** None. `buildAiCheckPrompt.ts` is a Quick-only engine module; Copy Maker does not call `buildAiCheckPrompt`. Copy Maker writes as before.
+
+**Effect on existing results:** A result saved before this change has the same scores and penalties; the new prompt text applies when the user next opens "Check with another AI" on any result (old or new). The penalties (`left_out_penalty`, `claims_penalty`, `left_out`, `claims_open`) are already part of a saved `AbsoluteScoreBreakdown`, so the new rows and the summary annotation render for any result that has them.
+
+**Files touched:** `src/engine/buildAiCheckPrompt.ts` (5 edits). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Expected behaviour (to check in the app):**
+1. Open result dbb4dffb-eac3-41d1-8ab6-5122efef5e04 (Tidewell, Oct 21). Click "Check with another AI", copy step 2. The best version's table shows "Parts add up to | 73", "Points off: leaves out facts your original states | −3 | <the fact>", "Total | 70", and the summary row reads "70 (73 before 3 points off)".
+2. Run the two-step check in ChatGPT on that result. The verdict is based on the gap to 73, not to 70.
+3. Open result c40eacec-fd5b-4d47-a404-c03e67bdf734 (Bike, Oct 21; best version has no points off). Its step 2 table looks exactly as before — no "Parts add up to" row, no points-off rows, summary total is the plain number.
+4. Open result 5156cebe-347b-4303-ad43-14a8ccd9627b (Bella, Oct 21) and run the two-step check in ChatGPT. The answer has a "Worth knowing" section that quotes the broken line "Fresh ingredients." and names the event types the version left out.
+
+**Verification:**
+- `npx tsc --noEmit -p tsconfig.app.json` passes with no errors in `buildAiCheckPrompt.ts`.
+- `npm run build` passes.
+- The four expected-behaviour cases above hold (to be checked in the running app, since the prompt is built from saved result data).
 
 ---
 
