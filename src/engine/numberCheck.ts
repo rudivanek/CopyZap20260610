@@ -514,10 +514,8 @@ export function stripStrengtheners(text: string, allowed: string): string {
   for (const finding of findings) {
     for (const number of finding.numbers) {
       // "over 500", "more than 200", "at least 50", "500+"
-      const match = number.match(/^(over|more\s+than|at\s+least)\s+|\+$/i);
-      if (!match) continue;
-      const prefix = match[0];
-      const bare = number.slice(prefix.length).replace(/\+$/, '');
+      const bare = number.replace(/^(over|more\s+than|at\s+least)\s+/i, '').replace(/\+$/, '');
+      if (bare === number) continue;
       // Replace the prefixed/plus form with the bare number, once per occurrence.
       // Keep it to the line level to avoid touching a marker line.
       result = result.replace(number, bare);
