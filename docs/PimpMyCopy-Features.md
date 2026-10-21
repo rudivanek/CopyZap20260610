@@ -1,11 +1,49 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.69
-Last Updated: 2026-10-21T00:00:00Z
+Version: 1.70
+Last Updated: 2026-10-21T16:30:00Z
 
 ---
 
-Quick — four corrections to the engine: strengthening prefixes stripped not claimed, testimonials with single line breaks found, language notice blocks only once, empty headings removed on every run.
+Quick — invented-details cleanup no longer leaves broken sentences: the prompt tells the model to take out the whole sentence when only a fragment would remain, two code helpers drop fragments the model still returns and capitalise the leftover start of a sentence, and a final cleanup step strips leading spaces from lines that are not list items.
+
+---
+
+## Quick — Invented-Details Cleanup Leaves No Broken Sentences (2026-10-21)
+
+**Feature:** Three changes to `src/engine/inventedDetails.ts` so the cleanup that takes invented details out of a Quick version never leaves a broken sentence behind:
+1. The cleanup model's system prompt now says that what is left after an edit must be a complete, correct sentence (a subject and a verb that agrees), and that when taking the listed words out cannot leave one, the whole sentence goes (empty replace). It names the three kinds of broken output seen in a live run — a bare fragment ("Fresh ingredients."), a clause with no main sentence ("Whether you're gathering 20 people or 300."), and a sentence whose verb no longer agrees ("Competitive pricing speak for themselves.") — and gives three examples of the whole-sentence-out behaviour.
+2. Two new code helpers run on every edit the model returns, as a safety net for a fragment the prompt did not stop:
+   - `leavesFragment(find, replace)` returns true only when the replacement is non-empty, the original is not a heading or list line, the original ends a sentence (. ! or ?), and either the start of the sentence was cut and three or fewer words remain, or the replacement starts with a subordinating conjunction (whether, if, when, while, although, though, because, since, unless, whereas — plus si, cuando, mientras, aunque, porque, wenn, weil, obwohl, ob) and has no comma, colon or question mark. When it returns true, the edit's replace is changed to an empty string, so the whole sentence is taken out.
+   - `capitalizeIfCut(find, replace)` capitalises the first letter of the replacement when the edit removed the start of the sentence, so a kept leftover reads as a standalone sentence ("pasta and lasagna for your guests." → "Pasta and lasagna for your guests.").
+3. The final chain of cleanups at the end of `applyEdits` gained one step: `.replace(/^[ \t]+(?![-*•]|\d+[.)])/gm, '')`, which removes leading spaces or tabs from any line that is not a list item. So a line such as " Fresh ingredients." can never appear with a leading space.
+
+**Why:** In a live Quick run on 2026-10-21 (Bella Cucina text, run 5156cebe-347b-4303-ad43-14a8ccd9627b), `removeInventedDetails()` left broken sentences in three versions: the winner had a paragraph that was only " Fresh ingredients." (with a leading space), another had "Whether you're gathering 20 people or 300." (a clause with no main sentence), and another had "Competitive pricing speak for themselves." (the verb no longer agrees). The cleanup may only delete words (`addsWords()` rejects any added word longer than 3 letters); when the invented claim is the main clause, deleting it leaves a fragment. A ChatGPT review of the winner also noted it had lost "weddings, birthdays, corporate events" and the pricing line. The prompt change asks the model to take the whole sentence out when only a fragment would remain; the two code helpers drop a fragment the model still returns; the leading-space cleanup stops the first symptom.
+
+**Edit — `src/engine/inventedDetails.ts` (3 edits):** Each edit was a find-and-replace applied once; nothing else in the file changed.
+- **Edit 1 — SYSTEM_PROMPT:** After the paragraph that starts "Every edit only deletes words:", a new paragraph was inserted (word for word as specified) telling the model that what is left must be a complete sentence with a subject and an agreeing verb, never a fragment, a clause, or a sentence whose verb no longer fits, and that when taking the listed words out cannot leave one, the whole sentence goes (empty replace). Headings and list items may stay short. Three examples follow. Nothing else in the prompt changed.
+- **Edit 2 — applyEdits() and the two helpers:** Two new functions were added above `applyEdits`: `leavesFragment(find, replace)` (the fragment test, with the heading/list-line guard, the sentence-end guard, the start-cut-and-few-words test, and the subordinating-conjunction test with its no-comma-no-colon-no-question-mark condition) and `capitalizeIfCut(find, replace)` (capitalises the first letter when the start was cut). Inside `applyEdits`'s loop, right after the `if (addsWords(find, replace)) continue;` line and before `result = result.replace(...)`, a new `const finalReplace = leavesFragment(find, replace) ? '' : capitalizeIfCut(find, replace);` line was added, and the replace call now uses `finalReplace` instead of `replace`. `applied += 1;` follows unchanged.
+- **Edit 3 — final cleanup chain:** In the chain of `.replace()` calls at the end of `applyEdits` (before `.trim()`), one step was added: `.replace(/^[ \t]+(?![-*•]|\d+[.)])/gm, '')`, placed after the `.replace(/\n{3,}/g, '\n\n')` step and before `.trim()`. It removes leading spaces or tabs from any line that does not start a list item (a `-`, `*`, `•`, or a number followed by `.` or `)`).
+
+**What did not change:** What counts as an invented detail, the scoring, the penalties, `MAX_DETAILS`, `DETAILS_PER_CALL`, the model (`CLEANUP_MODEL`), and `claimReview.ts` (it calls the same `applyEdits` function and gets the fix automatically). No credit amounts, Stripe logic, or welcome-email behaviour changed. No trial text was added to the app.
+
+**Effect on Copy Maker:** None. `inventedDetails.ts` is a Quick-only engine module; Copy Maker does not call `removeInventedDetails` or `applyEdits`. Copy Maker writes as before.
+
+**Effect on existing results:** None. The invented-details cleanup runs right after writing, before a version is scored or saved; it is not part of a saved result. A result saved before this change was cleaned under the prior rules. The new prompt, helpers, and leading-space cleanup apply to new runs and new cleanups made after it.
+
+**Files touched:** `src/engine/inventedDetails.ts` (3 edits). No new file. `src/lib/version.ts` was not changed per instructions.
+
+**Expected behaviour (checked against `applyEdits`):**
+1. "Real food built from fresh ingredients. Call us." + edit {find:"Real food built from fresh ingredients.", replace:"fresh ingredients."} → "Call us." (start cut, 2 words, fragment → whole sentence out).
+2. "Whether you're gathering 20 people or 300, we've handled them all. Call us." + edit {find:"Whether you're gathering 20 people or 300, we've handled them all.", replace:"Whether you're gathering 20 people or 300."} → "Call us." (starts with "whether", no comma → fragment → whole sentence out).
+3. "Book now, trusted by 3,000 teams." + edit {find:"Book now, trusted by 3,000 teams.", replace:"Book now."}, details ["3,000"] → "Book now." (start kept, not a fragment; the dropped number 3,000 is in the details list so the edit applies).
+4. "## Trusted by 300 teams" + edit {find:"## Trusted by 300 teams", replace:"## Trusted"}, details ["300"] → "## Trusted" (heading, not touched by the new check; the dropped number 300 is in the details list).
+5. "Scratch-made pasta and lasagna for your guests." + edit {find:"Scratch-made pasta and lasagna for your guests.", replace:"pasta and lasagna for your guests."} → "Pasta and lasagna for your guests." (start cut, more than 3 words, not a fragment; first letter capitalised).
+
+**Verification:**
+- `npx tsc --noEmit -p tsconfig.app.json` passes with no errors in `inventedDetails.ts`.
+- The five expected-behaviour cases above hold.
+- Live test after deploy: the Bella Cucina text run three times in Quick, Goal Convert, no "Make it stronger" answers — no line in any version (except headings and the call-to-action line) has fewer than 4 words, and no line starts with a space. A Tidewell run confirms nothing else changed.
 
 ---
 

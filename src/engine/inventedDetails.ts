@@ -93,6 +93,7 @@ A number is part of a claim: "Fortune 500 companies" is a kind of client, "withi
 For each edit give "find": text copied character for character from the copy, one whole sentence (or a whole list item or heading) containing the detail, so that it appears only once in the copy; when the same words appear in several sentences, give one edit for each of those sentences; and "replace": that text without the claim, or an empty string. Examples: "Trusted by 3,000 teams like yours, we set it up in a week." becomes "We set it up in a week."; "We reply within 24 hours." becomes "".
 Some details are marked "makes a claim stronger": words such as "certificada", "la máxima autoridad mundial", "oficial", "garantiza" or "guaranteed" that the business never used. For these, take out only those words, so the sentence says what the business said. Examples: "psicóloga y logoterapeuta certificada con 32 años de experiencia" becomes "psicóloga y logoterapeuta con 32 años de experiencia"; "del Instituto Viktor Frankl de Viena — la máxima autoridad mundial en esta metodología." becomes "del Instituto Viktor Frankl de Viena."; "Repairs the same day, guaranteed." becomes "Repairs the same day."
 Every edit only deletes words: "replace" is "find" with words taken out. Never add a word, and never swap a word for another one (not "handcrafted" for "beautifully crafted", not "transparent" for "honest"); an edit that adds a word is not applied.
+What is left after an edit must be a complete sentence that reads correctly on its own: it has a subject and a verb, and the verb agrees with its subject. Never leave a fragment such as "Fresh ingredients.", a clause such as "Whether you're gathering 20 people or 300.", or a sentence whose verb no longer fits, such as "Competitive pricing speak for themselves." If taking the listed words out cannot leave a complete, correct sentence, take out the whole sentence (replace with an empty string). Headings and list items may stay short. Examples: "Real food built from fresh ingredients." (listed: "Real food built from") becomes ""; "Whether you're gathering 20 people or 300, we've handled them all." (listed: "we've handled them all") becomes ""; "Competitive pricing and glowing reviews speak for themselves." (listed: "glowing reviews") becomes "".
 Some details are marked "not in the original": words that state a fact about the business the business never stated, such as "scratch-made", "a seasoned team", "honest pricing" or "Austin hosts choose us". Take out those words; keep the rest of the sentence when it still says something, and take out the whole sentence when nothing is left. Never put a vaguer claim of the same kind in their place, and never take out words that are not listed: a word like "fresh" stays when it is not in the list. Examples: "Our scratch-made Italian menu — handcrafted lasagna, fresh pasta, tiramisu" (listed: "scratch-made", "handcrafted") becomes "Our Italian menu — lasagna, fresh pasta, tiramisu"; "A seasoned team that arrives ready." (listed: "A seasoned team that arrives ready") becomes "".
 - Never add a number, name, result, promise or anything else the copy does not already say.
 - Keep every other fact of the sentence, its other numbers and names included: only the listed details go.
@@ -134,6 +135,58 @@ export function addsWords(find: string, replace: string): boolean {
   return wordsOf(replace).some(word => word.length > SMALL_WORD_LETTERS && !had.has(word));
 }
 
+/**
+ * True when leaving `replace` in place of `find` would leave a sentence
+ * fragment: a sentence whose start was cut, a clause with no main sentence, or
+ * a sentence whose subject no longer agrees with its verb. Only whole
+ * sentences (ending with . ! or ?) are checked; headings and list items are
+ * left alone.
+ */
+function leavesFragment(find: string, replace: string): boolean {
+  if (!replace.trim()) return false;
+  const findTrim = find.trimStart();
+  if (/^(#|-|\*|•|\d+[.)])/i.test(findTrim)) return false;
+  const findTrimEnd = find.trim();
+  if (!/[.!?]['"]?$/.test(findTrimEnd)) return false;
+  const findWords = wordsOf(find);
+  const replaceWords = wordsOf(replace);
+  const startRemoved =
+    findWords.length > 0 &&
+    replaceWords.length > 0 &&
+    replaceWords[0] !== findWords[0];
+  const fewWords = replaceWords.length <= 3;
+  if (startRemoved && fewWords) return true;
+  const clauseStarters = [
+    'whether', 'if', 'when', 'while', 'although', 'though', 'because', 'since',
+    'unless', 'whereas', 'si', 'cuando', 'mientras', 'aunque', 'porque', 'wenn',
+    'weil', 'obwohl', 'ob',
+  ];
+  const replaceLower = replace.trim().toLowerCase();
+  const startsWithStarter = clauseStarters.some(
+    word => replaceLower === word || replaceLower.startsWith(word + ' ')
+  );
+  if (startsWithStarter && !/[,,:?]/.test(replace.trim())) return true;
+  return false;
+}
+
+/**
+ * When an edit removed the start of the sentence, the leftover words begin
+ * mid-sentence with a lowercase letter. Capitalise the first letter so the
+ * result reads as a standalone sentence.
+ */
+function capitalizeIfCut(find: string, replace: string): string {
+  const findWords = wordsOf(find);
+  const replaceWords = wordsOf(replace);
+  const startRemoved =
+    findWords.length > 0 &&
+    replaceWords.length > 0 &&
+    replaceWords[0] !== findWords[0];
+  if (!startRemoved) return replace;
+  const match = replace.match(/^([ \t]*)([a-z])/);
+  if (!match) return replace;
+  return match[1] + match[2].toUpperCase() + replace.slice(match[0].length);
+}
+
 export function applyEdits(text: string, edits: unknown, details: string[] = []): string {
   if (!Array.isArray(edits)) return text;
   let result = text;
@@ -150,7 +203,8 @@ export function applyEdits(text: string, edits: unknown, details: string[] = [])
     // "scratch-made" and "transparent pricing", the cleanup put "beautifully
     // crafted" and "honest food built from quality ingredients" in their place.
     if (addsWords(find, replace)) continue;
-    result = result.replace(find, () => replace);
+    const finalReplace = leavesFragment(find, replace) ? '' : capitalizeIfCut(find, replace);
+    result = result.replace(find, () => finalReplace);
     applied += 1;
   }
   if (applied === 0) return text;
@@ -159,6 +213,7 @@ export function applyEdits(text: string, edits: unknown, details: string[] = [])
     .replace(/(\S)[ \t]{2,}(?=\S)/g, '$1 ')
     .replace(/ +([.,;:!?])/g, '$1')
     .replace(/\n{3,}/g, '\n\n')
+    .replace(/^[ \t]+(?![-*•]|\d+[.)])/gm, '')
     .trim();
 }
 
