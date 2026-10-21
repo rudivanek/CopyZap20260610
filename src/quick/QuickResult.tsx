@@ -769,6 +769,17 @@ const QuickResult: React.FC<QuickResultProps> = ({
               : result.formState.quickInstructions}
           </p>
         )}
+        {result.formState.quickInstructionWords != null && (
+          <p className="text-gray-600 dark:text-gray-400">
+            The best version has {countWords(contentToText(winner.content)).toLocaleString('en-US')} words; you asked for
+            about {result.formState.quickInstructionWords.toLocaleString('en-US')}.
+          </p>
+        )}
+        {result.formState.quickInstructionsPerson && (
+          <p className="text-gray-600 dark:text-gray-400">
+            Written in the style you asked for, without using the person's name.
+          </p>
+        )}
         {saveState === 'failed' && (
           <p role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-1 text-gray-900 dark:text-gray-100">
             <span className="w-1 h-5 shrink-0 bg-status-warning" aria-hidden="true" />

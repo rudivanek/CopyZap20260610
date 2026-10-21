@@ -52,6 +52,7 @@ import QuickTips from './QuickTips';
 import { GOAL_TIPS, TIPS } from './tips';
 import { APP_VERSION } from '../lib/version';
 import { estimateRunTime, KEEP_TAB_OPEN_FROM_WORDS, useSessionCredits } from '../engine/quickCredits';
+import { InstructionReading, readInstructions } from '../engine/instructionFacts';
 
 interface QuickPageProps {
   currentUser: User;
@@ -204,6 +205,19 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   // "Your instructions" (see QuickConfirm.tsx): free-text notes for how the copy
   // should sound or read, written on the check screen before the run.
   const [instructions, setInstructions] = useState('');
+  // The last read of the instructions (facts, length, person flag) plus the text
+  // it was read from, so a change to the box is detected. Null when the box is
+  // empty or has not been read since it last changed.
+  const [instructionsRead, setInstructionsRead] = useState<(InstructionReading & { text: string }) | null>(null);
+  // Facts the user took out of the instructions list ("Take out"): they stay out
+  // of the next read and of the run.
+  const [instructionFactsRemoved, setInstructionFactsRemoved] = useState<string[]>([]);
+  // True while the instructions are being read (one Haiku call): the generate
+  // button stays disabled and "Reading your instructions…" is shown.
+  const [readingInstructions, setReadingInstructions] = useState(false);
+  // Set when a read triggered by "Looks right, generate" found facts the user has
+  // not reviewed yet, so the run did not start; cleared once the user reviews.
+  const [instructionsNotice, setInstructionsNotice] = useState<string | null>(null);
   // True while the questions are asked again after a change (kind of text, goal
   // or copy): the check screen is locked until they are there (see QuickConfirm).
   const [factsUpdating, setFactsUpdating] = useState(false);
@@ -302,12 +316,15 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       ? facts.questions
       : null;
   // What a run is made of, apart from the facts: compared to tell whether two runs are like for like.
+  // The instructions are part of it: "Last run → this run" only compares runs
+  // that asked for the same thing (a run with "shorter" should not be compared to one without).
   const runKey = JSON.stringify({
     copy: copy.trim(),
     goalKey,
     goalOther: goalKey === 'custom' ? cleanQuickGoalLabel(goalOther) : '',
     choices: sections.length > 1 ? choices : null,
     brief,
+    instructions: instructions.trim(),
   });
 
   /** Saves a result as a new History entry, or over its existing one, and keeps its id in the address. */
@@ -525,6 +542,38 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     }
   };
 
+  /**
+   * Reads the instructions (facts, length, person flag) on blur or before a
+   * run, filtering out facts the user has already taken out. Returns the
+   * reading, or null when the box is empty. No-ops when the text has not
+   * changed since the last read.
+   */
+  const readInstructionsNow = async (): Promise<(InstructionReading & { text: string }) | null> => {
+    const text = instructions.trim();
+    if (!text) {
+      setInstructionsRead(null);
+      return null;
+    }
+    if (instructionsRead?.text === text) return instructionsRead;
+    setReadingInstructions(true);
+    try {
+      const reading = await readInstructions(text, currentUser, sessionId ?? undefined);
+      if (!isMounted.current) return null;
+      const kept = reading.facts.filter(fact => !instructionFactsRemoved.includes(fact));
+      const next = { ...reading, facts: kept, text };
+      setInstructionsRead(next);
+      return next;
+    } catch {
+      if (!isMounted.current) return null;
+      // A failed read should not block the run: treat as no facts, no length.
+      const next = { facts: [], words: null, direction: null, imitatesPerson: false, text };
+      setInstructionsRead(next);
+      return next;
+    } finally {
+      if (isMounted.current) setReadingInstructions(false);
+    }
+  };
+
   const handleRun = async () => {
     if (tooShort || tooLong || goalMissing || busy || blocked) return;
     // With more than one part the user has decided about each, testimonials included.
@@ -533,11 +582,31 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     // still loading only "anything else" counts.
     const userFacts =
       factQuestions === undefined ? [] : chatOn ? chatFacts(factChat) : factsFromAnswers(factQuestions ?? [], factAnswers);
+
+    // If the instructions changed since they were last read (or were never
+    // read), read them now. If the read finds facts the user has not seen yet,
+    // do not start the run: show them the facts so they can take out any they
+    // do not want, then click "Looks right, generate" again.
+    const instructionsText = instructions.trim();
+    if (instructionsText && instructionsRead?.text !== instructionsText) {
+      const reading = await readInstructionsNow();
+      if (!isMounted.current) return;
+      if (reading && reading.facts.length > 0 && reading.text !== instructionsRead?.text) {
+        setInstructionsNotice(
+          'CopyZap found facts in your instructions. Check them, then click Looks right, generate.'
+        );
+        return;
+      }
+    }
+    setInstructionsNotice(null);
+
     setError(null);
     setProgress({ stage: 'checking' });
     setBusy('running');
     const keyAtRun = runKey;
-    const { alive: isMounted, signal } = startProcess();
+    const process = startProcess();
+    const signal = process.signal;
+    const alive = process.alive;
     const startedAt = Date.now();
 
     try {
@@ -561,7 +630,13 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           sessionId: sessionId ?? undefined,
           signal,
           userFacts,
-          instructions: instructions.trim() ? instructions.trim() : undefined,
+          instructions: instructionsText ? instructionsText : undefined,
+          instructionFacts: instructionsRead?.facts,
+          instructionLength:
+            instructionsRead && (instructionsRead.words != null || instructionsRead.direction != null)
+              ? { words: instructionsRead.words, direction: instructionsRead.direction }
+              : undefined,
+          instructionImitatesPerson: instructionsRead?.imitatesPerson === true ? true : undefined,
           brief: brief
             ? {
                 product: brief.product,
@@ -575,10 +650,10 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         },
         currentUser,
         update => {
-          if (isMounted.current) setProgress(update);
+          if (alive.current) setProgress(update);
         }
       );
-      if (!isMounted.current) return;
+      if (!alive.current) return;
       const seconds = Math.round((Date.now() - startedAt) / 1000);
       setRunSeconds(seconds);
       setResult(run);
@@ -594,12 +669,12 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       playSuccessSound();
       persist(run, seconds, null);
     } catch (runError) {
-      if (!isMounted.current) return;
+      if (!alive.current) return;
       setError(messageOf(runError));
       setPhase('start');
       window.scrollTo(0, 0);
     } finally {
-      if (isMounted.current) setBusy(null);
+      if (alive.current) setBusy(null);
     }
   };
 
@@ -755,6 +830,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setFactAnswers({});
     setFactChat(EMPTY_FACT_CHAT);
     setInstructions('');
+    setInstructionsRead(null);
+    setInstructionFactsRemoved([]);
+    setInstructionsNotice(null);
     setCopy('');
     setPhase('start');
     window.scrollTo(0, 0);
@@ -803,7 +881,25 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       setFacts(null);
       setFactAnswers({});
       setFactChat(EMPTY_FACT_CHAT);
-      setInstructions(result.formState.quickInstructions ?? '');
+      const restoredInstructions = result.formState.quickInstructions ?? '';
+      setInstructions(restoredInstructions);
+      // Restore the read of the instructions (text, facts, length, person) so the
+      // check screen shows the facts the user kept, and a re-run carries them
+      // through without reading again. Facts the user had taken out are not
+      // stored on the formState, so the removed list is reset.
+      setInstructionsRead(
+        restoredInstructions
+          ? {
+              text: restoredInstructions,
+              facts: result.formState.quickInstructionFacts ?? [],
+              words: result.formState.quickInstructionWords ?? null,
+              direction: result.formState.quickInstructionDirection ?? null,
+              imitatesPerson: result.formState.quickInstructionsPerson === true,
+            }
+          : null
+      );
+      setInstructionFactsRemoved([]);
+      setInstructionsNotice(null);
     }
     inputsFromRun.current = false;
     setChangeNotice(null);
@@ -1161,7 +1257,26 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           }}
           lastBest={lastBest && lastBest.key === runKey ? lastBest.best : null}
           instructions={instructions}
-          onInstructionsChange={setInstructions}
+          onInstructionsChange={value => {
+            setInstructions(value);
+            // A change to the box makes the last read stale: clear the notice too.
+            if (instructionsNotice) setInstructionsNotice(null);
+          }}
+          instructionFacts={instructionsRead?.facts ?? []}
+          readingInstructions={readingInstructions}
+          onInstructionsBlur={() => {
+            // Read on blur, but not while another process runs or the box is empty.
+            if (busy || !instructions.trim()) return;
+            if (instructionsRead?.text === instructions.trim()) return;
+            readInstructionsNow();
+          }}
+          onInstructionFactRemove={fact => {
+            setInstructionFactsRemoved(list => [...list, fact]);
+            setInstructionsRead(current =>
+              current ? { ...current, facts: current.facts.filter(f => f !== fact) } : current
+            );
+          }}
+          instructionsNotice={instructionsNotice}
           onGenerate={handleRun}
           onBack={() => {
             setPhase('start');

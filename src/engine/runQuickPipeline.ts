@@ -51,7 +51,6 @@ import {
 import type { TestimonialZone } from './quoteLock';
 import { contentToText } from '../services/api/contentText';
 import { removeInventedDetails } from './inventedDetails';
-import { extractInstructionFacts } from './instructionFacts';
 
 /** Pulls the "NOTE: …" line the writer adds at the end, and the copy without it. */
 function splitWriterNote(content: string): { copy: string; note: string | null } {
@@ -60,11 +59,16 @@ function splitWriterNote(content: string): { copy: string; note: string | null }
   return { copy: content.slice(0, match.index).trimEnd(), note: match[1].trim() };
 }
 
+/** A NOTE line that means "nothing was left un-followed" — ignored when shown to the user. */
+const NOTE_OK = /^(none|all instructions(?: were)? followed|n\/a)\.?$/i;
+
 /**
  * Told to the writer, after its own rules and the user's facts: the user's
  * free-text instructions for how the copy should sound or read. Ranked below
  * the rules (no new facts, keep the "Keep as is" parts, the chosen language,
  * the form of the kind of text), so "ignore your rules" does not override them.
+ * Facts, length and the NOTE line are handled outside this note (by readInstructions
+ * and the OUTPUT REQUIREMENTS exception), so they are not repeated here.
  */
 function instructionsWritingNote(instructions: string, instructionFacts: string[]): string {
   const text = (instructions || '').trim();
@@ -97,6 +101,25 @@ function instructionsWritingNote(instructions: string, instructionFacts: string[
     'At the end of your output, after the copy, add a line that starts with "NOTE:" and says in one short sentence any instruction you could not follow, and why (for example "NOTE: Kept in Spanish, the language you chose." or "NOTE: Kept the parts set to Keep as is word for word."). If you followed every instruction, write no NOTE line. The NOTE line is not part of the copy.'
   );
   return lines.join('\n');
+}
+
+/**
+ * The same instructions, told to the writer on a "Change it" rewrite: without
+ * the facts, length and NOTE paragraphs (those belong to the first run), and
+ * with a line that the change asked for now wins over the instructions when
+ * the two conflict.
+ */
+export function instructionsChangeNote(instructions: string): string {
+  const text = (instructions || '').trim();
+  if (!text) return '';
+  return [
+    'The user gave these instructions for the first run, for how the copy should sound or read:',
+    text,
+    '',
+    'Keep following them below these rules (no new facts, keep the "Keep as is" parts, the chosen language, the form of the kind of text).',
+    'If the change the user asks for now conflicts with these instructions (for example a length or a tone), the change asked for now wins.',
+    'If a named real person is named to imitate, write in their general style but never use their name, catchphrases or famous lines, and never suggest they are involved with or endorse the business.',
+  ].join('\n');
 }
 
 /** A scorer's claim note, and the start of the ones Quick writes (read by the result screen and the exports). */
@@ -204,10 +227,15 @@ export interface QuickRunInput {
   /**
    * Free-text instructions the user wrote on the check screen for how the copy
    * should sound or read (see QuickConfirm.tsx). Up to 500 chars. The writer is
-   * told to follow them below its rules; facts in them are pulled out and added
-   * to the user's facts (see instructionFacts.ts). Empty: as before.
+   * told to follow them below its rules. Empty: as before.
    */
   instructions?: string;
+  /** Facts pulled out of the instructions and kept by the user (see instructionFacts.ts). Treated like userFacts. */
+  instructionFacts?: string[];
+  /** Length the instructions asked for: a word count, or a direction with no number. */
+  instructionLength?: { words: number | null; direction: 'shorter' | 'longer' | null };
+  /** True when the instructions asked to write like a named real person. */
+  instructionImitatesPerson?: boolean;
 }
 
 export interface QuickRunResult {
@@ -734,14 +762,11 @@ export async function runQuickPipeline(
     goalLabel: input.goalKey === 'custom' ? input.goalLabel : undefined,
   });
   const userFacts = cleanUserFacts(input.userFacts);
-  // Facts hidden in the user's free-text instructions (see instructionFacts.ts)
-  // are pulled out and added to the user's facts, so the writer may use them and
-  // the claim check does not flag them as "not in your original". The rest of the
-  // instructions go to the writer as a style/length note below its rules.
-  const instructionFacts =
-    input.instructions && input.instructions.trim()
-      ? await extractInstructionFacts(input.instructions, user, sessionId ?? undefined)
-      : [];
+  // Facts the user kept from the read of their instructions (see instructionFacts.ts)
+  // are added to the user's facts, so the writer may use them and the claim check
+  // does not flag them as "not in your original". The read itself happens on the
+  // check screen before the run, so the user has seen and kept each fact.
+  const instructionFacts = cleanUserFacts(input.instructionFacts);
   const instructionsText = (input.instructions ?? '').trim();
   const allFacts = instructionFacts.length > 0 ? cleanUserFacts([...userFacts, ...instructionFacts]) : userFacts;
   if (allFacts.length > 0) {
@@ -756,15 +781,26 @@ export async function runQuickPipeline(
       customWordCount: (formState.customWordCount ?? 0) + countWords(allFacts.join(' ')),
     };
   }
+  // A length the instructions asked for overrides the original's length target:
+  // a named word count becomes customWordCount (no facts' words added, so the
+  // writer is not pushed back toward the original's length), and a bare
+  // "shorter"/"longer" switches off the ±30% revision (aiDecideWordCount) so it
+  // is not undone. See copyGeneration.ts getWordCountTolerance.
+  if (input.instructionLength?.words) {
+    formState = { ...formState, customWordCount: input.instructionLength.words, quickInstructionWords: input.instructionLength.words };
+  } else if (input.instructionLength?.direction) {
+    formState = { ...formState, aiDecideWordCount: true, quickInstructionDirection: input.instructionLength.direction };
+  }
   // The user's free-text instructions are stored on the formState (so the
   // result and the report can show what was asked, and a re-run carries them
   // back to the check screen) and told to the writer below its rules.
   const instructionsNote = instructionsText ? instructionsWritingNote(instructionsText, instructionFacts) : '';
-  if (instructionsText || instructionFacts.length > 0) {
+  if (instructionsText || instructionFacts.length > 0 || input.instructionImitatesPerson) {
     formState = {
       ...formState,
       quickInstructions: instructionsText,
       quickInstructionFacts: instructionFacts.length > 0 ? instructionFacts : undefined,
+      ...(input.instructionImitatesPerson ? { quickInstructionsPerson: true } : {}),
     };
   }
   // What the writer is told on top of its own rules: to keep to the facts of
@@ -813,6 +849,26 @@ export async function runQuickPipeline(
       'generation_failed',
       written.firstError || 'No version could be written. Please try again.'
     );
+  }
+
+  // When the user wrote instructions, the writer may end a version with a
+  // "NOTE:" line saying what it could not follow. Pull it out of the copy now,
+  // before the invented-detail cleanup and the claim check, so the NOTE is never
+  // checked as a claim, cleaned up as an invented detail or counted in length.
+  // Keep the first note found (versions agree on what held them back); a note
+  // that says nothing was left un-followed is ignored.
+  let instructionsNoteText: string | null = null;
+  if (instructionsText) {
+    for (const item of written.items) {
+      if (typeof item.content !== 'string') continue;
+      const split = splitWriterNote(item.content);
+      if (split.note && !NOTE_OK.test(split.note)) {
+        item.content = split.copy;
+        if (instructionsNoteText === null) instructionsNoteText = split.note;
+      } else if (split.note) {
+        item.content = split.copy;
+      }
+    }
   }
 
   // Numbers, quoted words and facts about the business the writer added, that
@@ -866,25 +922,12 @@ export async function runQuickPipeline(
   // quoted passages that are not in the original.
   const movedIds: string[] = [];
   const quoteFlags: Record<string, string[]> = {};
-  // When the user wrote instructions, the writer may end a version with a
-  // "NOTE:" line saying what it could not follow. Pull it out of the copy and
-  // keep the first one (versions agree on what held them back); shown under the
-  // result. Done after the invented-detail cleanup, before the testimonials go
-  // back, so the NOTE is never mistaken for part of the copy.
-  let instructionsNoteText: string | null = null;
   for (const item of written.items) {
     if (zones.length > 0) {
       const restored = restoreTestimonials(contentToText(item.content), zones);
       item.content = restored.text;
       item.sourceText = fullCopy;
       if (restored.moved) movedIds.push(item.id);
-    }
-    if (instructionsText && typeof item.content === 'string') {
-      const split = splitWriterNote(item.content);
-      if (split.note) {
-        item.content = split.copy;
-        if (instructionsNoteText === null) instructionsNoteText = split.note;
-      }
     }
     const flagged = findUnverifiedQuotes(contentToText(item.content), fullCopy);
     if (flagged.length > 0) quoteFlags[item.id] = flagged;

@@ -849,6 +849,13 @@ Do NOT write the final CTA until every item above has been addressed. If you rea
   - Do NOT include any introductory text, concluding remarks, or explanations
   - Do NOT include meta-commentary about how the copy meets requirements
   - Output ONLY the requested marketing content and nothing else`;
+  // When the user wrote free-text instructions on the check screen, the writer
+  // is allowed to add a single "NOTE:" line at the very end saying what it
+  // could not follow. The pipeline pulls that line out of the copy before
+  // scoring, so it never counts toward length or the claim check.
+  if (formState.quickInstructions && formState.quickInstructions.trim()) {
+    systemPrompt += `\n  - Exception: if the special instructions ask for a line starting with "NOTE:", add that one line at the very end, after the copy.`;
+  }
   
   systemPrompt += `\n\nCRITICAL: DO NOT include any SEO metadata in your content output:
 - DO NOT include URL slugs, meta descriptions, or Open Graph tags

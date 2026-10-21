@@ -59,6 +59,16 @@ interface QuickConfirmProps {
    */
   instructions: string;
   onInstructionsChange: (value: string) => void;
+  /** Facts pulled out of the instructions and kept by the user, shown under the instructions box. */
+  instructionFacts: string[];
+  /** True while the instructions are being read (one Haiku call); the generate button stays disabled. */
+  readingInstructions: boolean;
+  /** Fired when the instructions box loses focus, so the read can start. */
+  onInstructionsBlur: () => void;
+  /** Fired when the user clicks "Take out" on an instructions fact. */
+  onInstructionFactRemove: (fact: string) => void;
+  /** Shown under the facts list when a read triggered by "Looks right, generate" found facts the user has not reviewed yet. */
+  instructionsNotice?: string | null;
   /**
    * The best score of the run the user came back from with "Run again with
    * your answers". Shown above "Make it stronger". Null otherwise.
@@ -108,6 +118,11 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
   factChat,
   instructions,
   onInstructionsChange,
+  instructionFacts,
+  readingInstructions = false,
+  onInstructionsBlur,
+  onInstructionFactRemove,
+  instructionsNotice = null,
   lastBest = null,
 }) => {
   const choiceOf = (section: PageSection): SectionChoice => choices[section.id] ?? 'improve';
@@ -390,6 +405,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
             value={instructions}
             maxLength={500}
             onChange={event => onInstructionsChange(event.target.value.slice(0, 500))}
+            onBlur={onInstructionsBlur}
             placeholder="e.g. shorter and punchier, no exclamation marks, sound confident"
             className={field + ' min-h-[88px] py-2.5 leading-relaxed resize-y'}
           />
@@ -399,6 +415,43 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
           <p className="text-gray-600 dark:text-gray-400 tabular-nums" aria-live="polite">
             {instructions.length} / 500
           </p>
+          {readingInstructions && (
+            <p className="text-gray-600 dark:text-gray-400" aria-live="polite">
+              Reading your instructions…
+            </p>
+          )}
+          {instructionFacts.length > 0 && (
+            <div className="mt-1 flex flex-col gap-1.5">
+              <p className="font-semibold text-gray-900 dark:text-gray-100">Facts from your instructions</p>
+              <ul className="flex flex-col gap-1.5">
+                {instructionFacts.map(fact => (
+                  <li
+                    key={fact}
+                    className="flex items-start justify-between gap-3 bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700 px-3 py-2"
+                  >
+                    <span className="text-gray-900 dark:text-gray-100 break-words">{fact}</span>
+                    <button
+                      type="button"
+                      onClick={() => onInstructionFactRemove(fact)}
+                      aria-label={`Take out: ${fact}`}
+                      className="shrink-0 text-xs text-primary-800 dark:text-primary-300 underline focus:outline-none focus:ring-2 focus:ring-primary-500"
+                    >
+                      Take out
+                    </button>
+                  </li>
+                ))}
+              </ul>
+              <p className="text-gray-600 dark:text-gray-400">
+                The new versions use them as written here. Facts you take out are not used.
+              </p>
+            </div>
+          )}
+          {instructionsNotice && (
+            <p className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100" role="status">
+              <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-warning" aria-hidden="true" />
+              <span>{instructionsNotice}</span>
+            </p>
+          )}
         </div>
       </fieldset>
 
@@ -408,7 +461,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
             type="button"
             onClick={onGenerate}
             data-tip={TIPS.generate}
-            disabled={blocked !== null}
+            disabled={blocked !== null || readingInstructions}
             className="inline-flex items-center justify-center min-h-[48px] px-8 bg-primary-500 hover:bg-primary-400 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
           >
             Looks right, generate

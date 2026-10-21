@@ -189,6 +189,12 @@ export interface FormData {
   quickInstructionFacts?: string[];
   // Quick: any instruction the writer could not follow, and why (e.g. "Kept in Spanish, the language you chose."). Shown under the result.
   quickInstructionsNote?: string;
+  // Quick: the word count the instructions asked for ("about 120 words" → 120). When set, the writer targets it and the result shows the gap.
+  quickInstructionWords?: number;
+  // Quick: "shorter" or "longer" when the instructions asked for that without a number. Switches off the ±30% length revision.
+  quickInstructionDirection?: 'shorter' | 'longer';
+  // Quick: true when the instructions asked to write like a named real person. Shown as a note under the best version.
+  quickInstructionsPerson?: boolean;
   // Section titles for structured output
   includeSectionTitles?: boolean; // Generate AI titles for each section in structured output (default: true)
   // AI Engine Mode for A/B testing

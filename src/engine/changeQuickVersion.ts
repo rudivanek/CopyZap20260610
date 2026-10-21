@@ -24,7 +24,7 @@ import {
   testimonialInstructions,
 } from './quoteLock';
 import type { TestimonialZone } from './quoteLock';
-import { QuickRunResult, scoreQuickVersions, withQuickResult } from './runQuickPipeline';
+import { QuickRunResult, scoreQuickVersions, withQuickResult, instructionsChangeNote } from './runQuickPipeline';
 import type { QuickProgress } from './runQuickPipeline';
 import { throwIfStopped } from './quickStop';
 import { quickTextKindOf } from './buildQuickFormState';
@@ -438,6 +438,12 @@ export async function changeQuickVersion(
       kindNote || HEADINGS_CHANGE_NOTE,
       keepInstructions(keepZones),
       testimonialInstructions(quoteZones),
+      // The user's free-text instructions from the first run, told to the writer
+      // below its rules, with a line that the change asked for now wins over
+      // them when the two conflict (for example a length or a tone). Without it,
+      // a change to "Warmer" can drift back to a first-run instruction to be
+      // formal. See instructionsChangeNote in runQuickPipeline.ts.
+      instructionsChangeNote(result.formState.quickInstructions ?? ''),
     ]
       .filter(Boolean)
       .join('\n\n'),
