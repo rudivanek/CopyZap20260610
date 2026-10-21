@@ -608,7 +608,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     const wasUnread =
       !!instructionsText &&
       (instructionsRead?.text !== instructionsText || instructionsReadPending.current !== null);
-    let reading = instructionsRead;
+    let reading = instructionsText ? instructionsRead : null;
     if (wasUnread) {
       reading = await readInstructionsNow();
       if (!isMounted.current) return;
@@ -1280,6 +1280,13 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           instructions={instructions}
           onInstructionsChange={value => {
             setInstructions(value);
+            // An empty box has no instructions: drop the last reading, its facts
+            // and the removed list so a run gets no word target, person flag or
+            // instruction facts, and the "Facts from your instructions" list goes away.
+            if (!value.trim()) {
+              setInstructionsRead(null);
+              setInstructionFactsRemoved([]);
+            }
             // A change to the box makes the last read stale: clear the notice too.
             if (instructionsNotice) setInstructionsNotice(null);
           }}
