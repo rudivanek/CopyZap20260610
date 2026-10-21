@@ -1,11 +1,36 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.71
-Last Updated: 2026-10-21T17:00:00Z
+Version: 1.72
+Last Updated: 2026-10-21T18:00:00Z
 
 ---
 
-Quick — "Check with another AI" now shows CopyZap's points off (facts left out, claims not in the original) so the gap to the other AI's rubric-only total is explained, asks the other AI to compute the gap on the parts sum rather than the penalised total, and widens "Worth knowing" to cover invented claims, dropped facts and broken sentences.
+Quick — The percentage next to the score gain is restored on the result screen and in the exported report (the headline under the best version's score, the ranking list, the report's journey-foot summary line, and the report's ranking-table delta cell). The percent is computed as `Math.round((gain / originalTotal) * 100)`, where gain is the shown total of the version minus the original's total — the same numbers the points already use. No percent is shown when the original's total is 0 or missing, or when the best version is "About the same as your original".
+
+---
+
+## Quick — Percentage Next to Score Gain Restored (2026-10-21)
+
+**Feature:** The `+35%` (or `−6%`) that used to sit next to the points gain — removed in commit 2193b62 on 2026-10-12 — is put back in four places, using the same formula as before: `percent = Math.round((gain / originalTotal) * 100)`, where `gain` is the shown total of the version minus the original's total (the same numbers the points already use). No `%` is shown when `originalTotal` is 0 or missing.
+1. **`src/quick/QuickResult.tsx`, the headline under the best version's score:** `deltaPercent` is shown next to `delta`, so the line now reads "+18 points (+35%) vs your original" (negative: "−4 points (−6%) vs your original"). When `nearOriginal` is true ("About the same as your original"), no `%` is shown.
+2. **`src/quick/QuickResult.tsx`, the ranking list:** `gainPercent` is shown on each ranked version's row, as "+18 | +35%". The original's row stays empty, as before.
+3. **`src/utils/enhancedExports.ts`, the exported report's journey-foot summary line:** The line that read `+18 pts` now reads `+18 pts (+35%)` again.
+4. **`src/utils/enhancedExports.ts`, the exported report's ranking-table delta cell:** The cell that read `+18` now reads `+18<small>+35%</small>` again, as before.
+
+**Why:** Commit 2193b62 (2026-10-12) removed the percent from all four places; the result screen and the exported report lost a useful at-a-glance measure of how much better (or worse) a version is than the original, leaving only the raw point delta. The percent was always computed from the same `originalTotal` the points use, so it was correct, not misleading. Restoring it puts back what was there, in the same four spots, with the same formula and the same guard against a 0 or missing original total.
+
+**Note on the requested file:** The change request named `src/services/api/comparativeScoring.ts` for the two report places, but the report's text — the journey-foot line and the ranking-table delta cell — is generated in `src/utils/enhancedExports.ts` (the `exportAsFormattedHtml` path Quick and Copy Maker both use). `comparativeScoring.ts` only computes `deltaVsBest` and `improvementPct` against the winner, not against the original; the report's delta is computed inline in `enhancedExports.ts` from `originalRow.finalScore`. The two report edits were therefore made in `enhancedExports.ts`, where the lines actually live. No other file was touched.
+
+**What did not change:** How scores, points off, or "about the same" are worked out. The ranking list's original row stays empty. The "Check with another AI" prompt has no `%` added (it shows point deltas only, by design). Copy Maker is not affected (it does not render these Quick-only spots, and its own report path through `exportAsFormattedHtml` is unchanged in behaviour — the same formula is used, so its delta cells gain the same `<small>%</small>` suffix when there is a baseline, which is the prior behaviour being restored).
+
+**Expected behaviour (to check in the app):**
+1. Open result dbb4dffb-eac3-41d1-8ab6-5122efef5e04 (Tidewell, Oct 21): the headline under the best version's score reads "+18 points (+35%) vs your original", and the ranking list shows "+18 | +35%" on the best version's row.
+2. Export that result's report: the journey-foot line reads "+18 pts (+35%)", and the ranking-table delta cell reads "+18<small>+35%</small>".
+3. Open result c40eacec-fd5b-4d47-a404-c03e67bdf734 (Bike, Oct 21): its gain is 2, within the "about the same" margin, so the headline reads "About the same as your original" with no `%`, and the ranking list shows the version without a `%` next to its gain.
+
+**Verification:**
+- `npm run build` passes.
+- The four expected-behaviour cases above hold (to be checked in the running app, since they render from saved result data).
 
 ---
 

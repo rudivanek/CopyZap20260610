@@ -1108,6 +1108,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                         {nearOriginal && 'About the same as your original'}
                         {!nearOriginal && delta > 0 && `+${delta} points`}
                         {!nearOriginal && delta < 0 && `−${Math.abs(delta)} points`}
+                        {!nearOriginal && originalTotal > 0 && ` (${delta >= 0 ? '+' : '−'}${Math.abs(Math.round((delta / originalTotal) * 100))}%)`}
                         {!nearOriginal && ' vs your original'}
                       </p>
                       <p className="text-gray-600 dark:text-gray-400">
@@ -1479,7 +1480,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                     <span className="w-28 shrink-0 text-gray-900 dark:text-gray-100 tabular-nums">
                       {isBaseline || item.gain == null
                         ? ''
-                        : `${item.gain >= 0 ? '+' : ''}${item.gain}`}
+                        : `${item.gain >= 0 ? '+' : ''}${item.gain}${originalTotal && originalTotal > 0 ? ` | ${item.gain >= 0 ? '+' : '−'}${Math.abs(Math.round((item.gain / originalTotal) * 100))}%` : ''}`}
                     </span>
                     <span className="w-24 shrink-0 text-right">
                       {total != null ? <ScoreTag total={total} /> : <span className="text-gray-600 dark:text-gray-400">Not scored</span>}

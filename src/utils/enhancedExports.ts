@@ -3172,8 +3172,10 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
       if (winnerScore !== null && baselineScore !== null) {
         const delta = winnerScore - baselineScore;
         const sign = delta >= 0 ? '+' : '';
+        const pct = baselineScore > 0 ? Math.round((delta / baselineScore) * 100) : null;
+        const pctStr = pct != null ? ` (+${pct}%)` : '';
         // The "apply all suggestions" projection is shown only when there are suggestions to apply.
-        htmlContent += `<div class="journey-foot"><b>${sign}${delta} pts</b>${projectedScore !== null ? ` &nbsp;${t.applyAllSuggestions(projectedScore)}` : ''}</div>\n`;
+        htmlContent += `<div class="journey-foot"><b>${sign}${delta} pts${pctStr}</b>${projectedScore !== null ? ` &nbsp;${t.applyAllSuggestions(projectedScore)}` : ''}</div>\n`;
       }
       htmlContent += '</div>\n';
     }
@@ -3439,7 +3441,8 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
           } else if (primary != null && baseVal != null) {
             const delta = primary - baseVal;
             const sign = delta >= 0 ? '+' : '';
-            deltaHtml = `${sign}${delta}`;
+            const pct = baseVal > 0 ? Math.round((delta / baseVal) * 100) : null;
+            deltaHtml = `${sign}${delta}${pct != null ? `<small>${pct >= 0 ? '+' : ''}${pct}%</small>` : ''}`;
           }
 
           const rowClasses = ['rank-row'];
