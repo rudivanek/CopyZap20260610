@@ -237,6 +237,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [lastBest, setLastBest] = useState<{ best: number; key: string } | null>(null);
   const [previousBest, setPreviousBest] = useState<number | null>(null);
   const isMounted = useRef(true);
+  // A read in flight: a second call (blur + generate click on the same text)
+  // returns the same promise instead of starting a second Haiku call.
+  const instructionsReadPending = useRef<Promise<(InstructionReading & { text: string }) | null> | null>(null);
 
   useEffect(() => {
     isMounted.current = true;
@@ -549,28 +552,40 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
    * changed since the last read.
    */
   const readInstructionsNow = async (): Promise<(InstructionReading & { text: string }) | null> => {
-    const text = instructions.trim();
-    if (!text) {
-      setInstructionsRead(null);
-      return null;
-    }
-    if (instructionsRead?.text === text) return instructionsRead;
-    setReadingInstructions(true);
+    // One read at a time: a second call (blur + generate click on the same
+    // text) returns the in-flight promise instead of starting a second Haiku call.
+    if (instructionsReadPending.current) return instructionsReadPending.current;
+    const run = async (): Promise<(InstructionReading & { text: string }) | null> => {
+      const text = instructions.trim();
+      if (!text) {
+        setInstructionsRead(null);
+        return null;
+      }
+      if (instructionsRead?.text === text) return instructionsRead;
+      setReadingInstructions(true);
+      try {
+        const reading = await readInstructions(text, currentUser, sessionId ?? undefined);
+        if (!isMounted.current) return null;
+        const kept = reading.facts.filter(fact => !instructionFactsRemoved.includes(fact));
+        const next = { ...reading, facts: kept, text };
+        setInstructionsRead(next);
+        return next;
+      } catch {
+        if (!isMounted.current) return null;
+        // A failed read should not block the run: treat as no facts, no length.
+        const next = { facts: [], words: null, direction: null, imitatesPerson: false, text };
+        setInstructionsRead(next);
+        return next;
+      } finally {
+        if (isMounted.current) setReadingInstructions(false);
+      }
+    };
+    const promise = run();
+    instructionsReadPending.current = promise;
     try {
-      const reading = await readInstructions(text, currentUser, sessionId ?? undefined);
-      if (!isMounted.current) return null;
-      const kept = reading.facts.filter(fact => !instructionFactsRemoved.includes(fact));
-      const next = { ...reading, facts: kept, text };
-      setInstructionsRead(next);
-      return next;
-    } catch {
-      if (!isMounted.current) return null;
-      // A failed read should not block the run: treat as no facts, no length.
-      const next = { facts: [], words: null, direction: null, imitatesPerson: false, text };
-      setInstructionsRead(next);
-      return next;
+      return await promise;
     } finally {
-      if (isMounted.current) setReadingInstructions(false);
+      instructionsReadPending.current = null;
     }
   };
 
@@ -586,12 +601,18 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     // If the instructions changed since they were last read (or were never
     // read), read them now. If the read finds facts the user has not seen yet,
     // do not start the run: show them the facts so they can take out any they
-    // do not want, then click "Looks right, generate" again.
+    // do not want, then click "Looks right, generate" again. The run uses the
+    // reading made here, not the state value from before the click — otherwise a
+    // read triggered by the click would be ignored for words, direction and person.
     const instructionsText = instructions.trim();
-    if (instructionsText && instructionsRead?.text !== instructionsText) {
-      const reading = await readInstructionsNow();
+    const wasUnread =
+      !!instructionsText &&
+      (instructionsRead?.text !== instructionsText || instructionsReadPending.current !== null);
+    let reading = instructionsRead;
+    if (wasUnread) {
+      reading = await readInstructionsNow();
       if (!isMounted.current) return;
-      if (reading && reading.facts.length > 0 && reading.text !== instructionsRead?.text) {
+      if (reading && reading.facts.length > 0) {
         setInstructionsNotice(
           'CopyZap found facts in your instructions. Check them, then click Looks right, generate.'
         );
@@ -631,12 +652,12 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           signal,
           userFacts,
           instructions: instructionsText ? instructionsText : undefined,
-          instructionFacts: instructionsRead?.facts,
+          instructionFacts: reading?.facts,
           instructionLength:
-            instructionsRead && (instructionsRead.words != null || instructionsRead.direction != null)
-              ? { words: instructionsRead.words, direction: instructionsRead.direction }
+            reading && (reading.words != null || reading.direction != null)
+              ? { words: reading.words, direction: reading.direction }
               : undefined,
-          instructionImitatesPerson: instructionsRead?.imitatesPerson === true ? true : undefined,
+          instructionImitatesPerson: reading?.imitatesPerson === true ? true : undefined,
           brief: brief
             ? {
                 product: brief.product,
