@@ -16,6 +16,7 @@ const CreateAccount: React.FC<CreateAccountProps> = ({ onLogin, onLoginSuccess }
   const [name, setName] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
+  const [emailError, setEmailError] = useState('');
   const [message, setMessage] = useState('');
   const [connectionError, setConnectionError] = useState<string | null>(null);
   const [showEmailConfirmModal, setShowEmailConfirmModal] = useState(false);
@@ -73,6 +74,7 @@ const CreateAccount: React.FC<CreateAccountProps> = ({ onLogin, onLoginSuccess }
   // Reset error when form fields change
   useEffect(() => {
     if (error) setError('');
+    if (emailError) setEmailError('');
   }, [email, password, name]);
 
   // Handle Google OAuth sign-in
@@ -214,7 +216,9 @@ const CreateAccount: React.FC<CreateAccountProps> = ({ onLogin, onLoginSuccess }
     } catch (err: any) {
       console.error('Auth error:', err);
 
-      if (err.message) {
+      if (err.message && err.message.includes('Temporary email addresses')) {
+        setEmailError(err.message);
+      } else if (err.message) {
         if (err.message.includes('Failed to fetch')) {
           setError('Connection error: Unable to reach authentication service. Please check your Supabase configuration and network connection.');
         } else {
@@ -359,11 +363,20 @@ const CreateAccount: React.FC<CreateAccountProps> = ({ onLogin, onLoginSuccess }
                 autoComplete="email"
                 required
                 value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                onChange={(e) => {
+                  setEmail(e.target.value);
+                  if (emailError) setEmailError('');
+                }}
                 className="bg-gray-100 dark:bg-gray-800 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-white pl-10 pr-4 py-2 focus:ring-gray-500 focus:border-gray-500 block w-full"
                 placeholder="Your email"
               />
             </div>
+            {emailError && (
+              <p className="text-sm text-red-600 dark:text-red-400 mt-2 flex items-start">
+                <AlertCircle size={16} className="mr-1.5 mt-0.5 flex-shrink-0" />
+                <span>{emailError}</span>
+              </p>
+            )}
           </div>
 
           <div>
