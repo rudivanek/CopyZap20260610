@@ -221,6 +221,12 @@ function findTestimonials(lines: string[]): Found[] {
       }
       words += lineWords;
       start = j;
+      // An opening quotation mark shows where the words begin, with or without
+      // blank lines between paragraphs. Stop here once this line is part of the body.
+      if (startsWithQuoteMark(line)) {
+        open = false;
+        break;
+      }
     }
     if (start === -1) continue;
 

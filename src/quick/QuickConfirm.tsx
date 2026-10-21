@@ -415,11 +415,9 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
           <p className="text-gray-600 dark:text-gray-400 tabular-nums" aria-live="polite">
             {instructions.length} / 500
           </p>
-          {readingInstructions && (
-            <p className="text-gray-600 dark:text-gray-400" aria-live="polite">
-              Reading your instructions…
-            </p>
-          )}
+          <p className={'text-gray-600 dark:text-gray-400 ' + (readingInstructions ? '' : 'invisible')} aria-live="polite">
+            Reading your instructions…
+          </p>
           {instructionFacts.length > 0 && (
             <div className="mt-1 flex flex-col gap-1.5">
               <p className="font-semibold text-gray-900 dark:text-gray-100">Facts from your instructions</p>

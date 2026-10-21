@@ -573,7 +573,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       } catch {
         if (!isMounted.current) return null;
         // A failed read should not block the run: treat as no facts, no length.
-        const next = { facts: [], words: null, direction: null, imitatesPerson: false, text };
+        const next = { facts: [], words: null, direction: null, imitatesPerson: false, language: null, text };
         setInstructionsRead(next);
         return next;
       } finally {
@@ -619,6 +619,14 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         return;
       }
     }
+    // When the instructions ask for a different language than the one chosen on
+    // the check screen, tell the user instead of running: the chosen language wins.
+    if (reading?.language && brief && reading.language.toLowerCase() !== brief.language.toLowerCase()) {
+      setInstructionsNotice(
+        `CopyZap writes in the language you choose under Language. To write in ${reading.language}, choose it there.`
+      );
+      return;
+    }
     setInstructionsNotice(null);
 
     setError(null);
@@ -658,6 +666,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               ? { words: reading.words, direction: reading.direction }
               : undefined,
           instructionImitatesPerson: reading?.imitatesPerson === true ? true : undefined,
+          instructionLanguage: reading?.language ?? undefined,
           brief: brief
             ? {
                 product: brief.product,
@@ -916,6 +925,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               words: result.formState.quickInstructionWords ?? null,
               direction: result.formState.quickInstructionDirection ?? null,
               imitatesPerson: result.formState.quickInstructionsPerson === true,
+              language: null,
             }
           : null
       );

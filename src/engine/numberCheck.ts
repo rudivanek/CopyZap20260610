@@ -421,6 +421,78 @@ function listValuesIn(text: string): string[] {
   return values;
 }
 
+/**
+ * Numbers a version strengthens with a prefix the source does not use for that
+ * number: "over 500" when the source says only "500", "more than 200" when the
+ * source says "200", "at least 50" when the source says "50", "100+" when the
+ * source says "100". The prefix is allowed only when a source passage has the
+ * same prefix before the same number.
+ *
+ * Each finding's "numbers" field holds the prefix + number as written in the
+ * version, so the cleanup can take out the prefix or the whole claim.
+ */
+
+export function strengthenedNumbers(versionText: string, sourceText: string): NumberFinding[] {
+  const version = numbersIn(versionText);
+  const source = numbersIn(sourceText);
+  const findings: (NumberFinding & { place: string })[] = [];
+  const reported = new Set<string>();
+
+  // For each number value in the source, collect the word right before it on
+  // the same line, so "over 200" in the source allows "over 200" in the version.
+  const sourcePrefixByValue = new Map<string, Set<string>>();
+  for (const token of source.tokens) {
+    const line = source.lines[token.line];
+    const before = line.slice(0, token.at);
+    const prefixMatch = before.match(/(\b\w+\s+)$/);
+    const prefixWord = prefixMatch ? prefixMatch[1].trim().toLowerCase() : '';
+    for (const key of token.keys) {
+      if (!sourcePrefixByValue.has(key)) sourcePrefixByValue.set(key, new Set());
+      sourcePrefixByValue.get(key)!.add(prefixWord);
+    }
+  }
+
+  for (const token of version.tokens) {
+    for (const key of token.keys) {
+      if (reported.has(key)) continue;
+      // The number must be present in the source (otherwise it's already flagged
+      // as a plain added number, not a strengthening).
+      const sourceKeys = new Set(source.tokens.flatMap(t => [...t.keys, ...(t.alsoCounts ?? [])]));
+      if (!sourceKeys.has(key)) continue;
+
+      const line = version.lines[token.line];
+      const before = line.slice(0, token.at);
+      // "over 500", "more than 500", "500+"
+      const prefixPhrase = before.match(/(over|more\s+than|at\s+least|less\s+than|up\s+to|almost|nearly|about|around|approximately)\s+$/i);
+      const plusSuffix = line.slice(token.at + token.display.length).match(/^\+/);
+      if (!prefixPhrase && !plusSuffix) continue;
+
+      const prefixText = prefixPhrase ? prefixPhrase[1].toLowerCase().replace(/\s+/g, ' ') : '';
+      // "500+" → the prefix word is "+"
+      const versionPrefix = plusSuffix ? '+' : prefixText;
+
+      // Allowed when the source uses the same prefix for the same number.
+      const allowed = sourcePrefixByValue.get(key);
+      if (allowed && (allowed.has(versionPrefix) || allowed.has(prefixText))) continue;
+
+      reported.add(key);
+      const display = (prefixPhrase ? prefixPhrase[0] : '') + token.display + (plusSuffix ? '+' : '');
+      const [start, end] = sentenceBounds(line, token.at);
+      const place = `${token.line}:${start}`;
+      const existing = findings.find(finding => finding.place === place);
+      if (existing) {
+        existing.numbers.push(display);
+      } else {
+        let sentence = line.slice(start, end);
+        if (plain(sentence).length < 25) sentence = line;
+        findings.push({ numbers: [display], context: contextFor(sentence, display), place });
+      }
+    }
+  }
+
+  return findings.map(({ numbers, context }) => ({ numbers, context }));
+}
+
 export function checkNumbers(versionText: string, originalText: string): NumberCheck {
   const version = numbersIn(versionText);
   const original = numbersIn(originalText);

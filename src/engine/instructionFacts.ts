@@ -25,6 +25,8 @@ export interface InstructionReading {
   direction: 'shorter' | 'longer' | null;
   /** True when the instructions ask to write like, or in the voice of, a named real person. */
   imitatesPerson: boolean;
+  /** The output language the instructions ask for, as an English name ("French", "Spanish"…), or null. */
+  language: string | null;
 }
 
 const EMPTY_READING: InstructionReading = {
@@ -32,7 +34,8 @@ const EMPTY_READING: InstructionReading = {
   words: null,
   direction: null,
   imitatesPerson: false,
-};
+  language: null,
+}
 
 const SYSTEM_PROMPT = `You read a business owner's free-text instructions for rewriting a piece of marketing copy. The instructions are mostly about style and length, but the owner may have put a fact about the business, a length target, or a named person to imitate in them.
 
@@ -50,7 +53,9 @@ Also read out three more values:
 
 "imitatesPerson": true when the instructions ask to write like, or in the voice of, a named real person, otherwise false.
 
-Answer with JSON only: {"facts":["..."],"words":null,"direction":null,"imitatesPerson":false}`;
+"language": the output language the instructions ask for, as an English name ("French", "Spanish", "German"…), or null when they do not name a language.
+
+Answer with JSON only: {"facts":["..."],"words":null,"direction":null,"imitatesPerson":false,"language":null}`;
 
 const oneLine = (value: unknown, max: number): string =>
   typeof value === 'string' ? value.replace(/\s+/g, ' ').trim().slice(0, max) : '';
@@ -65,6 +70,12 @@ const asDirection = (value: unknown): 'shorter' | 'longer' | null =>
   value === 'shorter' || value === 'longer' ? value : null;
 
 const asBool = (value: unknown): boolean => value === true;
+
+const asLanguage = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const name = value.trim().slice(0, 20);
+  return name.length > 0 ? name : null;
+};
 
 /**
  * The facts, length target, direction and person flag found in the instructions.
@@ -96,6 +107,7 @@ export async function readInstructions(
       words?: unknown;
       direction?: unknown;
       imitatesPerson?: unknown;
+      language?: unknown;
     };
     if (!Array.isArray(parsed?.facts)) return EMPTY_READING;
     const facts = parsed.facts.map(fact => oneLine(fact, USER_FACT_MAX_CHARS)).filter(Boolean);
@@ -107,6 +119,7 @@ export async function readInstructions(
       words,
       direction,
       imitatesPerson: asBool(parsed.imitatesPerson),
+      language: asLanguage(parsed.language),
     };
   } catch {
     return EMPTY_READING;
