@@ -48,6 +48,9 @@ export const QUICK_CHANGE_MAX_WORDS = 6500;
 const FULL_REQUESTS: Record<string, string> = {
   shorter:
     'Make it about a quarter shorter. Keep every section, every heading and every fact: cut repetition, filler and long-winded sentences, not content.',
+  // Said out in full since 2026-10-22, also for the pass Quick makes by itself (ctaPass.ts).
+  'stronger call to action':
+    'Make the call to action clear and specific. Put it where the reader decides: after the main benefit and at the end; say it at most twice. Start it with a specific action verb and say exactly what the reader does and what happens next, using only what the text already says: its offer, its contact method, its next step. Add nothing the text does not state: no new offer, free extra, discount, deadline, urgency, scarcity, guarantee, response time, number, price, quote or result, and no links or buttons. Change only the sentences that ask for action and, where needed, the sentence just before them; keep everything else as it is.',
 };
 export const QUICK_CHANGE_MIN_CHARS = 3;
 /** Longest text the user can type as a change of their own. */
@@ -240,7 +243,9 @@ function requestFor(
   }
   const all = [
     ...ticked.map(part =>
-      direction && lengthTarget != null && part.toLowerCase() === direction ? lengthRequest(direction, lengthTarget, words) : part
+      direction && lengthTarget != null && part.toLowerCase() === direction
+        ? lengthRequest(direction, lengthTarget, words)
+        : FULL_REQUESTS[part.toLowerCase()] ?? part
     ),
     ...(own ? [own] : []),
   ];

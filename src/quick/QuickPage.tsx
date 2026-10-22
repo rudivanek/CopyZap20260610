@@ -54,6 +54,7 @@ import { APP_VERSION } from '../lib/version';
 import { estimateRunTime, KEEP_TAB_OPEN_FROM_WORDS, useSessionCredits } from '../engine/quickCredits';
 import { InstructionReading, readInstructions } from '../engine/instructionFacts';
 import { OriginalScore, scoreOriginal } from '../engine/originalScore';
+import { strengthenWeakCallToAction } from '../engine/ctaPass';
 
 interface QuickPageProps {
   currentUser: User;
@@ -693,7 +694,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     const startedAt = Date.now();
 
     try {
-      const run = await runQuickPipeline(
+      const firstRun = await runQuickPipeline(
         {
           // With parts kept or left out, "the copy" is the page without the left-out parts.
           copy: usesParts ? plan.copy : copy,
@@ -739,6 +740,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         }
       );
       if (!alive.current) return;
+      // A weak call to action on the best version: one more pass on it, kept only when clearly better
+      // (engine/ctaPass.ts). The wait modal stays on its last step meanwhile.
+      const run = await strengthenWeakCallToAction(firstRun, currentUser, undefined, signal);
       const seconds = Math.round((Date.now() - startedAt) / 1000);
       setRunSeconds(seconds);
       setResult(run);
