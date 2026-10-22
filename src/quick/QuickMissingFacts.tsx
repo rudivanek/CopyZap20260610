@@ -27,6 +27,8 @@ interface QuickMissingFactsProps {
   chat: FactChatSwitch;
   /** True while the questions are asked again after a change: the loading line says so. */
   updating?: boolean;
+  /** The original's score (0–100) read on the check screen. Not shown while it is read or when the read failed. */
+  originalScore?: number | null;
 }
 
 /**
@@ -50,7 +52,7 @@ const FIELD =
   'text-gray-900 dark:text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500';
 const LABEL = 'font-semibold text-gray-900 dark:text-gray-100';
 
-const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answers, onAnswersChange, chat, updating }) => {
+const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answers, onAnswersChange, chat, updating, originalScore }) => {
   const asked = questions ?? [];
   const used = factsFromAnswers(asked, answers).length;
   const unfinished = unfinishedAnswers(asked, answers);
@@ -68,6 +70,12 @@ const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answer
         <h2 id="quick-facts-title" className="text-base font-semibold text-gray-900 dark:text-gray-100">
           Make it stronger <span className="font-normal text-gray-600 dark:text-gray-400">(recommended)</span>
         </h2>
+        {originalScore != null && (
+          <p className="text-gray-900 dark:text-gray-100">
+            Your copy scores <span className="font-semibold">{originalScore} / 100</span> now.
+            {!nothingMissing && ' In our tests, a few true answers raised the best version by about 4 to 7 points.'}
+          </p>
+        )}
         {inChat ? (
           <p className="text-gray-600 dark:text-gray-400">
             {nothingMissing

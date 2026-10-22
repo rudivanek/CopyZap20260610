@@ -239,6 +239,12 @@ export interface QuickRunInput {
   instructionLanguage?: string;
   /** True when the instructions asked to write like a named real person. */
   instructionImitatesPerson?: boolean;
+  /**
+   * The original's score read on the check screen (see originalScore.ts). Used
+   * for the original when it was read from exactly this copy, so the result
+   * shows the number the user already saw. Otherwise the original is scored here.
+   */
+  originalScore?: { text: string; score: AbsoluteScoreBreakdown };
 }
 
 export interface QuickRunResult {
@@ -398,7 +404,7 @@ export async function scoreQuickVersions(
    * against a fixed bar, so scoring the same text again would only add noise
    * and could change a number the user has already seen.
    */
-  keepScores?: QuickScores | null,
+  keepScores?: Pick<QuickScores, 'absoluteByVersion' | 'winnerId'> | null,
   /** Set when the user can stop the process: after a stop, no further scoring call is started. */
   signal?: AbortSignal
 ): Promise<QuickScores> {
@@ -994,7 +1000,13 @@ export async function runQuickPipeline(
   let scores: QuickScores | null = null;
   let scoringError: string | undefined;
   try {
-    scores = await scoreQuickVersions(formState, versions, input.goalKey, user, onProgress, undefined, input.signal);
+    // The original keeps the score the check screen showed, when it was read from this copy.
+    const readBefore = input.originalScore;
+    const keepOriginal =
+      readBefore && readBefore.text.trim() === fullCopy && isCompleteScore(readBefore.score)
+        ? { absoluteByVersion: { [ORIGINAL_VERSION_ID]: readBefore.score }, winnerId: null }
+        : undefined;
+    scores = await scoreQuickVersions(formState, versions, input.goalKey, user, onProgress, keepOriginal, input.signal);
   } catch (error) {
     scoringError = errorMessage(error);
   }

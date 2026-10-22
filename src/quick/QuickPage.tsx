@@ -53,6 +53,7 @@ import { GOAL_TIPS, TIPS } from './tips';
 import { APP_VERSION } from '../lib/version';
 import { estimateRunTime, KEEP_TAB_OPEN_FROM_WORDS, useSessionCredits } from '../engine/quickCredits';
 import { InstructionReading, readInstructions } from '../engine/instructionFacts';
+import { OriginalScore, scoreOriginal } from '../engine/originalScore';
 
 interface QuickPageProps {
   currentUser: User;
@@ -494,6 +495,41 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     });
   }, [phase, factsKind, factsKnown, factsKey, goalKey, goalOther, copy, currentUser, sessionId]);
 
+  /**
+   * The original's score, shown above "Make it stronger" on the check screen
+   * ("Your copy scores 72 / 100 now"). Read once the screen has settled for a
+   * moment, for the exact text the run will get; any change reads it again. The
+   * run reuses this reading for the original, so both screens show the same number.
+   */
+  const [origScore, setOrigScore] = useState<{ key: string; result: OriginalScore | null } | null>(null);
+  const scoreText = phase === 'confirm' ? (sections.length > 1 ? plan.copy : copy).trim() : '';
+  const scoreKind = brief?.kind ?? '';
+  const scoreKindOther = brief?.kindOther ?? '';
+  const scoreKey = [goalKey, goalKey === 'custom' ? cleanQuickGoalLabel(goalOther) : '', scoreKind, scoreKindOther, scoreText].join('|');
+  // A reading that comes back after the copy, goal or kind changed again is dropped.
+  const latestScoreKey = useRef(scoreKey);
+  latestScoreKey.current = scoreKey;
+  useEffect(() => {
+    if (!scoreText || !scoreKind || !asksForMissingFacts(goalKey)) return;
+    if (origScore?.key === scoreKey) return;
+    const key = scoreKey;
+    const timer = window.setTimeout(() => {
+      scoreOriginal(
+        scoreText,
+        goalKey,
+        goalKey === 'custom' ? goalOther : undefined,
+        { key: scoreKind, other: scoreKindOther },
+        currentUser,
+        sessionId ?? undefined
+      ).then(result => {
+        if (!isMounted.current || latestScoreKey.current !== key) return;
+        setOrigScore({ key, result });
+      });
+    }, 1500);
+    return () => window.clearTimeout(timer);
+  }, [scoreKey, scoreText, scoreKind, scoreKindOther, goalKey, goalOther, currentUser, sessionId, origScore?.key]);
+  const origScoreNow = origScore && origScore.key === scoreKey && origScore.result ? origScore.result : null;
+
   // Unlocked when the new questions are there, when the user leaves the check
   // screen, and after FACTS_UPDATE_MAX_MS at the latest: a slow call never keeps the screen locked.
   const factsArrived = facts?.questions != null;
@@ -676,6 +712,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           goalLabel: goalKey === 'custom' ? goalOther : undefined,
           sessionId: sessionId ?? undefined,
           signal,
+          originalScore: origScoreNow ?? undefined,
           userFacts,
           instructions: instructionsText ? instructionsText : undefined,
           instructionFacts: reading?.facts,
@@ -1286,6 +1323,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           blocked={blocked}
           factQuestions={factQuestions}
           factsUpdating={factsUpdating}
+          originalScore={origScoreNow ? origScoreNow.score.total : null}
           factAnswers={factAnswers}
           onFactAnswersChange={setFactAnswers}
           factChat={{

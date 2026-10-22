@@ -47,6 +47,8 @@ interface QuickConfirmProps {
    * typed into the chat is lost when the new questions arrive.
    */
   factsUpdating?: boolean;
+  /** The original's score (0–100) read on the check screen, shown in "Make it stronger". */
+  originalScore?: number | null;
   factAnswers: FactAnswers;
   onFactAnswersChange: (answers: FactAnswers) => void;
   /**
@@ -113,6 +115,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
   blocked,
   factQuestions,
   factsUpdating = false,
+  originalScore = null,
   factAnswers,
   onFactAnswersChange,
   factChat,
@@ -382,6 +385,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
             onAnswersChange={onFactAnswersChange}
             chat={factChat}
             updating={factsUpdating}
+            originalScore={originalScore}
           />
         )}
 
