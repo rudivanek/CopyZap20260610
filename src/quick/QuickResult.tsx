@@ -580,7 +580,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
 
   // Comparison & rankings: every scored version, best first, the original last.
   const rankingOf = (version: typeof winner) => {
-    const score = scores?.absoluteByVersion[version.id];
+    // The best version shows the score the card shows: after "Re-score", or without settled claims.
+    const score = version.id === winner.id ? winnerScore : scores?.absoluteByVersion[version.id];
     const row = rows.find(item => item.versionId === version.id);
     const gate = gates[version.id];
     const gain = score && originalTotal != null ? score.total - originalTotal : null;
