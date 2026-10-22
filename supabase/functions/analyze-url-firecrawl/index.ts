@@ -16,6 +16,40 @@ interface FirecrawlRequest {
   session_id?: string | null;
 }
 
+/**
+ * Runs in the page before Firecrawl reads it. Counter widgets (Elementor,
+ * ElementsKit and similar) start at 0 and count up to a number kept in a data
+ * attribute when the visitor scrolls to them, so a scrape reads "+ 0". This
+ * sets each such counter to its target value. Only leaf elements whose text is
+ * a number are touched, and only from a plain numeric attribute.
+ * Seen 2026-10-21 on salesboostconsulting.com.mx (data-value="2500").
+ */
+const COUNTER_SCRIPT = `(() => {
+  const ATTRS = ['data-to-value', 'data-value', 'data-count', 'data-target', 'data-end', 'data-number',
+    'data-counter', 'data-number-value', 'data-counter-value', 'data-countup', 'data-final', 'data-to', 'data-max'];
+  const lang = (document.documentElement.lang || 'en').split('-')[0] || 'en';
+  let fixed = 0;
+  document.querySelectorAll(ATTRS.map(a => '[' + a + ']').join(',')).forEach(el => {
+    if (el.children.length > 0) return;
+    if (/^(INPUT|SELECT|OPTION|TEXTAREA|BUTTON|PROGRESS|METER)$/.test(el.tagName)) return;
+    const shown = (el.textContent || '').trim();
+    if (!/^[\d.,\s]*$/.test(shown)) return;
+    let raw = null;
+    for (const a of ATTRS) { if (el.hasAttribute(a)) { raw = (el.getAttribute(a) || '').trim(); break; } }
+    if (!raw || !/^\d[\d.,]*$/.test(raw)) return;
+    const value = Number(raw.replace(/,/g, ''));
+    if (!isFinite(value)) return;
+    let text = raw;
+    if (Number.isInteger(value) && value >= 1000) {
+      try { text = value.toLocaleString(lang); } catch (e) { text = String(value); }
+    }
+    if (shown.replace(/\D/g, '') === text.replace(/\D/g, '')) return;
+    el.textContent = text;
+    fixed += 1;
+  });
+  return fixed;
+})()`;
+
 interface ExtractedData {
   whatCreating: string;
   targetAudience: string;
@@ -144,7 +178,7 @@ Deno.serve(async (req) => {
     console.log(`Scraping URL with Firecrawl: ${url} (mode: ${extractMode})`);
 
     // Call Firecrawl API to scrape the URL
-    const firecrawlResponse = await fetch('https://api.firecrawl.dev/v1/scrape', {
+    const scrape = (withCounters: boolean) => fetch('https://api.firecrawl.dev/v1/scrape', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${firecrawlKey}`,
@@ -154,8 +188,17 @@ Deno.serve(async (req) => {
         url: url,
         formats: ['markdown', 'html'],
         onlyMainContent: true,
+        ...(withCounters ? { actions: [{ type: 'executeJavascript', script: COUNTER_SCRIPT }] } : {}),
       })
     });
+
+    // Quick (rawCopy) sets animated counters to their real values first. If
+    // Firecrawl refuses the script, the page is read once more without it.
+    let firecrawlResponse = await scrape(extractMode === 'rawCopy');
+    if (!firecrawlResponse.ok && extractMode === 'rawCopy') {
+      console.error('Scrape with counter script failed, retrying without it:', firecrawlResponse.status);
+      firecrawlResponse = await scrape(false);
+    }
 
     if (!firecrawlResponse.ok) {
       const errorText = await firecrawlResponse.text();

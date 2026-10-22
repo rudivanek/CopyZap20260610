@@ -143,6 +143,73 @@ const WIDGET_MAX_WORDS = 12;
 const COOKIE_MAX_LINE_WORDS = 45;
 const COOKIE_MAX_TOTAL_WORDS = 150;
 
+/** A stat number on its own line: "+ 2500", "\+ 25", "1,200", "~40". */
+const COUNTER_NUMBER = /^\?([+~≈]?)\s*(\d[\d.,]*)$/;
+/** A unit a counter widget puts on its own line after the number. */
+const COUNTER_UNIT = /^(%|\+|[kKmMxX]|°)$/;
+/** A stat label is short and is not a sentence or a heading. */
+const COUNTER_LABEL_MAX_WORDS = 6;
+
+/**
+ * Joins a stat block back into one line per stat.
+ *
+ * Counter widgets put the number, its unit and its label in separate elements,
+ * so a fetched page arrives as "+ 25" / "%" / "Aumento de Ventas" on three
+ * lines. The lone "%" was then dropped as furniture and the number lost its
+ * meaning. Joined, it reads "+25% Aumento de Ventas".
+ *
+ * The page's real numbers come from the server: analyze-url-firecrawl sets each
+ * animated counter to its target value before the page is read (2026-10-21,
+ * seen on salesboostconsulting.com.mx, where every counter read "+ 0"). A
+ * counter still at 0 is not joined, so the "+ 0" rule below removes it.
+ */
+export function joinCounterLines(text: string): string {
+  const lines = (text || '').replace(/\r\n?/g, '\n').split('\n');
+  const out: string[] = [];
+  const nextFilled = (from: number) => {
+    let index = from;
+    while (index < lines.length && !nonBlank(lines[index])) index += 1;
+    return index;
+  };
+  for (let i = 0; i < lines.length; i++) {
+    const match = lines[i].trim().match(COUNTER_NUMBER);
+    if (!match || /^0+$/.test(match[2].replace(/[.,]/g, '')) || /^0\d$/.test(match[2])) {
+      out.push(lines[i]);
+      continue;
+    }
+    let stat = `${match[1]}${match[2]}`;
+    let last = i;
+    const unitAt = nextFilled(i + 1);
+    if (unitAt < lines.length && COUNTER_UNIT.test(lines[unitAt].trim())) {
+      stat += lines[unitAt].trim();
+      last = unitAt;
+    }
+    const labelAt = nextFilled(last + 1);
+    if (labelAt < lines.length) {
+      const label = lines[labelAt].trim();
+      const isLabel =
+        !/^\s{0,3}#{1,6}\s/.test(lines[labelAt]) &&
+        !/^([-*+]|\d+[.)])\s/.test(label) &&
+        !COUNTER_NUMBER.test(label) &&
+        /\p{L}/u.test(label) &&
+        wordsIn(label) <= COUNTER_LABEL_MAX_WORDS &&
+        !/[.!?…:;]$/.test(label);
+      if (isLabel) {
+        stat += ` ${label}`;
+        last = labelAt;
+      }
+    }
+    // A bare number with neither unit nor label stays as it was.
+    if (last === i) {
+      out.push(lines[i]);
+      continue;
+    }
+    out.push(stat);
+    i = last;
+  }
+  return out.join('\n');
+}
+
 /**
  * Removes page furniture that a fetch brings along with the copy:
  *
@@ -160,8 +227,9 @@ const COOKIE_MAX_TOTAL_WORDS = 150;
  * Used for fetched pages only; pasted text is left exactly as the user gave it.
  */
 export function stripPageFurniture(text: string): { text: string; removed: number } {
-  let lines = (text || '').replace(/\r\n?/g, '\n').split('\n');
-  const before = lines.filter(nonBlank).length;
+  const before = (text || '').replace(/\r\n?/g, '\n').split('\n').filter(nonBlank).length;
+  // 0 — stat blocks back to one line per stat, before a lone "%" is dropped below.
+  let lines = joinCounterLines(text).split('\n');
 
   // 1 — cookie notice at the end: short lines from the first mention of cookies to the end.
   const filled = lines.map((line, index) => ({ line, index })).filter(item => nonBlank(item.line));
@@ -238,7 +306,7 @@ export function stripPageFurniture(text: string): { text: string; removed: numbe
     if ((counts.get(key) ?? 0) >= REPEATED_LABEL_MIN) return false;
     if (/^0\d$/.test(key) || /^\d{1,2}\s*[—–\-/]\s*\d{1,2}$/.test(key)) return false;
     if (!isRuleLine(line) && !/[\p{L}\p{N}]/u.test(key)) return false;
-    if (/^[+-]?\s*0\s*%?$/.test(key)) return false;
+    if (/^\\?[+-]?\s*0\s*%?$/.test(key)) return false;
     if (SKIP_LINK.test(key)) return false;
     const plain = key.replace(/^([-*+]|\d+[.)])\s+/, '').replace(/[*_`]/g, '').trim();
     if (wordsIn(plain) <= WIDGET_MAX_WORDS && !/[.!?]$/.test(plain)) {

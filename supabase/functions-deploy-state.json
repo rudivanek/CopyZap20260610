@@ -1,0 +1,85 @@
+{
+  "projectId": "57925151",
+  "functions": {
+    "admin-create-user": {
+      "hasChanged": false,
+      "hash": "5126d9dbc91a56fa071574cd7f00c05175d2f51400dc5cf81e5aab8e07feb19d9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "admin-delete-user": {
+      "hasChanged": false,
+      "hash": "872683270c0a473954b8b064f024d7b870cea63e4c6b962539fb9da37b1a22739219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "admin-export-token-usage": {
+      "hasChanged": false,
+      "hash": "5eb0dbcc5c4ee614086fb81fc1a1bd1e20fe7cda8d2d8cbcb7954ee53cf954ed9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "admin-get-beta-registrations-count": {
+      "hasChanged": false,
+      "hash": "bac26dcc3f1a4b05b3017e22c875cb29cbfd148398441100042e202c6ec4d4669219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "admin-get-token-stats": {
+      "hasChanged": false,
+      "hash": "c7ee4000a53aca095459ee74fef7263510f087953d703cf492227a144be197d79219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "admin-get-token-usage": {
+      "hasChanged": false,
+      "hash": "a76f430c29ad02d80604990d15a247237829e08203f101ca5ecc9b6f99cd651e9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "admin-get-users": {
+      "hasChanged": false,
+      "hash": "f0739624e1a70e505849429e7d32f64e9dfe86b5bf8d0d699b1fae212872095a9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "admin-ping": {
+      "hasChanged": false,
+      "hash": "6822d9ab563f77b83a236bac4b2598c83ccbd3e0551ef540fd224ca3179040899219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "admin-update-user": {
+      "hasChanged": false,
+      "hash": "359ba7236c71dae3e74087da7baac8a046ec3d8d0936b233f6e6f585f832eaed9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "ai-completion": {
+      "hasChanged": false,
+      "hash": "a56cd056b15394b00c54c33d36f99a35946f370a31030f770409f6e89710d2e59219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "analyze-brand-voice": {
+      "hasChanged": false,
+      "hash": "ce661ae089f3ca240ec4199fe4b24bc19948856180b632eb59e42c0b26336ccf9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "analyze-url": {
+      "hasChanged": false,
+      "hash": "2cf4e63f6bb9fc0910565db4d218a9881853451902688714ffd886d438d12d359219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "analyze-url-firecrawl": {
+      "hasChanged": false,
+      "hash": "114d0866c95f3cf7bb4934068e827228a755e19e090043a370d3576857fb51c89219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "create-checkout-session": {
+      "hasChanged": false,
+      "hash": "79b11bfa8187912a9a77321b26ca130eff48df62ba7996058b661d7e0e32d6a59219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "extract-brand-voice-from-url": {
+      "hasChanged": false,
+      "hash": "d4cf2bf45abfd8d94fba55dbc556053d89af76fe34bcead2d554c126bd1e76ce9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "register-beta-user": {
+      "hasChanged": false,
+      "hash": "2823d9e72c9ddb94a32efae72d750635daf81fa89d2c937a8faae1bd0d51ea7c9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "send-help-email": {
+      "hasChanged": false,
+      "hash": "2211dd285d5e8c6b863bcf0af21c1910914f573ab47f90218c5ad129ae1c006e9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "send-welcome-email": {
+      "hasChanged": false,
+      "hash": "1384811be13729a1b84b4e3493be384f2dc95e1224c2700db67192e993aba4b29219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "stripe-webhook": {
+      "hasChanged": false,
+      "hash": "fb3453df235bbecf26ba9dbe709edf3f2bc27418e4ec5f47ed4ad4aba45967029219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    },
+    "submit-help-feedback": {
+      "hasChanged": false,
+      "hash": "2363a54223c62fb91df4a5bd5c6546ede2e8e1e4e6add427f3d35884b1b6e80b9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+    }
+  }
+}
