@@ -73,8 +73,9 @@ export const TIPS = {
   factChat: 'Write it as it is true for you, with your own figures and currency. Enter sends it.',
   factRemove: 'Leaves this fact out of the new versions.',
   runAgain: 'Back to the check screen with the same copy and choices. Answer the questions there, then generate three new versions. This result stays in History.',
-  factStarter: 'Adds this answer to the field; you can add more than one. Fill in each ___ with your own value and change anything that is not true for you, then send. Tap it again before filling it in to take it out.',
-  factStarterFilled: 'Already in your answer. To take it out, delete it in the field.',
+  factStarter: 'Adds this answer as its own line below; you can add more than one. Fill in each ___ with your own value and change anything that is not true for you, then send.',
+  factStarterInUse: 'In your answer as its own line. Tap again to take it out.',
+  factStarterRemove: 'Takes this line out of your answer.',
   factFromPage: 'Puts this passage of your page in the answer field. Check it and send it, or change it first.',
   factAdd: 'A fact that is true for you, in your own words. It goes into the list exactly as you write it. Enter adds it.',
   // Result screen

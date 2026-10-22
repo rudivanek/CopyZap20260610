@@ -28,9 +28,11 @@ import { TIPS } from './tips';
  * it or not; nothing is used on its own.
  *
  * Under a question CopyZap can also show two or three starter answers ("Free
- * first call of ___ minutes"). A tap puts one in the answer field with the
- * cursor on the first ___; it cannot be sent until every ___ is filled in, so
- * a starter is always changed into the user's own answer before it counts.
+ * first call of ___ minutes"). Each tap adds one as its own line, in its own
+ * field with a ✕ to take it out, and puts the cursor on its ___. Nothing can
+ * be sent until every ___ is filled in, so a starter is always changed into
+ * the user's own answer before it counts. The lines and the answer field are
+ * sent together as one answer; the chat step makes each its own fact.
  */
 interface QuickFactChatProps {
   /** null while Quick is still looking for what is missing. */
@@ -73,6 +75,10 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
   const inFlight = useRef(new Set<string>());
   const lastIndex = chat.turns.length - 1;
   const lastQuestion = chat.turns[lastIndex];
+  // The starter answers the user tapped for the question on screen, each its own line. Kept per
+  // question (by its place in the chat): a new question starts with none.
+  const [picked, setPicked] = useState<{ at: number; lines: { starter: string; text: string }[] }>({ at: -1, lines: [] });
+  const pickedLines = picked.at === lastIndex ? picked.lines : [];
   useEffect(() => {
     if (!lastQuestion || lastQuestion.from !== 'copyzap' || lastQuestion.fromPage !== undefined) return;
     if (lastQuestion.text === CLOSING_QUESTION) return;
@@ -107,6 +113,7 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
   /** Adds the user's answer and asks CopyZap for the next step. A late reply for an older chat is ignored. */
   const answer = (text: string) => {
     if (chat.waiting || chat.done || questions === null) return;
+    setPicked({ at: -1, lines: [] });
     const sent: FactChat = {
       ...chat,
       draft: '',
@@ -131,31 +138,42 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
   };
 
   // A starter answer still has a ___ to fill in: it cannot be sent yet.
-  const blankLeft = /_{2,}/.test(chat.draft);
+  const blankLeft = /_{2,}/.test(chat.draft) || pickedLines.some(line => /_{2,}/.test(line.text));
+  // Something to send: a starter line or the user's own words.
+  const hasAnswer = !!chat.draft.trim() || pickedLines.some(line => line.text.trim());
   const send = () => {
     // Enter in the field sends too: not while the page check runs, and not with a ___ left.
     if (locked || blankLeft) return;
     const text = chat.draft.replace(/\s+/g, ' ').trim();
-    if (text) answer(text);
+    const all = joinAnswers([...pickedLines.map(line => line.text), text]);
+    if (all) answer(all);
   };
   /**
-   * A tap on a starter answer adds it to the field (several can be added to one
-   * answer), or takes it out again while its ___ is still empty. Then the cursor
-   * goes to the first ___ left, so the user types their own value there.
+   * A tap on a starter answer adds it as its own line, with the cursor on its
+   * ___ so the user types their own value there. A second tap takes the line
+   * out again, filled in or not.
    */
   const pickStarter = (starter: string) => {
-    const draft = chat.draft.trim();
-    const next = draft.includes(starter) ? withoutStarter(draft, starter) : withStarter(draft, starter);
-    setChat(current => ({ ...current, draft: next }));
+    if (pickedLines.some(line => line.starter === starter)) {
+      takeOutLine(starter);
+      return;
+    }
+    const lines = [...pickedLines, { starter, text: starter }];
+    setPicked({ at: lastIndex, lines });
+    const id = starterFieldId(lines.length - 1);
     window.setTimeout(() => {
-      const field = document.getElementById('quick-fact-chat') as HTMLTextAreaElement | null;
+      const field = document.getElementById(id) as HTMLTextAreaElement | null;
       if (!field) return;
       field.focus();
-      const at = next.indexOf(FACT_BLANK);
+      const at = starter.indexOf(FACT_BLANK);
       if (at >= 0) field.setSelectionRange(at, at + FACT_BLANK.length);
-      else field.setSelectionRange(next.length, next.length);
+      else field.setSelectionRange(starter.length, starter.length);
     }, 0);
   };
+  const takeOutLine = (starter: string) =>
+    setPicked({ at: lastIndex, lines: pickedLines.filter(line => line.starter !== starter) });
+  const editLine = (starter: string, text: string) =>
+    setPicked({ at: lastIndex, lines: pickedLines.map(line => (line.starter === starter ? { ...line, text } : line)) });
   const remove = (fact: string) =>
     setChat(current => ({
       ...current,
@@ -165,7 +183,10 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
     }));
   const finish = () => setChat(current => ({ ...current, done: true, waiting: false }));
   // A new chat keeps the facts the user added by hand.
-  const restart = () => setChat(current => ({ ...startFactChat(questions ?? []), added: current.added }));
+  const restart = () => {
+    setPicked({ at: -1, lines: [] });
+    setChat(current => ({ ...startFactChat(questions ?? []), added: current.added }));
+  };
 
   // "Add a fact": straight into the list, exactly as typed.
   const [addDraft, setAddDraft] = useState('');
@@ -216,18 +237,18 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
                   </p>
                   <div className="flex flex-wrap gap-2">
                     {turn.starters.map(starter => {
-                      const state = starterState(chat.draft, starter);
+                      const inUse = pickedLines.some(line => line.starter === starter);
                       return (
                         <button
                           key={starter}
                           type="button"
                           onClick={() => pickStarter(starter)}
-                          disabled={locked || state === 'filled'}
-                          aria-pressed={state !== 'out'}
-                          data-tip={state === 'filled' ? TIPS.factStarterFilled : TIPS.factStarter}
-                          className={SECONDARY + ' text-left' + (state === 'out' ? '' : ' border-primary-500 ring-1 ring-primary-500')}
+                          disabled={locked}
+                          aria-pressed={inUse}
+                          data-tip={inUse ? TIPS.factStarterInUse : TIPS.factStarter}
+                          className={SECONDARY + ' text-left' + (inUse ? ' border-primary-500 ring-1 ring-primary-500' : '')}
                         >
-                          {state === 'out' ? '+ ' : '✓ '}
+                          {inUse ? '✓ ' : '+ '}
                           {starter}
                         </button>
                       );
@@ -278,6 +299,33 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
 
       {!chat.done && lastIsQuestion && (
         <div className="flex flex-col gap-2">
+          {pickedLines.map((line, at) => (
+            <div key={line.starter} className="flex items-start gap-2">
+              <label htmlFor={starterFieldId(at)} className="sr-only">
+                Your answer, line {at + 1}
+              </label>
+              <GrowingField
+                id={starterFieldId(at)}
+                value={line.text}
+                maxLength={USER_FACT_MAX_CHARS}
+                onChange={text => editLine(line.starter, text)}
+                onEnter={send}
+                disabled={locked}
+                tip={TIPS.factChat}
+                className={FIELD + ' flex-1'}
+              />
+              <button
+                type="button"
+                onClick={() => takeOutLine(line.starter)}
+                disabled={locked}
+                aria-label={`Take out: ${line.text}`}
+                data-tip={TIPS.factStarterRemove}
+                className={SECONDARY + ' shrink-0'}
+              >
+                ✕
+              </button>
+            </div>
+          ))}
           <label htmlFor="quick-fact-chat" className="sr-only">
             Your answer
           </label>
@@ -288,12 +336,12 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
             onChange={draft => setChat(current => ({ ...current, draft }))}
             onEnter={send}
             disabled={locked}
-            placeholder="Your answer, as it is true for you"
+            placeholder={pickedLines.length ? 'Anything to add in your own words (optional)' : 'Your answer, as it is true for you'}
             tip={TIPS.factChat}
             className={FIELD}
           />
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={send} disabled={locked || blankLeft || !chat.draft.trim()} className={PRIMARY}>
+            <button type="button" onClick={send} disabled={locked || blankLeft || !hasAnswer} className={PRIMARY}>
               Send
             </button>
             <button type="button" onClick={() => answer(SKIPPED_ANSWER)} disabled={locked} className={SECONDARY}>
@@ -328,7 +376,7 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
         {facts.length === 0 ? (
           <p className="text-gray-600 dark:text-gray-400">
             None yet: CopyZap uses only what your copy says.
-            {chat.draft.trim() && !chat.waiting && ' Your answer is not sent yet.'}
+            {hasAnswer && !chat.waiting && ' Your answer is not sent yet.'}
           </p>
         ) : (
           <>
@@ -351,7 +399,7 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
             </ul>
             <p className="text-gray-600 dark:text-gray-400">
               The new versions use {facts.length === 1 ? 'it' : 'them'} as written here.
-              {chat.draft.trim() && !chat.waiting && ' Your last answer is not sent yet.'}
+              {hasAnswer && !chat.waiting && ' Your last answer is not sent yet.'}
             </p>
           </>
         )}
@@ -381,42 +429,22 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
 
 export default QuickFactChat;
 
-/** A starter answer added to the field and its ___ still empty ("in"), added and filled in ("filled"), or not added ("out"). */
-type StarterState = 'in' | 'filled' | 'out';
+/** The field of the starter line at this place under the question. */
+const starterFieldId = (at: number) => `quick-fact-starter-${at}`;
 
-/**
- * Where a starter answer is in the field. Once its ___ is filled in, its text is
- * no longer in the field word for word: it counts as filled when the longest
- * part around its blanks still is (at least four characters, so a short part
- * such as "de" does not match anything).
- */
-export function starterState(draft: string, starter: string): StarterState {
-  if (draft.includes(starter)) return 'in';
-  const longest = starter
-    .split(FACT_BLANK)
-    .map(part => part.trim())
-    .reduce((best, part) => (part.length > best.length ? part : best), '');
-  return longest.length >= 4 && draft.includes(longest) ? 'filled' : 'out';
-}
-
-/** The field with a starter answer added at the end, as its own sentence. */
-export function withStarter(draft: string, starter: string): string {
-  const text = draft.trim();
-  if (!text) return starter;
-  const ends = text.slice(-1);
-  return text + ('.!?…'.includes(ends) ? ' ' : '. ') + starter;
-}
-
-/** The field with a starter answer (still unfilled) taken out, and the full stop that joined it. */
-export function withoutStarter(draft: string, starter: string): string {
-  const at = draft.indexOf(starter);
-  if (at < 0) return draft;
-  const before = draft.slice(0, at).trim();
-  let after = draft.slice(at + starter.length).trim();
-  if (after.startsWith('.')) after = after.slice(1).trim();
-  if (!before) return after;
-  if (!after) return before;
-  return before + ' ' + after;
+/** The starter lines and the user's own words as one answer: each a sentence of its own, in order. */
+export function joinAnswers(parts: string[]): string {
+  let text = '';
+  for (const part of parts) {
+    const piece = part.split(' ').filter(Boolean).join(' ').trim();
+    if (!piece) continue;
+    if (!text) {
+      text = piece;
+      continue;
+    }
+    text += ('.!?…'.includes(text.slice(-1)) ? ' ' : '. ') + piece;
+  }
+  return text;
 }
 
 /** Whether this browser chose the chat last time. Kept for the next check screen; storage can fail, then it is off. */
