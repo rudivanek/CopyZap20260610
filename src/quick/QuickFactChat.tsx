@@ -138,16 +138,22 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
     const text = chat.draft.replace(/\s+/g, ' ').trim();
     if (text) answer(text);
   };
-  /** Puts a starter answer in the field, with the cursor on its first ___ so the user types their own value there. */
+  /**
+   * A tap on a starter answer adds it to the field (several can be added to one
+   * answer), or takes it out again while its ___ is still empty. Then the cursor
+   * goes to the first ___ left, so the user types their own value there.
+   */
   const pickStarter = (starter: string) => {
-    setChat(current => ({ ...current, draft: starter }));
+    const draft = chat.draft.trim();
+    const next = draft.includes(starter) ? withoutStarter(draft, starter) : withStarter(draft, starter);
+    setChat(current => ({ ...current, draft: next }));
     window.setTimeout(() => {
       const field = document.getElementById('quick-fact-chat') as HTMLTextAreaElement | null;
       if (!field) return;
       field.focus();
-      const at = starter.indexOf(FACT_BLANK);
+      const at = next.indexOf(FACT_BLANK);
       if (at >= 0) field.setSelectionRange(at, at + FACT_BLANK.length);
-      else field.setSelectionRange(starter.length, starter.length);
+      else field.setSelectionRange(next.length, next.length);
     }, 0);
   };
   const remove = (fact: string) =>
@@ -205,20 +211,27 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
               )}
               {turn.starters && turn.starters.length > 0 && index === chat.turns.length - 1 && !chat.done && (
                 <div className="mt-1.5 flex flex-col gap-1.5">
-                  <p className="text-gray-600 dark:text-gray-400">Start from one of these, then make it true for you:</p>
+                  <p className="text-gray-600 dark:text-gray-400">
+                    Tap one or more, then fill in the {FACT_BLANK} so each is true for you:
+                  </p>
                   <div className="flex flex-wrap gap-2">
-                    {turn.starters.map(starter => (
-                      <button
-                        key={starter}
-                        type="button"
-                        onClick={() => pickStarter(starter)}
-                        disabled={locked}
-                        data-tip={TIPS.factStarter}
-                        className={SECONDARY + ' text-left'}
-                      >
-                        {starter}
-                      </button>
-                    ))}
+                    {turn.starters.map(starter => {
+                      const state = starterState(chat.draft, starter);
+                      return (
+                        <button
+                          key={starter}
+                          type="button"
+                          onClick={() => pickStarter(starter)}
+                          disabled={locked || state === 'filled'}
+                          aria-pressed={state !== 'out'}
+                          data-tip={state === 'filled' ? TIPS.factStarterFilled : TIPS.factStarter}
+                          className={SECONDARY + ' text-left' + (state === 'out' ? '' : ' border-primary-500 ring-1 ring-primary-500')}
+                        >
+                          {state === 'out' ? '+ ' : '✓ '}
+                          {starter}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
               )}
@@ -367,6 +380,44 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
 };
 
 export default QuickFactChat;
+
+/** A starter answer added to the field and its ___ still empty ("in"), added and filled in ("filled"), or not added ("out"). */
+type StarterState = 'in' | 'filled' | 'out';
+
+/**
+ * Where a starter answer is in the field. Once its ___ is filled in, its text is
+ * no longer in the field word for word: it counts as filled when the longest
+ * part around its blanks still is (at least four characters, so a short part
+ * such as "de" does not match anything).
+ */
+export function starterState(draft: string, starter: string): StarterState {
+  if (draft.includes(starter)) return 'in';
+  const longest = starter
+    .split(FACT_BLANK)
+    .map(part => part.trim())
+    .reduce((best, part) => (part.length > best.length ? part : best), '');
+  return longest.length >= 4 && draft.includes(longest) ? 'filled' : 'out';
+}
+
+/** The field with a starter answer added at the end, as its own sentence. */
+export function withStarter(draft: string, starter: string): string {
+  const text = draft.trim();
+  if (!text) return starter;
+  const ends = text.slice(-1);
+  return text + ('.!?…'.includes(ends) ? ' ' : '. ') + starter;
+}
+
+/** The field with a starter answer (still unfilled) taken out, and the full stop that joined it. */
+export function withoutStarter(draft: string, starter: string): string {
+  const at = draft.indexOf(starter);
+  if (at < 0) return draft;
+  const before = draft.slice(0, at).trim();
+  let after = draft.slice(at + starter.length).trim();
+  if (after.startsWith('.')) after = after.slice(1).trim();
+  if (!before) return after;
+  if (!after) return before;
+  return before + ' ' + after;
+}
 
 /** Whether this browser chose the chat last time. Kept for the next check screen; storage can fail, then it is off. */
 const CHAT_CHOICE_KEY = 'copyzap.quick.factChat';
