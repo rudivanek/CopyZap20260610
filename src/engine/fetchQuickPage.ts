@@ -475,6 +475,12 @@ export function stripPageFurniture(text: string): { text: string; removed: numbe
       counts.set(key, (counts.get(key) ?? 0) + 1);
     }
   }
+  // A line with a number or a price is never such a label: "Inscríbete por $19 USD"
+  // under five topics is five prices, not menu clutter (until 2026-10-22 all five
+  // were taken out of Logoforo's seminar page, and the versions guessed the prices).
+  for (const key of [...counts.keys()]) {
+    if (/[0-9]/.test(key)) counts.delete(key);
+  }
   lines = lines.filter(line => {
     const key = line.trim();
     if (!key) return true;

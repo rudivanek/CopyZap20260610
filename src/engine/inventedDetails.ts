@@ -292,8 +292,40 @@ export async function removeInventedDetails(
     const removed = details
       .filter(detail => (detail.claim ? !standsIn(detail.item, edited) : !left.has(detail.item)))
       .map(detail => detail.item);
-    return removed.length > 0 ? { text: edited, removed } : unchanged;
+    return removed.length > 0 ? { text: closeTableGaps(edited), removed } : unchanged;
   } catch {
     return unchanged;
   }
+}
+
+/**
+ * A markdown table after rows were taken out of it. An edit that takes out a
+ * row can leave an empty line, or a row with only empty cells, between the
+ * rows that stay; an empty line ends a markdown table, so everything after it
+ * showed as raw "| ... |" text (seen 2026-10-22: Logoforo's price table, after
+ * the invented "$47 USD" rows were taken out of the best version). Empty lines
+ * between two table rows and rows whose cells are all empty are taken out;
+ * nothing else changes.
+ */
+export function closeTableGaps(text: string): string {
+  const isRow = (line: string | undefined) => line !== undefined && line.trim().startsWith('|');
+  const isEmptyRow = (line: string) => {
+    if (!isRow(line)) return false;
+    const cells = line.trim().split('|').slice(1, -1);
+    return cells.length > 0 && cells.every(cell => cell.trim() === '');
+  };
+  const lines = text.split(String.fromCharCode(10)).filter(line => !isEmptyRow(line));
+  const kept: string[] = [];
+  for (let i = 0; i < lines.length; i++) {
+    if (lines[i].trim() === '' && isRow(kept[kept.length - 1])) {
+      let next = i;
+      while (next < lines.length && lines[next].trim() === '') next++;
+      if (isRow(lines[next])) {
+        i = next - 1;
+        continue;
+      }
+    }
+    kept.push(lines[i]);
+  }
+  return kept.join(String.fromCharCode(10));
 }
