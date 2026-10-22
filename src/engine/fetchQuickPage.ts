@@ -220,6 +220,167 @@ export function joinCounterLines(text: string): string {
   return out.join(LF);
 }
 
+/*
+ * Section leftovers (2026-10-22). Seen on salesboostconsulting.com.mx: a fetched
+ * page brings the small labels a theme prints above its headings
+ * ("Certificaciones" above "### Resultados comprobados", "Soluciones" above
+ * "## Servicios"), the blog teasers at the foot of a home page (title, a cut-off
+ * first line, author and date), a lone menu link ("- ¿Quiénes somos?") and
+ * "Leer más »" in front of a course name. Quick kept them and the scorer took
+ * Structure points off for "orphaned fragments". A planned rewrite that left
+ * them out scored 20 on Structure against Quick's 17.5.
+ *
+ * Written without backslashes on purpose: a backslash in a pasted edit is
+ * easily lost, which silently breaks a pattern (see joinCounterLines).
+ */
+const SECTION_HEADING = /^ {0,3}#{1,6} /;
+const SECTION_LIST_ITEM = /^ *([-*+•]|[0-9]+[.)]) /;
+/** A section label has at most this many words. */
+const SECTION_LABEL_MAX_WORDS = 4;
+/** A link that leads somewhere ("Más sobre el seminario") is a pointer, not a label. */
+const POINTER_START =
+  /^(más|mas|ver|conoce|descubre|lee|leer|read|see|view|learn|discover|find|explore|explora|mehr|voir|scopri|saiba|veja)( |$)/i;
+/** A button that asks for the action ("Agendar", "Book a call") is the call to action, not a label. */
+const ACTION_START =
+  /^(agenda|agendar|contacta|contáctanos|contactanos|cotiza|cotizar|compra|comprar|reserva|reservar|llama|llámanos|escribe|escríbenos|solicita|inscríbete|inscribete|regístrate|registrate|empieza|comienza|prueba|descarga|book|buy|call|contact|request|order|sign|join|try|start|get|schedule|download|subscribe|jetzt|kontakt|buchen|anfragen|kaufen|réserver|reserver|contactez|acheter|prenota|contatta|acquista|agende|compre|fale)( |$)/i;
+/** A short line about an offer or a guarantee ("Envío gratis") is a fact, not a label. */
+const OFFER_WORD =
+  /(gratis|gratuit|free|sin costo|garant|guarant|descuento|discount|oferta|offer|promo|envío|envio|shipping|kostenlos|rabatt|angebot|offert|sconto|grátis|desconto)/i;
+/** Words of the month in the languages Quick writes, for the dates under a blog teaser. */
+const MONTH_WORD =
+  /(enero|febrero|marzo|abril|mayo|junio|julio|agosto|septiembre|setiembre|octubre|noviembre|diciembre|january|february|march|april|may|june|july|august|september|october|november|december|januar|februar|märz|juni|juli|oktober|dezember|janvier|février|mars|avril|mai|juin|juillet|août|septembre|octobre|novembre|décembre|gennaio|febbraio|aprile|maggio|giugno|luglio|settembre|ottobre|dicembre|janeiro|fevereiro|março|maio|junho|julho|setembro|outubro|novembro|dezembro|jan|feb|mar|apr|jun|jul|aug|sep|sept|oct|nov|dec|ene|abr|ago|dic)/i;
+
+const sectionWords = (text: string) => {
+  const t = text.trim();
+  return t ? t.split(/ +/).length : 0;
+};
+/** The line without list mark, heading marks and emphasis. */
+const sectionPlain = (line: string) =>
+  line
+    .replace(SECTION_HEADING, '')
+    .replace(SECTION_LIST_ITEM, '')
+    .split('*').join('')
+    .split('_').join('')
+    .split('`').join('')
+    .trim();
+
+/** A short label that is not a sentence, a figure, a pointer or a call to action. */
+function isSectionLabel(line: string): boolean {
+  // A quote, a table row, or a name after a dash ("—Roberto Yelin", under a testimonial) is not a label.
+  if (SECTION_HEADING.test(line) || SECTION_LIST_ITEM.test(line) || /^ *[>|—–-]/.test(line)) return false;
+  const text = sectionPlain(line);
+  const count = sectionWords(text);
+  if (count === 0 || count > SECTION_LABEL_MAX_WORDS) return false;
+  if (/[.!?…:;¿¡%$€]/.test(text) || /[0-9]/.test(text)) return false;
+  if (POINTER_START.test(text) || ACTION_START.test(text) || OFFER_WORD.test(text)) return false;
+  return /[a-záéíóúüñäöß]/i.test(text);
+}
+
+/** A date line under a blog teaser: "mayo 22, 2026", "22 de mayo de 2026", "2026-05-22". */
+function isTeaserDate(text: string): boolean {
+  if (sectionWords(text) > 6 || !/(19|20)[0-9][0-9]/.test(text)) return false;
+  return MONTH_WORD.test(text) || /[0-9]{1,2}[/.-][0-9]{1,2}[/.-][0-9]{2,4}|[0-9]{4}-[0-9]{2}-[0-9]{2}/.test(text);
+}
+
+/** An author line under a blog teaser: a name of one to four words, no figures. */
+function isTeaserAuthor(text: string): boolean {
+  const count = sectionWords(text);
+  return count >= 1 && count <= 4 && !/[0-9.!?:;,]/.test(text) && /^[A-ZÁÉÍÓÚÜÑÄÖ]/.test(text);
+}
+
+/**
+ * Removes the section leftovers of a fetched page, whole lines only:
+ *  - a blog teaser: a list of an author and a date, with the article next to
+ *    it (a heading and its cut-off first line, no closing stop) under or over it;
+ *  - a section label: one or two short lines straight above a heading, when
+ *    the line before them is not a heading (a heading's subtitle stays) and
+ *    the label appears only once on the page (a badge repeated above sibling
+ *    headings, such as "Soon" above each plan, is information and stays);
+ *  - a lone menu link: one list item on its own that is a short question
+ *    ("- ¿Quiénes somos?");
+ *  - "Leer más »" / "Read more »" in front of other words on the same line
+ *    (only those words are taken off; the rest of the line stays).
+ * A pointer to another page ("Más sobre el seminario") and a call to action
+ * ("Agendar") are never taken as a label.
+ */
+export function stripSectionLeftovers(input: string[]): string[] {
+  const lines = input.map(line =>
+    line.replace(
+      /^( *(?:[-*+•] +)?)(leer más|leer mas|ver más|ver mas|read more|learn more|weiterlesen|lire la suite|leggi di più|saiba mais|ler mais) *[»›→]+ +(?=[^ ])/i,
+      '$1'
+    )
+  );
+  const filled: number[] = [];
+  lines.forEach((line, index) => {
+    if (line.trim()) filled.push(index);
+  });
+  const textAt = (position: number) => (position >= 0 && position < filled.length ? lines[filled[position]] : '');
+  const isHeadingAt = (position: number) => SECTION_HEADING.test(textAt(position));
+  const isListAt = (position: number) => SECTION_LIST_ITEM.test(textAt(position));
+  const gone = new Set<number>();
+  const counts = new Map<string, number>();
+  for (const index of filled) {
+    const key = sectionPlain(lines[index]).toLowerCase();
+    counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+
+  // Blog teasers.
+  for (let position = 0; position < filled.length; position++) {
+    if (!isListAt(position)) continue;
+    let end = position;
+    while (end + 1 < filled.length && isListAt(end + 1)) end += 1;
+    const items: string[] = [];
+    for (let k = position; k <= end; k++) items.push(sectionPlain(textAt(k)));
+    const dates = items.filter(isTeaserDate).length;
+    const authors = items.filter(item => !isTeaserDate(item) && isTeaserAuthor(item)).length;
+    const teaser = items.length <= 3 && dates === 1 && dates + authors === items.length;
+    if (teaser) {
+      // The author and date sit under one article or above the next one,
+      // depending on the theme: take the article on either side whose first
+      // line is cut off.
+      const cutOff = (k: number) => {
+        const text = sectionPlain(textAt(k));
+        return k >= 0 && k < filled.length && !isHeadingAt(k) && !isListAt(k) && sectionWords(text) <= 30 && !/[.!?…””»)]$/.test(text);
+      };
+      const found: number[] = [];
+      if (cutOff(position - 1) && isHeadingAt(position - 2)) found.push(position - 2, position - 1);
+      if (isHeadingAt(end + 1) && cutOff(end + 2)) found.push(end + 1, end + 2);
+      if (found.length > 0) {
+        for (let k = position; k <= end; k++) gone.add(filled[k]);
+        for (const k of found) gone.add(filled[k]);
+      }
+    }
+    position = end;
+  }
+
+  // Section labels straight above a heading, and the label above a teaser that is gone.
+  for (let position = 0; position < filled.length; position++) {
+    const nextKept = (() => {
+      let k = position + 1;
+      while (k < filled.length && gone.has(filled[k])) k += 1;
+      return k;
+    })();
+    const aboveHeading = nextKept < filled.length && isHeadingAt(nextKept);
+    const aboveGoneTeaser = position + 1 < filled.length && gone.has(filled[position + 1]);
+    if (gone.has(filled[position]) || !isSectionLabel(textAt(position)) || !(aboveHeading || aboveGoneTeaser)) continue;
+    const labels = [position];
+    if (position - 1 >= 0 && !gone.has(filled[position - 1]) && isSectionLabel(textAt(position - 1))) labels.unshift(position - 1);
+    const before = labels[0] - 1;
+    if (before >= 0 && isHeadingAt(before)) continue;
+    if (labels.some(k => (counts.get(sectionPlain(textAt(k)).toLowerCase()) ?? 0) > 1)) continue;
+    for (const k of labels) gone.add(filled[k]);
+  }
+
+  // A lone menu link.
+  for (let position = 0; position < filled.length; position++) {
+    if (!isListAt(position) || isListAt(position - 1) || isListAt(position + 1)) continue;
+    const text = sectionPlain(textAt(position));
+    if (sectionWords(text) <= 3 && text.endsWith('?')) gone.add(filled[position]);
+  }
+
+  return gone.size === 0 ? lines : lines.filter((_, index) => !gone.has(index));
+}
+
 /**
  * Removes page furniture that a fetch brings along with the copy:
  *
@@ -301,6 +462,10 @@ export function stripPageFurniture(text: string): { text: string; removed: numbe
     }
     if (gone.size > 0) lines = lines.filter((_, index) => !gone.has(index));
   }
+
+  // 2c — section labels above headings, blog teasers, a lone menu link,
+  // and "Leer más »" in front of a name (see stripSectionLeftovers).
+  lines = stripSectionLeftovers(lines);
 
   // 3 — labels that repeat all over the page, and ordinal counters.
   const counts = new Map<string, number>();
