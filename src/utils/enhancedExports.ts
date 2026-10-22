@@ -24,6 +24,7 @@ import { generateExportAnalysis } from './contentAnalysisForExport';
 import { calculateTargetWordCount } from '../services/api/utils';
 import jsPDF from 'jspdf';
 import { formatVersionTime, localTimeZoneLabel } from './versionTime';
+import { levelChange } from '../engine/scoreLevels';
 
 /**
  * A paying account's own report brand. When passed to `exportAsFormattedHtml`,
@@ -3173,7 +3174,8 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
         const delta = winnerScore - baselineScore;
         const sign = delta >= 0 ? '+' : '';
         const pct = baselineScore > 0 ? Math.round((delta / baselineScore) * 100) : null;
-        const pctStr = pct != null ? ` (${pct >= 0 ? '+' : ''}${pct}%)` : '';
+        // The level in words after the points (engine/scoreLevels.ts): "· Below average → Competent".
+        const pctStr = (pct != null ? ` (${pct >= 0 ? '+' : ''}${pct}%)` : '') + ` &middot; ${escapeHtml(levelChange(baselineScore, winnerScore))}`;
         // The "apply all suggestions" projection is shown only when there are suggestions to apply.
         htmlContent += `<div class="journey-foot"><b>${sign}${delta} pts${pctStr}</b>${projectedScore !== null ? ` &nbsp;${t.applyAllSuggestions(projectedScore)}` : ''}</div>\n`;
       }

@@ -475,7 +475,7 @@ export async function scoreQuickVersions(
     if (!facts || facts.length === 0) return found;
     await Promise.all(
       scoredFresh.map(async version => {
-        const left = await findLeftOutFacts(facts, contentToText(version.content), user, formState.sessionId);
+        const left = await findLeftOutFacts(facts, contentToText(version.content), user, formState.sessionId, formState.originalCopy || '');
         if (left) found[version.id] = left;
       })
     );

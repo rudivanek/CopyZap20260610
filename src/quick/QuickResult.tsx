@@ -5,7 +5,8 @@ import { contentToText } from '../services/api/contentText';
 import type { AbsoluteScoreBreakdown } from '../services/api/absoluteScoring';
 import { countWords } from '../utils/markdownUtils';
 import { formatVersionTime } from '../utils/versionTime';
-import { getAbsoluteScoreLabel, getAbsoluteScoreMarkClass } from '../utils/scoreColors';
+import { getAbsoluteScoreMarkClass } from '../utils/scoreColors';
+import { levelChange, scoreLevel } from '../engine/scoreLevels';
 import { deriveQuickLabel, quickGoalName } from '../engine/buildQuickFormState';
 import {
   composeQuickChange,
@@ -31,6 +32,7 @@ import {
   resultWithReview,
   reviewFor,
   reviewScore,
+  confirmedScore,
   scoreIsStale,
   sentenceAround,
   withDecision,
@@ -523,8 +525,10 @@ const QuickResult: React.FC<QuickResultProps> = ({
   // After "Re-score", the score of the text as it is now; until then, the run's.
   const runWinnerTotal = scores?.absoluteByVersion[winner.id]?.total;
   const rescored = reviewScore(result, winner.id);
+  // Claims the user confirmed, removed or edited away no longer cost points (no re-reading needed).
+  const settled = rescored ? null : confirmedScore(result, winner.id);
   const scoreStale = scoreIsStale(result, winner.id);
-  const winnerScore = rescored ?? scores?.absoluteByVersion[winner.id];
+  const winnerScore = rescored ?? settled ?? scores?.absoluteByVersion[winner.id];
   const originalScore = scores?.absoluteByVersion[ORIGINAL_VERSION_ID];
   const winnerTotal = winnerScore?.total;
   const weakest = weakestPart(winnerScore);
@@ -624,7 +628,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
   };
 
   const goalName = quickGoalName(result.goalKey, result.formState.quickGoalLabel);
-  const scoreLabel = winnerTotal != null ? getAbsoluteScoreLabel(winnerTotal) : '';
+  // The level in words, from the scorer's own scale (engine/scoreLevels.ts): "Competent", "Strong".
+  const scoreLabel = winnerTotal != null ? scoreLevel(winnerTotal) : '';
 
   const copyBest = async () => {
     try {
@@ -1102,6 +1107,11 @@ const QuickResult: React.FC<QuickResultProps> = ({
                       Scored again with your changes. Before your changes: {runWinnerTotal} / 100.
                     </p>
                   )}
+                  {settled && runWinnerTotal != null && (
+                    <p className="text-gray-600 dark:text-gray-400 tabular-nums">
+                      Claims you checked no longer cost points. Before: {runWinnerTotal} / 100.
+                    </p>
+                  )}
                   {delta != null && originalTotal != null ? (
                     <div className="flex flex-col gap-1">
                       <p className="font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
@@ -1111,8 +1121,11 @@ const QuickResult: React.FC<QuickResultProps> = ({
                         {!nearOriginal && originalTotal > 0 && ` (${delta >= 0 ? '+' : '−'}${Math.abs(Math.round((delta / originalTotal) * 100))}%)`}
                         {!nearOriginal && ' vs your original'}
                       </p>
+                      {!nearOriginal && winnerTotal != null && (
+                        <p className="font-semibold text-gray-900 dark:text-gray-100">{levelChange(originalTotal, winnerTotal)}</p>
+                      )}
                       <p className="text-gray-600 dark:text-gray-400">
-                        Your original scored {originalTotal} / 100.
+                        Your original scored {originalTotal} / 100 ({scoreLevel(originalTotal)}).
                         {nearOriginal && ` Scores within ${QUICK_SCORE_MARGIN} points cannot be told apart.`}
                       </p>
                       {closeCount > 0 && (

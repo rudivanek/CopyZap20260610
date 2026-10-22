@@ -5,6 +5,7 @@ import { FactAnswers, factsFromAnswers, OTHER_FACT_KEY, unfinishedAnswers } from
 import { TIPS } from './tips';
 import GrowingField from './GrowingField';
 import SquareCheck from './SquareCheck';
+import { scoreLevel } from '../engine/scoreLevels';
 import QuickFactChat from './QuickFactChat';
 import type { FactChat, FactChatContext } from '../engine/factChat';
 
@@ -72,7 +73,7 @@ const QuickMissingFacts: React.FC<QuickMissingFactsProps> = ({ questions, answer
         </h2>
         {originalScore != null && (
           <p className="text-gray-900 dark:text-gray-100">
-            Your copy scores <span className="font-semibold">{originalScore} / 100</span> now.
+            Your copy scores <span className="font-semibold">{originalScore} / 100</span> now ({scoreLevel(originalScore)}).
             {!nothingMissing && ' In our tests, a few true answers raised the best version by about 4 to 7 points.'}
           </p>
         )}

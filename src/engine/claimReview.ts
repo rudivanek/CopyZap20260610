@@ -18,9 +18,12 @@
  * ("from" → "to"), so it can be undone on its own: the text is rebuilt from
  * the best version by applying the others again.
  *
- * The score stays the one of the best version as written. "Re-score" scores
- * the changed text (three readings, the middle one, as the run does, and the
- * key facts it leaves out) and keeps that score with the decisions.
+ * The score stays the one of the best version as written, except that a
+ * claim the user confirmed, removed or edited away no longer costs points
+ * (confirmedScore, since 2026-10-22: before, the points came back only after
+ * "Re-score"). "Re-score" scores the changed text (three readings, the middle
+ * one, as the run does, and the key facts it leaves out) and keeps that score
+ * with the decisions.
  */
 import { User } from '../types';
 import { contentToText } from '../services/api/contentText';
@@ -287,12 +290,65 @@ export function scoreIsStale(result: QuickRunResult, versionId: string): boolean
   const text = applyDecisions(contentToText(version.content), review.decisions);
   const current =
     review.score && review.scoredText === text ? review.score : result.scores?.absoluteByVersion[versionId];
-  // Fewer open claims than the score counted: "Re-score" gives the points back.
-  if (current?.claims_open !== undefined && openClaimCount(result, versionId, review.decisions, text) < current.claims_open) {
-    return true;
-  }
-  if (review.score && review.scoredText === text) return false;
+  // Claims confirmed since the score no longer cost points without a "Re-score" (confirmedScore),
+  // so they do not make the score out of date; a changed text does.
+  if (current && review.score && review.scoredText === text) return false;
   return text !== tidy(contentToText(version.content));
+}
+
+/**
+ * The run's score of a version, with the claims the user confirmed ("It's
+ * true"), removed or edited away no longer costing points: the reader checked
+ * them, so CopyZap no longer holds them against the version. The four parts are
+ * the run's (the text is not read again; that is "Re-score"). Null when no
+ * claim that cost points was settled.
+ */
+export function confirmedScore(result: QuickRunResult, versionId: string): AbsoluteScoreBreakdown | null {
+  const review = reviewFor(result, versionId);
+  const base = result.scores?.absoluteByVersion[versionId];
+  if (!review || !base || !base.claims_open || base.claims_penalty === undefined) return null;
+  const text = reviewedText(result, versionId);
+  if (text === null) return null;
+  const open = openClaimCount(result, versionId, review.decisions, text);
+  if (open >= base.claims_open) return null;
+  const penalty = claimsPenalty(open);
+  return {
+    ...base,
+    total: Math.min(100, base.total + base.claims_penalty - penalty),
+    claims_open: open,
+    claims_penalty: penalty,
+  };
+}
+
+/**
+ * What the user said is true about the best version's claims, for the check
+ * with another AI: a claim they kept ("It's true") as the check named it, and
+ * for a claim they edited, the line of the text that holds their words. Without
+ * it the other AI reports the user's own facts as invented (seen 2026-10-22:
+ * all three AIs flagged "20 claves", which the user had written themselves).
+ */
+export function confirmedClaims(result: QuickRunResult): string[] {
+  const winnerId = result.scores?.winnerId;
+  if (!winnerId) return [];
+  const review = reviewFor(result, winnerId);
+  if (!review) return [];
+  const lines = (reviewedText(result, winnerId) ?? '').split(String.fromCharCode(10)).map(line => line.trim());
+  const found: string[] = [];
+  for (const decision of review.decisions) {
+    if (decision.action === 'kept') {
+      found.push(decision.claim.trim());
+      continue;
+    }
+    if (decision.action !== 'edited' || !decision.to) continue;
+    const words = decision.to
+      .split(String.fromCharCode(10))
+      .map(line => line.trim())
+      .filter(Boolean);
+    const last = words[words.length - 1];
+    const line = last ? lines.find(item => item.includes(last)) : undefined;
+    if (line) found.push(line);
+  }
+  return Array.from(new Set(found.filter(Boolean)));
 }
 
 /** The score after "Re-score", when it is for the text as it is now. */
@@ -326,7 +382,7 @@ export async function scoreReviewedText(
   const leftOut = (async () => {
     const facts = await listKeyFacts(formState.originalCopy || '', userFacts, user, formState.sessionId);
     if (!facts || facts.length === 0) return null;
-    return findLeftOutFacts(facts, text, user, formState.sessionId);
+    return findLeftOutFacts(facts, text, user, formState.sessionId, formState.originalCopy || '');
   })().catch(() => null);
 
   const readings = (
@@ -399,13 +455,15 @@ export function resultWithReview(result: QuickRunResult, withScore = false): Qui
           }),
         }
   );
-  const score = withScore ? reviewScore(result, winnerId) : null;
+  // After "Re-score" (with withScore) its score; otherwise the run's, without the points for settled claims.
+  const score = (withScore ? reviewScore(result, winnerId) : null) ?? confirmedScore(result, winnerId);
+  const scoredRows = score ? rows.map(row => (row.versionId === winnerId ? { ...row, absoluteTotal: score.total } : row)) : rows;
   return {
     ...result,
     versions,
     scores: {
       ...scores,
-      comparisonResult: { ...scores.comparisonResult, rows },
+      comparisonResult: { ...scores.comparisonResult, rows: scoredRows },
       absoluteByVersion: score ? { ...scores.absoluteByVersion, [winnerId]: score } : scores.absoluteByVersion,
     },
   };

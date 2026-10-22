@@ -14,7 +14,9 @@
  *    contact details, what makes the product different). The facts the user
  *    added in "Make it stronger" are key facts too. Listed once per original.
  * 2. one small call per version says which of them the version still states,
- *    by meaning, in any wording.
+ *    by meaning, in any wording. When it finds some left out, one more call
+ *    (Sonnet) checks just those against what the original itself says
+ *    (confirmLeftOut below); only a fact both calls find missing counts.
  * 3. each fact left out lowers the version's score by LEFT_OUT_POINTS, up to
  *    LEFT_OUT_MAX_POINTS, and is listed under the version as "Left out from
  *    your original". So a version that keeps the facts beats one that drops
@@ -55,6 +57,26 @@ Do not list navigation, menus, links to social media, cookie or legal text, copy
 Answer with JSON only: {"facts":["...","..."]}`;
 
 const CHECK_PROMPT = `You check whether a rewritten piece of marketing copy still states facts from the original. For each fact, answer true when the rewrite states it, in any wording or language, with the same numbers, names and conditions; answer false when the rewrite leaves it out, states only part of it (a price without its condition, a credential reduced to a vague word), or changes it. A programme, syllabus, agenda or list counts as kept only when the rewrite still names every item, in a list or in a sentence; a sentence that says the list is somewhere else ("the full programme is above") does not keep it. Answer with JSON only: {"kept":[true,false,...]} with one entry per fact, in order.`;
+
+/**
+ * The second look at the facts the first check found left out. The facts are
+ * short summaries the listing call wrote, and a summary can say more than the
+ * original: on 2026-10-22 Logoforo's "Acceso inmediato tras pago con tarjeta"
+ * (the page says "recibes casi de inmediato un correo") was called left out of
+ * all three versions, three times out of three, although each said what the
+ * page says. Reading the original's own words first fixed it in a test, and
+ * still found the facts really left out (a credential, a condition on a price,
+ * an area served, a rating). Sonnet: Haiku with the same prompt let a dropped
+ * condition through ("$89 for first-time customers" kept by "just $89").
+ */
+const CONFIRM_MODEL = 'claude-sonnet-4-6';
+const CONFIRM_MAX_TOKENS = 2000;
+/** The longest original sent with the second look. */
+const CONFIRM_ORIGINAL_MAX_CHARS = 20000;
+const NEWLINE = String.fromCharCode(10);
+const TRIPLE_QUOTE = '"""';
+
+const CONFIRM_PROMPT = `You check whether a rewrite of a piece of marketing copy still states facts from the original. You get the ORIGINAL, the REWRITE and a list of facts another reader took from the original; each fact is a short summary and may be worded loosely. For each fact, first find what the ORIGINAL itself says about it. Then answer true when the REWRITE still says that, in any words or language, with the same numbers, names and conditions; answer false when the rewrite leaves it out, states only part of it (a price without its condition, a credential reduced to a vague word), or changes it. Conditions count: who an offer or price is for, until when, from when, on which days or before which time; when the original states one and the rewrite drops it, answer false. A programme, syllabus, agenda or list counts as kept only when the rewrite still names every item. Answer with JSON only, no other text: {"kept":[true,false,...]} with one entry per fact, in order.`;
 
 const memory = new Map<string, string[]>();
 
@@ -119,7 +141,9 @@ export async function findLeftOutFacts(
   facts: string[],
   text: string,
   user: User,
-  sessionId?: string
+  sessionId?: string,
+  /** The original as the user gave it: the facts found left out are checked against its own words. */
+  original?: string
 ): Promise<string[] | null> {
   if (facts.length === 0) return [];
   if (!text.trim()) return null;
@@ -150,9 +174,65 @@ export async function findLeftOutFacts(
     const kept = parsed?.kept;
     // A reply that does not answer every fact is not trusted.
     if (!Array.isArray(kept) || kept.length !== open.length) return null;
-    return open.filter((_, index) => kept[index] === false);
+    const left = open.filter((_, index) => kept[index] === false);
+    if (left.length === 0 || !original || !original.trim()) return left;
+    return await confirmLeftOut(left, text, original, user, sessionId);
   } catch {
     return null;
+  }
+}
+
+/**
+ * Of the facts found left out, the ones still missing when the original's own
+ * words are read first. On any failure the first check stands.
+ */
+async function confirmLeftOut(
+  left: string[],
+  text: string,
+  original: string,
+  user: User,
+  sessionId?: string
+): Promise<string[]> {
+  try {
+    const response = await makeApiRequestWithFallback(
+      CONFIRM_MODEL,
+      [
+        { role: 'system', content: CONFIRM_PROMPT },
+        {
+          role: 'user',
+          content: [
+            'ORIGINAL:',
+            TRIPLE_QUOTE,
+            original.slice(0, CONFIRM_ORIGINAL_MAX_CHARS),
+            TRIPLE_QUOTE,
+            '',
+            'FACTS:',
+            ...left.map((fact, index) => `${index + 1}. ${fact}`),
+            '',
+            'REWRITE:',
+            TRIPLE_QUOTE,
+            text,
+            TRIPLE_QUOTE,
+          ].join(NEWLINE),
+        },
+      ],
+      0,
+      CONFIRM_MAX_TOKENS,
+      { type: 'json_object' },
+      user.email,
+      'quick_key_facts_confirm',
+      sessionId
+    );
+    const raw = response.choices[0]?.message?.content ?? '';
+    // The model may think aloud before its answer: the answer is the last {"kept": ...}.
+    const start = raw.lastIndexOf('{"kept"');
+    const end = raw.lastIndexOf('}');
+    const parsed = JSON.parse(start >= 0 && end > start ? raw.slice(start, end + 1) : cleanJsonResponse(raw)) as { kept?: unknown };
+    const kept = parsed?.kept;
+    if (!Array.isArray(kept) || kept.length !== left.length) return left;
+    return left.filter((_, index) => kept[index] === false);
+  } catch {
+    return left;
   }
 }
 

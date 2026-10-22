@@ -35,6 +35,7 @@ import { textKindLabel } from '../services/api/textKinds';
 import { countWords } from '../utils/markdownUtils';
 import { buildQuickScoringContext, deriveQuickLabel, quickGoalName, quickTextKindOf } from './buildQuickFormState';
 import { ORIGINAL_VERSION_ID } from './pickWinner';
+import { confirmedClaims } from './claimReview';
 import type { QuickRunResult } from './runQuickPipeline';
 
 /** What identifies the result in the answer, so the user can find it again later. */
@@ -130,6 +131,13 @@ function contextLines(result: QuickRunResult): string[] {
     lines.push(
       '- **Facts the user supplied** (the improved version may use these; they are not invented):',
       ...facts.map(fact => `  - ${fact}`)
+    );
+  }
+  const confirmed = confirmedClaims(result);
+  if (confirmed.length > 0) {
+    lines.push(
+      '- **Facts the user confirmed in CopyZap** (the best version states these; the user checked them and says they are true, so they are not invented):',
+      ...confirmed.map(fact => `  - ${fact}`)
     );
   }
   return lines;
