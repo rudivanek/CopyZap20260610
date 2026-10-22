@@ -340,7 +340,7 @@ export function stripSectionLeftovers(input: string[]): string[] {
       // line is cut off.
       const cutOff = (k: number) => {
         const text = sectionPlain(textAt(k));
-        return k >= 0 && k < filled.length && !isHeadingAt(k) && !isListAt(k) && sectionWords(text) <= 30 && !/[.!?…””»)]$/.test(text);
+        return k >= 0 && k < filled.length && !isHeadingAt(k) && !isListAt(k) && sectionWords(text) <= 30 && !/[.!?…”»)]$/.test(text) && !text.endsWith(String.fromCharCode(34));
       };
       const found: number[] = [];
       if (cutOff(position - 1) && isHeadingAt(position - 2)) found.push(position - 2, position - 1);
