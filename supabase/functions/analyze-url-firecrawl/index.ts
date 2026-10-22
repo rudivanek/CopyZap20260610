@@ -23,27 +23,30 @@ interface FirecrawlRequest {
  * sets each such counter to its target value. Only leaf elements whose text is
  * a number are touched, and only from a plain numeric attribute.
  * Seen 2026-10-21 on salesboostconsulting.com.mx (data-value="2500").
+ * Written without backslashes on purpose: a backslash inside this template
+ * string is easily lost when the file is edited, which silently breaks it.
  */
 const COUNTER_SCRIPT = `(() => {
   const ATTRS = ['data-to-value', 'data-value', 'data-count', 'data-target', 'data-end', 'data-number',
     'data-counter', 'data-number-value', 'data-counter-value', 'data-countup', 'data-final', 'data-to', 'data-max'];
   const lang = (document.documentElement.lang || 'en').split('-')[0] || 'en';
+  const digitsOnly = s => s.replace(/[^0-9]/g, '');
   let fixed = 0;
   document.querySelectorAll(ATTRS.map(a => '[' + a + ']').join(',')).forEach(el => {
     if (el.children.length > 0) return;
     if (/^(INPUT|SELECT|OPTION|TEXTAREA|BUTTON|PROGRESS|METER)$/.test(el.tagName)) return;
     const shown = (el.textContent || '').trim();
-    if (!/^[\d.,\s]*$/.test(shown)) return;
+    if (!/^[0-9., ]*$/.test(shown)) return;
     let raw = null;
     for (const a of ATTRS) { if (el.hasAttribute(a)) { raw = (el.getAttribute(a) || '').trim(); break; } }
-    if (!raw || !/^\d[\d.,]*$/.test(raw)) return;
-    const value = Number(raw.replace(/,/g, ''));
+    if (!raw || !/^[0-9][0-9.,]*$/.test(raw)) return;
+    const value = Number(raw.split(',').join(''));
     if (!isFinite(value)) return;
     let text = raw;
     if (Number.isInteger(value) && value >= 1000) {
       try { text = value.toLocaleString(lang); } catch (e) { text = String(value); }
     }
-    if (shown.replace(/\D/g, '') === text.replace(/\D/g, '')) return;
+    if (digitsOnly(shown) === digitsOnly(text)) return;
     el.textContent = text;
     fixed += 1;
   });

@@ -143,12 +143,22 @@ const WIDGET_MAX_WORDS = 12;
 const COOKIE_MAX_LINE_WORDS = 45;
 const COOKIE_MAX_TOTAL_WORDS = 150;
 
-/** A stat number on its own line: "+ 2500", "\+ 25", "1,200", "~40". */
-const COUNTER_NUMBER = /^\?([+~≈]?)\s*(\d[\d.,]*)$/;
+/** A stat number on its own line: "+ 2500", "1,200", "~40" (a leading markdown escape is dropped first). */
+const COUNTER_NUMBER = /^([+~≈]?) *([0-9][0-9.,]*)$/;
 /** A unit a counter widget puts on its own line after the number. */
-const COUNTER_UNIT = /^(%|\+|[kKmMxX]|°)$/;
+const COUNTER_UNIT = /^(%|[+]|[kKmMxX]|°)$/;
 /** A stat label is short and is not a sentence or a heading. */
 const COUNTER_LABEL_MAX_WORDS = 6;
+/*
+ * The counter code below is written without backslashes on purpose: a
+ * backslash in a pasted edit is easily lost, which silently breaks a pattern.
+ */
+const BACKSLASH = String.fromCharCode(92);
+const LF = String.fromCharCode(10);
+const CR = String.fromCharCode(13);
+/** Markdown escapes a leading "+" as a backslash and "+"; the backslash is dropped. */
+const unescapeLead = (line: string) => (line.startsWith(BACKSLASH) ? line.slice(1) : line);
+const hasLetter = (line: string) => line.toLowerCase() !== line.toUpperCase();
 
 /**
  * Joins a stat block back into one line per stat.
@@ -164,7 +174,7 @@ const COUNTER_LABEL_MAX_WORDS = 6;
  * counter still at 0 is not joined, so the "+ 0" rule below removes it.
  */
 export function joinCounterLines(text: string): string {
-  const lines = (text || '').replace(/\r\n?/g, '\n').split('\n');
+  const lines = (text || '').split(CR + LF).join(LF).split(CR).join(LF).split(LF);
   const out: string[] = [];
   const nextFilled = (from: number) => {
     let index = from;
@@ -172,8 +182,8 @@ export function joinCounterLines(text: string): string {
     return index;
   };
   for (let i = 0; i < lines.length; i++) {
-    const match = lines[i].trim().match(COUNTER_NUMBER);
-    if (!match || /^0+$/.test(match[2].replace(/[.,]/g, '')) || /^0\d$/.test(match[2])) {
+    const match = unescapeLead(lines[i].trim()).match(COUNTER_NUMBER);
+    if (!match || /^0+$/.test(match[2].replace(/[.,]/g, '')) || /^0[0-9]$/.test(match[2])) {
       out.push(lines[i]);
       continue;
     }
@@ -188,10 +198,10 @@ export function joinCounterLines(text: string): string {
     if (labelAt < lines.length) {
       const label = lines[labelAt].trim();
       const isLabel =
-        !/^\s{0,3}#{1,6}\s/.test(lines[labelAt]) &&
-        !/^([-*+]|\d+[.)])\s/.test(label) &&
-        !COUNTER_NUMBER.test(label) &&
-        /\p{L}/u.test(label) &&
+        !/^ {0,3}#{1,6} /.test(lines[labelAt]) &&
+        !/^([-*+]|[0-9]+[.)]) /.test(label) &&
+        !COUNTER_NUMBER.test(unescapeLead(label)) &&
+        hasLetter(label) &&
         wordsIn(label) <= COUNTER_LABEL_MAX_WORDS &&
         !/[.!?…:;]$/.test(label);
       if (isLabel) {
@@ -207,7 +217,7 @@ export function joinCounterLines(text: string): string {
     out.push(stat);
     i = last;
   }
-  return out.join('\n');
+  return out.join(LF);
 }
 
 /**
@@ -306,7 +316,7 @@ export function stripPageFurniture(text: string): { text: string; removed: numbe
     if ((counts.get(key) ?? 0) >= REPEATED_LABEL_MIN) return false;
     if (/^0\d$/.test(key) || /^\d{1,2}\s*[—–\-/]\s*\d{1,2}$/.test(key)) return false;
     if (!isRuleLine(line) && !/[\p{L}\p{N}]/u.test(key)) return false;
-    if (/^\\?[+-]?\s*0\s*%?$/.test(key)) return false;
+    if (/^[+-]? *0 *%?$/.test(unescapeLead(key))) return false;
     if (SKIP_LINK.test(key)) return false;
     const plain = key.replace(/^([-*+]|\d+[.)])\s+/, '').replace(/[*_`]/g, '').trim();
     if (wordsIn(plain) <= WIDGET_MAX_WORDS && !/[.!?]$/.test(plain)) {
