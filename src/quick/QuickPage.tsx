@@ -743,6 +743,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       // A weak call to action on the best version: one more pass on it, kept only when clearly better
       // (engine/ctaPass.ts). The wait modal stays on its last step meanwhile.
       const run = await strengthenWeakCallToAction(firstRun, currentUser, undefined, signal);
+      if (!alive.current) return;
       const seconds = Math.round((Date.now() - startedAt) / 1000);
       setRunSeconds(seconds);
       setResult(run);
