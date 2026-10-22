@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { MissingFactQuestion } from '../engine/missingFacts';
-import { cleanUserFacts, USER_FACT_MAX_CHARS, USER_FACTS_MAX } from '../engine/missingFacts';
+import { cleanUserFacts, FACT_BLANK, USER_FACT_MAX_CHARS, USER_FACTS_MAX } from '../engine/missingFacts';
 import {
   chatFacts,
   CLOSING_QUESTION,
@@ -26,6 +26,11 @@ import { TIPS } from './tips';
  * a testimonial, say), the passage is shown word for word with "Use this",
  * which puts it in the answer field (see engine/pageAnswers.ts). The user sends
  * it or not; nothing is used on its own.
+ *
+ * Under a question CopyZap can also show two or three starter answers ("Free
+ * first call of ___ minutes"). A tap puts one in the answer field with the
+ * cursor on the first ___; it cannot be sent until every ___ is filled in, so
+ * a starter is always changed into the user's own answer before it counts.
  */
 interface QuickFactChatProps {
   /** null while Quick is still looking for what is missing. */
@@ -125,11 +130,25 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
     );
   };
 
+  // A starter answer still has a ___ to fill in: it cannot be sent yet.
+  const blankLeft = /_{2,}/.test(chat.draft);
   const send = () => {
-    // Enter in the field sends too: not while the page check runs.
-    if (locked) return;
+    // Enter in the field sends too: not while the page check runs, and not with a ___ left.
+    if (locked || blankLeft) return;
     const text = chat.draft.replace(/\s+/g, ' ').trim();
     if (text) answer(text);
+  };
+  /** Puts a starter answer in the field, with the cursor on its first ___ so the user types their own value there. */
+  const pickStarter = (starter: string) => {
+    setChat(current => ({ ...current, draft: starter }));
+    window.setTimeout(() => {
+      const field = document.getElementById('quick-fact-chat') as HTMLTextAreaElement | null;
+      if (!field) return;
+      field.focus();
+      const at = starter.indexOf(FACT_BLANK);
+      if (at >= 0) field.setSelectionRange(at, at + FACT_BLANK.length);
+      else field.setSelectionRange(starter.length, starter.length);
+    }, 0);
   };
   const remove = (fact: string) =>
     setChat(current => ({
@@ -181,7 +200,28 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
             <li key={index} className="flex flex-col gap-0.5 border-l-2 border-primary-500 pl-3">
               <span className="sr-only">CopyZap asks:</span>
               <p className="font-semibold text-gray-900 dark:text-gray-100">{turn.text}</p>
-              {turn.example && <p className="text-gray-600 dark:text-gray-400">e.g. {turn.example}</p>}
+              {turn.example && !(turn.starters?.length && index === chat.turns.length - 1 && !chat.done) && (
+                <p className="text-gray-600 dark:text-gray-400">e.g. {turn.example}</p>
+              )}
+              {turn.starters && turn.starters.length > 0 && index === chat.turns.length - 1 && !chat.done && (
+                <div className="mt-1.5 flex flex-col gap-1.5">
+                  <p className="text-gray-600 dark:text-gray-400">Start from one of these, then make it true for you:</p>
+                  <div className="flex flex-wrap gap-2">
+                    {turn.starters.map(starter => (
+                      <button
+                        key={starter}
+                        type="button"
+                        onClick={() => pickStarter(starter)}
+                        disabled={locked}
+                        data-tip={TIPS.factStarter}
+                        className={SECONDARY + ' text-left'}
+                      >
+                        {starter}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              )}
               {turn.fromPage && index === chat.turns.length - 1 && !chat.done && (
                 <div className="mt-1.5 flex flex-col gap-1.5 bg-gray-50 dark:bg-gray-800 border border-gray-200 dark:border-gray-700 px-3 py-2">
                   <p className="text-gray-600 dark:text-gray-400">Your page already says:</p>
@@ -240,7 +280,7 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
             className={FIELD}
           />
           <div className="flex flex-wrap items-center gap-2">
-            <button type="button" onClick={send} disabled={locked || !chat.draft.trim()} className={PRIMARY}>
+            <button type="button" onClick={send} disabled={locked || blankLeft || !chat.draft.trim()} className={PRIMARY}>
               Send
             </button>
             <button type="button" onClick={() => answer(SKIPPED_ANSWER)} disabled={locked} className={SECONDARY}>
@@ -253,6 +293,11 @@ const QuickFactChat: React.FC<QuickFactChatProps> = ({ questions, chat, setChat,
               {onClosing ? 'Last question' : `Question ${asked} of up to ${FACT_CHAT_MAX_QUESTIONS}`}
             </span>
           </div>
+          {blankLeft && (
+            <p className="text-gray-600 dark:text-gray-400" aria-live="polite">
+              Fill in the {FACT_BLANK} with your own value, then send it.
+            </p>
+          )}
         </div>
       )}
 

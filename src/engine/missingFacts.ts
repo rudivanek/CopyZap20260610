@@ -135,6 +135,16 @@ export interface MissingFactQuestion {
    * a currency of its own. Empty when the model gave no safe example.
    */
   example: string;
+  /**
+   * Two or three starter answers in the copy's language, each a common true
+   * situation for this kind of business, with FACT_BLANK where the user's own
+   * value goes. A tap puts one in the answer field to fill in and change
+   * (QuickFactChat.tsx); it is never used as a fact on its own. Same safety
+   * rules as the example. Added 2026-10-22: in a test, one-tap answers without
+   * editing carried less and were sometimes not quite true (project note
+   * tap-choices-test-2026-10-22), so a starter is only ever a start.
+   */
+  starters?: string[];
 }
 
 export function goalLine(goalKey: GoalKey, goalLabel?: string): string {
@@ -224,8 +234,9 @@ Rules:
   - Never write a currency symbol or code: the user writes the price with their own currency.
   - One plain fact. No sales phrases such as "filling fast" or "don't miss out", and never a customer quote or testimonial.
   - For what makes the business different, the example names something concrete (for example "Every site is delivered with ${FACT_BLANK} included"), never a superlative such as "the best" or "the only".
+- For each question also give 2 or 3 "starters": short starter answers in ${examples} that the user can tap and then change so they are true. Each describes a different common situation for this kind of business (for example "Free first call of ${FACT_BLANK} minutes" and "Free written quote within ${FACT_BLANK} days"), follows the same rules as the example, and is one plain fact once its blanks are filled. Never a "no" answer: the user can skip.
 
-Answer with JSON only: {"gaps":[{"kind":"difference|included|timing|offer|urgency|proof|price|guarantee|next_step|news|date|audience|example|steps|story|other","question":"(in English)","example":"(in ${examples})"}]}`;
+Answer with JSON only: {"gaps":[{"kind":"difference|included|timing|offer|urgency|proof|price|guarantee|next_step|news|date|audience|example|steps|story|other","question":"(in English)","example":"(in ${examples})","starters":["(in ${examples})"]}]}`;
 }
 
 /** Where testimonials were taken out: they are on the page, so they are not asked for. */
@@ -290,7 +301,13 @@ export function parseMissingFacts(raw: string): MissingFactQuestion[] {
     // An older reply shape gave a list of suggestions: its first safe one is the example.
     const candidates = [item.example, ...(Array.isArray(item.suggestions) ? item.suggestions : [])];
     const example = candidates.map(safeExample).find(Boolean) ?? '';
-    questions.push({ kind: oneLine(item.kind, 20).toLowerCase() || 'other', question, example });
+    // Starters: only safe ones, each once, at most three.
+    const starters: string[] = [];
+    for (const starter of (Array.isArray(item.starters) ? item.starters : []).map(safeExample)) {
+      if (starter && !starters.some(other => other.toLowerCase() === starter.toLowerCase())) starters.push(starter);
+      if (starters.length === 3) break;
+    }
+    questions.push({ kind: oneLine(item.kind, 20).toLowerCase() || 'other', question, example, starters });
     if (questions.length === MISSING_FACTS_MAX_QUESTIONS) break;
   }
   return questions;

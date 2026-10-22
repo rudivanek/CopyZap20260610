@@ -73,6 +73,7 @@ export const TIPS = {
   factChat: 'Write it as it is true for you, with your own figures and currency. Enter sends it.',
   factRemove: 'Leaves this fact out of the new versions.',
   runAgain: 'Back to the check screen with the same copy and choices. Answer the questions there, then generate three new versions. This result stays in History.',
+  factStarter: 'Puts this answer in the field. Fill in the ___ with your own value and change anything that is not true for you, then send it.',
   factFromPage: 'Puts this passage of your page in the answer field. Check it and send it, or change it first.',
   factAdd: 'A fact that is true for you, in your own words. It goes into the list exactly as you write it. Enter adds it.',
   // Result screen

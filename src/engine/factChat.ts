@@ -58,6 +58,8 @@ export interface ChatTurn {
   clarifies?: boolean;
   /** A CopyZap question only: an example answer in the copy's language, with ___ for the user's own values. */
   example?: string;
+  /** A CopyZap question only: starter answers to tap and then change (see MissingFactQuestion.starters). */
+  starters?: string[];
   /**
    * A CopyZap question only: a passage of the user's page that answers it,
    * found word for word (see pageAnswers.ts). Undefined: not looked for yet;
@@ -118,7 +120,7 @@ const NOTHING_MISSING_QUESTION = 'Is there anything true about your business tha
 export function startFactChat(questions: MissingFactQuestion[]): FactChat {
   const first = questions[0];
   const turn: ChatTurn = first
-    ? { from: 'copyzap', text: first.question, example: first.example || undefined }
+    ? { from: 'copyzap', text: first.question, example: first.example || undefined, starters: first.starters?.length ? first.starters : undefined }
     : { from: 'copyzap', text: NOTHING_MISSING_QUESTION };
   return { ...EMPTY_FACT_CHAT, turns: [turn] };
 }
@@ -339,7 +341,8 @@ export async function nextFactChatStep(
     }
     const next = nextQuestion(planned, chat.turns, step.answered);
     if (next) {
-      return { ...updated, done: false, turns: [...chat.turns, { from: 'copyzap', text: next.question, example: next.example || undefined }] };
+      const turn: ChatTurn = { from: 'copyzap', text: next.question, example: next.example || undefined, starters: next.starters?.length ? next.starters : undefined };
+      return { ...updated, done: false, turns: [...chat.turns, turn] };
     }
   }
   // Nothing more to ask: one last open question, unless the user ended the chat or already had it.
