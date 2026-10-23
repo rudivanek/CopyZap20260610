@@ -538,6 +538,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
   // The best version scores so close to the original that the scorer cannot
   // tell them apart: that is not shown as an improvement.
   const nearOriginal = delta != null && Math.abs(delta) <= QUICK_SCORE_MARGIN;
+  // The original scores clearly higher than every rewrite: the user is told to keep it,
+  // and the best rewrite is not called recommended.
+  const originalHigher = delta != null && !nearOriginal && delta < 0;
 
   // A repetition the original has itself is not held against a version.
   const gates = effectiveGates(scores?.gateByVersion, versions);
@@ -888,10 +891,10 @@ const QuickResult: React.FC<QuickResultProps> = ({
           <article id="quick-best" className={`${paper} p-5 sm:p-8 flex flex-col gap-4 scroll-mt-20`}>
             <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
               <span className="text-xs font-semibold text-gray-600 break-words">
-                Best version: {winnerName}{' '}
+                {originalHigher ? 'Best rewrite' : 'Best version'}: {winnerName}{' '}
                 <span className="font-normal tabular-nums">· {wordsLabel(winner.content, winner.generatedAt)}</span>
               </span>
-              {scores && !isIncomplete && !nearOriginal && (
+              {scores && !isIncomplete && !nearOriginal && !originalHigher && (
                 <span className="inline-flex items-center gap-2 text-xs font-semibold text-gray-900">
                   <span className="w-1 h-5 bg-status-good" aria-hidden="true" />
                   Recommended
@@ -1129,6 +1132,17 @@ const QuickResult: React.FC<QuickResultProps> = ({
                         Your original scored {originalTotal} / 100 ({scoreLevel(originalTotal)}).
                         {nearOriginal && ` Scores within ${QUICK_SCORE_MARGIN} points cannot be told apart.`}
                       </p>
+                      {originalHigher && (
+                        <p className="font-semibold text-gray-900 dark:text-gray-100">
+                          Your original scores higher. Keep your original, and take from this version only the parts
+                          you like.
+                        </p>
+                      )}
+                      {nearOriginal && (
+                        <p className="text-gray-600 dark:text-gray-400">
+                          No clear gain over your original: keeping your original is fine.
+                        </p>
+                      )}
                       {closeCount > 0 && (
                         <p className="text-gray-600 dark:text-gray-400">
                           {closeCount === 1 ? '1 other version scores' : `${closeCount} other versions score`} about the
