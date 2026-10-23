@@ -55,6 +55,7 @@ import { estimateRunTime, KEEP_TAB_OPEN_FROM_WORDS, useSessionCredits } from '..
 import { InstructionReading, readInstructions } from '../engine/instructionFacts';
 import { OriginalScore, scoreOriginal } from '../engine/originalScore';
 import { strengthenWeakCallToAction } from '../engine/ctaPass';
+import { putBackLeftOutFacts } from '../engine/factRepairPass';
 
 interface QuickPageProps {
   currentUser: User;
@@ -740,9 +741,13 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         }
       );
       if (!alive.current) return;
+      // Key facts the best version left out: one pass puts them back, kept only when it becomes
+      // the best (engine/factRepairPass.ts). The wait modal stays on its last step meanwhile.
+      const repaired = await putBackLeftOutFacts(firstRun, currentUser, undefined, signal);
+      if (!alive.current) return;
       // A weak call to action on the best version: one more pass on it, kept only when clearly better
-      // (engine/ctaPass.ts). The wait modal stays on its last step meanwhile.
-      const run = await strengthenWeakCallToAction(firstRun, currentUser, undefined, signal);
+      // (engine/ctaPass.ts).
+      const run = await strengthenWeakCallToAction(repaired, currentUser, undefined, signal);
       if (!alive.current) return;
       const seconds = Math.round((Date.now() - startedAt) / 1000);
       setRunSeconds(seconds);
