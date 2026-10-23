@@ -53,36 +53,40 @@ export function useSessionCredits(sessionId: string | null | undefined, tick: nu
 
 /**
  * About how many credits a run uses, from the words it works on (rewritten and
- * kept parts). Measured on 22 runs of 2026-10-11 and 10-12: 29 to 31 credits
- * up to 150 words, 34 to 36 at about 300, about 60 at 700 to 1,350. Most of a
- * run is the same number of calls whatever the length (3 versions, each
- * scored three times), so short texts all cost about the same. Since
- * 2026-10-14 a version is scored again only when it is close to another
- * (see scoreQuickVersions), so a run can use fewer; not yet re-measured.
- * Above 1,500 words there are no measurements yet; the estimate is said to be
- * a lower bound there.
+ * kept parts). First measured on 22 runs of 2026-10-11 and 10-12 (29 to 60
+ * credits). Measured again on the runs of 2026-10-19 to 10-22, after the claim
+ * check, the left-out check and the check-screen questions were added: 40 to 59
+ * credits up to 300 words, 87 to 129 at 680 to 940, 96 to 153 at 1,100 to
+ * 1,950, 88 to 180 at 2,250 to 2,750. The two passes after a run add about 15
+ * to 30 credits each when they run (factRepairPass.ts when the best version
+ * left out key facts, ctaPass.ts when its call to action is weak). The
+ * estimate allows for one of them. Above 2,000 words it is said to be a lower
+ * bound.
  */
 /**
  * About how long a run takes, from the words it works on, as words for the
- * screen ("about 2 minutes"). Measured on the runs of 2026-10-18 and 10-19,
+ * screen ("2 to 4 minutes"). Measured on the runs of 2026-10-18 and 10-19,
  * with the claim check: 80 to 125 seconds up to 400 words, 140 to 200 at 550
  * to 950, 165 to 260 at 1,000 to 1,800, 165 to 300 at 2,250 to 2,850, and 6
- * minutes at 3,400. Rounded up, so the run is seldom longer than it says.
+ * minutes at 3,400. Since 2026-10-22 the passes after a run add about a
+ * minute when they run (Tidewell 203 seconds, Bella Cucina 215 seconds with
+ * both), more on long pages. Rounded up, so the run is seldom longer than it says.
  */
 export function estimateRunTime(words: number): string {
-  if (words <= 400) return 'about 2 minutes';
-  if (words <= 1000) return '2 to 3 minutes';
-  if (words <= 2000) return '3 to 4 minutes';
-  if (words <= 3000) return '4 to 5 minutes';
-  return '5 minutes or more';
+  if (words <= 400) return '2 to 4 minutes';
+  if (words <= 1000) return '3 to 5 minutes';
+  if (words <= 2000) return '3 to 6 minutes';
+  if (words <= 3000) return '4 to 7 minutes';
+  return '6 minutes or more';
 }
 
 /** From this many words on, the screens also ask to keep the tab open: the run happens in this tab. */
 export const KEEP_TAB_OPEN_FROM_WORDS = 1000;
 
 export function estimateRunCredits(words: number): { credits: number; atLeast: boolean } {
-  if (words <= 250) return { credits: 30, atLeast: false };
-  if (words <= 500) return { credits: 35, atLeast: false };
-  if (words <= 1500) return { credits: 60, atLeast: false };
-  return { credits: 80, atLeast: true };
+  if (words <= 250) return { credits: 55, atLeast: false };
+  if (words <= 500) return { credits: 70, atLeast: false };
+  if (words <= 1000) return { credits: 120, atLeast: false };
+  if (words <= 2000) return { credits: 160, atLeast: false };
+  return { credits: 180, atLeast: true };
 }

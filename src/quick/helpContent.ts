@@ -189,7 +189,7 @@ export const HELP_SECTIONS: HelpSection[] = [
       { text: 'The top bar shows the credits you have left.' },
       {
         term: 'What uses them',
-        text: 'Writing and scoring. A full run on a page of about 1,000 words uses roughly 60 credits and takes two to three minutes. A page of 5,000 words uses roughly 160 to 230 credits and takes eight to ten minutes. A change, or scoring your own edit, uses less.',
+        text: 'Writing and scoring. A full run on a short text uses roughly 40 to 70 credits and takes two to four minutes; a page of about 1,000 words uses roughly 90 to 130 credits and takes three to five minutes. When the best version left out facts from your original or has a weak call to action, one more step fixes it and uses about 15 to 30 credits more. The start screen shows the estimate for your text. A change, or scoring your own edit, uses less.',
       },
       { term: 'What does not', text: 'Opening results, History, copying and exporting.' },
       {
