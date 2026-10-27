@@ -1,12 +1,12 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Search, CreditCard as Edit, Trash2, UserPlus, ArrowLeft, Shield, Calendar, DollarSign, RefreshCw, User as UserIcon, ArrowUpDown, ArrowUp, ArrowDown, Download, Activity, History } from 'lucide-react';
+import { Users, Search, CreditCard as Edit, Trash2, UserPlus, ArrowLeft, Shield, Calendar, RefreshCw, User as UserIcon, ArrowUpDown, ArrowUp, ArrowDown, Download, Activity, History, Plus } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import LoadingSpinner from './ui/LoadingSpinner';
 import EditUserModal from './EditUserModal';
 import AddUserModal from './AddUserModal';
-import { adminGetUsers, adminDeleteUser } from '../services/supabaseClient';
+import { adminGetUsers, adminDeleteUser, adminUpdateUser } from '../services/supabaseClient';
 import { listPowerUsers, setPowerUser } from '../services/powerUser';
 import { toast } from 'react-hot-toast';
 import PublicFooter from './PublicFooter';
@@ -47,6 +47,146 @@ const ManageUsers: React.FC = () => {
   const [powerFlags, setPowerFlags] = useState<Record<string, boolean>>({});
   const [powerFlagsLoaded, setPowerFlagsLoaded] = useState(false);
   const [changingPowerFor, setChangingPowerFor] = useState<string | null>(null);
+
+  // Inline editing for Total Credits and Until Date (admin only).
+  const [editingCreditsId, setEditingCreditsId] = useState<string | null>(null);
+  const [creditsDraft, setCreditsDraft] = useState<string>('');
+  const [editingDateId, setEditingDateId] = useState<string | null>(null);
+  const [dateDraft, setDateDraft] = useState<string>('');
+  const [savingCellId, setSavingCellId] = useState<string | null>(null);
+  const creditsInputRef = useRef<HTMLInputElement | null>(null);
+  const dateInputRef = useRef<HTMLInputElement | null>(null);
+
+  const startEditCredits = (user: ManageUser) => {
+    setEditingCreditsId(user.id);
+    setCreditsDraft(String(user.credits_allowed ?? 0));
+    setEditingDateId(null);
+    requestAnimationFrame(() => creditsInputRef.current?.select());
+  };
+
+  const cancelEditCredits = () => {
+    setEditingCreditsId(null);
+    setCreditsDraft('');
+  };
+
+  const saveCredits = async (user: ManageUser, rawValue: string) => {
+    const trimmed = rawValue.trim();
+    if (trimmed === '') { cancelEditCredits(); return; }
+    if (!/^\d+$/.test(trimmed)) {
+      toast.error('Credits must be a whole number of 0 or more');
+      cancelEditCredits();
+      return;
+    }
+    const newValue = parseInt(trimmed, 10);
+    const oldValue = user.credits_allowed ?? 0;
+    if (newValue === oldValue) { cancelEditCredits(); return; }
+    const moreThanDouble = newValue > oldValue * 2 && oldValue > 0;
+    const lessThanHalf = newValue < oldValue / 2 && oldValue > 0;
+    if (moreThanDouble || lessThanHalf) {
+      const ok = window.confirm(`Change credits for ${user.email} from ${oldValue.toLocaleString()} to ${newValue.toLocaleString()}?`);
+      if (!ok) { cancelEditCredits(); return; }
+    }
+    setEditingCreditsId(null);
+    setSavingCellId(user.id);
+    try {
+      const { error } = await adminUpdateUser({
+        userId: user.id,
+        password: undefined,
+        startDate: user.start_date ?? null,
+        untilDate: user.until_date ?? null,
+        tokensAllowed: newValue,
+        creditPlanId: null,
+        enforcementMode: 'credits',
+        creditsGraceUnits: 0,
+      });
+      if (error) throw error;
+      setUsers(prev => prev.map(u => u.id === user.id ? {
+        ...u,
+        credits_allowed: newValue,
+        credits_remaining: newValue - (u.credits_used ?? 0),
+      } : u));
+      toast.success('Saved');
+    } catch (err: any) {
+      toast.error(`Could not save credits: ${err.message}`);
+    } finally {
+      setSavingCellId(null);
+    }
+  };
+
+  const startEditDate = (user: ManageUser) => {
+    setEditingDateId(user.id);
+    const iso = user.until_date ? user.until_date.slice(0, 10) : '';
+    setDateDraft(iso);
+    setEditingCreditsId(null);
+    requestAnimationFrame(() => dateInputRef.current?.showPicker?.());
+  };
+
+  const cancelEditDate = () => {
+    setEditingDateId(null);
+    setDateDraft('');
+  };
+
+  const saveDate = async (user: ManageUser, rawValue: string) => {
+    const trimmed = rawValue.trim();
+    if (trimmed === '') { cancelEditDate(); return; }
+    const newDate = new Date(trimmed + 'T00:00:00');
+    if (isNaN(newDate.getTime())) { cancelEditDate(); return; }
+    const iso = newDate.toISOString();
+    setEditingDateId(null);
+    setSavingCellId(user.id);
+    try {
+      const { error } = await adminUpdateUser({
+        userId: user.id,
+        password: undefined,
+        startDate: user.start_date ?? null,
+        untilDate: iso,
+        tokensAllowed: user.credits_allowed ?? 0,
+        creditPlanId: null,
+        enforcementMode: 'credits',
+        creditsGraceUnits: 0,
+      });
+      if (error) throw error;
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, until_date: iso } : u));
+      toast.success('Saved');
+    } catch (err: any) {
+      toast.error(`Could not save the date: ${err.message}`);
+    } finally {
+      setSavingCellId(null);
+    }
+  };
+
+  const extendOneMonth = async (user: ManageUser) => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const currentEnd = user.until_date ? new Date(user.until_date) : null;
+    const base = currentEnd && currentEnd > today ? currentEnd : today;
+    const next = new Date(base);
+    next.setMonth(next.getMonth() + 1);
+    const iso = next.toISOString();
+    const formatted = next.toLocaleDateString();
+    const ok = window.confirm(`Extend ${user.email} until ${formatted}?`);
+    if (!ok) return;
+    setSavingCellId(user.id);
+    try {
+      const { error } = await adminUpdateUser({
+        userId: user.id,
+        password: undefined,
+        startDate: user.start_date ?? null,
+        untilDate: iso,
+        tokensAllowed: user.credits_allowed ?? 0,
+        creditPlanId: null,
+        enforcementMode: 'credits',
+        creditsGraceUnits: 0,
+      });
+      if (error) throw error;
+      setUsers(prev => prev.map(u => u.id === user.id ? { ...u, until_date: iso } : u));
+      toast.success('Saved');
+    } catch (err: any) {
+      toast.error(`Could not extend: ${err.message}`);
+    } finally {
+      setSavingCellId(null);
+    }
+  };
 
   const handleTogglePowerUser = async (user: ManageUser) => {
     const next = !(powerFlags[user.id] === true);
@@ -556,17 +696,86 @@ const ManageUsers: React.FC = () => {
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-white">
-                          <div className="flex items-center">
-                            <Calendar size={14} className="mr-1 text-gray-400" />
-                            {formatDate(user.start_date)} - {formatDate(user.until_date)}
-                          </div>
+                          {editingDateId === user.id ? (
+                            <div className="flex items-center">
+                              <Calendar size={14} className="mr-1 text-gray-400" />
+                              <input
+                                ref={dateInputRef}
+                                type="date"
+                                value={dateDraft}
+                                autoFocus
+                                onChange={(e) => saveDate(user, e.target.value)}
+                                onBlur={cancelEditDate}
+                                onKeyDown={(e) => {
+                                  if (e.key === 'Escape') { e.preventDefault(); cancelEditDate(); }
+                                }}
+                                className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-1 py-0.5 text-sm"
+                              />
+                            </div>
+                          ) : savingCellId === user.id ? (
+                            <div className="flex items-center">
+                              <Calendar size={14} className="mr-1 text-gray-400" />
+                              <svg className="w-3.5 h-3.5 animate-spin text-gray-400" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+                                <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeDasharray="90, 150" />
+                              </svg>
+                            </div>
+                          ) : (
+                            <div className="flex items-center">
+                              <Calendar size={14} className="mr-1 text-gray-400" />
+                              <button
+                                type="button"
+                                onClick={() => startEditDate(user)}
+                                className="hover:underline focus:outline-none focus:ring-1 focus:ring-primary-500 rounded"
+                                title="Click to change the end date"
+                              >
+                                {formatDate(user.start_date)} - {formatDate(user.until_date)}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => extendOneMonth(user)}
+                                className="ml-1 inline-flex items-center text-xs text-primary-600 dark:text-primary-400 hover:text-primary-500 border border-gray-300 dark:border-gray-700 rounded px-1 py-0.5"
+                                title="Extend the end date by one month"
+                              >
+                                <Plus size={10} className="mr-0.5" />1mo
+                              </button>
+                            </div>
+                          )}
                         </div>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-white">
-                          {user.credits_allowed !== undefined && user.credits_allowed !== null
-                            ? user.credits_allowed.toLocaleString()
-                            : '0'}
+                          {editingCreditsId === user.id ? (
+                            <input
+                              ref={creditsInputRef}
+                              type="number"
+                              min={0}
+                              step={1}
+                              value={creditsDraft}
+                              autoFocus
+                              onChange={(e) => setCreditsDraft(e.target.value)}
+                              onKeyDown={(e) => {
+                                if (e.key === 'Enter') { e.preventDefault(); saveCredits(user, (e.target as HTMLInputElement).value); }
+                                else if (e.key === 'Escape') { e.preventDefault(); cancelEditCredits(); }
+                              }}
+                              onBlur={(e) => saveCredits(user, e.target.value)}
+                              className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 rounded px-1 py-0.5 text-sm w-24"
+                            />
+                          ) : savingCellId === user.id ? (
+                            <svg className="w-3.5 h-3.5 animate-spin text-gray-400" viewBox="0 0 50 50" xmlns="http://www.w3.org/2000/svg">
+                              <circle cx="25" cy="25" r="20" fill="none" stroke="currentColor" strokeWidth="5" strokeLinecap="round" strokeDasharray="90, 150" />
+                            </svg>
+                          ) : (
+                            <button
+                              type="button"
+                              onClick={() => startEditCredits(user)}
+                              className="hover:underline focus:outline-none focus:ring-1 focus:ring-primary-500 rounded"
+                              title="Click to change total credits"
+                            >
+                              {user.credits_allowed !== undefined && user.credits_allowed !== null
+                                ? user.credits_allowed.toLocaleString()
+                                : '0'}
+                            </button>
+                          )}
                         </div>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">

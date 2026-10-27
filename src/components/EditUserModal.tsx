@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Calendar, DollarSign, Save, Key, CreditCard } from 'lucide-react';
+import { X, User, Calendar, Save, Key, CreditCard } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { adminUpdateUser } from '../services/supabaseClient';
 import { supabase } from '../services/supabaseClient';
@@ -271,24 +271,6 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
                 />
               </div>
 
-              {/* Until Date */}
-              <div>
-                <label htmlFor="untilDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Until Date
-                </label>
-                <input
-                  type="date"
-                  id="untilDate"
-                  name="untilDate"
-                  value={formData.untilDate}
-                  onChange={handleInputChange}
-                  className={`bg-white dark:bg-gray-900 border${errors.untilDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'} text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5`}
-                  disabled={isUpdating}
-                />
-                {errors.untilDate && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.untilDate}</p>
-                )}
-              </div>
             </div>
 
             {/* Credit Plan Assignment Section */}
@@ -305,34 +287,6 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
               </div>
 
               <div className="space-y-3">
-                {/* Credits Allowed Field */}
-                <div>
-                  <label htmlFor="creditsAllowed" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Credits Allowed
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <DollarSign size={16} className="text-gray-500" />
-                    </div>
-                    <input
-                      type="number"
-                      id="creditsAllowed"
-                      name="creditsAllowed"
-                      value={formData.creditsAllowed}
-                      onChange={handleInputChange}
-                      className={`bg-white dark:bg-gray-900 border${errors.creditsAllowed ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'} text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-2.5`}
-                      placeholder="0"
-                      disabled={isUpdating}
-                      min={0}
-                    />
-                  </div>
-                  {errors.creditsAllowed && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.creditsAllowed}</p>
-                  )}
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    You can manually adjust or select a plan below
-                  </p>
-                </div>
                 <div>
                   <label htmlFor="creditPlan" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Select Credit Plan

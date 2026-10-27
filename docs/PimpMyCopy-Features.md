@@ -1,11 +1,41 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.74
-Last Updated: 2026-10-27T11:00:00Z
+Version: 1.75
+Last Updated: 2026-10-27T12:00:00Z
 
 ---
 
-Quick — "Check with another AI" now ends step 1 with a bold reminder line the other AI writes back to the user ("Step 1 of 2 done — this is only half the check. Go back to CopyZap, click Copy step 2: our scores, and paste it here…"); on the CopyZap side, once step 1 is copied the step 2 button turns orange and its heading reads "do this next", and when the user returns from the other AI's tab without having sent step 2 a reminder box appears above step 2 with its own orange "Copy step 2: our scores" button. Separately, versions now keep every list the original gives (a programme, syllabus or temario, agenda, menu, what is included, session topics) — wording each item more shortly is allowed, dropping any is not — and never refer to something the version does not contain ("the full programme is above", "está arriba", "más abajo", "a continuación"); a temario is now treated as one key fact that names every item, and counts as kept only when every item is still named in a list or sentence, so a version that drops it shows "Left out from your original" with −3 points.
+## Admin — Inline Editing on Manage Users: Total Credits and End Date (2026-10-27)
+
+**Feature:** On /manage-users, two fields that used to need the Edit User modal can now be changed inline, in the table row, by an admin:
+
+1. **Total Credits (credits_allowed).** Clicking the number turns the cell into a number input pre-filled with the current value. Enter saves; Esc cancels; clicking outside (blur) cancels. Whole numbers of 0 or more only — anything else shows "Credits must be a whole number of 0 or more" and cancels. If the new value is more than double or less than half the old value (and the old value is above 0), a confirm dialog asks first: "Change credits for [email] from 1,000 to 10,000?". On save, the row updates in place: Total Credits shows the new number, and Credits Remaining is recomputed as the new Total Credits minus the row's existing Credits Used. A "Saved" toast shows on success; on error the old value is kept and the error is shown.
+
+2. **Subscription end date (until_date).** Clicking the end date in the Subscription cell opens a date picker. Picking a date saves it (the picker's change event fires the save). Esc or blur cancels. Next to the date range there is a small "+1mo" button that extends until_date by one month from the current end date, or from today if the current end date has already passed. It asks first: "Extend [email] until 12/25/2026?". On save, the row's end date updates in place; "Saved" toast on success; on error the old date is kept and the error is shown.
+
+**While saving:** the cell shows a small spinner instead of the input, so the admin can see the save is in flight. Only one cell saves at a time.
+
+**Save path:** Both fields save through the existing `adminUpdateUser` in `src/services/supabaseClient.ts` — the same function the Edit User modal uses. It posts to the existing `admin-update-user` edge function. No new save path, no new edge function, and no RLS policy is touched. The call sends the full record (startDate, untilDate, tokensAllowed mapped to credits, creditPlanId null, enforcementMode 'credits', creditsGraceUnits 0) so the edge function receives the same shape it already handles; only the changed field carries the new value, the rest pass through the row's existing values.
+
+**Edit User modal changes:** The "Until Date" field and the "Credits Allowed" field were removed from the Edit User modal — both are now faster to change inline. The "$" icon that sat next to Credits Allowed was removed (these are credits, not dollars). The modal now keeps only: New Password, Start Date, and the Credit Plan Assignment section (plan select + plan-applied note). The modal still saves through the same `adminUpdateUser`; the fields it no longer shows pass through unchanged from the user's current record.
+
+**Files touched:**
+- `src/components/ManageUsers.tsx` — imported `useRef`, `adminUpdateUser`, and the `Plus` icon; removed the unused `DollarSign` import. Added inline-edit state (`editingCreditsId`, `creditsDraft`, `editingDateId`, `dateDraft`, `savingCellId`) and two refs. Added `startEditCredits` / `saveCredits` / `cancelEditCredits`, `startEditDate` / `saveDate` / `cancelEditDate`, and `extendOneMonth`. The Total Credits cell now renders a button (click → number input) or a spinner while saving; Enter saves, Esc cancels, blur cancels, with the >2x / <0.5x confirm guard. The Subscription cell now renders a button (click → date input) or a spinner while saving, plus the "+1mo" extend button. After a credits save, the row's `credits_allowed` and `credits_remaining` are updated in the local `users` state so the change shows without a refetch.
+- `src/components/EditUserModal.tsx` — removed the `DollarSign` import. Removed the Until Date field block and the Credits Allowed field block (including the `# PimpMyCopy / CopyZap — Feature Documentation
+
+ icon and its input). The Credit Plan Assignment section, the plan select, the plan-applied note, New Password, and Start Date stay. The form still submits through `adminUpdateUser`; `formData.untilDate` and `formData.creditsAllowed` remain in component state but are no longer rendered, and `handleSubmit` still passes them so the save is unchanged for the fields the modal keeps.
+
+**What did not change:** No new edge function, no new save path, no RLS policy, no database migration. `adminUpdateUser` and the `admin-update-user` edge function are unchanged. The Credits Used, Cost USD, Credits Remaining, Total Records, Created, Last Activity, Power user, and Actions columns are unchanged. The non-admin access-denied path is unchanged. Non-admins never see the inline editors (the whole page is admin-only behind `useIsAdmin`).
+
+**Effect on Copy Maker and Quick:** None. Manage Users is an admin-only page; Copy Maker and Quick do not render it and are not changed.
+
+**Effect on existing data:** None. The inline editors call the same update edge function the modal did; no schema or stored-data shape changed.
+
+**Verification:**
+- `npm run build` passes.
+- On /manage-users (as an admin): clicking the Total Credits number turns it into a number input; Enter saves; Esc cancels; clicking outside cancels. A value more than double or less than half the old one shows the confirm dialog. After saving, Total Credits and Credits Remaining update in the same row, a "Saved" toast shows, and a spinner shows in the cell while the save is in flight.
+- Clicking the end date opens a date picker; picking a date saves it. The "+1mo" button extends the end date by a month (from the current end date, or today if it has passed) and asks first. The row updates in place with a "Saved" toast.
+- The Edit User modal no longer shows Until Date or Credits Allowed, and no "$" icon appears next to anything. New Password, Start Date, and the Credit Plan section remain.
 
 ---
 
