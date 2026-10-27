@@ -27,7 +27,7 @@
     },
     "admin-get-users": {
       "hasChanged": false,
-      "hash": "809199d051cae46bb136a3219d77c3f47a56aee869634703a2ca4d01e9c75d169219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+      "hash": "9298afd9dc638a710324765de703607a64b62e8f332d36000e188d62244387359219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
     },
     "admin-ping": {
       "hasChanged": false,
@@ -35,7 +35,7 @@
     },
     "admin-update-user": {
       "hasChanged": false,
-      "hash": "359ba7236c71dae3e74087da7baac8a046ec3d8d0936b233f6e6f585f832eaed9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+      "hash": "3b650b3910002d70775476f4ae51977a89c1fc41d45f387a985910e51eb46fbb9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
     },
     "ai-completion": {
       "hasChanged": false,

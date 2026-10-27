@@ -139,10 +139,10 @@ Deno.serve(async (req) => {
       const creditsRemaining = (pmcUser.credits_allowed || 0) - userStats.creditsUsed
       const enforcementMode = pmcUser.enforcement_mode || 'credits'
       const prepaid = prepaidByUser.get(pmcUser.id)
-      // For prepaid accounts the "Balance" column shows live bought/trial credits;
-      // for the legacy monthly plan it stays null so the column reads "—".
-      const prepaidBalance = enforcementMode === 'prepaid' && prepaid ? prepaid.credits_remaining : null
-      const prepaidNextExpiry = enforcementMode === 'prepaid' && prepaid ? prepaid.next_expiry : null
+      // Balance shows live bought/trial credits for every user; users on the
+      // old plan get an "Old plan" badge in the UI next to a 0 balance.
+      const prepaidBalance = prepaid ? prepaid.credits_remaining : 0
+      const prepaidNextExpiry = prepaid ? prepaid.next_expiry : null
 
       return {
         id: pmcUser.id,
