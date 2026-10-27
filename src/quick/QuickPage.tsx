@@ -284,7 +284,6 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     }
     const wantedId = targetUserId;
     let cancelled = false;
-    console.log('[admin-history] lookup', { isAdmin, targetUserId: wantedId, fn: 'adminGetUsers' });
     adminGetUsers()
       .then(({ data }) => {
         if (cancelled || !isMounted.current) return;
