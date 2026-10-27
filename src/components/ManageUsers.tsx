@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Search, CreditCard as Edit, Trash2, UserPlus, ArrowLeft, Shield, Calendar, DollarSign, RefreshCw, User as UserIcon, ArrowUpDown, ArrowUp, ArrowDown, Download, Activity } from 'lucide-react';
+import { Users, Search, CreditCard as Edit, Trash2, UserPlus, ArrowLeft, Shield, Calendar, DollarSign, RefreshCw, User as UserIcon, ArrowUpDown, ArrowUp, ArrowDown, Download, Activity, History } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import LoadingSpinner from './ui/LoadingSpinner';
@@ -622,6 +622,16 @@ const ManageUsers: React.FC = () => {
                       </td>
                       <td className="px-6 py-2 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex items-center justify-end space-x-2">
+                          {isAdmin && (
+                            <button
+                              onClick={() => navigate(`/history?user=${encodeURIComponent(user.id)}`)}
+                              className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"
+                              title="View this user's Quick history"
+                              aria-label={`View history: ${user.email}`}
+                            >
+                              <History size={16} />
+                            </button>
+                          )}
                           <button
                             onClick={() => navigate(`/dashboard?tab=creditsUsage&user=${encodeURIComponent(user.id)}&from=users`)}
                             className="text-gray-600 dark:text-gray-400 hover:text-gray-900 dark:hover:text-white p-1.5 rounded-md hover:bg-gray-100 dark:hover:bg-gray-800 transition-colors"

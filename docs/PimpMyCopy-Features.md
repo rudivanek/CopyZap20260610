@@ -1,11 +1,51 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.73
-Last Updated: 2026-10-21T19:00:00Z
+Version: 1.74
+Last Updated: 2026-10-27T10:00:00Z
 
 ---
 
 Quick — "Check with another AI" now ends step 1 with a bold reminder line the other AI writes back to the user ("Step 1 of 2 done — this is only half the check. Go back to CopyZap, click Copy step 2: our scores, and paste it here…"); on the CopyZap side, once step 1 is copied the step 2 button turns orange and its heading reads "do this next", and when the user returns from the other AI's tab without having sent step 2 a reminder box appears above step 2 with its own orange "Copy step 2: our scores" button. Separately, versions now keep every list the original gives (a programme, syllabus or temario, agenda, menu, what is included, session topics) — wording each item more shortly is allowed, dropping any is not — and never refer to something the version does not contain ("the full programme is above", "está arriba", "más abajo", "a continuación"); a temario is now treated as one key fact that names every item, and counts as kept only when every item is still named in a list or sentence, so a version that drops it shows "Left out from your original" with −3 points.
+
+---
+
+## Admin — View Another User's Quick History (2026-10-27)
+
+**Feature:** On /manage-users, each user row now has a "View history" button (a History icon) visible only to admins. Clicking it goes to `/history?user=<user_id>`, which opens the same History page Quick already uses, but loads the other user's saved Quick runs instead of the admin's own. Opening a run works exactly like opening one of the admin's own — every report button and export works, no data is left behind on the other user's row, and any regeneration the admin does is saved as a new entry under the admin's own account, never on the user's.
+
+**Access and visibility:** The button is rendered only when `isAdmin` is true (the existing `useIsAdmin` hook). Non-admins never see it. On `/history?user=`, a non-admin viewer is ignored: the `user` param has no effect and they see their own history, exactly as before.
+
+**Banner:** When an admin is viewing another user's history, a banner at the top reads "Viewing history of [email]" with a link back to /manage-users. The admin's email is looked up once via the existing `adminGetUsers()` edge function, so the param stays a plain user id.
+
+**Read-only for the other user's rows:** Rename and Delete are hidden while viewing another user's history, and the per-session credits line is not shown (the admin cannot read the other user's session credits). Open, the score, the original score, the goal, the source host and the date all show as normal.
+
+**Never writes to the other user's rows:** Opening a foreign run sets `savedId` to null in the page, so every later save — rescore, change, edit, claim decision, claim removal, claim re-score — falls through to the "save a new entry under the admin" branch (`saveQuickResult(run, currentUser, ...)`), never the "update this row" branch. Exports read from the in-memory result state, so they produce a file without touching the database. As soon as the admin starts their own work (New, Start over, Run again with your answers) or saves a new entry, the foreign view is dropped and the page returns to the admin's own account.
+
+**Security:** Two new SECURITY DEFINER functions, both gated by `is_app_admin()` (the existing check, migration 20260210163509):
+- `admin_list_user_quick_results(p_user_id uuid)` returns the same summary columns `listQuickResults` selects, for the other user's `quick-app`-tagged rows, newest first, limit 100. Read-only.
+- `admin_load_quick_result(p_result_id uuid)` returns one full `pmc_saved_outputs` row so the admin can open a foreign run with all of its data. Read-only.
+
+Both functions `REVOKE EXECUTE FROM PUBLIC, anon` and `GRANT EXECUTE TO authenticated`, as required for SECURITY DEFINER functions. **No existing RLS policy on `pmc_saved_outputs` is changed.** The functions bypass RLS because they are SECURITY DEFINER; the `is_app_admin()` call inside each is the only gate, so a non-admin caller gets an exception and no rows.
+
+**Files touched:**
+- `supabase/migrations/20261027100000_add_admin_quick_history_rpc.sql` (new) — the two RPCs.
+- `src/engine/quickHistory.ts` — `adminListQuickResults(userId)` and `adminLoadQuickResult(id)` call the RPCs and return the same shapes as `listQuickResults` / `loadQuickResult`, so the rest of the code is unchanged.
+- `src/quick/QuickHistory.tsx` — new optional `viewingUser: { id, email }` prop; when set, lists via `adminListQuickResults`, skips the credits lookup, hides Rename and Delete, and shows the "Viewing history of [email]" banner with a link back to /manage-users. Exported the `ViewingUser` type.
+- `src/quick/QuickPage.tsx` — reads the `user` search param; when present and `isAdmin`, looks up the target user's email and sets `viewingUser`. Starts in the `history` phase on the `/history` route. `openSaved` routes a foreign run through `adminLoadQuickResult` and keeps `savedId = null`; `handleNew`, `handleStartOver`, `handleRunAgainWithAnswers` and a successful new save clear `viewingUser`. The `QuickHistory` element now receives `viewingUser`.
+- `src/components/ManageUsers.tsx` — added a "View history" button (History icon) in the actions column, rendered only when `isAdmin`, navigating to `/history?user=<user.id>`. Imported the `History` icon from `lucide-react`.
+- `src/App.tsx` — new `/history` route that renders `QuickPage` (same element as `/`), so Manage Users can link to `/history?user=<id>` and QuickPage decides behavior from the `user` param.
+
+**Effect on Copy Maker:** None. Copy Maker does not use Quick's history or the new RPCs. Copy Maker writes as before.
+
+**Effect on existing results:** None. The two RPCs only read; no saved row is changed. A result opened through the admin view is shown exactly as it was saved.
+
+**Verification:**
+- `npm run build` passes.
+- An admin on /manage-users sees the History icon on each row; a non-admin does not.
+- Clicking it opens /history?user=<id> with the "Viewing history of [email]" banner and the other user's runs. Rename and Delete are not shown; the credits line is not shown.
+- Opening a run shows it in full, with every report button and export working. The address keeps both `r` and `user` so a reload reopens the same foreign run.
+- A non-admin visiting /history?user=<some-id> sees their own history, with no banner.
+- Rescoring, changing, editing, or making a claim decision on a foreign run saves a new entry under the admin's account; the other user's row is untouched.
 
 ---
 

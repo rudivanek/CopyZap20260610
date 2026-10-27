@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useCompleteAccess } from '../hooks/useCompleteAccess';
+import { useIsAdmin } from '../hooks/useIsAdmin';
+import { adminGetUsers } from '../services/supabaseClient';
 import { GoalKey, User } from '../types';
 import { DEFAULT_GOAL_KEY, GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import { countWords } from '../utils/markdownUtils';
@@ -23,7 +25,8 @@ import { chatFacts, CLOSING_QUESTION, EMPTY_FACT_CHAT, FactChat } from '../engin
 import { readChatChoice, saveChatChoice } from './QuickFactChat';
 import { FACT_FIELDS_OFF } from './QuickMissingFacts';
 import { getTextKind } from '../services/api/textKinds';
-import { loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
+import { adminLoadQuickResult, loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
+import type { ViewingUser } from './QuickHistory';
 import { changeQuickVersion, QuickChangeOutcome, QuickChangeParts, validateQuickChange } from '../engine/changeQuickVersion';
 import { QuickEditDraft, scoreQuickEdit } from '../engine/editQuickVersion';
 import { ClaimReview, removeDecision, reviewedText, reviewFor, scoreReviewedText, withDecision } from '../engine/claimReview';
@@ -125,7 +128,16 @@ function formatElapsed(seconds: number): string {
 const FACTS_UPDATE_MAX_MS = 15000;
 
 const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
-  const [phase, setPhase] = useState<Phase>('start');
+  const location = useLocation();
+  const isHistoryRoute = location.pathname === '/history';
+  const { isAdmin } = useIsAdmin(currentUser);
+  const [phase, setPhase] = useState<Phase>(isHistoryRoute ? 'history' : 'start');
+  // When an admin opens /history?user=<id>, the history of that user is shown
+  // instead of the admin's own. Cleared once the admin starts their own work
+  // (New, Start over, Run again) or saves a new result; while it is set, opening
+  // a run goes through the admin RPC and savedId stays null so no change ever
+  // writes to the other user's row.
+  const [viewingUser, setViewingUser] = useState<ViewingUser | null>(null);
   const [copy, setCopy] = useState('');
   const [goalKey, setGoalKey] = useState<GoalKey>(DEFAULT_GOAL_KEY);
   // For the goal "Other": what the copy is for, in the user's own words.
@@ -164,9 +176,10 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   // Only power users and admins are offered the Complete interface.
   const completeAccess = useCompleteAccess();
   const openAtStart = useRef(searchParams.get('r'));
+  const targetUserId = useRef(searchParams.get('user'));
   // "How it works": open on a user's first visit (not when they arrive at a
-  // saved result), and whenever they press Help.
-  const [introOpen, setIntroOpen] = useState(() => !hasSeenIntro(currentUser.id) && !openAtStart.current);
+  // saved result or the History page), and whenever they press Help.
+  const [introOpen, setIntroOpen] = useState(() => !isHistoryRoute && !hasSeenIntro(currentUser.id) && !openAtStart.current);
   const closeIntro = () => {
     markIntroSeen(currentUser.id);
     setIntroOpen(false);
@@ -251,6 +264,28 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     return () => {
       isMounted.current = false;
     };
+  }, []);
+
+  // On /history?user=<id>, an admin views another user's history. A non-admin
+  // ignores the param and sees their own history. The email is looked up once so
+  // the banner can name the user; the list itself is loaded by QuickHistory via
+  // the admin RPC.
+  useEffect(() => {
+    if (!isHistoryRoute || !targetUserId.current || !isAdmin) return;
+    let cancelled = false;
+    adminGetUsers()
+      .then(({ data }) => {
+        if (cancelled || !isMounted.current) return;
+        const match = (data as Array<{ id: string; email?: string }> | null)?.find(
+          u => String(u.id) === String(targetUserId.current)
+        );
+        if (match) setViewingUser({ id: String(match.id), email: match.email ?? '' });
+      })
+      .catch(() => undefined);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   // Count seconds while any process is running.
@@ -345,6 +380,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         const newId = await saveQuickResult(run, currentUser, seconds);
         if (!isMounted.current) return;
         setSavedId(newId);
+        // A new save is the admin's own result: leave the foreign view behind.
+        if (viewingUser) setViewingUser(null);
         setSearchParams({ r: newId }, { replace: true });
       }
       if (isMounted.current) setSaveState('saved');
@@ -393,22 +430,26 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setBusy('opening');
     const { alive: isMounted } = startProcess();
     try {
-      const loaded = await loadQuickResult(id);
+      // Viewing another user's run: load via the admin RPC. savedId stays null
+      // so any later change/rescore/edit saves a NEW entry under the admin
+      // (never writes to the other user's row). Exports read from in-memory
+      // result state, so they work without any write.
+      const loaded = viewingUser ? await adminLoadQuickResult(id) : await loadQuickResult(id);
       if (!isMounted.current) return;
       if (!loaded) {
-        setSearchParams({}, { replace: true });
+        setSearchParams(viewingUser ? { user: viewingUser.id } : {}, { replace: true });
         setError('That result could not be found. It may have been deleted.');
-        setPhase('start');
+        setPhase(viewingUser ? 'history' : 'start');
         return;
       }
       setResult(loaded.result);
       inputsFromRun.current = false;
       setChangeNotice(null);
       setRunSeconds(loaded.runSeconds);
-      setSavedId(loaded.id);
+      setSavedId(viewingUser ? null : loaded.id);
       setSavedTitle(loaded.title);
       setSaveState('saved');
-      setSearchParams({ r: loaded.id }, { replace: true });
+      setSearchParams(viewingUser ? { r: loaded.id, user: viewingUser.id } : { r: loaded.id }, { replace: true });
       setPhase('result');
       window.scrollTo(0, 0);
     } catch (openError) {
@@ -911,6 +952,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setSavedId(null);
     setSavedTitle(null);
     setSaveState(null);
+    setViewingUser(null);
     setSearchParams({}, { replace: true });
     setError(null);
     setUrl('');
@@ -1006,6 +1048,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setSavedId(null);
     setSavedTitle(null);
     setSaveState(null);
+    setViewingUser(null);
     setSearchParams({}, { replace: true });
     setError(null);
     setSessionId(null);
@@ -1044,6 +1087,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setSavedId(null);
     setSavedTitle(null);
     setSaveState(null);
+    setViewingUser(null);
     setSearchParams({}, { replace: true });
     setError(null);
     setSessionId(newSessionId);
@@ -1419,7 +1463,13 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       )}
 
       {phase === 'history' && (
-        <QuickHistory currentUser={currentUser} onOpen={openSaved} onNew={handleNew} onDeleted={handleDeleted} />
+        <QuickHistory
+          currentUser={currentUser}
+          onOpen={openSaved}
+          onNew={handleNew}
+          onDeleted={handleDeleted}
+          viewingUser={viewingUser}
+        />
       )}
       </div>
 

@@ -790,6 +790,22 @@ const AppRouter: React.FC = () => {
           }
         />
         <Route
+          path="/history"
+          element={
+            // Quick's History phase, on its own address so Manage Users can link
+            // to /history?user=<id>. QuickPage reads the `user` param; an admin
+            // viewing another user's history goes through admin RPCs, a non-admin
+            // sees their own history.
+            currentUser
+              ? (
+                <Suspense fallback={null}>
+                  <QuickPage currentUser={currentUser} onLogout={handleEnhancedLogout} />
+                </Suspense>
+              )
+              : <Navigate to="/login" replace />
+          }
+        />
+        <Route
           path="/copy-snap"
           element={
             currentUser ? (

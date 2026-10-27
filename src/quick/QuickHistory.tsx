@@ -4,8 +4,14 @@ import { getAbsoluteScoreMarkClass } from '../utils/scoreColors';
 import { quickGoalName } from '../engine/buildQuickFormState';
 import { TIPS } from './tips';
 import { formatVersionTime } from '../utils/versionTime';
-import { deleteQuickResult, listQuickResults, QuickHistoryEntry, renameQuickResult } from '../engine/quickHistory';
+import { Link } from 'react-router-dom';
+import { deleteQuickResult, listQuickResults, adminListQuickResults, QuickHistoryEntry, renameQuickResult } from '../engine/quickHistory';
 import { getSessionCredits } from '../engine/quickCredits';
+
+export interface ViewingUser {
+  id: string;
+  email: string;
+}
 
 interface QuickHistoryProps {
   currentUser: User;
@@ -13,6 +19,8 @@ interface QuickHistoryProps {
   onNew: () => void;
   /** Tells the page that an entry is gone, in case it is the result currently open. */
   onDeleted: (id: string) => void;
+  /** When set, an admin is viewing another user's history: list via the admin RPC, hide Rename/Delete, show a banner. */
+  viewingUser?: ViewingUser | null;
 }
 
 const card = 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700';
@@ -29,7 +37,8 @@ function formatDate(value: string): string {
   return formatVersionTime(value);
 }
 
-const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew, onDeleted }) => {
+const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew, onDeleted, viewingUser }) => {
+  const isViewingOther = !!viewingUser;
   const [entries, setEntries] = useState<QuickHistoryEntry[] | null>(null);
   // Credits per session id. Read after the list; when the read fails, the lines simply show no credits.
   const [credits, setCredits] = useState<Record<string, number>>({});
@@ -39,14 +48,17 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [workingId, setWorkingId] = useState<string | null>(null);
   const isMounted = useRef(true);
-  const userId = currentUser.id;
+  const userId = viewingUser?.id ?? currentUser.id;
 
   useEffect(() => {
     isMounted.current = true;
-    listQuickResults(userId)
+    const listPromise = isViewingOther ? adminListQuickResults(userId) : listQuickResults(userId);
+    listPromise
       .then(list => {
         if (!isMounted.current) return;
         setEntries(list);
+        // The other user's session credits are not visible to the admin; skip the lookup.
+        if (isViewingOther) return;
         getSessionCredits(list.map(entry => entry.sessionId).filter((id): id is string => !!id))
           .then(map => {
             if (isMounted.current) setCredits(map);
@@ -62,7 +74,7 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
     return () => {
       isMounted.current = false;
     };
-  }, [userId]);
+  }, [userId, isViewingOther]);
 
   const startRename = (entry: QuickHistoryEntry) => {
     setDeletingId(null);
@@ -118,6 +130,20 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
           New
         </button>
       </div>
+
+      {isViewingOther && viewingUser && (
+        <div className={`${card} flex flex-wrap items-center justify-between gap-x-4 gap-y-2 p-4`}>
+          <p className="text-gray-900 dark:text-gray-100">
+            Viewing history of <span className="font-semibold">{viewingUser.email}</span>
+          </p>
+          <Link
+            to="/manage-users"
+            className="inline-flex items-center min-h-[36px] px-3 text-primary-800 dark:text-primary-300 underline hover:text-primary-900 dark:hover:text-primary-200 focus:outline-none focus:ring-2 focus:ring-primary-500"
+          >
+            Back to Manage users
+          </Link>
+        </div>
+      )}
 
       {error && (
         <div role="alert" className={`${card} flex items-start gap-2.5 p-4`}>
@@ -225,20 +251,24 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
                       <button type="button" onClick={() => onOpen(entry.id)} data-tip={TIPS.open} className={linkButton}>
                         Open
                       </button>
-                      <button type="button" onClick={() => startRename(entry)} data-tip={TIPS.rename} className={linkButton}>
-                        Rename
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setRenamingId(null);
-                          setDeletingId(entry.id);
-                        }}
-                        data-tip={TIPS.remove}
-                        className="inline-flex items-center min-h-[44px] text-status-critical underline focus:outline-none focus:ring-2 focus:ring-primary-500"
-                      >
-                        Delete
-                      </button>
+                      {!isViewingOther && (
+                        <button type="button" onClick={() => startRename(entry)} data-tip={TIPS.rename} className={linkButton}>
+                          Rename
+                        </button>
+                      )}
+                      {!isViewingOther && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setRenamingId(null);
+                            setDeletingId(entry.id);
+                          }}
+                          data-tip={TIPS.remove}
+                          className="inline-flex items-center min-h-[44px] text-status-critical underline focus:outline-none focus:ring-2 focus:ring-primary-500"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </span>
                   )}
                 </div>

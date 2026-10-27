@@ -254,3 +254,37 @@ export async function deleteQuickResult(id: string): Promise<void> {
   const { error } = await supabase.from(TABLE).delete().eq('id', id);
   if (error) throw new Error(error.message || 'The result could not be deleted.');
 }
+
+/**
+ * Admin only: lists another user's Quick history (same shape as listQuickResults).
+ * Backed by the SECURITY DEFINER RPC admin_list_user_quick_results, which calls
+ * is_app_admin() and raises if the caller is not an admin. Read-only: nothing is
+ * written to the other user's rows.
+ */
+export async function adminListQuickResults(userId: string): Promise<QuickHistoryEntry[]> {
+  const { data, error } = await supabase.rpc('admin_list_user_quick_results', { p_user_id: userId });
+  if (error) throw new Error(error.message || 'History could not be loaded.');
+  return ((data as Record<string, unknown>[] | null) ?? []).map(row => ({
+    id: String(row.id),
+    title: cleanTitle(String(row.title ?? '')),
+    goalKey: typeof row.goal_key === 'string' && row.goal_key ? row.goal_key : null,
+    goalLabel: typeof row.goal_label === 'string' && row.goal_label ? row.goal_label : null,
+    score: toHistoryNumber(row.winner_score),
+    originalScore: toHistoryNumber(row.original_score),
+    sourceHost: typeof row.source_host === 'string' && row.source_host ? row.source_host : null,
+    createdAt: String(row.created_at ?? ''),
+    sessionId: row.session_id != null ? String(row.session_id) : null,
+  }));
+}
+
+/** Admin only: opens another user's saved run in full. Read-only. */
+export async function adminLoadQuickResult(id: string): Promise<LoadedQuickResult | null> {
+  const { data, error } = await supabase.rpc('admin_load_quick_result', { p_result_id: id });
+  if (error) throw new Error(error.message || 'The result could not be opened.');
+  return rowToQuickResult(data as Record<string, unknown> | null);
+}
+
+function toHistoryNumber(value: unknown): number | null {
+  const parsed = typeof value === 'number' ? value : typeof value === 'string' && value !== '' ? Number(value) : NaN;
+  return Number.isFinite(parsed) ? parsed : null;
+}
