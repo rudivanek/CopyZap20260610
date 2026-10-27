@@ -1,15 +1,7 @@
 import React, { useState, useEffect } from 'react';
-import { X, User, Calendar, Save, Key, CreditCard, Plus, Layers, AlertTriangle } from 'lucide-react';
+import { X, User, Key, Layers, AlertTriangle, Plus } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import { adminUpdateUser, adminGetCreditPacks, adminAddCredits, adminListGrants, adminZeroGrant, AdminCreditPack, AdminCreditGrant } from '../services/supabaseClient';
-import { supabase } from '../services/supabaseClient';
-
-interface CreditPlan {
-  id: string;
-  plan_key: string;
-  plan_name: string;
-  credits_monthly: number;
-}
 
 interface EditUser {
   id: string;
@@ -19,7 +11,7 @@ interface EditUser {
   start_date?: string | null;
   until_date?: string | null;
   tokens_allowed: number;
-  credits_allowed?: number; // live field; preferred over tokens_allowed
+  credits_allowed?: number;
   tokens_remaining?: number;
   auth_created_at?: string;
   last_sign_in_at?: string | null;
@@ -35,27 +27,17 @@ interface EditUserModalProps {
   isOpen: boolean;
   onClose: () => void;
   user: EditUser | null;
-  onUserUpdated: () => void; // Callback to refresh data after user update
-  currentUser?: any; // Current authenticated user to check admin permissions
+  onUserUpdated: () => void;
+  currentUser?: any;
 }
 
 const EditUserModal: React.FC<EditUserModalProps> = ({
   isOpen,
   onClose,
   user,
-  onUserUpdated,
-  currentUser
+  onUserUpdated
 }) => {
-  const [formData, setFormData] = useState({
-    password: '',
-    startDate: '',
-    untilDate: '',
-    creditsAllowed: 0,
-    enforcementMode: 'credits' as 'credits' | 'tokens',
-    creditsGraceUnits: 0
-  });
-  const [selectedPlanId, setSelectedPlanId] = useState<string>('');
-  const [creditPlans, setCreditPlans] = useState<CreditPlan[]>([]);
+  const [password, setPassword] = useState('');
   const [isUpdating, setIsUpdating] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -72,41 +54,16 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
   const [prepaidBalance, setPrepaidBalance] = useState<number | null>(null);
   const [prepaidNextExpiry, setPrepaidNextExpiry] = useState<string | null>(null);
 
-  // Fetch credit plans
-  useEffect(() => {
-    const fetchCreditPlans = async () => {
-      const { data, error } = await supabase
-        .from('credit_plans')
-        .select('*')
-        .eq('is_active', true)
-        .order('sort_order');
-
-      if (!error && data) {
-        setCreditPlans(data);
-      }
-    };
-
-    fetchCreditPlans();
-  }, []);
-
   // Reset form when modal opens/closes or user changes
   useEffect(() => {
     if (isOpen && user) {
-      setFormData({
-        password: '',
-        startDate: user.start_date || '',
-        untilDate: user.until_date || '',
-        creditsAllowed: user.credits_allowed ?? user.tokens_allowed ?? 0,
-        enforcementMode: user.enforcement_mode || 'credits',
-        creditsGraceUnits: user.credits_grace_units || 0
-      });
-      setSelectedPlanId('');
+      setPassword('');
       setErrors({});
       setAddPackKey('');
       setAddCustomCredits('');
       setAddCustomDate('');
       setAddNote('');
-      setPrepaidBalance(user.prepaid_balance ?? null);
+      setPrepaidBalance(user.prepaid_balance ?? 0);
       setPrepaidNextExpiry(user.prepaid_next_expiry ?? null);
     }
   }, [isOpen, user]);
@@ -146,64 +103,6 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOpen, user?.id]);
-
-  const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({
-      ...prev,
-      [name]: (name === 'creditsAllowed' || name === 'creditsGraceUnits') ? parseInt(value) || 0 : value
-    }));
-
-    // Clear error for this field when user starts typing
-    if (errors[name]) {
-      setErrors(prev => ({
-        ...prev,
-        [name]: ''
-      }));
-    }
-  };
-
-  const handlePlanChange = (planId: string) => {
-    setSelectedPlanId(planId);
-
-    // Auto-apply the plan's credits when selected
-    if (planId) {
-      const plan = creditPlans.find(p => p.id === planId);
-      if (plan) {
-        setFormData(prev => ({
-          ...prev,
-          creditsAllowed: plan.credits_monthly
-        }));
-      }
-    }
-  };
-
-  const validateForm = (): boolean => {
-    const newErrors: Record<string, string> = {};
-
-    // Password validation (only if provided)
-    if (formData.password && formData.password.length < 8) {
-      newErrors.password = 'Password must be at least 8 characters long';
-    }
-
-    // Date validation
-    if (formData.startDate && formData.untilDate) {
-      const startDate = new Date(formData.startDate);
-      const untilDate = new Date(formData.untilDate);
-      
-      if (untilDate <= startDate) {
-        newErrors.untilDate = 'End date must be after start date';
-      }
-    }
-
-    // Credits validation
-    if (formData.creditsAllowed < 0) {
-      newErrors.creditsAllowed = 'Credits allowed must be a positive number';
-    }
-
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
-  };
 
   const handleAddCredits = async () => {
     if (!user) return;
@@ -257,7 +156,6 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
       if (error) throw error;
       toast.success('Grant zeroed');
       await refreshGrants(user.id);
-      // Refresh the live balance from the grants list (sum of remaining).
       const liveRemaining = (grantsRef.current ?? [])
         .filter(g => g.id !== grant.id)
         .reduce((sum, g) => sum + (Number(g.remaining) || 0), 0);
@@ -283,27 +181,23 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
       return;
     }
 
-    if (!validateForm()) {
-      return;
+    const newErrors: Record<string, string> = {};
+    if (password && password.length < 8) {
+      newErrors.password = 'Password must be at least 8 characters long';
     }
+    setErrors(newErrors);
+    if (Object.keys(newErrors).length > 0) return;
 
     setIsUpdating(true);
-
     try {
       await adminUpdateUser({
         userId: user.id,
-        password: formData.password || undefined,
-        startDate: formData.startDate || null,
-        untilDate: formData.untilDate || null,
-        tokensAllowed: formData.creditsAllowed,
-        creditPlanId: selectedPlanId || null,
-        enforcementMode: formData.enforcementMode,
-        creditsGraceUnits: formData.creditsGraceUnits
+        password: password || undefined,
       });
 
       toast.success(`User ${user.email} updated successfully!`);
-      onUserUpdated(); // Refresh data
-      onClose(); // Close modal
+      onUserUpdated();
+      onClose();
     } catch (error: any) {
       console.error('Error updating user:', error);
       toast.error(`Failed to update user: ${error.message}`);
@@ -313,6 +207,8 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
   };
 
   if (!isOpen || !user) return null;
+
+  const isOldPlan = user.enforcement_mode !== 'prepaid';
 
   return (
     <div className="fixed inset-0 bg-black/80 z-50 flex items-center justify-center p-4">
@@ -330,7 +226,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
             <X size={20} />
           </button>
         </div>
-        
+
         <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-4 custom-scrollbar">
           <div className="space-y-4">
             {/* User Info Display */}
@@ -361,8 +257,8 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
                   type="password"
                   id="password"
                   name="password"
-                  value={formData.password}
-                  onChange={handleInputChange}
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
                   className={`bg-white dark:bg-gray-900 border${errors.password ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'} text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full pl-10 p-2.5`}
                   placeholder="Leave blank to keep current password"
                   disabled={isUpdating}
@@ -377,120 +273,6 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
               </p>
             </div>
 
-            {/* Subscription Details Section */}
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-              <h4 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-3 flex items-center">
-                <Calendar size={16} className="mr-2 text-primary-500" />
-                Subscription Details
-              </h4>
-
-              {/* Start Date */}
-              <div className="mb-4">
-                <label htmlFor="startDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Start Date
-                </label>
-                <input
-                  type="date"
-                  id="startDate"
-                  name="startDate"
-                  value={formData.startDate}
-                  onChange={handleInputChange}
-                  className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5"
-                  disabled={isUpdating}
-                />
-              </div>
-
-              {/* Until Date */}
-              <div className="mb-4">
-                <label htmlFor="untilDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Until Date
-                </label>
-                <input
-                  type="date"
-                  id="untilDate"
-                  name="untilDate"
-                  value={formData.untilDate}
-                  onChange={handleInputChange}
-                  className={`bg-white dark:bg-gray-900 border ${errors.untilDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'} text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5`}
-                  disabled={isUpdating}
-                />
-                {errors.untilDate && (
-                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.untilDate}</p>
-                )}
-              </div>
-
-            </div>
-
-            {/* Credit Plan Assignment Section */}
-            <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
-              <h4 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-3 flex items-center">
-                <CreditCard size={16} className="mr-2 text-primary-500" />
-                Credit Plan Assignment
-              </h4>
-
-              <div className="bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-800 rounded-lg p-3 mb-4">
-                <p className="text-xs text-blue-800 dark:text-blue-300">
-                  Select a credit plan to set the user's credit allowance. The plan will be linked to the user's account and credits will be automatically applied.
-                </p>
-              </div>
-
-              <div className="space-y-3">
-                <div>
-                  <label htmlFor="creditsAllowed" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                    Credits Allowed
-                  </label>
-                  <input
-                    type="number"
-                    id="creditsAllowed"
-                    name="creditsAllowed"
-                    value={formData.creditsAllowed}
-                    onChange={handleInputChange}
-                    className={`bg-white dark:bg-gray-900 border ${errors.creditsAllowed ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'} text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5`}
-                    placeholder="0"
-                    disabled={isUpdating}
-                    min={0}
-                  />
-                  {errors.creditsAllowed && (
-                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.creditsAllowed}</p>
-                  )}
-                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                    You can manually adjust or select a plan below
-                  </p>
-                </div>
-
-                <div>
-                  <label htmlFor="creditPlan" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                    Select Credit Plan
-                  </label>
-                  <select
-                    id="creditPlan"
-                    value={selectedPlanId}
-                    onChange={(e) => handlePlanChange(e.target.value)}
-                    className="bg-white dark:bg-gray-900 borderborder-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5"
-                    disabled={isUpdating}
-                  >
-                    <option value="">-- Select a plan --</option>
-                    {creditPlans.map(plan => (
-                      <option key={plan.id} value={plan.id}>
-                        {plan.plan_name} - {plan.credits_monthly.toLocaleString()} credits
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {selectedPlanId && (
-                  <div className="bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800 rounded-lg p-3">
-                    <p className="text-sm text-green-800 dark:text-green-300">
-                      <strong>Plan Applied:</strong> {creditPlans.find(p => p.id === selectedPlanId)?.credits_monthly.toLocaleString() || 0} credits will be set when you click Update User
-                    </p>
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* Phase 4B-1: Enforcement Mode section REMOVED from UI
-                DB fields remain intact for emergency manual rollback if needed */}
-
             {/* Prepaid credit management (admin bonus grants). */}
             <div className="border-t border-gray-200 dark:border-gray-700 pt-4">
               <h4 className="text-md font-medium text-gray-800 dark:text-gray-200 mb-3 flex items-center">
@@ -499,11 +281,19 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
               </h4>
 
               <div className="bg-gray-50 dark:bg-gray-800 p-3 rounded-lg border border-gray-200 dark:border-gray-700 mb-3 text-sm text-gray-700 dark:text-gray-300">
-                <p><strong>Balance:</strong> {prepaidBalance !== null ? prepaidBalance.toLocaleString() : '—'}</p>
+                <p className="flex items-center gap-2 flex-wrap">
+                  <strong>Balance:</strong>
+                  <span>{prepaidBalance !== null ? prepaidBalance.toLocaleString() : '0'}</span>
+                  {isOldPlan && (
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-full text-xs bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
+                      Old plan
+                    </span>
+                  )}
+                </p>
                 <p><strong>Next expiry:</strong> {prepaidNextExpiry ? new Date(prepaidNextExpiry).toLocaleDateString() : '—'}</p>
               </div>
 
-              {user.enforcement_mode !== 'prepaid' && (
+              {isOldPlan && (
                 <div className="bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg p-3 mb-3 flex items-start gap-2">
                   <AlertTriangle size={16} className="text-amber-600 dark:text-amber-400 mt-0.5 flex-shrink-0" />
                   <p className="text-xs text-amber-800 dark:text-amber-300">
@@ -636,7 +426,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
             </div>
           </div>
         </form>
-        
+
         <div className="flex-shrink-0 p-4 border-t border-gray-300 dark:border-gray-800 flex justify-end space-x-3">
           <button
             type="button"
@@ -666,10 +456,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
                 Updating...
               </>
             ) : (
-              <>
-                <Save size={16} className="mr-2" />
-                Update User
-              </>
+              'Update User'
             )}
           </button>
         </div>
