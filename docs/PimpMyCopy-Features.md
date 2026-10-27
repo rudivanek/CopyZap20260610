@@ -9,6 +9,33 @@ Quick — "Check with another AI" now ends step 1 with a bold reminder line the 
 
 ---
 
+## Admin — Wider Admin Layout and Manage Users Table Fits 1440px (2026-10-27)
+
+**Feature:** Two layout fixes so the admin-only pages use the full width of a wide screen and the Manage Users table fits on a 1440px screen without a horizontal scrollbar:
+1. Six admin-only pages had a narrow content cap (`max-w-7xl` = 1280px) and 16px side padding, so on a 1440px or larger screen a third of the page was empty margin. The cap is now `max-w-[1800px]` with 32px side padding (`px-8`), so the content uses nearly the full width of the screen up to 1800px and has comfortable side spacing. The six pages are Manage Users, Manage Prefills, Manage Special Instructions, Manage Customers, Admin Diagnostics, and Report Theme Editor.
+2. The Manage Users table had wide cell padding (`px-6` on every cell) and the Actions column scrolled off the right edge on a 1440px screen, with no way to see the buttons without scrolling right. The cell padding is now `px-3` on every cell, the Actions column is sticky on the right (`sticky right-0 z-10` with a left-edge shadow and a row-matching hover background), and the User column stays sticky on the left as before. The row gained a `group` class so the sticky cells' hover backgrounds match the rest of the row. The table now fits on a 1440px screen without horizontal scrolling, and the Actions column stays visible while the rest of the table scrolls.
+
+**Files touched:**
+- `src/components/ManageUsers.tsx` — outer container changed from `max-w-7xl mx-auto px-4` to `max-w-[1800px] mx-auto px-8`; every table cell padding changed from `px-6` to `px-3`; the Actions `<th>` and `<td>` made sticky on the right with `sticky right-0 z-10`, a left-edge `shadow`, and a `group-hover:bg-gray-50 dark:group-hover:bg-gray-800` hover background; the row `<tr>` gained a `group` class alongside its existing `hover:bg-gray-50 dark:hover:bg-gray-800`.
+- `src/components/ManagePrefills.tsx` — outer container changed from `max-w-7xl mx-auto px-4` to `max-w-[1800px] mx-auto px-8`.
+- `src/components/ManageSpecialInstructions.tsx` — outer container changed from `max-w-7xl mx-auto px-4` to `max-w-[1800px] mx-auto px-8`.
+- `src/components/ManageCustomers.tsx` — outer container changed from `max-w-7xl mx-auto px-4 sm:px-6 lg:px-8` to `max-w-[1800px] mx-auto px-8`.
+- `src/components/AdminDiagnostics.tsx` — outer container changed from `py-8 px-4` / inner `max-w-4xl mx-auto` to `py-8 px-8` / inner `max-w-[1800px] mx-auto`.
+- `src/components/admin/ReportThemeEditor.tsx` — outer container changed from `py-8 px-4` / inner `max-w-7xl mx-auto` to `py-8 px-8` / inner `max-w-[1800px] mx-auto`.
+
+**What did not change:** No columns were added to or removed from the Manage Users table. The "mystery column" some rows showed was the Cost USD column scrolled under the sticky User column, not a real extra column. No data, no RLS policies, no edge functions, no copy generation, scoring, export, or credit logic changed. Non-admin pages were not touched.
+
+**Effect on Copy Maker and Quick:** None. All six files are admin-only pages rendered behind the admin route guard; Copy Maker and Quick do not render them and are not changed.
+
+**Effect on existing data:** None. This is a layout-only change. No database row, saved output, session, template, prefill, customer, user, or theme setting is read or written differently.
+
+**Verification:**
+- `npm run build` passes (verified twice, before and after the timestamp bump).
+- On a 1440px screen, the six admin pages use the full width with comfortable side spacing instead of leaving a third of the screen as empty margin.
+- On a 1440px screen, the Manage Users table fits without a horizontal scrollbar, the User column stays pinned on the left, the Actions column stays pinned on the right with a shadow separating it from the rest of the row, and the sticky cells' hover background matches the rest of the row.
+
+---
+
 ## Admin — View Another User's Quick History (2026-10-27)
 
 **Feature:** On /manage-users, each user row now has a "View history" button (a History icon) visible only to admins. Clicking it goes to `/history?user=<user_id>`, which opens the same History page Quick already uses, but loads the other user's saved Quick runs instead of the admin's own. Opening a run works exactly like opening one of the admin's own — every report button and export works, no data is left behind on the other user's row, and any regeneration the admin does is saved as a new entry under the admin's own account, never on the user's.
