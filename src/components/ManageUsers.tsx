@@ -103,6 +103,7 @@ const ManageUsers: React.FC = () => {
       setUsers(prev => prev.map(u => u.id === user.id ? {
         ...u,
         credits_allowed: newValue,
+        tokens_allowed: newValue,
         credits_remaining: newValue - (u.credits_used ?? 0),
       } : u));
       toast.success('Saved');

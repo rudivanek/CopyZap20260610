@@ -19,6 +19,7 @@ interface EditUser {
   start_date?: string | null;
   until_date?: string | null;
   tokens_allowed: number;
+  credits_allowed?: number; // live field; preferred over tokens_allowed
   tokens_remaining?: number;
   auth_created_at?: string;
   last_sign_in_at?: string | null;
@@ -79,7 +80,7 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
         password: '',
         startDate: user.start_date || '',
         untilDate: user.until_date || '',
-        creditsAllowed: user.tokens_allowed || 0,
+        creditsAllowed: user.credits_allowed ?? user.tokens_allowed ?? 0,
         enforcementMode: user.enforcement_mode || 'credits',
         creditsGraceUnits: user.credits_grace_units || 0
       });
@@ -266,9 +267,28 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
                   name="startDate"
                   value={formData.startDate}
                   onChange={handleInputChange}
-                  className="bg-white dark:bg-gray-900 borderborder-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5"
+                  className="bg-white dark:bg-gray-900 border border-gray-300 dark:border-gray-700 text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5"
                   disabled={isUpdating}
                 />
+              </div>
+
+              {/* Until Date */}
+              <div className="mb-4">
+                <label htmlFor="untilDate" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  Until Date
+                </label>
+                <input
+                  type="date"
+                  id="untilDate"
+                  name="untilDate"
+                  value={formData.untilDate}
+                  onChange={handleInputChange}
+                  className={`bg-white dark:bg-gray-900 border ${errors.untilDate ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'} text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5`}
+                  disabled={isUpdating}
+                />
+                {errors.untilDate && (
+                  <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.untilDate}</p>
+                )}
               </div>
 
             </div>
@@ -287,6 +307,29 @@ const EditUserModal: React.FC<EditUserModalProps> = ({
               </div>
 
               <div className="space-y-3">
+                <div>
+                  <label htmlFor="creditsAllowed" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    Credits Allowed
+                  </label>
+                  <input
+                    type="number"
+                    id="creditsAllowed"
+                    name="creditsAllowed"
+                    value={formData.creditsAllowed}
+                    onChange={handleInputChange}
+                    className={`bg-white dark:bg-gray-900 border ${errors.creditsAllowed ? 'border-red-500' : 'border-gray-300 dark:border-gray-700'} text-gray-900 dark:text-gray-100 text-sm rounded-lg focus:ring-primary-500 focus:border-primary-500 block w-full p-2.5`}
+                    placeholder="0"
+                    disabled={isUpdating}
+                    min={0}
+                  />
+                  {errors.creditsAllowed && (
+                    <p className="mt-1 text-sm text-red-600 dark:text-red-400">{errors.creditsAllowed}</p>
+                  )}
+                  <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                    You can manually adjust or select a plan below
+                  </p>
+                </div>
+
                 <div>
                   <label htmlFor="creditPlan" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                     Select Credit Plan

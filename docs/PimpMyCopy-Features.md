@@ -1,7 +1,32 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.75
-Last Updated: 2026-10-27T12:00:00Z
+Version: 1.76
+Last Updated: 2026-10-27T13:30:00Z
+
+---
+
+## Admin — Edit User Modal: Until Date and Credits Allowed Restored (2026-10-27)
+
+**Feature:** The Until Date and Credits Allowed fields were removed from the Edit User modal earlier today; both are now back in the modal (under Subscription Details and Credit Plan Assignment respectively). The Credits Allowed field has no "$" icon (these are credits, not dollars) — it is a plain number input with a hint "You can manually adjust or select a plan below". Selecting a Credit Plan still auto-fills Credits Allowed, so the admin can see what a chosen plan sets it to. Until Date sits below Start Date in the Subscription Details section.
+
+**Stale-value fix:** Before this change the modal seeded Credits Allowed from the user's `tokens_allowed` field, but inline edits on /manage-users update `credits_allowed` — so after an inline credit change the modal would open showing the old value, and clicking Update User would overwrite the inline change. The modal's EditUser interface now includes `credits_allowed?` and the reset effect seeds `creditsAllowed: user.credits_allowed ?? user.tokens_allowed ?? 0`, preferring the live field. As a belt-and-suspenders guard, the inline save in ManageUsers now also writes `tokens_allowed: newValue` alongside `credits_allowed` so both fields the modal can read stay in step. Until Date was already read live from `user.until_date`, and the inline date edit and the "+1 month" button both update `until_date` on the same row in the same `users` state array, so the modal always shows the current end date too.
+
+**Files touched:**
+- `src/components/EditUserModal.tsx` — added `credits_allowed?` to the EditUser interface; reset effect seeds Credits Allowed from `credits_allowed` first; re-added the Until Date field block (after Start Date) and the Credits Allowed field block (above the Credit Plan select, no icon). handleSubmit is unchanged.
+- `src/components/ManageUsers.tsx` — `saveCredits` now also sets `tokens_allowed: newValue` in the local `users` state update, alongside `credits_allowed` and `credits_remaining`.
+
+**What did not change:** No new edge function, no new save path, no RLS policy, no database migration. `adminUpdateUser` and the `admin-update-user` edge function are unchanged. The inline editors on /manage-users are unchanged. The Credit Plan Assignment section, the plan select, the plan-applied note, New Password, and Start Date in the modal are unchanged. Non-admins never see the modal.
+
+**Effect on Copy Maker and Quick:** None. Manage Users is an admin-only page.
+
+**Effect on existing data:** None. The modal calls the same update edge function it always did; no schema or stored-data shape changed.
+
+**Verification:**
+- `npm run build` passes.
+- On /manage-users, change a user's credits inline, then open the Edit User modal: Credits Allowed shows the new value, not the old one. Click Update User: the value stays as the new one (no overwrite).
+- Change the end date inline (or use +1mo), then open the modal: Until Date shows the new end date.
+- Select a Credit Plan in the modal: Credits Allowed auto-fills with the plan's credits_monthly; the plan-applied note shows.
+- The Credits Allowed field has no "$" icon.
 
 ---
 
