@@ -1,7 +1,32 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.78
-Last Updated: 2026-10-27T16:30:00Z
+Version: 1.79
+Last Updated: 2026-10-27T17:00:00Z
+
+---
+
+## Admin — Manage Users: Old-Plan Columns and "Old plan" Badge Removed (2026-10-27)
+
+**Feature:** On /manage-users, the four legacy monthly-plan columns were removed from the table and the CSV export, because every user is now on the prepaid plan and those columns showed outdated numbers that contradicted the live Balance. The "Old plan" amber badge that sat next to a user's Balance was removed too, since no user is on the old plan any more. The table now shows: User, Confirmed, Cost USD, Balance, Next expiry, Total Records, Created, Last Activity, Power user, Actions.
+
+**Columns removed:** Subscription (the `start_date`–`until_date` range), Total Credits (`credits_allowed`), Credits Used (`credits_used`), and Credits Remaining (`credits_remaining`). Both the table header cells and the table body cells were deleted. The CSV export dropped the matching headers and row values (Start Date, Until Date, Total Credits, Credits Used, Credits Remaining); the export now lists Email, Cost USD, Balance, Next Expiry, Total Records, Created, Last Activity.
+
+**Badge removed:** The `{user.enforcement_mode !== 'prepaid' && (<span>Old plan</span>)}` block that sat next to the Balance number was deleted. The Balance number itself stays.
+
+**Sortability:** Balance (`prepaid_balance`) and Next expiry (`prepaid_next_expiry`) keep their existing sort buttons and the `sortField` union still includes them, so they sort like the other columns. The removed fields were dropped from the `sortField` union, the numeric branch of `sortUsers` (now only `cost_usd`, `total_records`, `prepaid_balance`), and the date branch (now only `created_at`, `last_sign_in_at`, `prepaid_next_expiry`).
+
+**File touched:** `src/components/ManageUsers.tsx` — removed the `Calendar` import (only the Subscription cell used it); shrank the `sortField` union; trimmed the `sortUsers` numeric and date branches; rewrote the CSV headers and rows; deleted the four old-plan `<th>` blocks and the four matching `<td>` cells; deleted the "Old plan" badge `<span>` inside the Balance cell. The `ManageUser` interface is unchanged (the EditUserModal still reads `credits_allowed`, `start_date`, `until_date`, `enforcement_mode` from the passed user object), and `enforcement_mode` stays on the type so the modal's old-plan warning keeps working.
+
+**What did not change:** No database data, table, view, function, RLS policy, or edge function was touched. `adminGetUsers` and the `admin-get-users` edge function still return the same fields; the table just stops rendering four of them. The EditUserModal's Prepaid credits section, the inline editors, the History and Credit-usage buttons, and every other column are unchanged. Customer credit logic, Stripe, the trial, and Copy Maker / Quick are not affected.
+
+**Effect on existing data:** None. No user is moved, no balance is changed. The change only affects which columns /manage-users renders.
+
+**Verification:**
+- `npm run build` passes.
+- On /manage-users the table shows User, Confirmed, Cost USD, Balance, Next expiry, Total Records, Created, Last Activity, Power user, Actions — no Subscription, Total Credits, Credits Used, or Credits Remaining column.
+- Clicking the Balance or Next expiry header sorts the table by that column, ascending then descending.
+- No "Old plan" badge appears next to any user's Balance.
+- The Export CSV button produces a file with the headers Email, Cost USD, Balance, Next Expiry, Total Records, Created, Last Activity and one row per user.
 
 ---
 

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Users, Search, CreditCard as Edit, Trash2, UserPlus, ArrowLeft, Shield, Calendar, RefreshCw, User as UserIcon, ArrowUpDown, ArrowUp, ArrowDown, Download, Activity, History } from 'lucide-react';
+import { Users, Search, CreditCard as Edit, Trash2, UserPlus, ArrowLeft, Shield, RefreshCw, User as UserIcon, ArrowUpDown, ArrowUp, ArrowDown, Download, Activity, History } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import LoadingSpinner from './ui/LoadingSpinner';
@@ -66,7 +66,7 @@ const ManageUsers: React.FC = () => {
     }
   };
   const [error, setError] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<'name' | 'email' | 'created_at' | 'start_date' | 'until_date' | 'credits_allowed' | 'credits_used' | 'credits_remaining' | 'cost_usd' | 'total_records' | 'tokens_remaining' | 'last_sign_in_at' | 'prepaid_balance' | 'prepaid_next_expiry' | null>(null);
+  const [sortField, setSortField] = useState<'name' | 'email' | 'created_at' | 'cost_usd' | 'total_records' | 'last_sign_in_at' | 'prepaid_balance' | 'prepaid_next_expiry' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Check if user is admin using centralized admin service
@@ -124,13 +124,13 @@ const ManageUsers: React.FC = () => {
       if (bVal === null || bVal === undefined) bVal = '';
 
       // Convert to numbers for numeric fields
-      if (sortField === 'credits_allowed' || sortField === 'credits_used' || sortField === 'credits_remaining' || sortField === 'cost_usd' || sortField === 'total_records' || sortField === 'tokens_remaining' || sortField === 'prepaid_balance') {
+      if (sortField === 'cost_usd' || sortField === 'total_records' || sortField === 'prepaid_balance') {
         aVal = Number(aVal) || 0;
         bVal = Number(bVal) || 0;
       }
 
       // Convert to dates for date fields
-      if (['created_at', 'start_date', 'until_date', 'last_sign_in_at', 'prepaid_next_expiry'].includes(sortField)) {
+      if (['created_at', 'last_sign_in_at', 'prepaid_next_expiry'].includes(sortField)) {
         aVal = aVal ? new Date(aVal).getTime() : 0;
         bVal = bVal ? new Date(bVal).getTime() : 0;
       }
@@ -231,12 +231,7 @@ const ManageUsers: React.FC = () => {
       // CSV Headers
       const headers = [
         'Email',
-        'Start Date',
-        'Until Date',
-        'Total Credits',
-        'Credits Used',
         'Cost USD',
-        'Credits Remaining',
         'Balance',
         'Next Expiry',
         'Total Records',
@@ -247,12 +242,7 @@ const ManageUsers: React.FC = () => {
       // Convert users to CSV rows
       const rows = filteredUsers.map(user => [
         user.email || '',
-        formatDate(user.start_date),
-        formatDate(user.until_date),
-        user.credits_allowed !== undefined && user.credits_allowed !== null ? user.credits_allowed.toLocaleString() : '0',
-        user.credits_used !== undefined && user.credits_used !== null ? user.credits_used.toLocaleString() : '0',
         user.cost_usd !== undefined && user.cost_usd !== null ? user.cost_usd.toFixed(2) : '0.00',
-        user.credits_remaining !== undefined && user.credits_remaining !== null ? user.credits_remaining.toLocaleString() : 'Not set',
         user.prepaid_balance !== undefined && user.prepaid_balance !== null ? user.prepaid_balance.toLocaleString() : '0',
         user.prepaid_next_expiry ? formatDate(user.prepaid_next_expiry) : '—',
         user.total_records !== undefined && user.total_records !== null ? user.total_records.toLocaleString() : '0',
@@ -430,63 +420,11 @@ const ManageUsers: React.FC = () => {
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
                       <button
-                        onClick={() => handleSort('start_date')}
-                        className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
-                      >
-                        <span>Subscription</span>
-                        {sortField === 'start_date' ? (
-                          sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={14} className="opacity-40" />
-                        )}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
-                      <button
-                        onClick={() => handleSort('credits_allowed')}
-                        className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
-                      >
-                        <span>Total Credits</span>
-                        {sortField === 'credits_allowed' ? (
-                          sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={14} className="opacity-40" />
-                        )}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
-                      <button
-                        onClick={() => handleSort('credits_used')}
-                        className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
-                      >
-                        <span>Credits Used</span>
-                        {sortField === 'credits_used' ? (
-                          sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={14} className="opacity-40" />
-                        )}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
-                      <button
                         onClick={() => handleSort('cost_usd')}
                         className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
                       >
                         <span>Cost USD</span>
                         {sortField === 'cost_usd' ? (
-                          sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
-                        ) : (
-                          <ArrowUpDown size={14} className="opacity-40" />
-                        )}
-                      </button>
-                    </th>
-                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
-                      <button
-                        onClick={() => handleSort('credits_remaining')}
-                        className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
-                      >
-                        <span>Credits Remaining</span>
-                        {sortField === 'credits_remaining' ? (
                           sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
                         ) : (
                           <ArrowUpDown size={14} className="opacity-40" />
@@ -589,51 +527,17 @@ const ManageUsers: React.FC = () => {
                         </div>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-white flex items-center">
-                          <Calendar size={14} className="mr-1 text-gray-400" />
-                          {formatDate(user.start_date)} - {formatDate(user.until_date)}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-white">
-                          {user.credits_allowed !== undefined && user.credits_allowed !== null
-                            ? user.credits_allowed.toLocaleString()
-                            : '0'}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-white">
-                          {user.credits_used !== undefined && user.credits_used !== null
-                            ? user.credits_used.toLocaleString()
-                            : '0'}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-white">
                           {user.cost_usd !== undefined && user.cost_usd !== null
-                            ? `$${user.cost_usd.toFixed(2)}`
+                            ? `${user.cost_usd.toFixed(2)}`
                             : '$0.00'}
                         </div>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-white">
-                          {user.credits_remaining !== undefined && user.credits_remaining !== null
-                            ? user.credits_remaining.toLocaleString()
-                            : 'Not set'}
-                        </div>
-                      </td>
-                      <td className="px-3 py-2 whitespace-nowrap">
-                        <div className="text-sm text-gray-900 dark:text-white flex items-center gap-2">
-                          <span>
-                            {user.prepaid_balance !== undefined && user.prepaid_balance !== null
-                              ? user.prepaid_balance.toLocaleString()
-                              : '0'}
-                          </span>
-                          {user.enforcement_mode !== 'prepaid' && (
-                            <span className="inline-flex items-center px-1.5 py-0.5 rounded-full text-[10px] bg-amber-100 dark:bg-amber-900/40 text-amber-800 dark:text-amber-300 border border-amber-200 dark:border-amber-800">
-                              Old plan
-                            </span>
-                          )}
+                          {user.prepaid_balance !== undefined && user.prepaid_balance !== null
+                            ? user.prepaid_balance.toLocaleString()
+                            : '0'}
                         </div>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">
