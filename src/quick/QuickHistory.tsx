@@ -52,6 +52,8 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
 
   useEffect(() => {
     isMounted.current = true;
+    const listFn = isViewingOther ? 'adminListQuickResults' : 'listQuickResults';
+    console.log('[admin-history] list', { isViewingOther, userId, fn: listFn });
     const listPromise = isViewingOther ? adminListQuickResults(userId) : listQuickResults(userId);
     listPromise
       .then(list => {

@@ -130,7 +130,7 @@ const FACTS_UPDATE_MAX_MS = 15000;
 const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const location = useLocation();
   const isHistoryRoute = location.pathname === '/history';
-  const { isAdmin } = useIsAdmin(currentUser);
+  const { isAdmin, isLoading: isAdminLoading } = useIsAdmin(currentUser);
   const [phase, setPhase] = useState<Phase>(isHistoryRoute ? 'history' : 'start');
   // When an admin opens /history?user=<id>, the history of that user is shown
   // instead of the admin's own. Cleared once the admin starts their own work
@@ -176,7 +176,10 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   // Only power users and admins are offered the Complete interface.
   const completeAccess = useCompleteAccess();
   const openAtStart = useRef(searchParams.get('r'));
-  const targetUserId = useRef(searchParams.get('user'));
+  // Read live from the URL so navigating to a different user's history
+  // re-runs the lookup. searchParams updates on every navigation.
+  const targetUserId = searchParams.get('user');
+  const isViewingForeign = isHistoryRoute && !!targetUserId;
   // "How it works": open on a user's first visit (not when they arrive at a
   // saved result or the History page), and whenever they press Help.
   const [introOpen, setIntroOpen] = useState(() => !isHistoryRoute && !hasSeenIntro(currentUser.id) && !openAtStart.current);
@@ -267,26 +270,41 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   }, []);
 
   // On /history?user=<id>, an admin views another user's history. A non-admin
-  // ignores the param and sees their own history. The email is looked up once so
-  // the banner can name the user; the list itself is loaded by QuickHistory via
-  // the admin RPC.
+  // ignores the param and sees their own history. The email is looked up so the
+  // banner can name the user; the list itself is loaded by QuickHistory via the
+  // admin RPC. Waits for isAdmin to resolve (it starts false), and re-runs when
+  // isAdmin flips or the user param changes (navigating to another user).
   useEffect(() => {
-    if (!isHistoryRoute || !targetUserId.current || !isAdmin) return;
+    if (!isHistoryRoute || !targetUserId || isAdminLoading) return;
+    if (!isAdmin) {
+      // Not an admin: never view foreign history. Clear any stale viewingUser
+      // so the user's own history shows.
+      if (viewingUser) setViewingUser(null);
+      return;
+    }
+    const wantedId = targetUserId;
     let cancelled = false;
+    console.log('[admin-history] lookup', { isAdmin, targetUserId: wantedId, fn: 'adminGetUsers' });
     adminGetUsers()
       .then(({ data }) => {
         if (cancelled || !isMounted.current) return;
         const match = (data as Array<{ id: string; email?: string }> | null)?.find(
-          u => String(u.id) === String(targetUserId.current)
+          u => String(u.id) === String(wantedId)
         );
-        if (match) setViewingUser({ id: String(match.id), email: match.email ?? '' });
+        if (cancelled || !isMounted.current) return;
+        if (match) {
+          setViewingUser({ id: String(match.id), email: match.email ?? '' });
+        } else {
+          // No match: leave viewingUser null so the admin's own history shows
+          // (the param pointed at a non-existent id).
+          setViewingUser(null);
+        }
       })
       .catch(() => undefined);
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [isHistoryRoute, targetUserId, isAdmin, isAdminLoading]);
 
   // Count seconds while any process is running.
   const isTiming = busy !== null;
@@ -1462,7 +1480,14 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
         </main>
       )}
 
-      {phase === 'history' && (
+      {phase === 'history' && isViewingForeign && isAdminLoading && (
+        <div className="flex items-center justify-center py-24 text-sm text-gray-600 dark:text-gray-300">
+          <span className="inline-block h-5 w-5 animate-spin rounded-full border-2 border-gray-400 border-t-transparent mr-3" />
+          Loading history…
+        </div>
+      )}
+
+      {phase === 'history' && !(isViewingForeign && isAdminLoading) && (
         <QuickHistory
           currentUser={currentUser}
           onOpen={openSaved}
