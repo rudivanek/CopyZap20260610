@@ -1,7 +1,65 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.76
-Last Updated: 2026-10-27T13:30:00Z
+Version: 1.77
+Last Updated: 2026-10-27T14:50:00Z
+
+---
+
+## Admin — Prepaid Credit Management: Balance Columns and Add Credits (2026-10-27)
+
+**Feature:** Admins can now see and manage each user's prepaid (bought/trial) credit balance directly from /manage-users, without editing raw database rows. Two new columns and a full prepaid credits section in the Edit User modal.
+
+1. **Two new columns on /manage-users:** "Balance" and "Next expiry" appear right after "Credits Remaining". For users on the prepaid plan (`enforcement_mode = 'prepaid'`) the Balance column shows their live bought/trial credit balance (the sum of remaining credits across all non-expired grants), and the Next expiry column shows the earliest grant expiry date. For users on the legacy monthly plan (`enforcement_mode = 'credits'`) both columns read "—" because they do not have a prepaid balance. Both columns are sortable. They are also included in the CSV export (as "Balance" and "Next Expiry", blank for legacy-plan users).
+
+2. **Prepaid credits section in the Edit User modal:** A new "Prepaid credits" section sits at the bottom of the Edit User modal, showing the user's current balance and next expiry, the list of their credit grants, and an "Add credits" form. The admin can add credits in two ways:
+   - **From a pack:** a dropdown of active credit packs (Starter 1,000 / 3 months, Agency 3,000 / 6 months, Studio 8,000 / 12 months). Selecting a pack uses the pack's credit amount and validity months to compute the expiry (`now() + make_interval(months => validity_months)`), so the admin does not type a date.
+   - **Custom:** a "Custom credits" number and an "Expiry date" picker, used when no pack is chosen.
+   - An optional "Note" field records why the credits were added (e.g. "Marketing perk").
+   - The grant is always inserted with `source = 'bonus'` (never 'purchase'), so it never looks like a paid pack and never appears in Stripe revenue reports. After a successful add, the balance and next-expiry in the modal update immediately, the grants list refreshes, and the /manage-users table refreshes so the new balance shows in the row.
+
+3. **Grants list and Zero out:** Every credit grant for the user is listed (newest first), showing source, total credits, remaining credits, expiry date, and note. Any grant with remaining > 0 has a "Zero out" button that sets `remaining = 0` and appends "Zeroed by admin" to the note (it never deletes the row, so the audit trail stays intact). After zeroing, the balance and grants list refresh.
+
+4. **Old-plan warning:** If the admin opens Add credits for a user whose `enforcement_mode` is not 'prepaid', an amber warning box appears above the form: "This user is on the old plan. Added credits won't count until they're moved to prepaid." The admin can still add the grant (it goes into `credit_grants`), but it will not affect the user's access until they are migrated to the prepaid plan.
+
+**Server-side (SQL):** Four new SECURITY DEFINER functions in migration `20261027120000_admin_prepaid_credit_tools.sql`, all gated by `is_app_admin()` first (raise 'Only an admin can do this' otherwise):
+- `admin_add_credits(p_user_id, p_pack_key, p_credits, p_expires_at, p_note)` — inserts a `bonus` grant from a pack (reads `credit_packs.credits` + `validity_months`, computes expiry with `make_interval(months => v_months)`) or from custom values, then returns the user's updated prepaid balance.
+- `admin_list_grants(p_user_id)` — returns all the user's credit grants, newest first.
+- `admin_prepaid_balances()` — returns one row per user that has live grants (remaining > 0, not expired): user_id, credits_remaining, credits_granted, next_expiry. Used by the admin-get-users edge function to fill the table in one call.
+- `admin_zero_grant(p_grant_id, p_note)` — sets a grant's `remaining = 0` and appends a "Zeroed by admin" note. Never deletes the row.
+
+`get_prepaid_balance(p_user_id)` was rewritten as `plpgsql` and tightened: it returns the balance only when the caller is the service role (`auth.role() = 'service_role'`), an app admin (`is_app_admin()`), or the user themselves (`auth.uid() = p_user_id`); otherwise it raises 'Unauthorized'. The four existing callers were checked and none break:
+- `ai-completion` edge function calls it via a service-role client → passes via `auth.role() = 'service_role'`.
+- `user_has_access(p_user_id)` is called for the caller's own id or via the service role → passes via owner or service_role.
+- `report_branding_active()` calls it with `v_user = auth.uid()` → passes via the owner check.
+- `get_user_credits_balance` already rejects `auth.uid() != user_id_param` before reaching the prepaid branch → passes via the owner check.
+
+All column references in `RETURNS TABLE` bodies are aliased with `g.` to avoid ambiguous-column errors with the output column names. The four admin_* functions `REVOKE EXECUTE FROM public, anon` and `GRANT EXECUTE TO authenticated, service_role`. `get_prepaid_balance` `REVOKE FROM public, anon, authenticated` and `GRANT TO service_role` only; authenticated callers still reach it through the SECURITY DEFINER wrappers. No RLS policies were changed, no data was migrated, and no existing user was moved to the prepaid plan.
+
+**Files touched:**
+- `supabase/migrations/20261027120000_admin_prepaid_credit_tools.sql` (new) — the four admin RPCs and the tightened `get_prepaid_balance`.
+- `supabase/functions/admin-get-users/index.ts` — added one service-role `admin_prepaid_balances()` call; each combined user object now carries `enforcement_mode`, `prepaid_balance` (null for legacy-plan users), and `prepaid_next_expiry` (null for legacy-plan users).
+- `supabase/config.toml` — added a `[functions.admin-get-users]` table with `verify_jwt = true` so the deploy tool picks up changes to the function.
+- `src/services/supabaseClient.ts` — added `AdminCreditPack`, `AdminCreditGrant`, `AdminPrepaidBalance` interfaces and four wrappers: `adminGetCreditPacks()` (reads active `credit_packs`), `adminAddCredits()`, `adminListGrants()`, `adminZeroGrant()`.
+- `src/components/ManageUsers.tsx` — `ManageUser` interface extended with `enforcement_mode`, `prepaid_balance`, `prepaid_next_expiry`; two new sortable table columns (Balance, Next expiry) added after Credits Remaining, with cells that show "—" for legacy-plan users; CSV export extended with the two columns; `sortField` union extended and the sort helper handles the new numeric/date fields.
+- `src/components/EditUserModal.tsx` — `EditUser` interface extended with `enforcement_mode`, `prepaid_balance`, `prepaid_next_expiry`; new "Prepaid credits" section at the bottom of the modal with balance/next-expiry summary, the old-plan amber warning, the Add credits form (pack select or custom credits + expiry date + note), the grants list, and the Zero out button. State for packs, grants, the add form, and zeroing; loaders for packs and grants on open; `handleAddCredits` and `handleZeroGrant` call the new wrappers and refresh the balance, grants, and parent table.
+
+**What did not change:** The legacy monthly-plan fields (Total Credits, Credits Used, Credits Remaining, Until Date) on /manage-users and in the Edit User modal are unchanged. The Credit Plan Assignment section, the inline editors, the History and Credit-usage buttons, and the rest of the Edit User modal are unchanged. Stripe checkout, the stripe-webhook function, and the `create-checkout-session` function are unchanged — paid packs still come from Stripe, and admin bonus grants are clearly marked `source = 'bonus'` so they never appear as revenue. Copy Maker and Quick are not affected; only the admin-only Manage Users page and Edit User modal changed.
+
+**Effect on existing data:** None. No user is moved to the prepaid plan. No existing grant is changed. The new columns read from the existing `credit_grants` table via the new RPCs; a legacy-plan user simply shows "—" because they have no live grants (or their `enforcement_mode` is not 'prepaid').
+
+**Security:** All four admin_* RPCs and the tightened `get_prepaid_balance` are SECURITY DEFINER and gated by `is_app_admin()` / `auth.role()` / `auth.uid()` as described above. The browser calls them with the authenticated user's JWT; a non-admin or non-owner caller gets an exception and no data. The admin-get-users edge function already requires `requireAdmin()` before serving the request. No RLS policy was added, removed, or changed.
+
+**Verification:**
+- `npm run build` passes.
+- The `admin-get-users` edge function deployed successfully and now returns `enforcement_mode`, `prepaid_balance`, and `prepaid_next_expiry` per user.
+- Under a service-role JWT context (`set local request.jwt.claim.role = 'service_role'`), `get_prepaid_balance` returns copyzap1's balance: 998 of 1,000 credits, next expiry 2027-01-16.
+- Under an admin JWT context (`set local request.jwt.claim.email = 'hello@sharpen.studio'`), `admin_prepaid_balances()` returns the live balances for every prepaid user; `admin_add_credits(copyzap1, 'starter', null, null, 'Test add via UI path')` added 1,000 credits (998 → 1,998) using the pack's 3-month validity via `make_interval(months => v_months)`; `admin_zero_grant` then zeroed the test grant, restoring copyzap1 to 998. The test grant was reverted so the user's balance is unchanged.
+- Under the bare superuser (no JWT), all five functions correctly raise 'Unauthorized' / 'Only an admin can do this', proving the gates work.
+- Live tests still to run in the browser (per request):
+  1. As copyzap1 (prepaid): run one Quick generation — it must succeed and "credits left" must show the right number. If it fails, the balance check broke.
+  2. As admin: /manage-users should show the Balance and Next expiry columns for prepaid users (copyzap1: 998, 2027-01-16).
+  3. Open copyzap1's Edit User modal → Add credits → choose Starter pack → Add. Balance should go up by 1,000, valid 3 months. (Then zero the test grant to restore the balance.)
+  4. Open Add credits for a legacy-plan user (no user named "jasu" was found; use any `enforcement_mode = 'credits'` user such as ventasplega@gmail.com). The amber old-plan warning should appear.
 
 ---
 

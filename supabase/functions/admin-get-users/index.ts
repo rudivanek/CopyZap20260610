@@ -116,11 +116,33 @@ Deno.serve(async (req) => {
       )
     }
 
+    // One service-role call returns every user's live prepaid balance at once.
+    // admin_prepaid_balances() is SECURITY DEFINER and gated by is_app_admin();
+    // the edge function runs as service_role so the admin check passes.
+    const prepaidByUser = new Map<string, { credits_remaining: number; next_expiry: string | null }>()
+    const { data: prepaidRows, error: prepaidError } = await supabaseAdmin.rpc('admin_prepaid_balances')
+    if (prepaidError) {
+      console.error('[admin-get-users] admin_prepaid_balances failed:', prepaidError)
+    } else if (Array.isArray(prepaidRows)) {
+      for (const row of prepaidRows) {
+        prepaidByUser.set(row.user_id, {
+          credits_remaining: Number(row.credits_remaining) || 0,
+          next_expiry: row.next_expiry || null
+        })
+      }
+    }
+
     // Combine data from both tables
     const combinedUsers = pmcUsers.map(pmcUser => {
       const authUser = authUsers.users.find(au => au.id === pmcUser.id)
       const userStats = usageByUser[pmcUser.id] || { creditsUsed: 0, costUsd: 0, recordCount: 0 }
       const creditsRemaining = (pmcUser.credits_allowed || 0) - userStats.creditsUsed
+      const enforcementMode = pmcUser.enforcement_mode || 'credits'
+      const prepaid = prepaidByUser.get(pmcUser.id)
+      // For prepaid accounts the "Balance" column shows live bought/trial credits;
+      // for the legacy monthly plan it stays null so the column reads "—".
+      const prepaidBalance = enforcementMode === 'prepaid' && prepaid ? prepaid.credits_remaining : null
+      const prepaidNextExpiry = enforcementMode === 'prepaid' && prepaid ? prepaid.next_expiry : null
 
       return {
         id: pmcUser.id,
@@ -138,7 +160,10 @@ Deno.serve(async (req) => {
         tokens_remaining: creditsRemaining, // Backwards compatibility alias
         auth_created_at: authUser?.created_at,
         last_sign_in_at: authUser?.last_sign_in_at,
-        email_confirmed_at: authUser?.email_confirmed_at
+        email_confirmed_at: authUser?.email_confirmed_at,
+        enforcement_mode: enforcementMode,
+        prepaid_balance: prepaidBalance,
+        prepaid_next_expiry: prepaidNextExpiry
       }
     })
 

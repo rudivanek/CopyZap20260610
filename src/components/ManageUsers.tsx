@@ -29,6 +29,10 @@ interface ManageUser {
   auth_created_at?: string;
   last_sign_in_at?: string | null;
   email_confirmed_at?: string | null;
+  enforcement_mode?: 'credits' | 'tokens' | 'prepaid';
+  // Live prepaid (bought/trial) credit balance; null for the legacy monthly plan.
+  prepaid_balance?: number | null;
+  prepaid_next_expiry?: string | null;
 }
 
 const ManageUsers: React.FC = () => {
@@ -203,7 +207,7 @@ const ManageUsers: React.FC = () => {
     }
   };
   const [error, setError] = useState<string | null>(null);
-  const [sortField, setSortField] = useState<'name' | 'email' | 'created_at' | 'start_date' | 'until_date' | 'credits_allowed' | 'credits_used' | 'credits_remaining' | 'cost_usd' | 'total_records' | 'tokens_remaining' | 'last_sign_in_at' | null>(null);
+  const [sortField, setSortField] = useState<'name' | 'email' | 'created_at' | 'start_date' | 'until_date' | 'credits_allowed' | 'credits_used' | 'credits_remaining' | 'cost_usd' | 'total_records' | 'tokens_remaining' | 'last_sign_in_at' | 'prepaid_balance' | 'prepaid_next_expiry' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   // Check if user is admin using centralized admin service
@@ -261,13 +265,13 @@ const ManageUsers: React.FC = () => {
       if (bVal === null || bVal === undefined) bVal = '';
 
       // Convert to numbers for numeric fields
-      if (sortField === 'credits_allowed' || sortField === 'credits_used' || sortField === 'credits_remaining' || sortField === 'cost_usd' || sortField === 'total_records' || sortField === 'tokens_remaining') {
+      if (sortField === 'credits_allowed' || sortField === 'credits_used' || sortField === 'credits_remaining' || sortField === 'cost_usd' || sortField === 'total_records' || sortField === 'tokens_remaining' || sortField === 'prepaid_balance') {
         aVal = Number(aVal) || 0;
         bVal = Number(bVal) || 0;
       }
 
       // Convert to dates for date fields
-      if (['created_at', 'start_date', 'until_date', 'last_sign_in_at'].includes(sortField)) {
+      if (['created_at', 'start_date', 'until_date', 'last_sign_in_at', 'prepaid_next_expiry'].includes(sortField)) {
         aVal = aVal ? new Date(aVal).getTime() : 0;
         bVal = bVal ? new Date(bVal).getTime() : 0;
       }
@@ -374,6 +378,8 @@ const ManageUsers: React.FC = () => {
         'Credits Used',
         'Cost USD',
         'Credits Remaining',
+        'Balance',
+        'Next Expiry',
         'Total Records',
         'Created',
         'Last Activity'
@@ -388,6 +394,10 @@ const ManageUsers: React.FC = () => {
         user.credits_used !== undefined && user.credits_used !== null ? user.credits_used.toLocaleString() : '0',
         user.cost_usd !== undefined && user.cost_usd !== null ? user.cost_usd.toFixed(2) : '0.00',
         user.credits_remaining !== undefined && user.credits_remaining !== null ? user.credits_remaining.toLocaleString() : 'Not set',
+        user.enforcement_mode === 'prepaid'
+          ? (user.prepaid_balance !== undefined && user.prepaid_balance !== null ? user.prepaid_balance.toLocaleString() : '0')
+          : '',
+        user.enforcement_mode === 'prepaid' && user.prepaid_next_expiry ? formatDate(user.prepaid_next_expiry) : '',
         user.total_records !== undefined && user.total_records !== null ? user.total_records.toLocaleString() : '0',
         formatDate(user.created_at),
         user.last_sign_in_at ? formatDate(user.last_sign_in_at) : 'Never'
@@ -628,6 +638,32 @@ const ManageUsers: React.FC = () => {
                     </th>
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
                       <button
+                        onClick={() => handleSort('prepaid_balance')}
+                        className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+                      >
+                        <span>Balance</span>
+                        {sortField === 'prepaid_balance' ? (
+                          sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                        ) : (
+                          <ArrowUpDown size={14} className="opacity-40" />
+                        )}
+                      </button>
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
+                      <button
+                        onClick={() => handleSort('prepaid_next_expiry')}
+                        className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
+                      >
+                        <span>Next expiry</span>
+                        {sortField === 'prepaid_next_expiry' ? (
+                          sortDirection === 'asc' ? <ArrowUp size={14} /> : <ArrowDown size={14} />
+                        ) : (
+                          <ArrowUpDown size={14} className="opacity-40" />
+                        )}
+                      </button>
+                    </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
+                      <button
                         onClick={() => handleSort('total_records')}
                         className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
                       >
@@ -798,6 +834,22 @@ const ManageUsers: React.FC = () => {
                           {user.credits_remaining !== undefined && user.credits_remaining !== null
                             ? user.credits_remaining.toLocaleString()
                             : 'Not set'}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <div className="text-sm text-gray-900 dark:text-white">
+                          {user.enforcement_mode === 'prepaid'
+                            ? (user.prepaid_balance !== undefined && user.prepaid_balance !== null
+                                ? user.prepaid_balance.toLocaleString()
+                                : '0')
+                            : '—'}
+                        </div>
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <div className="text-sm text-gray-900 dark:text-white">
+                          {user.enforcement_mode === 'prepaid'
+                            ? (user.prepaid_next_expiry ? formatDate(user.prepaid_next_expiry) : '—')
+                            : '—'}
                         </div>
                       </td>
                       <td className="px-3 py-2 whitespace-nowrap">

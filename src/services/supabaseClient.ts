@@ -1705,6 +1705,121 @@ export async function adminDeleteUser(userId: string) {
   }
 }
 
+// ---------------------------------------------------------------------------
+// Admin prepaid credit tools (admin_add_credits / admin_list_grants /
+// admin_prepaid_balances / admin_zero_grant). All four are SECURITY DEFINER
+// RPCs gated by is_app_admin() server-side; the browser calls them with the
+// authenticated user's JWT.
+// ---------------------------------------------------------------------------
+
+export interface AdminCreditPack {
+  pack_key: string;
+  pack_name: string;
+  credits: number;
+  validity_months: number;
+}
+
+export interface AdminCreditGrant {
+  id: string;
+  source: string;
+  credits: number;
+  remaining: number;
+  expires_at: string | null;
+  created_at: string | null;
+  pack_key: string | null;
+  note: string | null;
+}
+
+export interface AdminPrepaidBalance {
+  credits_remaining: number;
+  credits_granted: number;
+  next_expiry: string | null;
+  purchase_expiry: string | null;
+}
+
+/** Active credit packs available to assign as admin bonus credits. */
+export async function adminGetCreditPacks(): Promise<{ data: AdminCreditPack[] | null; error: any }> {
+  try {
+    const { data, error } = await supabase
+      .from('credit_packs')
+      .select('pack_key, pack_name, credits, validity_months')
+      .eq('is_active', true)
+      .order('sort_order');
+    if (error) {
+      console.error('Error fetching credit packs:', error);
+      return { data: null, error };
+    }
+    return { data: (data || []) as AdminCreditPack[], error: null };
+  } catch (err: any) {
+    console.error('Exception fetching credit packs:', err);
+    return { data: null, error: err };
+  }
+}
+
+/**
+ * Add bonus credits to a user. Pass a pack_key to use a credit pack's amount
+ * and validity; otherwise pass credits + an ISO expires_at for a custom grant.
+ * Returns the user's updated prepaid balance.
+ */
+export async function adminAddCredits(params: {
+  userId: string;
+  packKey?: string | null;
+  credits?: number | null;
+  expiresAt?: string | null;
+  note?: string | null;
+}): Promise<{ data: AdminPrepaidBalance | null; error: any }> {
+  try {
+    const { data, error } = await supabase.rpc('admin_add_credits', {
+      p_user_id: params.userId,
+      p_pack_key: params.packKey ?? null,
+      p_credits: params.credits ?? null,
+      p_expires_at: params.expiresAt ?? null,
+      p_note: params.note ?? null,
+    });
+    if (error) {
+      console.error('Error adding credits:', error);
+      return { data: null, error };
+    }
+    return { data: data as AdminPrepaidBalance, error: null };
+  } catch (err: any) {
+    console.error('Exception adding credits:', err);
+    return { data: null, error: err };
+  }
+}
+
+/** All credit grants for one user, newest first. */
+export async function adminListGrants(userId: string): Promise<{ data: AdminCreditGrant[] | null; error: any }> {
+  try {
+    const { data, error } = await supabase.rpc('admin_list_grants', { p_user_id: userId });
+    if (error) {
+      console.error('Error listing grants:', error);
+      return { data: null, error };
+    }
+    return { data: (data || []) as AdminCreditGrant[], error: null };
+  } catch (err: any) {
+    console.error('Exception listing grants:', err);
+    return { data: null, error: err };
+  }
+}
+
+/** Set a grant's remaining balance to 0 (never deletes the row). */
+export async function adminZeroGrant(grantId: string, note?: string | null): Promise<{ data: { ok: boolean; grant_id: string } | null; error: any }> {
+  try {
+    const { data, error } = await supabase.rpc('admin_zero_grant', {
+      p_grant_id: grantId,
+      p_note: note ?? null,
+    });
+    if (error) {
+      console.error('Error zeroing grant:', error);
+      return { data: null, error };
+    }
+    return { data, error: null };
+  } catch (err: any) {
+    console.error('Exception zeroing grant:', err);
+    return { data: null, error: err };
+  }
+}
+
 // Get prefills from database
 export async function getPrefills(userId: string): Promise<{ data: Prefill[] | null; error: any }> {
   const supabase = getSupabaseClient();
