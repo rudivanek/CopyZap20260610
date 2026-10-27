@@ -218,6 +218,21 @@ Deno.serve(async (req: Request) => {
     // Create service role client for database queries (bypasses RLS)
     const supabase = createClient(supabaseUrl, supabaseServiceKey);
 
+    // Admins are never blocked for lack of credits, in either credit mode.
+    // If the admin check itself errors, treat the user as not an admin and
+    // run the normal checks — never fail open.
+    let isAdmin = false;
+    try {
+      const { isAdminUser } = await import('../_shared/admin.ts');
+      isAdmin = await isAdminUser(supabase, user);
+    } catch (err) {
+      console.error('Admin check failed, running normal access checks:', err);
+      isAdmin = false;
+    }
+    if (isAdmin) {
+      console.log('✅ Access granted (admin bypass):', { userId: user.id, email: user.email });
+    } else {
+
     // Check user access (subscription date and credits - PHASE 4B-2)
     const { data: userData, error: accessError } = await supabase
       .from('pmc_users')
@@ -399,6 +414,7 @@ Deno.serve(async (req: Request) => {
       creditsAllowed
     });
     } // end of non-prepaid access check
+    } // end of non-admin access check
     // ============================================
     // END ACCESS CONTROL CHECK
     // ============================================

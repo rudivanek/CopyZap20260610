@@ -2361,6 +2361,24 @@ export const checkUserAccess = async (userId: string, userEmail: string): Promis
       };
     }
 
+    // Admins are never blocked for lack of credits, in either credit mode.
+    // If the admin check itself errors, treat the user as not an admin and
+    // run the normal checks — never fail open.
+    try {
+      const { getIsAdmin } = await import('./adminService');
+      const isAdmin = await getIsAdmin({ id: userId, email: userEmail });
+      if (isAdmin) {
+        console.log('✅ Access granted (admin bypass):', { userId, userEmail });
+        return {
+          hasAccess: true,
+          message: 'Access granted.',
+          enforcementMode: 'credits'
+        };
+      }
+    } catch (err) {
+      console.error('Admin check failed, running normal access checks:', err);
+    }
+
     // Add timeout wrapper for database query to prevent hanging
     const queryTimeout = (ms: number) => new Promise((_, reject) =>
       setTimeout(() => reject(new Error('Database query timeout')), ms)

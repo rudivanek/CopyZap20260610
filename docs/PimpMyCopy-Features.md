@@ -1,7 +1,36 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.77
-Last Updated: 2026-10-27T14:50:00Z
+Version: 1.78
+Last Updated: 2026-10-27T16:30:00Z
+
+---
+
+## Admin — Admins Never Blocked for Lack of Credits (2026-10-27)
+
+**Feature:** Admins (active rows in `app_admins`) are no longer blocked for lack of credits, in either credit mode. A normal customer who has run out of prepaid credits or whose monthly credit plan is exhausted still gets the "out of credits" block. An admin, regardless of their own `enforcement_mode` and balance, can always generate, score, and run the Quick pipeline. Customer credit logic, Stripe, the trial, and all RLS policies are untouched.
+
+**Server (`supabase/functions/ai-completion/index.ts`):** Immediately after the user is authenticated and the service-role client is created, the function now checks whether the caller is an admin using the existing `isAdminUser` helper from `supabase/functions/_shared/admin.ts` (the same helper every admin edge function uses — it queries `app_admins` with the service-role client and falls back to the `ADMIN_EMAIL_FALLBACK` env var when the database is unreachable). If the check returns true, the function logs "Access granted (admin bypass)" and skips the entire access-control block: both the prepaid branch (`get_prepaid_balance` / `OUT_OF_CREDITS` 402) and the old-plan date and credits checks (start/until date, `credits_allowed === 0`, `creditsEffectiveRemaining <= 0`). If the admin check itself throws, the function logs the error, treats the user as not an admin, and runs the normal checks — it never fails open. Everything after the access-control block (API keys, model pricing, the LLM call, and usage recording into `pmc_user_tokens_used`) runs unchanged for admins and non-admins alike, so admin usage is still recorded and costs stay visible.
+
+**Prepaid deduction (`deduct_prepaid_credits` trigger):** No change was needed. The trigger fires `AFTER INSERT ON pmc_user_tokens_used`, reads `new.billable_units`, and walks `credit_grants` rows decrementing `remaining` until the billable units are covered or the grants run out. Its own comment already states "Anything still left over is absorbed: the call already ran, and the next call is refused." — i.e. it does not raise when an account's balance hits 0 or goes negative; it simply stops deducting and returns `new`. It also no-ops immediately for any user whose `enforcement_mode` is not `'prepaid'`. So for an admin whose balance is 0, the trigger decrements nothing (or drains the last grants) and never blocks the request. Usage rows are still inserted, so costs stay visible.
+
+**App (`src/services/supabaseClient.ts` — `checkUserAccess`):** At the very top of `checkUserAccess`, after the input validation and before any credit or date query, the function now checks whether the user is an admin via the existing `getIsAdmin` helper from `src/services/adminService.ts`. To avoid a circular import (adminService already imports supabaseClient), the helper is loaded with a dynamic `await import('./adminService')` inside the function. If the admin check returns true, the function returns `{ hasAccess: true, message: 'Access granted.', enforcementMode: 'credits' }` immediately, before the prepaid balance lookup, the subscription-date check, or the monthly credits-remaining calculation. If the admin check itself throws, the error is logged and the normal checks run — never fail open. The credits display (`getCreditsBalance`) is unchanged, so the admin's real balance is still read for the header display; only the access decision is short-circuited.
+
+**Files touched:**
+- `supabase/functions/ai-completion/index.ts` — added the admin bypass: a dynamic import of `isAdminUser` from `../_shared/admin.ts`, a `try/catch` that defaults to non-admin on error, an `if (isAdmin) { ... } else { ... }` that wraps the existing prepaid + date + credits access-control block (the existing block is now the `else` branch, with a matching closing brace added after the existing "end of non-prepaid access check" comment).
+- `src/services/supabaseClient.ts` — added the admin early-return at the top of `checkUserAccess`, using `const { getIsAdmin } = await import('./adminService')` to avoid a circular import. No top-level import added.
+
+**What did not change:** Customer credit logic — the prepaid `OUT_OF_CREDITS` 402 and the old-plan date and credits checks — still runs for every non-admin caller, server-side and app-side. Stripe checkout, the stripe-webhook function, the `create-checkout-session` function, the trial, and the `deduct_prepaid_credits` trigger are all unchanged. No RLS policy was added, removed, or changed. No database migration. The `getCreditsBalance` display function is unchanged, so admins still see their real balance in the UI; only the access decision is bypassed. The admin check helper itself (`isAdminUser` / `getIsAdmin`) is unchanged.
+
+**Effect on existing data:** None. No user is moved, no balance is changed, no grant is touched. The change only affects the access decision for users who are already active admins.
+
+**Security:** The admin bypass uses the same `app_admins` allowlist check (with the `ADMIN_EMAIL_FALLBACK` env var as an emergency fallback when the database is unreachable) that every admin edge function already uses. A non-admin caller never enters the bypass branch. On any error in the admin check, the code falls through to the normal credit checks — it never grants access by accident. Usage is still recorded for admins, so there is no unaccounted cost.
+
+**Verification:**
+- `npm run build` passes.
+- The `ai-completion` edge function deployed successfully.
+- As an admin with 0 credits (prepaid) or an exhausted monthly plan: generation, scoring, and the Quick pipeline run without an "out of credits" or "subscription expired" block.
+- As a normal customer with 0 credits: the existing block still fires (prepaid → `OUT_OF_CREDITS` 402; old plan → 403).
+- The admin's balance display in the app header still shows the real number.
 
 ---
 
