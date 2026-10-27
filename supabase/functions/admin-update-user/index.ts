@@ -44,10 +44,7 @@ Deno.serve(async (req) => {
     if (forbidden) return forbidden
 
     const requestBody = await req.json()
-    const { userId, password, startDate, untilDate, tokensAllowed, creditPlanId, enforcementMode, creditsGraceUnits } = requestBody
-
-    // Debug logging
-    console.log('Update user request:', { userId, tokensAllowed, creditPlanId, requestBody })
+    const { userId, password } = requestBody
 
     // Validate required fields
     if (!userId) {
@@ -73,43 +70,6 @@ Deno.serve(async (req) => {
           {
             headers: { ...corsHeaders, 'Content-Type': 'application/json' },
             status: 400
-          }
-        )
-      }
-    }
-
-    // Update user record in pmc_users table
-    const updateData: any = {}
-    if (startDate !== undefined) updateData.start_date = startDate
-    if (untilDate !== undefined) updateData.until_date = untilDate
-    // Phase 4B-2: tokens_allowed renamed to credits_allowed, tokens_remaining removed
-    if (tokensAllowed !== undefined) {
-      updateData.credits_allowed = tokensAllowed
-    }
-    if (creditPlanId !== undefined) {
-      updateData.credit_plan_id = creditPlanId
-      // Set credit_plan_applied_at timestamp when plan is assigned
-      if (creditPlanId) {
-        updateData.credit_plan_applied_at = new Date().toISOString()
-      }
-    }
-    // Phase 4A: Enforcement mode and grace units
-    if (enforcementMode !== undefined) updateData.enforcement_mode = enforcementMode
-    if (creditsGraceUnits !== undefined) updateData.credits_grace_units = creditsGraceUnits
-
-    if (Object.keys(updateData).length > 0) {
-      const { error: userError2 } = await supabaseAdmin
-        .from('pmc_users')
-        .update(updateData)
-        .eq('id', userId)
-
-      if (userError2) {
-        console.error('Error updating user in pmc_users:', userError2)
-        return new Response(
-          JSON.stringify({ error: `Failed to update user profile: ${userError2.message}` }),
-          { 
-            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
-            status: 400 
           }
         )
       }
