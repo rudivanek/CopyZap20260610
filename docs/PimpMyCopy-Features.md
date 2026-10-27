@@ -1,7 +1,35 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.79
-Last Updated: 2026-10-27T17:00:00Z
+Version: 1.80
+Last Updated: 2026-10-27T17:30:00Z
+
+---
+
+## Admin — Edit User Modal: Old-Plan Numbers Removed, Add-Credits Button Moved, Pending-Credits Guard (2026-10-27)
+
+**Feature:** Four fixes to the Edit User modal (`src/components/EditUserModal.tsx`) so it shows only the real prepaid numbers, never silently drops credits the admin typed, and surfaces the Add credits action without scrolling.
+
+1. **Old-plan numbers removed from "User Information".** The "Credits Remaining" (`tokens_remaining`) and "Credits Allowance" (`tokens_allowed`) lines were deleted from the read-only User Information block at the top of the modal. They were legacy monthly-plan numbers that contradicted the live Balance shown in the Prepaid credits section below. The block now shows Email, User ID, Created, and Last Sign In only. The `EditUser` interface still carries `tokens_remaining`, `tokens_allowed`, `credits_allowed`, and `enforcement_mode` (they're still passed in from ManageUsers); only the two display lines are gone.
+
+2. **Pending-credits guard in Update User.** Before performing the update, `handleSubmit` now checks whether the admin selected a pack (`addPackKey`) or typed custom credits (`addCustomCredits`) but never clicked Add credits. If so, it shows the toast `You selected credits but didn't add them. Click Add credits first.` and returns without updating — the modal stays open so the admin can click Add credits. This stops Update User from silently discarding pending credits.
+
+3. **Add credits button moved next to the pack dropdown.** The pack `<select>` and the Add credits `<button>` are now in a single flex row (`flex gap-2`): the select takes `flex-1`, the button is `flex-shrink-0 whitespace-nowrap`. The full-width Add credits button that sat below the Note field was removed. The button keeps its existing disabled logic (`addingCredits || (!addPackKey && !addCustomCredits)`), spinner, and Plus icon, and still works for both the pack path and the custom-credits path. The button label changes to "Add custom credits" when custom credits have been entered, and "Add credits" otherwise, so it's clear what it will add.
+
+4. **"Credits added" toast + refresh** — already present (`handleAddCredits` shows `toast.success('Credits added')`, updates `prepaidBalance` and `prepaidNextExpiry`, calls `refreshGrants`, and calls `onUserUpdated()` so the Manage Users table refreshes). No change needed; this was already wired.
+
+**File touched:** `src/components/EditUserModal.tsx` — removed two `<p>` lines from User Information; added the pending-credits guard in `handleSubmit`; wrapped the pack select and Add credits button in a flex row, removed the old full-width button below the Note field, and made the button label swap between "Add credits" and "Add custom credits" based on `addCustomCredits`.
+
+**What did not change:** No database, migration, RLS policy, edge function, or `adminUpdateUser` change. The Prepaid credits section's balance/next-expiry summary, the old-plan amber warning, the grants list, and the Zero out button are unchanged. The Password field, the Cancel/Update User buttons, and the modal's open/close behaviour are unchanged. The `EditUser` interface is unchanged.
+
+**Effect on existing data:** None. The modal calls the same update edge function it always did; no schema or stored-data shape changed.
+
+**Verification:**
+- `npm run build` passes.
+- Open the Edit User modal: User Information shows Email, User ID, Created, Last Sign In — no Credits Remaining or Credits Allowance line.
+- The pack dropdown and the Add credits button sit in the same row; no separate Add credits button below the Note field.
+- With custom credits typed in the "Custom credits" field, the button label reads "Add custom credits"; with only a pack selected (or nothing), it reads "Add credits".
+- Select a pack (or type custom credits + pick an expiry date) but do not click Add credits, then click Update User: the toast `You selected credits but didn't add them. Click Add credits first.` shows and the modal stays open; the user is not updated.
+- Click Add credits: the "Credits added" toast shows, the Balance and Next expiry in the modal update, the grants list refreshes, and the Manage Users table refreshes so the new balance shows in the row.
 
 ---
 
