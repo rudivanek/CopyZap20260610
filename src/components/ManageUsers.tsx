@@ -312,7 +312,7 @@ const ManageUsers: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-white dark:bg-black text-black dark:text-white">
-      <div className="max-w-6xl mx-auto px-4 pb-8">
+      <div className="max-w-[1800px] mx-auto px-8 pb-8">
         {/* Header, search and errors stay fixed at the top while the page scrolls */}
         <div className="sticky top-0 z-30 bg-white dark:bg-black pt-4 pb-3">
         {/* Header */}
@@ -404,7 +404,7 @@ const ManageUsers: React.FC = () => {
               <table className="min-w-full divide-y divide-gray-200 dark:divide-gray-700">
                 <thead className="bg-gray-50 dark:bg-gray-800">
                   <tr>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky left-0 top-0 z-30 bg-gray-50 dark:bg-gray-800">
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky left-0 top-0 z-30 bg-gray-50 dark:bg-gray-800">
                       <button
                         onClick={() => handleSort('name')}
                         className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
@@ -417,10 +417,10 @@ const ManageUsers: React.FC = () => {
                         )}
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
                       Confirmed
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
                       <button
                         onClick={() => handleSort('start_date')}
                         className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
@@ -433,7 +433,7 @@ const ManageUsers: React.FC = () => {
                         )}
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
                       <button
                         onClick={() => handleSort('credits_allowed')}
                         className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
@@ -446,7 +446,7 @@ const ManageUsers: React.FC = () => {
                         )}
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
                       <button
                         onClick={() => handleSort('credits_used')}
                         className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
@@ -459,7 +459,7 @@ const ManageUsers: React.FC = () => {
                         )}
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
                       <button
                         onClick={() => handleSort('cost_usd')}
                         className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
@@ -472,7 +472,7 @@ const ManageUsers: React.FC = () => {
                         )}
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
                       <button
                         onClick={() => handleSort('credits_remaining')}
                         className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
@@ -485,7 +485,7 @@ const ManageUsers: React.FC = () => {
                         )}
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
                       <button
                         onClick={() => handleSort('total_records')}
                         className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
@@ -498,7 +498,7 @@ const ManageUsers: React.FC = () => {
                         )}
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
                       <button
                         onClick={() => handleSort('created_at')}
                         className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
@@ -511,7 +511,7 @@ const ManageUsers: React.FC = () => {
                         )}
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
                       <button
                         onClick={() => handleSort('last_sign_in_at')}
                         className="flex items-center space-x-1 hover:text-gray-700 dark:hover:text-gray-200"
@@ -524,18 +524,18 @@ const ManageUsers: React.FC = () => {
                         )}
                       </button>
                     </th>
-                    <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
                       Power user
                     </th>
-                    <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
+                    <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky right-0 top-0 z-30 bg-gray-50 dark:bg-gray-800 shadow-[-12px_0_12px_-12px_rgba(0,0,0,0.2)] dark:shadow-[-12px_0_12px_-12px_rgba(0,0,0,0.5)]">
                       Actions
                     </th>
                   </tr>
                 </thead>
                 <tbody className="bg-white dark:bg-gray-900 divide-y divide-gray-200 dark:divide-gray-700">
                   {filteredUsers.map((user) => (
-                    <tr key={user.id} className="hover:bg-gray-50 dark:hover:bg-gray-800">
-                      <td className="px-6 py-2 whitespace-nowrap sticky left-0 z-10 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800">
+                    <tr key={user.id} className="group hover:bg-gray-50 dark:hover:bg-gray-800">
+                      <td className="px-3 py-2 whitespace-nowrap sticky left-0 z-10 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800">
                         <div className="flex items-center">
                           <div className="flex-shrink-0 h-7 w-7">
                             <div className="h-7 w-7 rounded-full bg-primary-100 dark:bg-primary-900 flex items-center justify-center">
@@ -549,12 +549,12 @@ const ManageUsers: React.FC = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-2 whitespace-nowrap">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-white">
                           {user.email_confirmed_at ? 'Yes' : 'No'}
                         </div>
                       </td>
-                      <td className="px-6 py-2 whitespace-nowrap">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-white">
                           <div className="flex items-center">
                             <Calendar size={14} className="mr-1 text-gray-400" />
@@ -562,50 +562,50 @@ const ManageUsers: React.FC = () => {
                           </div>
                         </div>
                       </td>
-                      <td className="px-6 py-2 whitespace-nowrap">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-white">
                           {user.credits_allowed !== undefined && user.credits_allowed !== null
                             ? user.credits_allowed.toLocaleString()
                             : '0'}
                         </div>
                       </td>
-                      <td className="px-6 py-2 whitespace-nowrap">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-white">
                           {user.credits_used !== undefined && user.credits_used !== null
                             ? user.credits_used.toLocaleString()
                             : '0'}
                         </div>
                       </td>
-                      <td className="px-6 py-2 whitespace-nowrap">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-white">
                           {user.cost_usd !== undefined && user.cost_usd !== null
                             ? `$${user.cost_usd.toFixed(2)}`
                             : '$0.00'}
                         </div>
                       </td>
-                      <td className="px-6 py-2 whitespace-nowrap">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-white">
                           {user.credits_remaining !== undefined && user.credits_remaining !== null
                             ? user.credits_remaining.toLocaleString()
                             : 'Not set'}
                         </div>
                       </td>
-                      <td className="px-6 py-2 whitespace-nowrap">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <div className="text-sm text-gray-900 dark:text-white">
                           {user.total_records !== undefined && user.total_records !== null
                             ? user.total_records.toLocaleString()
                             : '0'}
                         </div>
                       </td>
-                      <td className="px-6 py-2 whitespace-nowrap">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <div className="text-xs text-gray-500 dark:text-gray-400">
                           {formatDate(user.created_at)}
                         </div>
                       </td>
-                      <td className="px-6 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
+                      <td className="px-3 py-2 whitespace-nowrap text-sm text-gray-500 dark:text-gray-400">
                         {user.last_sign_in_at ? formatDate(user.last_sign_in_at) : 'Never'}
                       </td>
-                      <td className="px-6 py-2 whitespace-nowrap">
+                      <td className="px-3 py-2 whitespace-nowrap">
                         <label className="inline-flex items-center gap-2 text-sm text-gray-900 dark:text-white">
                           <input
                             type="checkbox"
@@ -620,7 +620,7 @@ const ManageUsers: React.FC = () => {
                           </span>
                         </label>
                       </td>
-                      <td className="px-6 py-2 whitespace-nowrap text-right text-sm font-medium">
+                      <td className="px-3 py-2 whitespace-nowrap text-right text-sm font-medium sticky right-0 z-10 bg-white dark:bg-gray-900 group-hover:bg-gray-50 dark:group-hover:bg-gray-800 shadow-[-12px_0_12px_-12px_rgba(0,0,0,0.2)] dark:shadow-[-12px_0_12px_-12px_rgba(0,0,0,0.5)]">
                         <div className="flex items-center justify-end space-x-2">
                           {isAdmin && (
                             <button
