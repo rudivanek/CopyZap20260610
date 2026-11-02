@@ -83,6 +83,8 @@ interface QuickResultProps {
   runAgain?: { missing: string[]; onClick: () => void } | null;
   /** The best score of the last run, when this run is the same but for the facts the user added. */
   previousBest?: number | null;
+  /** True when the "original" was written by CopyZap from a brief, not pasted by the user. */
+  writtenFromBrief?: boolean;
 }
 
 const card = 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700';
@@ -307,6 +309,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
   onRescoreReview,
   runAgain = null,
   previousBest = null,
+  writtenFromBrief = false,
 }) => {
   // The result as it shows: the best version with the user's decisions about its claims applied.
   const shown = useMemo(() => resultWithReview(result), [result]);
@@ -1400,6 +1403,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 </span>
                 <ScoreTag total={originalTotal} />
               </div>
+              {writtenFromBrief && (
+                <p className="text-xs text-gray-500 dark:text-gray-400">Written from your brief</p>
+              )}
               <FormattedContent content={original.content} className={copyText} colorScores={false} />
             </article>
           )}

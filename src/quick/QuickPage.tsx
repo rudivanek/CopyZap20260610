@@ -58,6 +58,8 @@ import { estimateRunTime, KEEP_TAB_OPEN_FROM_WORDS, useSessionCredits } from '..
 import { InstructionReading, readInstructions } from '../engine/instructionFacts';
 import { OriginalScore, scoreOriginal } from '../engine/originalScore';
 import { strengthenWeakCallToAction } from '../engine/ctaPass';
+import { useBriefModeAccess } from '../hooks/useBriefModeAccess';
+import BriefForm from './BriefForm';
 import { putBackLeftOutFacts } from '../engine/factRepairPass';
 
 interface QuickPageProps {
@@ -175,6 +177,10 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [searchParams, setSearchParams] = useSearchParams();
   // Only power users and admins are offered the Complete interface.
   const completeAccess = useCompleteAccess();
+  const briefAccess = useBriefModeAccess(currentUser.id);
+  const [briefMode, setBriefMode] = useState<'improve' | 'brief'>('improve');
+  const [writtenFromBrief, setWrittenFromBrief] = useState(false);
+  const pendingBriefContinue = useRef<{ copy: string; goalKey: GoalKey } | null>(null);
   const openAtStart = useRef(searchParams.get('r'));
   // Read live from the URL so navigating to a different user's history
   // re-runs the lookup. searchParams updates on every navigation.
@@ -989,6 +995,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setInstructionFactsRemoved([]);
     setInstructionsNotice(null);
     setCopy('');
+    setWrittenFromBrief(false);
     setPhase('start');
     window.scrollTo(0, 0);
   };
@@ -1069,6 +1076,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setSearchParams({}, { replace: true });
     setError(null);
     setSessionId(null);
+    setWrittenFromBrief(false);
     setPhase('start');
     window.scrollTo(0, 0);
   };
@@ -1183,6 +1191,21 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setSaveState(null);
   };
 
+  useEffect(() => {
+    if (!pendingBriefContinue.current) return;
+    pendingBriefContinue.current = null;
+    handleContinue();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [copy, goalKey]);
+
+  const handleBriefDraft = (draft: string, goalKey: GoalKey) => {
+    setBriefMode('improve');
+    setCopy(draft);
+    setGoalKey(goalKey);
+    setWrittenFromBrief(true);
+    pendingBriefContinue.current = { copy: draft, goalKey };
+  };
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-black text-gray-900 dark:text-gray-100">
       {/* The tips of choices and buttons, shown on hover and keyboard focus. */}
@@ -1249,6 +1272,52 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             </div>
           )}
 
+          {briefAccess.allowed && (
+            <div role="tablist" aria-label="Start from" className="flex border border-gray-400 dark:border-gray-600">
+              <button
+                type="button"
+                role="tab"
+                aria-selected={briefMode === 'improve'}
+                onClick={() => setBriefMode('improve')}
+                disabled={busy !== null}
+                className={
+                  'flex-1 min-h-[48px] px-6 font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 ' +
+                  (briefMode === 'improve'
+                    ? 'bg-primary-500 text-white'
+                    : 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800')
+                }
+              >
+                Improve my copy
+              </button>
+              <button
+                type="button"
+                role="tab"
+                aria-selected={briefMode === 'brief'}
+                onClick={() => setBriefMode('brief')}
+                disabled={busy !== null}
+                className={
+                  'flex-1 min-h-[48px] px-6 font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 ' +
+                  (briefMode === 'brief'
+                    ? 'bg-primary-500 text-white'
+                    : 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800')
+                }
+              >
+                Start from a brief
+              </button>
+            </div>
+          )}
+
+          {briefMode === 'brief' && briefAccess.allowed ? (
+            <BriefForm
+              currentUser={currentUser}
+              defaultLanguage={brief?.language ?? 'English'}
+              disabled={busy !== null}
+              onDraft={handleBriefDraft}
+              onUnavailable={() => setError('This feature is not available on your account yet.')}
+              onError={message => setError(message)}
+            />
+          ) : (
+          <>
           <div className="flex flex-col gap-2">
             <label htmlFor="quick-copy" className="font-semibold text-gray-900 dark:text-gray-100">
               Your copy
@@ -1374,6 +1443,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               Next you check what CopyZap understood, then it writes and scores the versions.
             </span>
           </div>
+          </>
+          )}
         </main>
       )}
 
@@ -1475,6 +1546,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             onRescoreReview={handleRescoreReview}
             runAgain={runAgainOffer}
             previousBest={previousBest}
+            writtenFromBrief={writtenFromBrief}
           />
         </main>
       )}
