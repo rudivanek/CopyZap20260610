@@ -419,6 +419,18 @@ Deno.serve(async (req: Request) => {
     // END ACCESS CONTROL CHECK
     // ============================================
 
+    // "Start from a brief" is gated by app_settings.brief_mode_access (off | admin | paid | all).
+    if (typeof operationType === 'string' && operationType.startsWith('brief_')) {
+      const { data: briefAllowed, error: briefError } = await supabaseAuth.rpc('brief_mode_allowed');
+      if (briefError || briefAllowed !== true) {
+        console.log('❌ Brief mode refused:', { userId: user.id, briefError });
+        return new Response(
+          JSON.stringify({ error: 'BRIEF_MODE_NOT_AVAILABLE', message: 'This feature is not available on your account yet.' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 403 }
+        );
+      }
+    }
+
     const openaiKey = Deno.env.get('OPENAI_API_KEY');
     const deepseekKey = Deno.env.get('DEEPSEEK_API_KEY');
     const grokKey = Deno.env.get('GROK_API_KEY');

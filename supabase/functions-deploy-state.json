@@ -39,47 +39,47 @@
     },
     "ai-completion": {
       "hasChanged": false,
-      "hash": "211336409fbda8ab54be3ea856e31ffbea31b6d28597933a483f22dd66565ef39219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+      "hash": "d5a3227f74b6360d825f168ba2eb0dc5466de69c7c976da6ede69d99546e51889219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
     },
     "analyze-brand-voice": {
       "hasChanged": false,
-      "hash": "ce661ae089f3ca240ec4199fe4b24bc19948856180b632eb59e42c0b26336ccf9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+      "hash": "ce661ae089f3ca240ec4199fe4b24bc19948856180b632eb59e42c0b26336ccf"
     },
     "analyze-url": {
       "hasChanged": false,
-      "hash": "2cf4e63f6bb9fc0910565db4d218a9881853451902688714ffd886d438d12d359219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+      "hash": "2cf4e63f6bb9fc0910565db4d218a9881853451902688714ffd886d438d12d35"
     },
     "analyze-url-firecrawl": {
       "hasChanged": false,
-      "hash": "69bd8341b7f1434b3b4cd83a66cecfea3b5de62794bfda05f9b7812b3039ef959219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+      "hash": "69bd8341b7f1434b3b4cd83a66cecfea3b5de62794bfda05f9b7812b3039ef95"
     },
     "create-checkout-session": {
       "hasChanged": false,
-      "hash": "79b11bfa8187912a9a77321b26ca130eff48df62ba7996058b661d7e0e32d6a59219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+      "hash": "79b11bfa8187912a9a77321b26ca130eff48df62ba7996058b661d7e0e32d6a5"
     },
     "extract-brand-voice-from-url": {
       "hasChanged": false,
-      "hash": "d4cf2bf45abfd8d94fba55dbc556053d89af76fe34bcead2d554c126bd1e76ce9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+      "hash": "d4cf2bf45abfd8d94fba55dbc556053d89af76fe34bcead2d554c126bd1e76ce"
     },
     "register-beta-user": {
       "hasChanged": false,
-      "hash": "2823d9e72c9ddb94a32efae72d750635daf81fa89d2c937a8faae1bd0d51ea7c9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+      "hash": "2823d9e72c9ddb94a32efae72d750635daf81fa89d2c937a8faae1bd0d51ea7c"
     },
     "send-help-email": {
       "hasChanged": false,
-      "hash": "2211dd285d5e8c6b863bcf0af21c1910914f573ab47f90218c5ad129ae1c006e9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+      "hash": "2211dd285d5e8c6b863bcf0af21c1910914f573ab47f90218c5ad129ae1c006e"
     },
     "send-welcome-email": {
       "hasChanged": false,
-      "hash": "1384811be13729a1b84b4e3493be384f2dc95e1224c2700db67192e993aba4b29219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+      "hash": "1384811be13729a1b84b4e3493be384f2dc95e1224c2700db67192e993aba4b2"
     },
     "stripe-webhook": {
       "hasChanged": false,
-      "hash": "fb3453df235bbecf26ba9dbe709edf3f2bc27418e4ec5f47ed4ad4aba45967029219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+      "hash": "fb3453df235bbecf26ba9dbe709edf3f2bc27418e4ec5f47ed4ad4aba4596702"
     },
     "submit-help-feedback": {
       "hasChanged": false,
-      "hash": "2363a54223c62fb91df4a5bd5c6546ede2e8e1e4e6add427f3d35884b1b6e80b9219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
+      "hash": "2363a54223c62fb91df4a5bd5c6546ede2e8e1e4e6add427f3d35884b1b6e80b"
     }
   }
 }
