@@ -290,6 +290,36 @@ const ScoreTag: React.FC<{ total: number | undefined }> = ({ total }) => (
   </span>
 );
 
+/** A blog post's meta description, shown above the post with its length and a copy button. */
+const MetaDescriptionLine: React.FC<{ text: string }> = ({ text }) => {
+  const [copied, setCopied] = useState(false);
+  const length = text.length;
+  return (
+    <div className="flex flex-col gap-1 border-l-2 border-gray-300 dark:border-gray-600 pl-3 rounded-none">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-gray-600 dark:text-gray-400">
+        <span className="font-semibold">Meta description</span>
+        <span className={`tabular-nums ${length > 160 ? 'text-status-critical' : ''}`}>{length} characters</span>
+        <button
+          type="button"
+          onClick={() => {
+            navigator.clipboard?.writeText(text).then(
+              () => {
+                setCopied(true);
+                window.setTimeout(() => setCopied(false), 1500);
+              },
+              () => undefined
+            );
+          }}
+          className="underline focus:outline-none focus:ring-2 focus:ring-primary-500"
+        >
+          {copied ? 'Copied' : 'Copy'}
+        </button>
+      </div>
+      <p className="text-sm text-gray-800 dark:text-gray-200 break-words">{text}</p>
+    </div>
+  );
+};
+
 const QuickResult: React.FC<QuickResultProps> = ({
   result,
   isRescoring,
@@ -905,6 +935,9 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 </span>
               )}
             </div>
+            {result.briefRecord?.metaDescription && (
+              <MetaDescriptionLine text={result.briefRecord.metaDescription} />
+            )}
             <div ref={copyRef}>
               <FormattedContent content={winner.content} className={copyText} colorScores={false} />
             </div>

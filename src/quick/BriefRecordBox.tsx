@@ -19,6 +19,12 @@ const BriefRecordBox: React.FC<{ brief: QuickBriefRecord; copyText?: string; ope
           <dd className="break-words whitespace-pre-line">{field.value}</dd>
         </React.Fragment>
       ))}
+      {brief.metaDescription && (
+        <>
+          <dt className="text-gray-600 dark:text-gray-400">Meta description</dt>
+          <dd className="break-words">{brief.metaDescription}</dd>
+        </>
+      )}
       {brief.website && (
         <>
           <dt className="text-gray-600 dark:text-gray-400">Website</dt>

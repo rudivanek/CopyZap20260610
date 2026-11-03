@@ -15,6 +15,7 @@ import {
   suggestedWordsFor,
   suggestSectionWords,
   generateFromBrief,
+  splitMetaDescription,
   trimSiteFacts,
 } from '../engine/generateFromBrief';
 import { fetchQuickPage } from '../engine/fetchQuickPage';
@@ -54,6 +55,7 @@ const hintClass = 'text-sm text-gray-600 dark:text-gray-400';
 
 const PIECE_GROUPS: { label: string; keys: BriefPieceKey[] }[] = [
   { label: 'Web pages', keys: ['homepage', 'landing_page', 'service_page', 'about_page'] },
+  { label: 'Articles', keys: ['blog_post'] },
   { label: 'Short texts', keys: ['h1_headline', 'usp', 'slogan'] },
   { label: 'Email', keys: ['email', 'newsletter'] },
   { label: 'Other', keys: ['social_post', 'ad', 'product_description', 'other'] },
@@ -61,6 +63,8 @@ const PIECE_GROUPS: { label: string; keys: BriefPieceKey[] }[] = [
 
 const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, disabled, onDraft, onUnavailable, onError, getSessionId }) => {
   const [product, setProduct] = useState('');
+  const [topic, setTopic] = useState('');
+  const [keyword, setKeyword] = useState('');
   const [audience, setAudience] = useState('');
   const [goal, setGoal] = useState<GoalKey>(DEFAULT_GOAL_KEY);
   const [piece, setPiece] = useState<BriefPieceKey>('homepage');
@@ -86,6 +90,7 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
   const busy = stage !== 'idle' || disabled;
   const showLength = group === 'email';
   const isPage = group === 'page';
+  const isBlog = piece === 'blog_post';
   const sectionWordsSum = sections.every(section => section.words) ? sections.reduce((sum, section) => sum + (section.words ?? 0), 0) : null;
   const effectiveWords = isPage ? (sectionWordsSum ?? targetWords) : null;
   // A word count for every section: the user's own, or a share of the total.
@@ -104,6 +109,7 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
     { key: 'audience', value: audience },
     { key: 'goal', value: goal },
     { key: 'piece', value: piece },
+    ...(isBlog ? [{ key: 'topic', value: topic }] : []),
   ];
 
   const isMissing = (key: string) => missing.includes(key);
@@ -124,7 +130,7 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
     setSiteNotice(null);
     let sessionId: string | undefined;
     try {
-      sessionId = await getSessionId(product.trim().slice(0, 60) || 'Brief');
+      sessionId = await getSessionId((isBlog && topic.trim() ? topic : product).trim().slice(0, 60) || 'Brief');
     } catch {
       sessionId = undefined;
     }
@@ -155,15 +161,21 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
         length: showLength ? length : briefPiece(piece).defaultLength,
         sections: isPage ? sections.map((section, index) => ({ ...section, words: section.words ?? sectionWords[index] ?? null })) : undefined,
         targetWords: isPage && effectiveWords ? effectiveWords : undefined,
+        topic: isBlog ? topic.trim() || undefined : undefined,
+        keyword: isBlog ? keyword.trim() || undefined : undefined,
         language,
         spanishForm: language === 'Spanish' ? spanishForm : undefined,
       };
-      const draft = await generateFromBrief(brief, currentUser, sessionId);
+      const written = await generateFromBrief(brief, currentUser, sessionId);
+      // A blog post starts with its meta description: keep it apart from the copy that gets scored.
+      const { draft, metaDescription } = isBlog ? splitMetaDescription(written) : { draft: written, metaDescription: undefined };
       const goalOption = GOAL_OPTIONS.find(option => option.key === goal);
       const goalText = goal === 'custom' ? 'Other' : (goalOption?.label.split(' — ')[0] ?? String(goal));
       const languageText = language === 'Spanish' ? `Español (${spanishForm})` : language;
       const fields = [
         { label: 'What you need', value: briefPiece(piece).label },
+        { label: 'Topic or title idea', value: isBlog ? topic.trim() : '' },
+        { label: 'Main keyword', value: isBlog ? keyword.trim() : '' },
         { label: 'What you are selling', value: product.trim() },
         { label: 'Who it is for', value: audience.trim() },
         { label: 'Goal', value: goalText },
@@ -183,6 +195,7 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
         website: usedWebsite,
         websiteRead: usedWebsite ? siteFacts !== undefined : undefined,
         draft,
+        ...(metaDescription ? { metaDescription } : {}),
       });
     } catch (error) {
       if (error instanceof BriefNotAvailableError) {
@@ -285,6 +298,45 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
         </select>
         {isMissing('piece') && <p className="text-sm text-status-critical">Fill this in first.</p>}
       </div>
+
+      {isBlog && (
+        <div className="flex flex-col gap-2">
+          <label htmlFor="brief-topic" className={labelClass}>
+            Topic or title idea
+          </label>
+          <input
+            id="brief-topic"
+            type="text"
+            value={topic}
+            onChange={event => {
+              setTopic(event.target.value);
+              clearMissing('topic');
+            }}
+            disabled={busy}
+            placeholder="How to choose a web development agency without regretting it"
+            className={fieldClass}
+          />
+          {isMissing('topic') && <p className="text-sm text-status-critical">Fill this in first.</p>}
+        </div>
+      )}
+
+      {isBlog && (
+        <div className="flex flex-col gap-2">
+          <label htmlFor="brief-keyword" className={labelClass}>
+            Main keyword <span className="font-normal text-gray-600 dark:text-gray-400">(optional)</span>
+          </label>
+          <input
+            id="brief-keyword"
+            type="text"
+            value={keyword}
+            onChange={event => setKeyword(event.target.value)}
+            disabled={busy}
+            placeholder="web development agency Mexico"
+            className={fieldClass}
+          />
+          <p className={hintClass}>The search phrase you want the post to be found for. Used in the title, some headings and the meta description.</p>
+        </div>
+      )}
 
       {(group === 'page' || group === 'short') && (
         <div className="flex flex-col gap-2">
