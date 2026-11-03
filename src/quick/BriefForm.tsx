@@ -1,8 +1,17 @@
 import React, { useState } from 'react';
 import { GoalKey, Language, Tone, User } from '../types';
-import { TextKindKey } from '../services/api/textKinds';
 import { DEFAULT_GOAL_KEY, GOAL_OPTIONS } from '../utils/scoringContextStorage';
-import { Brief, BriefLength, BriefNotAvailableError, generateFromBrief } from '../engine/generateFromBrief';
+import {
+  Brief,
+  BriefLength,
+  BriefNotAvailableError,
+  BriefPieceKey,
+  BRIEF_PIECES,
+  briefPiece,
+  generateFromBrief,
+  trimSiteFacts,
+} from '../engine/generateFromBrief';
+import { fetchQuickPage } from '../engine/fetchQuickPage';
 
 interface BriefFormProps {
   currentUser: User;
@@ -17,15 +26,6 @@ interface BriefFormProps {
   onError: (message: string) => void;
 }
 
-const CHANNELS: { key: TextKindKey; label: string }[] = [
-  { key: 'web_page', label: 'Web page' },
-  { key: 'short_text', label: 'Short text (headline, slogan)' },
-  { key: 'email', label: 'Email' },
-  { key: 'social_post', label: 'Social post' },
-  { key: 'ad', label: 'Ad' },
-  { key: 'other', label: 'Other' },
-];
-
 const LENGTHS: { key: BriefLength; label: string }[] = [
   { key: 'short', label: 'Short' },
   { key: 'medium', label: 'Medium' },
@@ -39,53 +39,89 @@ const fieldClass =
   'w-full min-h-[44px] px-3.5 py-2 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 ' +
   'text-gray-900 dark:text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500';
 const labelClass = 'font-semibold text-gray-900 dark:text-gray-100';
+const hintClass = 'text-sm text-gray-600 dark:text-gray-400';
+
+const PIECE_GROUPS: { label: string; keys: BriefPieceKey[] }[] = [
+  { label: 'Web pages', keys: ['homepage', 'landing_page', 'service_page', 'about_page'] },
+  { label: 'Short texts', keys: ['h1_headline', 'usp', 'slogan'] },
+  { label: 'Email', keys: ['email', 'newsletter'] },
+  { label: 'Other', keys: ['social_post', 'ad', 'product_description', 'other'] },
+];
 
 const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, disabled, onDraft, onUnavailable, onError }) => {
   const [product, setProduct] = useState('');
   const [audience, setAudience] = useState('');
   const [goal, setGoal] = useState<GoalKey>(DEFAULT_GOAL_KEY);
-  const [channel, setChannel] = useState<TextKindKey>('web_page');
+  const [piece, setPiece] = useState<BriefPieceKey>('homepage');
   const [tone, setTone] = useState<Tone>('Professional');
+  const [differentiators, setDifferentiators] = useState('');
+  const [callToAction, setCallToAction] = useState('');
+  const [website, setWebsite] = useState('');
+  const [siteNotice, setSiteNotice] = useState<string | null>(null);
   const [proof, setProof] = useState('');
   const [mustInclude, setMustInclude] = useState('');
   const [avoid, setAvoid] = useState('');
-  const [length, setLength] = useState<BriefLength>('medium');
+  const [length, setLength] = useState<BriefLength>('long');
   const [language, setLanguage] = useState<Language>(defaultLanguage);
   const [spanishForm, setSpanishForm] = useState<'tú' | 'usted'>('usted');
   const [moreOpen, setMoreOpen] = useState(false);
-  const [writing, setWriting] = useState(false);
+  const [stage, setStage] = useState<'idle' | 'reading' | 'writing'>('idle');
   const [missing, setMissing] = useState<string[]>([]);
+
+  const group = briefPiece(piece).group;
+  const busy = stage !== 'idle' || disabled;
+  const showLength = group === 'page' || group === 'email';
+
+  const handlePieceChange = (newKey: BriefPieceKey) => {
+    setPiece(newKey);
+    setLength(briefPiece(newKey).defaultLength);
+    clearMissing('piece');
+  };
 
   const required: { key: string; value: string }[] = [
     { key: 'product', value: product },
     { key: 'audience', value: audience },
     { key: 'goal', value: goal },
-    { key: 'channel', value: channel },
+    { key: 'piece', value: piece },
   ];
 
   const isMissing = (key: string) => missing.includes(key);
   const clearMissing = (key: string) => setMissing(list => list.filter(item => item !== key));
 
   const handleWrite = async () => {
-    if (disabled || writing) return;
+    if (busy) return;
     const empty = required.filter(item => !item.value || !String(item.value).trim()).map(item => item.key);
     if (empty.length > 0) {
       setMissing(empty);
       return;
     }
     setMissing([]);
-    setWriting(true);
+    setSiteNotice(null);
+    let siteFacts: string | undefined;
+    if (website.trim() && (group === 'page' || group === 'short')) {
+      setStage('reading');
+      try {
+        const page = await fetchQuickPage(website.trim(), currentUser);
+        siteFacts = trimSiteFacts(page.copy);
+      } catch {
+        setSiteNotice("We couldn't read that website, so the copy was written from your brief only.");
+      }
+    }
+    setStage('writing');
     try {
       const brief: Brief = {
         product: product.trim(),
         audience: audience.trim(),
         goal,
-        channel,
+        piece,
         tone,
+        differentiators: differentiators.trim() || undefined,
+        callToAction: callToAction.trim() || undefined,
+        siteFacts,
         proof: proof.trim() || undefined,
         mustInclude: mustInclude.trim() || undefined,
         avoid: avoid.trim() || undefined,
-        length,
+        length: showLength ? length : briefPiece(piece).defaultLength,
         language,
         spanishForm: language === 'Spanish' ? spanishForm : undefined,
       };
@@ -100,9 +136,11 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
         onError('Something went wrong. Please try again.');
       }
     } finally {
-      setWriting(false);
+      setStage('idle');
     }
   };
+
+  const writeLabel = stage === 'reading' ? 'Reading your website…' : stage === 'writing' ? 'Writing…' : 'Write copy';
 
   return (
     <div className="flex flex-col gap-6">
@@ -118,7 +156,7 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
             setProduct(event.target.value);
             clearMissing('product');
           }}
-          disabled={writing || disabled}
+          disabled={busy}
           placeholder="For example: a bookkeeping service for small restaurants"
           className={fieldClass}
         />
@@ -137,7 +175,7 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
             setAudience(event.target.value);
             clearMissing('audience');
           }}
-          disabled={writing || disabled}
+          disabled={busy}
           placeholder="For example: restaurant owners who do their own books"
           className={fieldClass}
         />
@@ -155,7 +193,7 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
             setGoal(event.target.value as GoalKey);
             clearMissing('goal');
           }}
-          disabled={writing || disabled}
+          disabled={busy}
           className={fieldClass}
         >
           {GOAL_OPTIONS.map(option => (
@@ -168,27 +206,82 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
       </div>
 
       <div className="flex flex-col gap-2">
-        <label htmlFor="brief-channel" className={labelClass}>
-          Where will it appear?
+        <label htmlFor="brief-piece" className={labelClass}>
+          What do you need?
         </label>
         <select
-          id="brief-channel"
-          value={channel}
-          onChange={event => {
-            setChannel(event.target.value as TextKindKey);
-            clearMissing('channel');
-          }}
-          disabled={writing || disabled}
+          id="brief-piece"
+          value={piece}
+          onChange={event => handlePieceChange(event.target.value as BriefPieceKey)}
+          disabled={busy}
           className={fieldClass}
         >
-          {CHANNELS.map(option => (
-            <option key={option.key} value={option.key}>
-              {option.label}
-            </option>
+          {PIECE_GROUPS.map(section => (
+            <optgroup key={section.label} label={section.label}>
+              {section.keys.map(key => (
+                <option key={key} value={key}>
+                  {BRIEF_PIECES.find(item => item.key === key)?.label ?? key}
+                </option>
+              ))}
+            </optgroup>
           ))}
         </select>
-        {isMissing('channel') && <p className="text-sm text-status-critical">Fill this in first.</p>}
+        {isMissing('piece') && <p className="text-sm text-status-critical">Fill this in first.</p>}
       </div>
+
+      {(group === 'page' || group === 'short') && (
+        <div className="flex flex-col gap-2">
+          <label htmlFor="brief-differentiators" className={labelClass}>
+            What makes you different? <span className="font-normal text-gray-600 dark:text-gray-400">(optional)</span>
+          </label>
+          <textarea
+            id="brief-differentiators"
+            rows={3}
+            value={differentiators}
+            onChange={event => setDifferentiators(event.target.value)}
+            disabled={busy}
+            placeholder="20 years building websites; every site custom-made, no templates; delivered in 6 weeks"
+            className={fieldClass}
+          />
+          <p className={hintClass}>Two or three points. This is what makes the copy yours instead of generic.</p>
+        </div>
+      )}
+
+      {(group === 'page' || group === 'email' || group === 'post' || group === 'ad') && (
+        <div className="flex flex-col gap-2">
+          <label htmlFor="brief-cta" className={labelClass}>
+            What should the reader do? <span className="font-normal text-gray-600 dark:text-gray-400">(optional)</span>
+          </label>
+          <input
+            id="brief-cta"
+            type="text"
+            value={callToAction}
+            onChange={event => setCallToAction(event.target.value)}
+            disabled={busy}
+            placeholder="Book a free call"
+            className={fieldClass}
+          />
+          <p className={hintClass}>The one action you want.</p>
+        </div>
+      )}
+
+      {(group === 'page' || group === 'short') && (
+        <div className="flex flex-col gap-2">
+          <label htmlFor="brief-website" className={labelClass}>
+            Your website (if you have one) <span className="font-normal text-gray-600 dark:text-gray-400">(optional)</span>
+          </label>
+          <input
+            id="brief-website"
+            type="text"
+            value={website}
+            onChange={event => setWebsite(event.target.value)}
+            disabled={busy}
+            placeholder="yourcompany.com"
+            className={fieldClass}
+          />
+          <p className={hintClass}>CopyZap reads it for facts like your services and experience. It does not copy the text.</p>
+        </div>
+      )}
 
       <div className="flex flex-col gap-2">
         <span className={labelClass}>Tone</span>
@@ -200,7 +293,7 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
                 key={option}
                 type="button"
                 onClick={() => setTone(option)}
-                disabled={writing || disabled}
+                disabled={busy}
                 className={
                   'min-h-[40px] px-4 border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 ' +
                   (active
@@ -230,7 +323,7 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
                 rows={3}
                 value={proof}
                 onChange={event => setProof(event.target.value)}
-                disabled={writing || disabled}
+                disabled={busy}
                 placeholder="For example: serves 40 restaurants, listed in X magazine"
                 className={fieldClass}
               />
@@ -245,7 +338,7 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
                 type="text"
                 value={mustInclude}
                 onChange={event => setMustInclude(event.target.value)}
-                disabled={writing || disabled}
+                disabled={busy}
                 placeholder="Words or points that must appear"
                 className={fieldClass}
               />
@@ -260,36 +353,38 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
                 type="text"
                 value={avoid}
                 onChange={event => setAvoid(event.target.value)}
-                disabled={writing || disabled}
+                disabled={busy}
                 placeholder="Words or points to keep out"
                 className={fieldClass}
               />
             </div>
 
-            <div className="flex flex-col gap-2">
-              <span className={labelClass}>Length</span>
-              <div className="flex gap-2">
-                {LENGTHS.map(option => {
-                  const active = length === option.key;
-                  return (
-                    <button
-                      key={option.key}
-                      type="button"
-                      onClick={() => setLength(option.key)}
-                      disabled={writing || disabled}
-                      className={
-                        'min-h-[40px] px-4 border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 ' +
-                        (active
-                          ? 'bg-primary-500 border-primary-500 text-white'
-                          : 'bg-white dark:bg-gray-900 border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800')
-                      }
-                    >
-                      {option.label}
-                    </button>
-                  );
-                })}
+            {showLength && (
+              <div className="flex flex-col gap-2">
+                <span className={labelClass}>Length</span>
+                <div className="flex gap-2">
+                  {LENGTHS.map(option => {
+                    const active = length === option.key;
+                    return (
+                      <button
+                        key={option.key}
+                        type="button"
+                        onClick={() => setLength(option.key)}
+                        disabled={busy}
+                        className={
+                          'min-h-[40px] px-4 border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 ' +
+                          (active
+                            ? 'bg-primary-500 border-primary-500 text-white'
+                            : 'bg-white dark:bg-gray-900 border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800')
+                        }
+                      >
+                        {option.label}
+                      </button>
+                    );
+                  })}
+                </div>
               </div>
-            </div>
+            )}
 
             <div className="flex flex-col gap-2">
               <label htmlFor="brief-language" className={labelClass}>
@@ -299,7 +394,7 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
                 id="brief-language"
                 value={language}
                 onChange={event => setLanguage(event.target.value as Language)}
-                disabled={writing || disabled}
+                disabled={busy}
                 className={fieldClass}
               >
                 {LANGUAGES.map(option => (
@@ -317,7 +412,7 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
                         key={option}
                         type="button"
                         onClick={() => setSpanishForm(option)}
-                        disabled={writing || disabled}
+                        disabled={busy}
                         className={
                           'min-h-[40px] px-4 border text-sm font-medium focus:outline-none focus:ring-2 focus:ring-primary-500 ' +
                           (active
@@ -340,15 +435,16 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
         <button
           type="button"
           onClick={handleWrite}
-          disabled={writing || disabled}
+          disabled={busy}
           className="inline-flex items-center justify-center min-h-[48px] px-8 bg-primary-500 hover:bg-primary-400 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
         >
-          {writing ? 'Writing…' : 'Write copy'}
+          {writeLabel}
         </button>
-        <span className="text-gray-600 dark:text-gray-400">
+        <span className={hintClass}>
           CopyZap writes a draft from your brief, then scores and improves it.
         </span>
       </div>
+      {siteNotice && <p className={hintClass}>{siteNotice}</p>}
     </div>
   );
 };

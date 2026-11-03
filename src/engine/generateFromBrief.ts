@@ -13,6 +13,44 @@ import briefPrompt from '../prompts/briefGenerate.md?raw';
 
 export type BriefLength = 'short' | 'medium' | 'long';
 
+export type BriefPieceKey =
+  | 'homepage' | 'landing_page' | 'about_page' | 'service_page'
+  | 'h1_headline' | 'usp' | 'slogan'
+  | 'email' | 'newsletter'
+  | 'social_post' | 'ad' | 'product_description' | 'other';
+
+export type BriefPieceGroup = 'page' | 'short' | 'email' | 'post' | 'ad' | 'other';
+
+export interface BriefPiece {
+  key: BriefPieceKey;
+  label: string;
+  group: BriefPieceGroup;
+  /** The Quick text kind this piece is scored as. */
+  channel: TextKindKey;
+  /** Default length for this piece. Pieces outside 'page' and 'email' have a fixed length. */
+  defaultLength: BriefLength;
+}
+
+export const BRIEF_PIECES: BriefPiece[] = [
+  { key: 'homepage',            label: 'Homepage',                  group: 'page',  channel: 'web_page',    defaultLength: 'long' },
+  { key: 'landing_page',        label: 'Landing page',              group: 'page',  channel: 'web_page',    defaultLength: 'long' },
+  { key: 'service_page',        label: 'Service or product page',   group: 'page',  channel: 'web_page',    defaultLength: 'long' },
+  { key: 'about_page',          label: 'About page',                group: 'page',  channel: 'web_page',    defaultLength: 'medium' },
+  { key: 'h1_headline',         label: 'H1 / headline',             group: 'short', channel: 'short_text',  defaultLength: 'short' },
+  { key: 'usp',                 label: 'USP / value proposition',   group: 'short', channel: 'short_text',  defaultLength: 'short' },
+  { key: 'slogan',              label: 'Slogan / tagline',          group: 'short', channel: 'short_text',  defaultLength: 'short' },
+  { key: 'email',               label: 'Email',                     group: 'email', channel: 'email',       defaultLength: 'medium' },
+  { key: 'newsletter',          label: 'Newsletter',                group: 'email', channel: 'email',       defaultLength: 'medium' },
+  { key: 'social_post',         label: 'Social post',               group: 'post',  channel: 'social_post', defaultLength: 'short' },
+  { key: 'ad',                  label: 'Ad',                        group: 'ad',    channel: 'ad',          defaultLength: 'short' },
+  { key: 'product_description', label: 'Product description',       group: 'other', channel: 'other',       defaultLength: 'medium' },
+  { key: 'other',               label: 'Other',                     group: 'other', channel: 'other',       defaultLength: 'medium' },
+];
+
+export function briefPiece(key: BriefPieceKey): BriefPiece {
+  return BRIEF_PIECES.find(piece => piece.key === key) ?? BRIEF_PIECES[BRIEF_PIECES.length - 1];
+}
+
 export interface Brief {
   /** What the copy sells. */
   product: string;
@@ -20,10 +58,16 @@ export interface Brief {
   audience: string;
   /** What the copy is meant to do. */
   goal: GoalKey;
-  /** Where the copy will appear (the kind of text). */
-  channel: TextKindKey;
+  /** What the user needs written. */
+  piece: BriefPieceKey;
   /** The tone to write in. */
   tone: Tone;
+  /** Optional: what makes the business different (pages, USP, headline). */
+  differentiators?: string;
+  /** Optional: what the reader should do (pages, email, post, ad). */
+  callToAction?: string;
+  /** Optional: text read from the user's current website, used only as a source of facts. */
+  siteFacts?: string;
   /** Optional proof or results the user gave. */
   proof?: string;
   /** Optional words or points that must appear. */
@@ -46,16 +90,7 @@ export class BriefNotAvailableError extends Error {
 }
 
 const BRIEF_MODEL = 'claude-sonnet-4-6' as const;
-const BRIEF_MAX_TOKENS = 2000;
-
-const CHANNEL_NAMES: Record<TextKindKey, string> = {
-  web_page: 'a web page',
-  short_text: 'a short text (headline, slogan or value proposition)',
-  email: 'an email',
-  social_post: 'a social post',
-  ad: 'an ad',
-  other: 'marketing copy',
-};
+const BRIEF_MAX_TOKENS = 3000;
 
 const GOAL_NAMES: Record<GoalKey, string> = {
   convert: 'drive an action or a sale',
@@ -71,8 +106,10 @@ function briefText(brief: Brief): string {
   lines.push(`What you are selling: ${brief.product}`);
   lines.push(`Who it is for: ${brief.audience}`);
   lines.push(`Goal: ${GOAL_NAMES[brief.goal] ?? brief.goal}`);
-  lines.push(`Where it will appear: ${CHANNEL_NAMES[brief.channel] ?? brief.channel}`);
+  lines.push(`What to write: ${briefPiece(brief.piece).label}`);
   lines.push(`Tone: ${brief.tone}`);
+  if (brief.differentiators && brief.differentiators.trim()) lines.push(`What makes them different: ${brief.differentiators.trim()}`);
+  if (brief.callToAction && brief.callToAction.trim()) lines.push(`What the reader should do: ${brief.callToAction.trim()}`);
   if (brief.proof && brief.proof.trim()) lines.push(`Proof or results: ${brief.proof.trim()}`);
   if (brief.mustInclude && brief.mustInclude.trim()) lines.push(`Must include: ${brief.mustInclude.trim()}`);
   if (brief.avoid && brief.avoid.trim()) lines.push(`Avoid: ${brief.avoid.trim()}`);
@@ -81,6 +118,13 @@ function briefText(brief: Brief): string {
     lines.push(`Language: Spanish, addressing the reader as ${brief.spanishForm ?? 'usted'}`);
   } else {
     lines.push(`Language: ${brief.language}`);
+  }
+  if (brief.siteFacts && brief.siteFacts.trim()) {
+    lines.push('');
+    lines.push('Text from their current website. Use it ONLY as a source of true facts (services, experience, location, clients, results). Do not copy its wording or structure.');
+    lines.push('<website>');
+    lines.push(brief.siteFacts.trim());
+    lines.push('</website>');
   }
   return lines.join('\n');
 }
@@ -115,4 +159,10 @@ export async function generateFromBrief(brief: Brief, user: User, sessionId?: st
   const draft = (response.choices[0]?.message?.content ?? '').trim();
   if (!draft) throw new Error('No copy was written. Please try again.');
   return draft;
+}
+
+/** Cuts the website text to at most `maxWords` words, so the prompt stays small. */
+export function trimSiteFacts(text: string, maxWords = 2500): string {
+  const words = (text || '').split(/\s+/).filter(Boolean);
+  return words.length <= maxWords ? words.join(' ') : words.slice(0, maxWords).join(' ');
 }
