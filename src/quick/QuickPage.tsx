@@ -1315,6 +1315,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               onDraft={handleBriefDraft}
               onUnavailable={() => setError('This feature is not available on your account yet.')}
               onError={message => setError(message)}
+              getSessionId={ensureSession}
             />
           ) : (
           <>

@@ -24,6 +24,8 @@ interface BriefFormProps {
   onUnavailable: () => void;
   /** Called with an error message to show, on any other failure. */
   onError: (message: string) => void;
+  /** Starts (or reuses) the Quick session, so the brief's usage is recorded on the same run. */
+  getSessionId: (label: string) => Promise<string>;
 }
 
 const LENGTHS: { key: BriefLength; label: string }[] = [
@@ -48,7 +50,7 @@ const PIECE_GROUPS: { label: string; keys: BriefPieceKey[] }[] = [
   { label: 'Other', keys: ['social_post', 'ad', 'product_description', 'other'] },
 ];
 
-const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, disabled, onDraft, onUnavailable, onError }) => {
+const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, disabled, onDraft, onUnavailable, onError, getSessionId }) => {
   const [product, setProduct] = useState('');
   const [audience, setAudience] = useState('');
   const [goal, setGoal] = useState<GoalKey>(DEFAULT_GOAL_KEY);
@@ -97,11 +99,17 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
     }
     setMissing([]);
     setSiteNotice(null);
+    let sessionId: string | undefined;
+    try {
+      sessionId = await getSessionId(product.trim().slice(0, 60) || 'Brief');
+    } catch {
+      sessionId = undefined;
+    }
     let siteFacts: string | undefined;
     if (website.trim() && (group === 'page' || group === 'short')) {
       setStage('reading');
       try {
-        const page = await fetchQuickPage(website.trim(), currentUser);
+        const page = await fetchQuickPage(website.trim(), currentUser, sessionId);
         siteFacts = trimSiteFacts(page.copy);
       } catch {
         setSiteNotice("We couldn't read that website, so the copy was written from your brief only.");
@@ -125,7 +133,7 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
         language,
         spanishForm: language === 'Spanish' ? spanishForm : undefined,
       };
-      const draft = await generateFromBrief(brief, currentUser);
+      const draft = await generateFromBrief(brief, currentUser, sessionId);
       onDraft(draft, goal);
     } catch (error) {
       if (error instanceof BriefNotAvailableError) {

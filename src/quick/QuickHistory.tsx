@@ -6,7 +6,8 @@ import { TIPS } from './tips';
 import { formatVersionTime } from '../utils/versionTime';
 import { Link } from 'react-router-dom';
 import { deleteQuickResult, listQuickResults, adminListQuickResults, QuickHistoryEntry, renameQuickResult } from '../engine/quickHistory';
-import { getSessionCredits } from '../engine/quickCredits';
+import { getSessionUsage, SessionUsage, formatUsd } from '../engine/quickCredits';
+import { useIsAdmin } from '../hooks/useIsAdmin';
 
 export interface ViewingUser {
   id: string;
@@ -37,11 +38,23 @@ function formatDate(value: string): string {
   return formatVersionTime(value);
 }
 
+function usageText(u: SessionUsage, isAdmin: boolean): string | null {
+  const part = (credits: number, usd: number | null) =>
+    `${credits.toLocaleString('en-US')} credits` + (isAdmin && usd != null ? ` (${formatUsd(usd)})` : '');
+  if (u.briefCredits > 0) {
+    return `Brief: ${part(u.briefCredits, u.briefUsd)} · Improve: ${part(u.runCredits, u.runUsd)}`;
+  }
+  if (u.runCredits > 0) return part(u.runCredits, u.runUsd);
+  return null;
+}
+
 const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew, onDeleted, viewingUser }) => {
   const isViewingOther = !!viewingUser;
   const [entries, setEntries] = useState<QuickHistoryEntry[] | null>(null);
-  // Credits per session id. Read after the list; when the read fails, the lines simply show no credits.
-  const [credits, setCredits] = useState<Record<string, number>>({});
+  // Usage per session id, split into the brief part and the run part. Read after
+  // the list; when the read fails, the lines simply show no credits.
+  const [usage, setUsage] = useState<Record<string, SessionUsage>>({});
+  const { isAdmin } = useIsAdmin(currentUser);
   const [error, setError] = useState<string | null>(null);
   const [renamingId, setRenamingId] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
@@ -59,9 +72,9 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
         setEntries(list);
         // The other user's session credits are not visible to the admin; skip the lookup.
         if (isViewingOther) return;
-        getSessionCredits(list.map(entry => entry.sessionId).filter((id): id is string => !!id))
+        getSessionUsage(list.map(entry => entry.sessionId).filter((id): id is string => !!id))
           .then(map => {
-            if (isMounted.current) setCredits(map);
+            if (isMounted.current) setUsage(map);
           })
           .catch(() => undefined);
       })
@@ -224,8 +237,7 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
                     {[entry.goalKey && `Goal: ${quickGoalName(entry.goalKey, entry.goalLabel)}`,
                       entry.sourceHost && `From ${entry.sourceHost}`,
                       entry.originalScore != null && `Original: ${entry.originalScore}`,
-                      entry.sessionId && credits[entry.sessionId] > 0 &&
-                        `${credits[entry.sessionId].toLocaleString('en-US')} credits`,
+                      entry.sessionId && usage[entry.sessionId] && usageText(usage[entry.sessionId], isAdmin),
                       formatDate(entry.createdAt),
                     ]
                       .filter(Boolean)

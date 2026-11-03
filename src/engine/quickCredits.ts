@@ -25,6 +25,38 @@ export async function getSessionCredits(sessionIds: string[]): Promise<Record<st
   return out;
 }
 
+export interface SessionUsage {
+  briefCredits: number;
+  runCredits: number;
+  /** Null unless the signed-in user is an admin. */
+  briefUsd: number | null;
+  runUsd: number | null;
+}
+
+/** Credits per session id, split into the brief part and the run part. Sessions without usage are missing. Throws on a failed read. */
+export async function getSessionUsage(sessionIds: string[]): Promise<Record<string, SessionUsage>> {
+  const ids = Array.from(new Set(sessionIds.filter(Boolean)));
+  if (ids.length === 0) return {};
+  const { data, error } = await supabase.rpc('get_my_session_usage', { p_session_ids: ids });
+  if (error) throw new Error(error.message || 'Credits could not be read.');
+  const out: Record<string, SessionUsage> = {};
+  for (const row of (data as { session_id: string; brief_credits: number; run_credits: number; brief_usd: number | null; run_usd: number | null }[] | null) ?? []) {
+    if (!row?.session_id) continue;
+    out[row.session_id] = {
+      briefCredits: Number(row.brief_credits) || 0,
+      runCredits: Number(row.run_credits) || 0,
+      briefUsd: row.brief_usd == null ? null : Number(row.brief_usd),
+      runUsd: row.run_usd == null ? null : Number(row.run_usd),
+    };
+  }
+  return out;
+}
+
+/** "$0.036" under ten cents, "$0.51" from ten cents up. */
+export function formatUsd(value: number): string {
+  return value < 0.1 ? `${value.toFixed(3)}` : `${value.toFixed(2)}`;
+}
+
 /**
  * The credits of one session, read again whenever `tick` changes. Null while
  * unknown or when the read fails: the screen then shows nothing rather than 0.
