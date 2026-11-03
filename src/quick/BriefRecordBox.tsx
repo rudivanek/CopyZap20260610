@@ -9,8 +9,8 @@ const DEFAULT_COPY_TEXT = 'text-gray-700 dark:text-gray-300 [&_ul]:list-disc [&_
  * in, the website (if any) and, when the draft was edited before scoring, the
  * original draft as CopyZap wrote it. Collapsed by default.
  */
-const BriefRecordBox: React.FC<{ brief: QuickBriefRecord; copyText?: string }> = ({ brief, copyText = DEFAULT_COPY_TEXT }) => (
-  <details className="text-sm text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 p-3">
+const BriefRecordBox: React.FC<{ brief: QuickBriefRecord; copyText?: string; open?: boolean }> = ({ brief, copyText = DEFAULT_COPY_TEXT, open = false }) => (
+  <details open={open} className="text-sm text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 p-3">
     <summary className="cursor-pointer select-none font-semibold text-gray-900 dark:text-gray-100">Your brief</summary>
     <dl className="mt-3 grid grid-cols-1 sm:grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
       {brief.fields.map(field => (

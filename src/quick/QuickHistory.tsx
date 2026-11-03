@@ -5,10 +5,12 @@ import { quickGoalName } from '../engine/buildQuickFormState';
 import { TIPS } from './tips';
 import { formatVersionTime } from '../utils/versionTime';
 import { Link } from 'react-router-dom';
-import { deleteQuickResult, listQuickResults, adminListQuickResults, QuickHistoryEntry, renameQuickResult } from '../engine/quickHistory';
+import { deleteQuickResult, listQuickResults, adminListQuickResults, QuickHistoryEntry, renameQuickResult, loadQuickResult, adminLoadQuickResult } from '../engine/quickHistory';
 import { getSessionUsage, adminGetSessionUsage, SessionUsage, formatUsd } from '../engine/quickCredits';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { FileText } from 'lucide-react';
+import BriefRecordBox from './BriefRecordBox';
+import type { QuickBriefRecord } from '../engine/runQuickPipeline';
 
 export interface ViewingUser {
   id: string;
@@ -61,6 +63,9 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
   const [draft, setDraft] = useState('');
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [workingId, setWorkingId] = useState<string | null>(null);
+  const [briefOpenId, setBriefOpenId] = useState<string | null>(null);
+  const [briefs, setBriefs] = useState<Record<string, QuickBriefRecord | null | 'error'>>({});
+  const [briefLoadingId, setBriefLoadingId] = useState<string | null>(null);
   const isMounted = useRef(true);
   const userId = viewingUser?.id ?? currentUser.id;
 
@@ -109,6 +114,21 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
       if (isMounted.current) setError(renameError instanceof Error ? renameError.message : 'The name could not be changed.');
     } finally {
       if (isMounted.current) setWorkingId(null);
+    }
+  };
+
+  const toggleBrief = async (id: string) => {
+    if (briefOpenId === id) { setBriefOpenId(null); return; }
+    setBriefOpenId(id);
+    if (briefs[id] !== undefined && briefs[id] !== 'error') return;
+    setBriefLoadingId(id);
+    try {
+      const loaded = isViewingOther ? await adminLoadQuickResult(id) : await loadQuickResult(id);
+      if (isMounted.current) setBriefs(map => ({ ...map, [id]: loaded?.result.briefRecord ?? null }));
+    } catch {
+      if (isMounted.current) setBriefs(map => ({ ...map, [id]: 'error' }));
+    } finally {
+      if (isMounted.current) setBriefLoadingId(null);
     }
   };
 
@@ -236,7 +256,7 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
                 {entry.briefPiece && (
                   <div className="flex items-start gap-2 text-xs text-gray-700 dark:text-gray-300">
                     <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0 text-gray-500 dark:text-gray-400" aria-hidden="true" />
-                    <p className="break-words whitespace-pre-line line-clamp-2">{entry.briefPiece}</p>
+                    <p className="break-words whitespace-pre-line line-clamp-2">From brief: {entry.briefPiece}</p>
                   </div>
                 )}
 
@@ -271,6 +291,11 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
                       <button type="button" onClick={() => onOpen(entry.id)} data-tip={TIPS.open} className={linkButton}>
                         Open
                       </button>
+                      {entry.briefPiece && (
+                        <button type="button" onClick={() => toggleBrief(entry.id)} aria-expanded={briefOpenId === entry.id} className={linkButton}>
+                          {briefOpenId === entry.id ? 'Hide brief' : 'Brief'}
+                        </button>
+                      )}
                       {!isViewingOther && (
                         <button type="button" onClick={() => startRename(entry)} data-tip={TIPS.rename} className={linkButton}>
                           Rename
@@ -292,6 +317,23 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
                     </span>
                   )}
                 </div>
+
+                {briefOpenId === entry.id && (
+                  <div className="mt-3 flex flex-col gap-2">
+                    {briefLoadingId === entry.id ? (
+                      <p className="text-sm text-gray-600 dark:text-gray-400">Loading the brief…</p>
+                    ) : briefs[entry.id] === 'error' ? (
+                      <p className="text-sm text-status-critical">The brief could not be loaded. Click Brief to try again.</p>
+                    ) : briefs[entry.id] ? (
+                      <>
+                        <BriefRecordBox brief={briefs[entry.id] as QuickBriefRecord} copyText="text-gray-700 dark:text-gray-300 [&_ul]:list-disc [&_ol]:list-decimal" open />
+                        <button type="button" onClick={() => onOpen(entry.id)} className={`${linkButton} self-start`}>Open the result</button>
+                      </>
+                    ) : (
+                      <p className="text-sm text-gray-600 dark:text-gray-400">No brief was saved for this run.</p>
+                    )}
+                  </div>
+                )}
               </li>
             );
           })}
