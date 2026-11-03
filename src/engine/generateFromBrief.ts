@@ -72,7 +72,7 @@ export const BRIEF_SECTION_OPTIONS: BriefSectionOption[] = [
   { key: 'services', label: 'Services', factsOnly: false, note: 'each service named in the brief or website, with one or two sentences; only services that are given' },
   { key: 'what_you_get', label: 'What you get', factsOnly: false, note: 'a bullet list of what the customer gets, only as given' },
   { key: 'offer', label: 'The offer', factsOnly: false, note: 'exactly what is offered and on what terms, only as given' },
-  { key: 'selected_work', label: 'Selected work', factsOnly: true, note: 'projects or clients named in the brief or website, each with one short line; never invent a name' },
+  { key: 'selected_work', label: 'Selected work', factsOnly: true, note: 'the projects or clients named in the brief or website; when only their names are given, a short list of the names is enough — never invent what was done for them or what they said' },
   { key: 'testimonials', label: 'Testimonials', factsOnly: true, note: 'only quotes that appear word for word in the brief or website, with the name and company when given' },
   { key: 'differentiator', label: 'Why us', factsOnly: false, note: 'built on what makes them different, as stated in the brief; this is where a stance like "not the cheapest" belongs' },
   { key: 'about', label: 'About us', factsOnly: false, note: 'a short paragraph about the company, using only given facts' },
