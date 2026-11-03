@@ -51,6 +51,93 @@ export function briefPiece(key: BriefPieceKey): BriefPiece {
   return BRIEF_PIECES.find(piece => piece.key === key) ?? BRIEF_PIECES[BRIEF_PIECES.length - 1];
 }
 
+export type BriefSectionKey =
+  | 'hero' | 'benefits' | 'how_it_works' | 'services' | 'what_you_get' | 'offer'
+  | 'selected_work' | 'testimonials' | 'differentiator' | 'about' | 'story' | 'team'
+  | 'faq' | 'final_cta' | 'custom';
+
+export interface BriefSectionOption {
+  key: BriefSectionKey;
+  label: string;
+  /** True: written only when the brief or the website gives facts for it. */
+  factsOnly: boolean;
+  /** What the section must contain, sent to the writer. */
+  note: string;
+}
+
+export const BRIEF_SECTION_OPTIONS: BriefSectionOption[] = [
+  { key: 'hero', label: 'Hero', factsOnly: false, note: 'the # main headline (the main benefit, not the company name), a one- or two-sentence subline, then the call to action as a short line' },
+  { key: 'benefits', label: 'Benefits', factsOnly: false, note: '3 to 6 benefits, as many as the facts support, each a short bold lead-in plus one or two sentences' },
+  { key: 'how_it_works', label: 'How it works', factsOnly: false, note: 'the real steps from the brief or website, in their order and number; if none are given, 3 or 4 simple steps' },
+  { key: 'services', label: 'Services', factsOnly: false, note: 'each service named in the brief or website, with one or two sentences; only services that are given' },
+  { key: 'what_you_get', label: 'What you get', factsOnly: false, note: 'a bullet list of what the customer gets, only as given' },
+  { key: 'offer', label: 'The offer', factsOnly: false, note: 'exactly what is offered and on what terms, only as given' },
+  { key: 'selected_work', label: 'Selected work', factsOnly: true, note: 'projects or clients named in the brief or website, each with one short line; never invent a name' },
+  { key: 'testimonials', label: 'Testimonials', factsOnly: true, note: 'only quotes that appear word for word in the brief or website, with the name and company when given' },
+  { key: 'differentiator', label: 'Why us', factsOnly: false, note: 'built on what makes them different, as stated in the brief; this is where a stance like "not the cheapest" belongs' },
+  { key: 'about', label: 'About us', factsOnly: false, note: 'a short paragraph about the company, using only given facts' },
+  { key: 'story', label: 'Our story', factsOnly: false, note: 'the story in short paragraphs, using only given facts' },
+  { key: 'team', label: 'Team', factsOnly: true, note: 'the people, only with the names and roles given' },
+  { key: 'faq', label: 'FAQ', factsOnly: true, note: '3 to 6 questions a buyer would ask, answered only with facts from the brief or website; leave out any question you cannot answer from them' },
+  { key: 'final_cta', label: 'Final call to action', factsOnly: false, note: 'a heading and one or two sentences that end with the action' },
+  { key: 'custom', label: 'Own section', factsOnly: false, note: 'write it as its heading says, using only given facts' },
+];
+
+export function briefSectionOption(key: BriefSectionKey): BriefSectionOption {
+  return BRIEF_SECTION_OPTIONS.find(option => option.key === key) ?? BRIEF_SECTION_OPTIONS[BRIEF_SECTION_OPTIONS.length - 1];
+}
+
+export interface BriefSection {
+  id: string;
+  key: BriefSectionKey;
+  /** The heading shown to the user; for 'custom', the user's own name for it. */
+  label: string;
+  /** Optional word count for this section. */
+  words: number | null;
+}
+
+function newSection(key: BriefSectionKey, label?: string): BriefSection {
+  return {
+    id: `${key}-${Math.random().toString(36).slice(2, 9)}`,
+    key,
+    label: label ?? briefSectionOption(key).label,
+    words: null,
+  };
+}
+
+export function makeBriefSection(key: BriefSectionKey, label?: string): BriefSection {
+  return newSection(key, label);
+}
+
+const DEFAULT_SECTIONS: Partial<Record<BriefPieceKey, BriefSectionKey[]>> = {
+  homepage: ['hero', 'benefits', 'how_it_works', 'services', 'selected_work', 'testimonials', 'differentiator', 'faq', 'final_cta'],
+  landing_page: ['hero', 'benefits', 'offer', 'how_it_works', 'testimonials', 'faq', 'final_cta'],
+  service_page: ['hero', 'what_you_get', 'how_it_works', 'selected_work', 'testimonials', 'faq', 'final_cta'],
+  about_page: ['hero', 'story', 'team', 'how_it_works', 'final_cta'],
+};
+
+/** The suggested sections for a page; empty for anything that is not a page. */
+export function defaultSectionsFor(piece: BriefPieceKey): BriefSection[] {
+  return (DEFAULT_SECTIONS[piece] ?? []).map(key =>
+    key === 'how_it_works' && piece === 'about_page' ? newSection(key, 'How we work') : newSection(key)
+  );
+}
+
+const SUGGESTED_WORDS: Partial<Record<BriefPieceKey, number>> = {
+  homepage: 1000,
+  landing_page: 900,
+  service_page: 800,
+  about_page: 600,
+};
+
+/** The suggested length in words for a page; null for anything that is not a page. */
+export function suggestedWordsFor(piece: BriefPieceKey): number | null {
+  return SUGGESTED_WORDS[piece] ?? null;
+}
+
+export const BRIEF_MIN_WORDS = 150;
+export const BRIEF_MAX_WORDS = 2500;
+
 export interface Brief {
   /** What the copy sells. */
   product: string;
@@ -76,6 +163,10 @@ export interface Brief {
   avoid?: string;
   /** Rough length. Defaults to medium. */
   length: BriefLength;
+  /** Pages only: the sections to write, in this order. */
+  sections?: BriefSection[];
+  /** Pages only: the target length in words. */
+  targetWords?: number;
   /** Output language. */
   language: Language;
   /** For Spanish: address the reader as tú or usted. Undefined for other languages. */
@@ -91,6 +182,11 @@ export class BriefNotAvailableError extends Error {
 
 const BRIEF_MODEL = 'claude-sonnet-4-6' as const;
 const BRIEF_MAX_TOKENS = 3000;
+/** Room for a long page: about 2.5 tokens per word, capped. */
+function maxTokensFor(brief: Brief): number {
+  if (briefPiece(brief.piece).group !== 'page' || !brief.targetWords) return BRIEF_MAX_TOKENS;
+  return Math.min(8000, Math.max(BRIEF_MAX_TOKENS, Math.round(brief.targetWords * 2.5)));
+}
 
 const GOAL_NAMES: Record<GoalKey, string> = {
   convert: 'drive an action or a sale',
@@ -113,7 +209,21 @@ function briefText(brief: Brief): string {
   if (brief.proof && brief.proof.trim()) lines.push(`Proof or results: ${brief.proof.trim()}`);
   if (brief.mustInclude && brief.mustInclude.trim()) lines.push(`Must include: ${brief.mustInclude.trim()}`);
   if (brief.avoid && brief.avoid.trim()) lines.push(`Avoid: ${brief.avoid.trim()}`);
-  lines.push(`Length: ${brief.length}`);
+  const isPage = briefPiece(brief.piece).group === 'page';
+  if (isPage && brief.targetWords) {
+    lines.push(`Target length: about ${brief.targetWords} words`);
+  } else {
+    lines.push(`Length: ${brief.length}`);
+  }
+  if (isPage && brief.sections && brief.sections.length > 0) {
+    lines.push('Sections, in this order:');
+    brief.sections.forEach((section, index) => {
+      const option = briefSectionOption(section.key);
+      const words = section.words ? ` — about ${section.words} words` : '';
+      const factsOnly = option.factsOnly ? ' — only if facts exist' : '';
+      lines.push(`${index + 1}. ${section.label}${words}${factsOnly}: ${option.note}`);
+    });
+  }
   if (brief.language === 'Spanish') {
     lines.push(`Language: Spanish, addressing the reader as ${brief.spanishForm ?? 'usted'}`);
   } else {
@@ -144,7 +254,7 @@ export async function generateFromBrief(brief: Brief, user: User, sessionId?: st
         { role: 'user', content: briefText(brief) },
       ],
       0.7,
-      BRIEF_MAX_TOKENS,
+      maxTokensFor(brief),
       undefined,
       user.email,
       'brief_generate',

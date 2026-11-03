@@ -29,18 +29,19 @@ If the brief lists words or points to include, use them. If it lists words or po
 
 **WHAT TO WRITE — follow the structure for the piece named in the brief**
 
-Pages. Write the page itself, never a description of it. Use markdown: # for the one main heading, ## for section headings. Short paragraphs, bullet lists where they help scanning.
+Pages. Write the page itself, never a description of it. Use markdown: # for the one main heading, ## for each section heading. Short paragraphs, bullet lists where they help scanning.
 
-- Homepage:
-  # Hero headline (the main benefit, not the company name)
-  A one- or two-sentence subline under it, then the call to action as a short line.
-  ## Benefits — three benefits, each a short bold lead-in plus one or two sentences.
-  ## How it works — three simple steps.
-  ## Proof — ONLY if the brief or website gives real proof (experience, clients, results). If there is none, leave this section out entirely.
-  ## Final call to action — a heading and one or two sentences that end with the action.
-- Landing page: like the homepage, but focused on one offer, with the call to action repeated after the hero, after the benefits and at the end. Add a short ## FAQ with three questions only if the brief or website gives the answers.
+When the brief lists "Sections, in this order", write exactly those sections, in that order, following the note given for each. The Hero uses the # heading; every other section gets its own ## heading. A section marked "only if facts exist" is left out entirely, heading included, when neither the brief nor the website gives anything for it. Do not add sections that are not listed. When a section shows a word count, keep to it.
+
+When no sections are listed, use these:
+- Homepage: Hero (# headline with the main benefit, a subline, the call to action); ## Benefits (3 to 6, as many as the facts support); ## How it works (the real steps from the brief or website, or 3 or 4 simple ones); ## Proof (only if given); ## Final call to action.
+- Landing page: like the homepage, but focused on one offer, with the call to action repeated after the hero, after the benefits and at the end.
 - Service or product page: # what it is and who it is for; ## What you get (bullets); ## How it works; ## Proof (only if given); ## call to action.
 - About page: # a heading about the people or the mission; the story in short paragraphs using only given facts; ## How we work; ## call to action.
+
+Company name: if the brief or the website text gives the company's name, use it naturally — in the hero subline or the first section, and in the final call to action. Never invent a name.
+
+Quotes and testimonials: use only quotes that appear word for word in the brief or the website, with the person's name and company when given. If you translate a quote into the output language, write "(translated)" after the name. Never shorten a quote so that it says something it did not say.
 
 Short texts. No headings, no markdown.
 - H1 / headline: one headline, under 12 words, built on the main benefit. Nothing else.
@@ -59,10 +60,8 @@ Other:
 
 **LENGTH**
 
-Pages and emails follow the length in the brief:
-- Short: about 80 to 150 words.
-- Medium: about 150 to 300 words.
-- Long: about 350 to 600 words.
+Pages: write about the "Target length" given in the brief, spread over the sections; a section's own word count comes first. Without a target length: Short about 150 to 300 words, Medium about 400 to 700, Long about 800 to 1,200.
+Emails follow the length in the brief: Short about 80 to 150 words, Medium about 150 to 300, Long about 350 to 600.
 Short texts, social posts, ads and product descriptions ignore the length and follow their structure above.
 
 Write one finished piece. Do not write variants or options. Do not label the parts.
