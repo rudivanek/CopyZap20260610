@@ -1,7 +1,7 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.80
-Last Updated: 2026-11-03T01:30:00Z
+Version: 1.81
+Last Updated: 2026-05-13T12:00:00Z
 
 ---
 
@@ -27,6 +27,41 @@ Last Updated: 2026-11-03T01:30:00Z
 - Start a run from a brief, then edit the draft on the confirm screen before generating: the "Your brief" disclosure adds "The draft was changed before it was scored." with a "Show the draft as CopyZap wrote it" sub-disclosure that shows the untouched draft.
 - Open a brief-saved result from History: the "Your brief" disclosure still shows (driven by `result.brief`), even though the page-level `writtenFromBrief` flag is false on reload.
 - Paste copy or fetch a page and run: no brief box, no "Written from your brief" note — identical to before.
+
+---
+
+## Quick — Show the Brief in History for "Start from a brief" Runs (2026-05-13)
+
+**Feature:** The History list now shows the first line of the brief a piece of copy was written from, so a user (or an admin browsing another user's history) can tell at a glance which runs started from a brief and what they were about. This is the fourth and final step of the brief-saving work; the brief record itself is already saved with each run (see the 2026-11-03 entry above), so this step only surfaces a one-line preview in the History list and extracts the result-screen brief box into a shared component.
+
+1. **The brief box is now a shared component.** The `BriefRecordBox` that the result screen uses to show the full brief was moved out of `src/quick/QuickResult.tsx` into its own file, `src/quick/BriefRecordBox.tsx`, and exported as the default. Its props are `{ brief: QuickBriefRecord; copyText?: string }` — the `copyText` argument is now optional and defaults to the same `text-gray-700 dark:text-gray-300 [&_ul]:list-disc [&_ol]:list-decimal` styling the result screen passes, so callers that do not have a result's `copyText` constant handy still get matching styling. `QuickResult.tsx` now imports `BriefRecordBox` from the new file and drops its inline copy, plus the now-unused `QuickBriefRecord` import. The result screen behaves exactly as before: the brief box still renders inside the "Your original" article when `result.briefRecord` is present, and the "edited before scoring" sub-disclosure still shows the untouched draft through `FormattedContent`.
+
+2. **History entries carry a one-line brief preview.** `QuickHistoryEntry` (in `src/engine/quickHistory.ts`) gained a `briefPiece: string | null` field — the first brief field's value (the "What you need" line, e.g. "Homepage"), truncated to 160 characters. It is null for runs that did not start from a brief (pasted copy or a fetched page), so those rows look exactly as before. Both list functions populate it:
+   - `listQuickResults` adds `brief_piece:output_data->quick->briefRecord->fields->0->>value` to its Supabase select, and maps the row through the same `typeof === 'string'` + `slice(0, BRIEF_PIECE_MAX_CHARS)` guard as the other fields.
+   - `adminListQuickResults` reads the same column from the `admin_list_user_quick_results` RPC (see below) and maps it identically, so an admin viewing another user's history sees the same preview.
+   A new `BRIEF_PIECE_MAX_CHARS = 160` constant caps the preview length; the database returns the full first field, and the client truncates, so the preview never blows out the list row.
+
+3. **The admin history RPC returns the brief piece.** The `admin_list_user_quick_results(p_user_id uuid)` function was recreated (migration `20261027120000_add_brief_piece_to_admin_quick_history.sql` — applied via the Supabase migration tool) with one new column in its `RETURNS TABLE`: `brief_piece text`, selected as `o.output_data->'quick'->'briefRecord'->'fields'->0->>'value'`. It is null for runs without a brief. The function's security posture is unchanged: `SECURITY DEFINER`, `search_path = 'public'`, the `is_app_admin()` guard first (raise 'Admin access required' otherwise), and `REVOKE EXECUTE FROM PUBLIC, anon` / `GRANT EXECUTE TO authenticated` re-issued afterward. `admin_load_quick_result` is unchanged — it already returns the whole `pmc_saved_outputs` row, which includes the full `briefRecord`, so opening a foreign run shows the complete brief box on the result screen just as the user's own view does. No existing RLS policy on `pmc_saved_outputs` is changed; the function still bypasses RLS because it is SECURITY DEFINER, with `is_app_admin()` as the only gate.
+
+4. **The History list shows the preview.** In `src/quick/QuickHistory.tsx`, each list row now renders a brief preview line — a small `FileText` icon (from `lucide-react`) followed by the `briefPiece` text — directly above the metadata row, but only when `entry.briefPiece` is set. The text uses `line-clamp-2` so a long first field wraps to at most two lines and never breaks the row layout. Runs without a brief show no preview, exactly as before. The preview shows for both the user's own history and the admin's foreign-history view, since both populate `briefPiece`.
+
+**Files touched:**
+- `src/quick/BriefRecordBox.tsx` (new) — the extracted `BriefRecordBox` component, default export, with an optional `copyText` prop defaulting to the result screen's copy styling.
+- `src/quick/QuickResult.tsx` — replaced the inline `BriefRecordBox` definition with an import from `./BriefRecordBox`; removed the now-unused `QuickBriefRecord` import. The call site (`<BriefRecordBox brief={result.briefRecord} copyText={copyText} />`) is unchanged.
+- `src/engine/quickHistory.ts` — added `briefPiece: string | null` to `QuickHistoryEntry`; added `BRIEF_PIECE_MAX_CHARS = 160`; added the `brief_piece` JSONB path to both the `listQuickResults` select and the `adminListQuickResults` row mapping, with the same string-guard + truncate.
+- `src/quick/QuickHistory.tsx` — imported `FileText` from `lucide-react`; added a brief preview line (icon + clamped text) above the metadata row, rendered only when `entry.briefPiece` is set.
+- `supabase/migrations/20261027120000_add_brief_piece_to_admin_quick_history.sql` (applied via the Supabase migration tool) — recreates `admin_list_user_quick_results` with the new `brief_piece` column; security posture unchanged.
+
+**What did not change:** The brief record's save path (`BriefForm` → `QuickPage` → `runQuickPipeline` → `quickHistory.toRow`) is unchanged — this step only reads the already-saved `briefRecord.fields[0].value` for the list. The full brief box on the result screen is unchanged in behaviour; it was only extracted to a shared file. The `admin_load_quick_result` RPC is unchanged. No RLS policy, no edge function, no credit, scoring, price, or billing logic changed. Runs that start from pasted copy or a fetched page still produce no `briefPiece` and look exactly as before in History.
+
+**Effect on existing data:** Old saved results have no `briefRecord` in their extras, so their `briefPiece` is null and they show no preview line — identical to before. New brief-saved runs carry the record and show the preview. No row is rewritten.
+
+**Verification:**
+- `npm run build` passes with zero errors.
+- Run a piece of copy from a brief, then open History: the row shows a small document icon and the first line of the brief (e.g. "Homepage"), clamped to two lines, above the Goal / source / date row.
+- Paste copy or fetch a page and run: the History row shows no preview line — identical to before.
+- Open a brief-saved run from History: the result screen still shows the full "Your brief" disclosure, unchanged.
+- As an admin, open another user's history (`/history?user=<id>`): brief-saved runs show the same preview line; opening one shows the full brief box.
 
 ---
 

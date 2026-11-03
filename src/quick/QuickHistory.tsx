@@ -8,6 +8,7 @@ import { Link } from 'react-router-dom';
 import { deleteQuickResult, listQuickResults, adminListQuickResults, QuickHistoryEntry, renameQuickResult } from '../engine/quickHistory';
 import { getSessionUsage, adminGetSessionUsage, SessionUsage, formatUsd } from '../engine/quickCredits';
 import { useIsAdmin } from '../hooks/useIsAdmin';
+import { FileText } from 'lucide-react';
 
 export interface ViewingUser {
   id: string;
@@ -231,6 +232,13 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
                     )}
                   </span>
                 </div>
+
+                {entry.briefPiece && (
+                  <div className="flex items-start gap-2 text-xs text-gray-700 dark:text-gray-300">
+                    <FileText className="w-3.5 h-3.5 mt-0.5 shrink-0 text-gray-500 dark:text-gray-400" aria-hidden="true" />
+                    <p className="break-words whitespace-pre-line line-clamp-2">{entry.briefPiece}</p>
+                  </div>
+                )}
 
                 <div className="flex flex-wrap items-center justify-between gap-x-6 gap-y-1">
                   <span className="text-xs text-gray-600 dark:text-gray-400">

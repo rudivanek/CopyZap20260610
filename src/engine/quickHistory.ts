@@ -26,6 +26,7 @@ import type { QuickRunResult } from './runQuickPipeline';
 const TABLE = 'pmc_saved_outputs';
 export const QUICK_TAG = 'quick-app';
 const TITLE_MAX_CHARS = 120;
+const BRIEF_PIECE_MAX_CHARS = 160;
 
 /** One line of the History list. Light: no copy, no scores per version. */
 export interface QuickHistoryEntry {
@@ -41,6 +42,9 @@ export interface QuickHistoryEntry {
   createdAt: string;
   /** The run's session: its usage rows carry it, so its credits can be summed. Null for old entries. */
   sessionId: string | null;
+  /** First line of the brief the copy was written from (the "What you need" field),
+   *  truncated for the list. Null for runs that did not start from a brief. */
+  briefPiece: string | null;
 }
 
 /** What Quick stores next to the result so it can show it again exactly as it was. */
@@ -155,7 +159,7 @@ export async function listQuickResults(userId: string, limit = 100): Promise<Qui
   const { data, error } = await supabase
     .from(TABLE)
     .select(
-      'id, title, created_at, goal_key:output_data->quick->>goalKey, goal_label:input_data->>quickGoalLabel, winner_score:output_data->quick->>winnerScore, original_score:output_data->quick->>originalScore, source_host:output_data->quick->source->>host, session_id'
+      'id, title, created_at, goal_key:output_data->quick->>goalKey, goal_label:input_data->>quickGoalLabel, winner_score:output_data->quick->>winnerScore, original_score:output_data->quick->>originalScore, source_host:output_data->quick->source->>host, brief_piece:output_data->quick->briefRecord->fields->0->>value, session_id'
     )
     .eq('user_id', userId)
     .contains('tags', [QUICK_TAG])
@@ -177,6 +181,7 @@ export async function listQuickResults(userId: string, limit = 100): Promise<Qui
     score: toNumber(row.winner_score),
     originalScore: toNumber(row.original_score),
     sourceHost: typeof row.source_host === 'string' && row.source_host ? row.source_host : null,
+    briefPiece: typeof row.brief_piece === 'string' && row.brief_piece ? row.brief_piece.slice(0, BRIEF_PIECE_MAX_CHARS) : null,
     createdAt: String(row.created_at ?? ''),
     sessionId: typeof row.session_id === 'string' && row.session_id ? row.session_id : null,
   }));
@@ -289,6 +294,7 @@ export async function adminListQuickResults(userId: string): Promise<QuickHistor
     score: toHistoryNumber(row.winner_score),
     originalScore: toHistoryNumber(row.original_score),
     sourceHost: typeof row.source_host === 'string' && row.source_host ? row.source_host : null,
+    briefPiece: typeof row.brief_piece === 'string' && row.brief_piece ? row.brief_piece.slice(0, BRIEF_PIECE_MAX_CHARS) : null,
     createdAt: String(row.created_at ?? ''),
     sessionId: row.session_id != null ? String(row.session_id) : null,
   }));
