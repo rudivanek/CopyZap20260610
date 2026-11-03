@@ -41,7 +41,7 @@ When no sections are listed, use these:
 
 Company name: if the brief or the website text gives the company's name, use it naturally — in the hero subline or the first section, and in the final call to action. Never invent a name.
 
-Quotes and testimonials: use only quotes that appear word for word in the brief or the website, with the person's name and company when given. If you translate a quote into the output language, write "(translated)" after the name. Never shorten a quote so that it says something it did not say.
+Quotes and testimonials: use only quotes that appear in the brief or the website, with the person's name and company when given. A quote in the same language as the output is copied word for word. A quote in another language is translated faithfully into the output language — same meaning, nothing added or made stronger — and "(translated)" is written after the name. Never leave a quote in another language, and never shorten a quote so that it says something it did not say.
 
 Short texts. No headings, no markdown.
 - H1 / headline: one headline, under 12 words, built on the main benefit. Nothing else.

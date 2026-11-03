@@ -138,6 +138,42 @@ export function suggestedWordsFor(piece: BriefPieceKey): number | null {
 export const BRIEF_MIN_WORDS = 150;
 export const BRIEF_MAX_WORDS = 2500;
 
+/** How much of a page each kind of section usually takes, relative to the others. */
+const SECTION_WEIGHTS: Record<BriefSectionKey, number> = {
+  hero: 6,
+  benefits: 18,
+  how_it_works: 16,
+  services: 15,
+  what_you_get: 14,
+  offer: 12,
+  selected_work: 8,
+  testimonials: 12,
+  differentiator: 11,
+  about: 10,
+  story: 20,
+  team: 10,
+  faq: 14,
+  final_cta: 5,
+  custom: 10,
+};
+/**
+ * A word count for every section: the user's own count where one is set, and
+ * otherwise a share of what is left of the total, by the kind of section.
+ * Rounded to tens, at least 20. All null when there is no total.
+ */
+export function suggestSectionWords(sections: BriefSection[], totalWords: number | null): (number | null)[] {
+  if (!totalWords || totalWords <= 0) return sections.map(section => section.words ?? null);
+  const fixed = sections.reduce((sum, section) => sum + (section.words ?? 0), 0);
+  const remaining = Math.max(0, totalWords - fixed);
+  const openWeight = sections.reduce((sum, section) => sum + (section.words ? 0 : SECTION_WEIGHTS[section.key] ?? 10), 0);
+  return sections.map(section => {
+    if (section.words) return section.words;
+    if (openWeight === 0) return null;
+    const share = (remaining * (SECTION_WEIGHTS[section.key] ?? 10)) / openWeight;
+    return Math.max(20, Math.round(share / 10) * 10);
+  });
+}
+
 export interface Brief {
   /** What the copy sells. */
   product: string;
