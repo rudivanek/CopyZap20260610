@@ -17,7 +17,7 @@ export type BriefPieceKey =
   | 'homepage' | 'landing_page' | 'about_page' | 'service_page'
   | 'h1_headline' | 'usp' | 'slogan'
   | 'email' | 'newsletter'
-  | 'social_post' | 'ad' | 'product_description' | 'other';
+  | 'social_post' | 'ad' | 'product_description' | 'blog_post' | 'other';
 
 export type BriefPieceGroup = 'page' | 'short' | 'email' | 'post' | 'ad' | 'other';
 
@@ -36,6 +36,7 @@ export const BRIEF_PIECES: BriefPiece[] = [
   { key: 'landing_page',        label: 'Landing page',              group: 'page',  channel: 'web_page',    defaultLength: 'long' },
   { key: 'service_page',        label: 'Service or product page',   group: 'page',  channel: 'web_page',    defaultLength: 'long' },
   { key: 'about_page',          label: 'About page',                group: 'page',  channel: 'web_page',    defaultLength: 'medium' },
+  { key: 'blog_post',           label: 'Blog post',                 group: 'page',  channel: 'web_page',    defaultLength: 'long' },
   { key: 'h1_headline',         label: 'H1 / headline',             group: 'short', channel: 'short_text',  defaultLength: 'short' },
   { key: 'usp',                 label: 'USP / value proposition',   group: 'short', channel: 'short_text',  defaultLength: 'short' },
   { key: 'slogan',              label: 'Slogan / tagline',          group: 'short', channel: 'short_text',  defaultLength: 'short' },
@@ -54,7 +55,7 @@ export function briefPiece(key: BriefPieceKey): BriefPiece {
 export type BriefSectionKey =
   | 'hero' | 'benefits' | 'how_it_works' | 'services' | 'what_you_get' | 'offer'
   | 'selected_work' | 'testimonials' | 'differentiator' | 'about' | 'story' | 'team'
-  | 'faq' | 'final_cta' | 'custom';
+  | 'faq' | 'final_cta' | 'intro' | 'main_points' | 'key_takeaways' | 'conclusion' | 'custom';
 
 export interface BriefSectionOption {
   key: BriefSectionKey;
@@ -80,6 +81,10 @@ export const BRIEF_SECTION_OPTIONS: BriefSectionOption[] = [
   { key: 'team', label: 'Team', factsOnly: true, note: 'the people, only with the names and roles given' },
   { key: 'faq', label: 'FAQ', factsOnly: true, note: '3 to 6 questions a buyer would ask, answered only with facts from the brief or website; leave out any question you cannot answer from them' },
   { key: 'final_cta', label: 'Final call to action', factsOnly: false, note: 'a heading and one or two sentences that end with the action' },
+  { key: 'intro', label: 'Title and intro', factsOnly: false, note: 'the # title (with the main keyword when one is given), then an opening that starts with a concrete situation, question or problem the reader recognises — not a generic statement about the topic — and says what the post will give them' },
+  { key: 'main_points', label: 'Main points', factsOnly: false, note: '4 to 7 sections, each with its own ## heading that states the point (use the main keyword or close variants in some headings); each gives concrete, practical advice — what to check, what to ask, what to avoid — with no padding paragraphs' },
+  { key: 'key_takeaways', label: 'Key takeaways', factsOnly: false, note: 'a short bullet list that sums up the main points' },
+  { key: 'conclusion', label: 'Conclusion', factsOnly: false, note: 'a short wrap-up under its own ## heading that leaves the reader with one clear next step' },
   { key: 'custom', label: 'Own section', factsOnly: false, note: 'write it as its heading says, using only given facts' },
 ];
 
@@ -114,6 +119,7 @@ const DEFAULT_SECTIONS: Partial<Record<BriefPieceKey, BriefSectionKey[]>> = {
   landing_page: ['hero', 'benefits', 'offer', 'how_it_works', 'testimonials', 'faq', 'final_cta'],
   service_page: ['hero', 'what_you_get', 'how_it_works', 'selected_work', 'testimonials', 'faq', 'final_cta'],
   about_page: ['hero', 'story', 'team', 'how_it_works', 'final_cta'],
+  blog_post: ['intro', 'main_points', 'conclusion', 'final_cta'],
 };
 
 /** The suggested sections for a page; empty for anything that is not a page. */
@@ -128,6 +134,7 @@ const SUGGESTED_WORDS: Partial<Record<BriefPieceKey, number>> = {
   landing_page: 900,
   service_page: 800,
   about_page: 600,
+  blog_post: 900,
 };
 
 /** The suggested length in words for a page; null for anything that is not a page. */
@@ -154,6 +161,10 @@ const SECTION_WEIGHTS: Record<BriefSectionKey, number> = {
   team: 10,
   faq: 14,
   final_cta: 5,
+  intro: 12,
+  main_points: 70,
+  key_takeaways: 8,
+  conclusion: 8,
   custom: 10,
 };
 /**
@@ -203,6 +214,10 @@ export interface Brief {
   sections?: BriefSection[];
   /** Pages only: the target length in words. */
   targetWords?: number;
+  /** Blog posts: the topic or title idea. */
+  topic?: string;
+  /** Blog posts: the main search keyword, if the user has one. */
+  keyword?: string;
   /** Output language. */
   language: Language;
   /** For Spanish: address the reader as tú or usted. Undefined for other languages. */
@@ -239,6 +254,8 @@ function briefText(brief: Brief): string {
   lines.push(`Who it is for: ${brief.audience}`);
   lines.push(`Goal: ${GOAL_NAMES[brief.goal] ?? brief.goal}`);
   lines.push(`What to write: ${briefPiece(brief.piece).label}`);
+  if (brief.topic && brief.topic.trim()) lines.push(`Topic or title idea: ${brief.topic.trim()}`);
+  if (brief.keyword && brief.keyword.trim()) lines.push(`Main keyword: ${brief.keyword.trim()}`);
   lines.push(`Tone: ${brief.tone}`);
   if (brief.differentiators && brief.differentiators.trim()) lines.push(`What makes them different: ${brief.differentiators.trim()}`);
   if (brief.callToAction && brief.callToAction.trim()) lines.push(`What the reader should do: ${brief.callToAction.trim()}`);
@@ -311,4 +328,19 @@ export async function generateFromBrief(brief: Brief, user: User, sessionId?: st
 export function trimSiteFacts(text: string, maxWords = 2500): string {
   const words = (text || '').split(/\s+/).filter(Boolean);
   return words.length <= maxWords ? words.join(' ') : words.slice(0, maxWords).join(' ');
+}
+
+/**
+ * A blog post starts with a line "Meta description: …". The line is taken off
+ * the draft (so it is not scored or rewritten as body copy) and returned on its own.
+ */
+export function splitMetaDescription(text: string): { draft: string; metaDescription?: string } {
+  const lines = (text || '').replace(/\r\n?/g, '\n').split('\n');
+  const index = lines.findIndex(line => line.trim() !== '');
+  if (index === -1) return { draft: text };
+  const match = lines[index].trim().match(/^\**\s*meta(?:\s|-)?description\s*\**\s*[:\-–—]\s*\**\s*(.+?)\s*\**$/i);
+  if (!match) return { draft: text };
+  const metaDescription = match[1].replace(/^["“]|["”]$/g, '').trim();
+  const draft = lines.slice(index + 1).join('\n').replace(/^\s+/, '');
+  return metaDescription ? { draft, metaDescription } : { draft: text };
 }

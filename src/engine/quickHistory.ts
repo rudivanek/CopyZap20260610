@@ -245,6 +245,7 @@ export function rowToQuickResult(row: Record<string, unknown> | null | undefined
             websiteRead: typeof quick.briefRecord.websiteRead === 'boolean' ? quick.briefRecord.websiteRead : undefined,
             draft: quick.briefRecord.draft,
             editedBeforeScoring: quick.briefRecord.editedBeforeScoring === true,
+            metaDescription: typeof quick.briefRecord.metaDescription === 'string' && quick.briefRecord.metaDescription ? quick.briefRecord.metaDescription : undefined,
           },
         }
       : {}),

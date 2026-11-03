@@ -198,6 +198,8 @@ export interface QuickBriefRecord {
   draft: string;
   /** True when the user changed the draft before it was scored. */
   editedBeforeScoring: boolean;
+  /** Blog posts: the meta description CopyZap wrote, kept apart from the copy. */
+  metaDescription?: string;
 }
 
 export interface QuickRunInput {
