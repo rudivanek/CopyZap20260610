@@ -17,6 +17,7 @@ import {
   quickGoalName,
   quickMaxWords,
 } from '../engine/buildQuickFormState';
+import type { QuickBriefRecord } from '../engine/runQuickPipeline';
 import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
 import { asksForMissingFacts, findMissingFacts, MissingFactQuestion, missingInPlainWords } from '../engine/missingFacts';
@@ -180,6 +181,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const briefAccess = useBriefModeAccess(currentUser.id);
   const [briefMode, setBriefMode] = useState<'improve' | 'brief'>('improve');
   const [writtenFromBrief, setWrittenFromBrief] = useState(false);
+  const [briefRecord, setBriefRecord] = useState<Omit<QuickBriefRecord, 'editedBeforeScoring'> | null>(null);
   const pendingBriefContinue = useRef<{ copy: string; goalKey: GoalKey } | null>(null);
   const openAtStart = useRef(searchParams.get('r'));
   // Read live from the URL so navigating to a different user's history
@@ -774,6 +776,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               }
             : undefined,
           source: fetchedFrom && fetchedUrl ? { url: fetchedUrl, host: fetchedFrom } : undefined,
+          brief: briefRecord
+            ? { ...briefRecord, editedBeforeScoring: copy.trim() !== briefRecord.draft.trim() }
+            : undefined,
           goalKey,
           goalLabel: goalKey === 'custom' ? goalOther : undefined,
           sessionId: sessionId ?? undefined,
@@ -996,6 +1001,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setInstructionsNotice(null);
     setCopy('');
     setWrittenFromBrief(false);
+    setBriefRecord(null);
     setPhase('start');
     window.scrollTo(0, 0);
   };
@@ -1077,6 +1083,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setError(null);
     setSessionId(null);
     setWrittenFromBrief(false);
+    setBriefRecord(null);
     setPhase('start');
     window.scrollTo(0, 0);
   };
@@ -1198,11 +1205,12 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [copy, goalKey]);
 
-  const handleBriefDraft = (draft: string, goalKey: GoalKey) => {
+  const handleBriefDraft = (draft: string, goalKey: GoalKey, record: Omit<QuickBriefRecord, 'editedBeforeScoring'>) => {
     setBriefMode('improve');
     setCopy(draft);
     setGoalKey(goalKey);
     setWrittenFromBrief(true);
+    setBriefRecord(record);
     pendingBriefContinue.current = { copy: draft, goalKey };
   };
 

@@ -1,7 +1,32 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
 Version: 1.80
-Last Updated: 2026-10-27T17:30:00Z
+Last Updated: 2026-11-03T01:30:00Z
+
+---
+
+## Quick — Save and Show the Brief with Each "Start from a brief" Run (2026-11-03)
+
+**Feature:** When a user starts a Quick run from a brief (the "Start from a brief" tab), the brief itself and the untouched AI draft are now saved with the run and shown on the result screen. This completes the third and last step of the brief-saving work; the engine plumbing (the `QuickBriefRecord` interface, the `brief` field on `QuickRunInput` / `QuickRunResult`, and the serialization in `quickHistory.ts`) was already in place from the previous step.
+
+1. **The brief form passes the brief record up.** `src/quick/BriefForm.tsx` now imports `QuickBriefRecord` from `../engine/runQuickPipeline`. The `onDraft` prop changed from `(draft: string, goalKey: GoalKey) => void` to `(draft: string, goalKey: GoalKey, record: Omit<QuickBriefRecord, 'editedBeforeScoring'>) => void`. After the draft is written, `handleWrite` builds a `fields` array of `{ label, value }` pairs from the form state, with the exact labels: 'What you need' (the chosen brief piece, e.g. Homepage), 'What you are selling' (product), 'Who it is for' (audience), 'Goal' (the goal's short label, or 'Other' for a custom goal), 'Tone', 'What makes you different' (differentiators, only for page/short pieces), 'What the reader should do' (call to action, only for page/email/post/ad pieces), 'Proof or results', 'Must include', 'Avoid', 'Length' (only when length is shown), and 'Language' (with the Spanish form appended for Spanish, e.g. "Español (usted)"). Empty fields are filtered out. The record also carries `website` (the URL, only when the piece type can read a website) and `websiteRead` (`true` when the page was read for facts, `false` when the read failed, `undefined` when no website was given), plus `draft` (the exact text CopyZap wrote). The `editedBeforeScoring` flag is left out here — the form does not know whether the user will edit the draft before it is scored, so QuickPage sets it at run time.
+
+2. **QuickPage keeps the record and passes it to the run.** `src/quick/QuickPage.tsx` imports `QuickBriefRecord`. A new `briefRecord` state (`Omit<QuickBriefRecord, 'editedBeforeScoring'> | null`) holds the record from the moment the draft is produced. `handleBriefDraft` now takes the record as its third argument and stores it alongside the existing `writtenFromBrief` flag and the `pendingBriefContinue` ref. Both reset paths — `handleNew` and `handleStartOver` — now also call `setBriefRecord(null)` next to the existing `setWrittenFromBrief(false)`, so a fresh start never carries a stale brief. At run time, the `runQuickPipeline` call gains a `brief:` field right after the existing `source:` line: when `briefRecord` is set, it spreads the record and adds `editedBeforeScoring: copy.trim() !== briefRecord.draft.trim()` — true when the user changed the generated draft before the run, false when they ran it as written. When there is no brief record, `brief` is `undefined`, so runs that start from pasted copy or a fetched page look exactly as before.
+
+3. **The result screen shows the brief.** `src/quick/QuickResult.tsx` imports `QuickBriefRecord` alongside `QuickRunResult`. A new `BriefRecordBox` component renders the saved brief inside the "Your original" article, below the "Written from your brief" note: a `<details>` titled "Your brief" with a label/value grid (`<dl>`) of the fields, a Website row (with "(read for facts)" or "(could not be read)" when a website was given), and — only when `editedBeforeScoring` is true — a nested "Show the draft as CopyZap wrote it" disclosure that renders the untouched draft through `FormattedContent` with the same `copyText` styling as the rest of the copy. The "Written from your brief" note itself now shows when either `writtenFromBrief` is true OR `result.brief` is present, so a brief-saved result opened from History still says so even though `writtenFromBrief` is page-local state.
+
+**Files touched:** `src/quick/BriefForm.tsx`, `src/quick/QuickPage.tsx`, `src/quick/QuickResult.tsx` — the three files specified for this step. No engine file, migration, edge function, RLS policy, scoring, price, or billing change.
+
+**What did not change:** Runs that start from pasted copy or from a fetched page produce no `brief` field and look exactly as before, on the result screen and in History. The brief's credit usage was already split from the run's usage in an earlier step and is unchanged here. The brief record is saved into the existing `output_data.quick.brief` extras slot through the serialization added in the previous step; no new column or table.
+
+**Effect on existing data:** Old saved results have no `brief` in their extras and render without the brief box, exactly as they did before. New brief-saved runs carry the record and show it.
+
+**Verification:**
+- `npm run build` passes with zero errors.
+- Start a run from a brief, run it as written: the result's "Your original" article shows "Written from your brief" and a "Your brief" disclosure with the form fields; no "edited before scoring" note.
+- Start a run from a brief, then edit the draft on the confirm screen before generating: the "Your brief" disclosure adds "The draft was changed before it was scored." with a "Show the draft as CopyZap wrote it" sub-disclosure that shows the untouched draft.
+- Open a brief-saved result from History: the "Your brief" disclosure still shows (driven by `result.brief`), even though the page-level `writtenFromBrief` flag is false on reload.
+- Paste copy or fetch a page and run: no brief box, no "Written from your brief" note — identical to before.
 
 ---
 

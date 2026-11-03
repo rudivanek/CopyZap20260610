@@ -12,6 +12,7 @@ import {
   trimSiteFacts,
 } from '../engine/generateFromBrief';
 import { fetchQuickPage } from '../engine/fetchQuickPage';
+import type { QuickBriefRecord } from '../engine/runQuickPipeline';
 
 interface BriefFormProps {
   currentUser: User;
@@ -19,7 +20,7 @@ interface BriefFormProps {
   defaultLanguage: Language;
   disabled: boolean;
   /** Called with the generated draft; Quick treats it as pasted copy and runs its normal flow. */
-  onDraft: (draft: string, goalKey: GoalKey) => void;
+  onDraft: (draft: string, goalKey: GoalKey, record: Omit<QuickBriefRecord, 'editedBeforeScoring'>) => void;
   /** Called when the brief mode is refused for this account (403 BRIEF_MODE_NOT_AVAILABLE). */
   onUnavailable: () => void;
   /** Called with an error message to show, on any other failure. */
@@ -134,7 +135,30 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
         spanishForm: language === 'Spanish' ? spanishForm : undefined,
       };
       const draft = await generateFromBrief(brief, currentUser, sessionId);
-      onDraft(draft, goal);
+      const goalOption = GOAL_OPTIONS.find(option => option.key === goal);
+      const goalText = goal === 'custom' ? 'Other' : (goalOption?.label.split(' — ')[0] ?? String(goal));
+      const languageText = language === 'Spanish' ? `Español (${spanishForm})` : language;
+      const fields = [
+        { label: 'What you need', value: briefPiece(piece).label },
+        { label: 'What you are selling', value: product.trim() },
+        { label: 'Who it is for', value: audience.trim() },
+        { label: 'Goal', value: goalText },
+        { label: 'Tone', value: String(tone) },
+        { label: 'What makes you different', value: group === 'page' || group === 'short' ? differentiators.trim() : '' },
+        { label: 'What the reader should do', value: group === 'page' || group === 'email' || group === 'post' || group === 'ad' ? callToAction.trim() : '' },
+        { label: 'Proof or results', value: proof.trim() },
+        { label: 'Must include', value: mustInclude.trim() },
+        { label: 'Avoid', value: avoid.trim() },
+        { label: 'Length', value: showLength ? (LENGTHS.find(option => option.key === length)?.label ?? String(length)) : '' },
+        { label: 'Language', value: languageText },
+      ].filter(field => field.value);
+      const usedWebsite = website.trim() && (group === 'page' || group === 'short') ? website.trim() : undefined;
+      onDraft(draft, goal, {
+        fields,
+        website: usedWebsite,
+        websiteRead: usedWebsite ? siteFacts !== undefined : undefined,
+        draft,
+      });
     } catch (error) {
       if (error instanceof BriefNotAvailableError) {
         onUnavailable();

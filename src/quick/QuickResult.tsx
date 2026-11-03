@@ -40,7 +40,7 @@ import {
 } from '../engine/claimReview';
 import ClaimChecklist, { CLAIM_MARK_BACKGROUND, CLAIM_MARK_LINE, ClaimItem, isOpen, RescoreDialog } from './ClaimChecklist';
 import { QUICK_SCORE_MARGIN } from '../engine/runQuickPipeline';
-import type { QuickRunResult } from '../engine/runQuickPipeline';
+import type { QuickRunResult, QuickBriefRecord } from '../engine/runQuickPipeline';
 import type { ClaimReview } from '../engine/claimReview';
 import SquareCheck from './SquareCheck';
 import { CHANGE_TIPS, TIPS } from './tips';
@@ -287,6 +287,42 @@ const ScoreTag: React.FC<{ total: number | undefined }> = ({ total }) => (
       'Not scored'
     )}
   </span>
+);
+
+const BriefRecordBox: React.FC<{ brief: QuickBriefRecord; copyText: string }> = ({ brief, copyText }) => (
+  <details className="text-sm text-gray-700 dark:text-gray-300 border border-gray-200 dark:border-gray-700 p-3">
+    <summary className="cursor-pointer select-none font-semibold text-gray-900 dark:text-gray-100">Your brief</summary>
+    <dl className="mt-3 grid grid-cols-1 sm:grid-cols-[max-content_1fr] gap-x-4 gap-y-1">
+      {brief.fields.map(field => (
+        <React.Fragment key={field.label}>
+          <dt className="text-gray-600 dark:text-gray-400">{field.label}</dt>
+          <dd className="break-words whitespace-pre-line">{field.value}</dd>
+        </React.Fragment>
+      ))}
+      {brief.website && (
+        <>
+          <dt className="text-gray-600 dark:text-gray-400">Website</dt>
+          <dd className="break-words">
+            {brief.website}{' '}
+            <span className="text-gray-500 dark:text-gray-400">
+              {brief.websiteRead === false ? '(could not be read)' : '(read for facts)'}
+            </span>
+          </dd>
+        </>
+      )}
+    </dl>
+    {brief.editedBeforeScoring && (
+      <div className="mt-3 flex flex-col gap-2">
+        <p className="text-gray-600 dark:text-gray-400">The draft was changed before it was scored.</p>
+        <details>
+          <summary className="cursor-pointer select-none underline">Show the draft as CopyZap wrote it</summary>
+          <div className="mt-2">
+            <FormattedContent content={brief.draft} className={copyText} colorScores={false} />
+          </div>
+        </details>
+      </div>
+    )}
+  </details>
 );
 
 const QuickResult: React.FC<QuickResultProps> = ({
@@ -1403,9 +1439,10 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 </span>
                 <ScoreTag total={originalTotal} />
               </div>
-              {writtenFromBrief && (
+              {(writtenFromBrief || !!result.brief) && (
                 <p className="text-xs text-gray-500 dark:text-gray-400">Written from your brief</p>
               )}
+              {result.brief && <BriefRecordBox brief={result.brief} copyText={copyText} />}
               <FormattedContent content={original.content} className={copyText} colorScores={false} />
             </article>
           )}
