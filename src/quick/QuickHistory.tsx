@@ -6,7 +6,7 @@ import { TIPS } from './tips';
 import { formatVersionTime } from '../utils/versionTime';
 import { Link } from 'react-router-dom';
 import { deleteQuickResult, listQuickResults, adminListQuickResults, QuickHistoryEntry, renameQuickResult } from '../engine/quickHistory';
-import { getSessionUsage, SessionUsage, formatUsd } from '../engine/quickCredits';
+import { getSessionUsage, adminGetSessionUsage, SessionUsage, formatUsd } from '../engine/quickCredits';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 
 export interface ViewingUser {
@@ -70,9 +70,9 @@ const QuickHistory: React.FC<QuickHistoryProps> = ({ currentUser, onOpen, onNew,
       .then(list => {
         if (!isMounted.current) return;
         setEntries(list);
-        // The other user's session credits are not visible to the admin; skip the lookup.
-        if (isViewingOther) return;
-        getSessionUsage(list.map(entry => entry.sessionId).filter((id): id is string => !!id))
+        // An admin viewing another user's history reads that user's usage through the admin RPC.
+        const ids = list.map(entry => entry.sessionId).filter((id): id is string => !!id);
+        (isViewingOther ? adminGetSessionUsage(userId, ids) : getSessionUsage(ids))
           .then(map => {
             if (isMounted.current) setUsage(map);
           })

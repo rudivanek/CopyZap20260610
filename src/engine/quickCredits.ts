@@ -52,6 +52,25 @@ export async function getSessionUsage(sessionIds: string[]): Promise<Record<stri
   return out;
 }
 
+/** Admin only: the same split for another user's sessions. Throws on a failed read or when not an admin. */
+export async function adminGetSessionUsage(userId: string, sessionIds: string[]): Promise<Record<string, SessionUsage>> {
+  const ids = Array.from(new Set(sessionIds.filter(Boolean)));
+  if (ids.length === 0) return {};
+  const { data, error } = await supabase.rpc('admin_get_session_usage', { p_user_id: userId, p_session_ids: ids });
+  if (error) throw new Error(error.message || 'Credits could not be read.');
+  const out: Record<string, SessionUsage> = {};
+  for (const row of (data as { session_id: string; brief_credits: number; run_credits: number; brief_usd: number | null; run_usd: number | null }[] | null) ?? []) {
+    if (!row?.session_id) continue;
+    out[row.session_id] = {
+      briefCredits: Number(row.brief_credits) || 0,
+      runCredits: Number(row.run_credits) || 0,
+      briefUsd: row.brief_usd == null ? null : Number(row.brief_usd),
+      runUsd: row.run_usd == null ? null : Number(row.run_usd),
+    };
+  }
+  return out;
+}
+
 /** "$0.036" under ten cents, "$0.51" from ten cents up. */
 export function formatUsd(value: number): string {
   return value < 0.1 ? '$' + value.toFixed(3) : '$' + value.toFixed(2);
