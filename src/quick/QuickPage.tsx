@@ -776,7 +776,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               }
             : undefined,
           source: fetchedFrom && fetchedUrl ? { url: fetchedUrl, host: fetchedFrom } : undefined,
-          brief: briefRecord
+          briefRecord: briefRecord
             ? { ...briefRecord, editedBeforeScoring: copy.trim() !== briefRecord.draft.trim() }
             : undefined,
           goalKey,

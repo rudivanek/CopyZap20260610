@@ -1439,10 +1439,10 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 </span>
                 <ScoreTag total={originalTotal} />
               </div>
-              {(writtenFromBrief || !!result.brief) && (
+              {(writtenFromBrief || !!result.briefRecord) && (
                 <p className="text-xs text-gray-500 dark:text-gray-400">Written from your brief</p>
               )}
-              {result.brief && <BriefRecordBox brief={result.brief} copyText={copyText} />}
+              {result.briefRecord && <BriefRecordBox brief={result.briefRecord} copyText={copyText} />}
               <FormattedContent content={original.content} className={copyText} colorScores={false} />
             </article>
           )}

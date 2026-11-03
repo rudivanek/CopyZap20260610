@@ -63,7 +63,7 @@ interface QuickExtras {
   /** The page the copy was fetched from. Absent for pasted copy and for older entries. */
   source?: QuickRunResult['source'];
   /** The brief the copy was written from. Absent for pasted or fetched copy. */
-  brief?: QuickRunResult['brief'];
+  briefRecord?: QuickRunResult['briefRecord'];
   /** The kept parts' text. Absent in entries saved before versions could be changed. */
   keptTexts?: string[];
   /** The user's decisions about claims in the best version (see claimReview.ts). Absent when none were found or asked. */
@@ -107,7 +107,7 @@ function toRow(result: QuickRunResult, runSeconds: number | null) {
     keptTexts: result.keptTexts,
     ...(result.claimReview ? { claimReview: result.claimReview } : {}),
     ...(result.source ? { source: result.source } : {}),
-    ...(result.brief ? { brief: result.brief } : {}),
+    ...(result.briefRecord ? { briefRecord: result.briefRecord } : {}),
     runSeconds,
   };
 
@@ -229,17 +229,17 @@ export function rowToQuickResult(row: Record<string, unknown> | null | undefined
     ...(quick.source && typeof quick.source.url === 'string' && typeof quick.source.host === 'string'
       ? { source: { url: quick.source.url, host: quick.source.host } }
       : {}),
-    ...(quick.brief && Array.isArray(quick.brief.fields) && typeof quick.brief.draft === 'string'
+    ...(quick.briefRecord && Array.isArray(quick.briefRecord.fields) && typeof quick.briefRecord.draft === 'string'
       ? {
-          brief: {
-            fields: quick.brief.fields.filter(
+          briefRecord: {
+            fields: quick.briefRecord.fields.filter(
               (field): field is { label: string; value: string } =>
                 !!field && typeof field.label === 'string' && typeof field.value === 'string'
             ),
-            website: typeof quick.brief.website === 'string' ? quick.brief.website : undefined,
-            websiteRead: typeof quick.brief.websiteRead === 'boolean' ? quick.brief.websiteRead : undefined,
-            draft: quick.brief.draft,
-            editedBeforeScoring: quick.brief.editedBeforeScoring === true,
+            website: typeof quick.briefRecord.website === 'string' ? quick.briefRecord.website : undefined,
+            websiteRead: typeof quick.briefRecord.websiteRead === 'boolean' ? quick.briefRecord.websiteRead : undefined,
+            draft: quick.briefRecord.draft,
+            editedBeforeScoring: quick.briefRecord.editedBeforeScoring === true,
           },
         }
       : {}),

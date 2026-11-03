@@ -235,7 +235,7 @@ export interface QuickRunInput {
   /** The page the copy was fetched from, when it was fetched. Recorded with the result. */
   source?: QuickSource;
   /** The brief this copy was written from, when the run started from a brief. Recorded with the result. */
-  brief?: QuickBriefRecord;
+  briefRecord?: QuickBriefRecord;
   /**
    * Facts the user added on the check screen, for what the copy was missing
    * (see missingFacts.ts). The writer is told to use them. Empty: as before.
@@ -287,7 +287,7 @@ export interface QuickRunResult {
   /** The page the copy was fetched from. Absent for pasted copy. */
   source?: QuickSource;
   /** The brief the copy was written from. Absent for pasted or fetched copy. */
-  brief?: QuickBriefRecord;
+  briefRecord?: QuickBriefRecord;
   /**
    * The parts kept as they are, word for word. A later change to a version
    * needs them to keep those parts untouched again.
@@ -1040,7 +1040,7 @@ export async function runQuickPipeline(
     quoteFlags,
     parts: { kept: input.keep?.kept ?? keepZones.length, leftOut: input.keep?.leftOut ?? 0 },
     ...(input.source ? { source: input.source } : {}),
-    ...(input.brief ? { brief: input.brief } : {}),
+    ...(input.briefRecord ? { briefRecord: input.briefRecord } : {}),
     keptTexts: keepZones.map(zone => zone.text),
   };
 }
