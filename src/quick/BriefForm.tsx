@@ -8,10 +8,17 @@ import {
   BriefPieceKey,
   BRIEF_PIECES,
   briefPiece,
+  BriefSection,
+  BRIEF_MIN_WORDS,
+  BRIEF_MAX_WORDS,
+  defaultSectionsFor,
+  suggestedWordsFor,
   generateFromBrief,
   trimSiteFacts,
 } from '../engine/generateFromBrief';
 import { fetchQuickPage } from '../engine/fetchQuickPage';
+import { estimateRunCredits } from '../engine/quickCredits';
+import BriefSectionsEditor from './BriefSectionsEditor';
 import type { QuickBriefRecord } from '../engine/runQuickPipeline';
 
 interface BriefFormProps {
@@ -65,6 +72,9 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
   const [mustInclude, setMustInclude] = useState('');
   const [avoid, setAvoid] = useState('');
   const [length, setLength] = useState<BriefLength>('long');
+  const [sections, setSections] = useState<BriefSection[]>(() => defaultSectionsFor('homepage'));
+  const [targetWords, setTargetWords] = useState<number | null>(() => suggestedWordsFor('homepage'));
+  const [sectionsOpen, setSectionsOpen] = useState(false);
   const [language, setLanguage] = useState<Language>(defaultLanguage);
   const [spanishForm, setSpanishForm] = useState<'tú' | 'usted'>('usted');
   const [moreOpen, setMoreOpen] = useState(false);
@@ -73,11 +83,16 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
 
   const group = briefPiece(piece).group;
   const busy = stage !== 'idle' || disabled;
-  const showLength = group === 'page' || group === 'email';
+  const showLength = group === 'email';
+  const isPage = group === 'page';
+  const sectionWordsSum = sections.every(section => section.words) ? sections.reduce((sum, section) => sum + (section.words ?? 0), 0) : null;
+  const effectiveWords = isPage ? (sectionWordsSum ?? targetWords) : null;
 
   const handlePieceChange = (newKey: BriefPieceKey) => {
     setPiece(newKey);
     setLength(briefPiece(newKey).defaultLength);
+    setSections(defaultSectionsFor(newKey));
+    setTargetWords(suggestedWordsFor(newKey));
     clearMissing('piece');
   };
 
@@ -96,6 +111,10 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
     const empty = required.filter(item => !item.value || !String(item.value).trim()).map(item => item.key);
     if (empty.length > 0) {
       setMissing(empty);
+      return;
+    }
+    if (isPage && (!effectiveWords || effectiveWords < BRIEF_MIN_WORDS || effectiveWords > BRIEF_MAX_WORDS)) {
+      onError(`Set a length between ${BRIEF_MIN_WORDS} and ${BRIEF_MAX_WORDS} words.`);
       return;
     }
     setMissing([]);
@@ -131,6 +150,8 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
         mustInclude: mustInclude.trim() || undefined,
         avoid: avoid.trim() || undefined,
         length: showLength ? length : briefPiece(piece).defaultLength,
+        sections: isPage ? sections : undefined,
+        targetWords: isPage && effectiveWords ? effectiveWords : undefined,
         language,
         spanishForm: language === 'Spanish' ? spanishForm : undefined,
       };
@@ -149,7 +170,8 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
         { label: 'Proof or results', value: proof.trim() },
         { label: 'Must include', value: mustInclude.trim() },
         { label: 'Avoid', value: avoid.trim() },
-        { label: 'Length', value: showLength ? (LENGTHS.find(option => option.key === length)?.label ?? String(length)) : '' },
+        { label: 'Sections', value: isPage ? sections.map(section => (section.words ? `${section.label} (${section.words})` : section.label)).join(' · ') : '' },
+        { label: 'Length', value: isPage && effectiveWords ? `about ${effectiveWords.toLocaleString('en-US')} words` : showLength ? (LENGTHS.find(option => option.key === length)?.label ?? String(length)) : '' },
         { label: 'Language', value: languageText },
       ].filter(field => field.value);
       const usedWebsite = website.trim() && (group === 'page' || group === 'short') ? website.trim() : undefined;
@@ -313,6 +335,43 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
           />
           <p className={hintClass}>CopyZap reads it for facts like your services and experience. It does not copy the text.</p>
         </div>
+      )}
+
+      {isPage && (
+        <details className="flex flex-col gap-3 border border-gray-200 dark:border-gray-700 p-3" open={sectionsOpen} onToggle={event => setSectionsOpen((event.target as HTMLDetailsElement).open)}>
+          <summary className="cursor-pointer select-none font-semibold text-gray-900 dark:text-gray-100">
+            Sections and length (suggested) · <span className="font-normal">{sections.length} sections · about {(effectiveWords ?? 0).toLocaleString('en-US')} words</span>
+          </summary>
+          {sectionsOpen && (
+            <div className="mt-3 flex flex-col gap-4">
+              <div className="flex flex-col gap-2">
+                <label htmlFor="brief-words" className={labelClass}>Length in words</label>
+                <input
+                  id="brief-words"
+                  type="number"
+                  min={BRIEF_MIN_WORDS}
+                  max={BRIEF_MAX_WORDS}
+                  step={50}
+                  value={sectionWordsSum ?? targetWords ?? ''}
+                  onChange={event => setTargetWords(event.target.value === '' ? null : Number(event.target.value))}
+                  disabled={busy || sectionWordsSum !== null}
+                  className={`${fieldClass} w-40`}
+                />
+                <p className={hintClass}>
+                  {sectionWordsSum !== null
+                    ? `Every section has a word count, so the length is their total: ${sectionWordsSum.toLocaleString('en-US')} words.`
+                    : `Suggested: about ${(suggestedWordsFor(piece) ?? 0).toLocaleString('en-US')} words.`}
+                  {effectiveWords ? ` Scoring a page this long uses about ${estimateRunCredits(effectiveWords).credits} credits for the full run.` : ''}
+                </p>
+              </div>
+              <div className="flex flex-col gap-2">
+                <span className={labelClass}>Sections</span>
+                <p className={hintClass}>Remove, move or add sections. Sections marked "only if facts exist" are left out when your brief and website give nothing for them.</p>
+                <BriefSectionsEditor sections={sections} onChange={setSections} disabled={busy} />
+              </div>
+            </div>
+          )}
+        </details>
       )}
 
       <div className="flex flex-col gap-2">
