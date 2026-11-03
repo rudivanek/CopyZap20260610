@@ -54,7 +54,7 @@ export async function getSessionUsage(sessionIds: string[]): Promise<Record<stri
 
 /** "$0.036" under ten cents, "$0.51" from ten cents up. */
 export function formatUsd(value: number): string {
-  return value < 0.1 ? `${value.toFixed(3)}` : `${value.toFixed(2)}`;
+  return value < 0.1 ? '$' + value.toFixed(3) : '$' + value.toFixed(2);
 }
 
 /**
