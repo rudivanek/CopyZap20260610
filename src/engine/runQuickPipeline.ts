@@ -186,6 +186,20 @@ export interface QuickSource {
   host: string;
 }
 
+/** What the user asked for in "Start from a brief", saved with the run. */
+export interface QuickBriefRecord {
+  /** Every filled-in field of the brief, as label and value, in the order of the form. */
+  fields: { label: string; value: string }[];
+  /** The website address given in the brief, if any. */
+  website?: string;
+  /** Whether that website could be read. */
+  websiteRead?: boolean;
+  /** The draft exactly as CopyZap wrote it, before any edit by the user. */
+  draft: string;
+  /** True when the user changed the draft before it was scored. */
+  editedBeforeScoring: boolean;
+}
+
 export interface QuickRunInput {
   copy: string;
   goalKey: GoalKey;
@@ -220,6 +234,8 @@ export interface QuickRunInput {
   signal?: AbortSignal;
   /** The page the copy was fetched from, when it was fetched. Recorded with the result. */
   source?: QuickSource;
+  /** The brief this copy was written from, when the run started from a brief. Recorded with the result. */
+  brief?: QuickBriefRecord;
   /**
    * Facts the user added on the check screen, for what the copy was missing
    * (see missingFacts.ts). The writer is told to use them. Empty: as before.
@@ -270,6 +286,8 @@ export interface QuickRunResult {
   parts: { kept: number; leftOut: number };
   /** The page the copy was fetched from. Absent for pasted copy. */
   source?: QuickSource;
+  /** The brief the copy was written from. Absent for pasted or fetched copy. */
+  brief?: QuickBriefRecord;
   /**
    * The parts kept as they are, word for word. A later change to a version
    * needs them to keep those parts untouched again.
@@ -1022,6 +1040,7 @@ export async function runQuickPipeline(
     quoteFlags,
     parts: { kept: input.keep?.kept ?? keepZones.length, leftOut: input.keep?.leftOut ?? 0 },
     ...(input.source ? { source: input.source } : {}),
+    ...(input.brief ? { brief: input.brief } : {}),
     keptTexts: keepZones.map(zone => zone.text),
   };
 }

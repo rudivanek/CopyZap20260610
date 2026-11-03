@@ -62,6 +62,8 @@ interface QuickExtras {
   parts?: QuickRunResult['parts'];
   /** The page the copy was fetched from. Absent for pasted copy and for older entries. */
   source?: QuickRunResult['source'];
+  /** The brief the copy was written from. Absent for pasted or fetched copy. */
+  brief?: QuickRunResult['brief'];
   /** The kept parts' text. Absent in entries saved before versions could be changed. */
   keptTexts?: string[];
   /** The user's decisions about claims in the best version (see claimReview.ts). Absent when none were found or asked. */
@@ -105,6 +107,7 @@ function toRow(result: QuickRunResult, runSeconds: number | null) {
     keptTexts: result.keptTexts,
     ...(result.claimReview ? { claimReview: result.claimReview } : {}),
     ...(result.source ? { source: result.source } : {}),
+    ...(result.brief ? { brief: result.brief } : {}),
     runSeconds,
   };
 
@@ -225,6 +228,20 @@ export function rowToQuickResult(row: Record<string, unknown> | null | undefined
       : {}),
     ...(quick.source && typeof quick.source.url === 'string' && typeof quick.source.host === 'string'
       ? { source: { url: quick.source.url, host: quick.source.host } }
+      : {}),
+    ...(quick.brief && Array.isArray(quick.brief.fields) && typeof quick.brief.draft === 'string'
+      ? {
+          brief: {
+            fields: quick.brief.fields.filter(
+              (field): field is { label: string; value: string } =>
+                !!field && typeof field.label === 'string' && typeof field.value === 'string'
+            ),
+            website: typeof quick.brief.website === 'string' ? quick.brief.website : undefined,
+            websiteRead: typeof quick.brief.websiteRead === 'boolean' ? quick.brief.websiteRead : undefined,
+            draft: quick.brief.draft,
+            editedBeforeScoring: quick.brief.editedBeforeScoring === true,
+          },
+        }
       : {}),
   };
 
