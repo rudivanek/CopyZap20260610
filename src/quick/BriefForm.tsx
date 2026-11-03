@@ -13,6 +13,7 @@ import {
   BRIEF_MAX_WORDS,
   defaultSectionsFor,
   suggestedWordsFor,
+  suggestSectionWords,
   generateFromBrief,
   trimSiteFacts,
 } from '../engine/generateFromBrief';
@@ -87,6 +88,8 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
   const isPage = group === 'page';
   const sectionWordsSum = sections.every(section => section.words) ? sections.reduce((sum, section) => sum + (section.words ?? 0), 0) : null;
   const effectiveWords = isPage ? (sectionWordsSum ?? targetWords) : null;
+  // A word count for every section: the user's own, or a share of the total.
+  const sectionWords = isPage ? suggestSectionWords(sections, effectiveWords) : [];
 
   const handlePieceChange = (newKey: BriefPieceKey) => {
     setPiece(newKey);
@@ -150,7 +153,7 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
         mustInclude: mustInclude.trim() || undefined,
         avoid: avoid.trim() || undefined,
         length: showLength ? length : briefPiece(piece).defaultLength,
-        sections: isPage ? sections : undefined,
+        sections: isPage ? sections.map((section, index) => ({ ...section, words: section.words ?? sectionWords[index] ?? null })) : undefined,
         targetWords: isPage && effectiveWords ? effectiveWords : undefined,
         language,
         spanishForm: language === 'Spanish' ? spanishForm : undefined,
@@ -170,7 +173,7 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
         { label: 'Proof or results', value: proof.trim() },
         { label: 'Must include', value: mustInclude.trim() },
         { label: 'Avoid', value: avoid.trim() },
-        { label: 'Sections', value: isPage ? sections.map(section => (section.words ? `${section.label} (${section.words})` : section.label)).join(' · ') : '' },
+        { label: 'Sections', value: isPage ? sections.map((section, index) => (section.words ? `${section.label} (${section.words})` : sectionWords[index] ? `${section.label} (≈ ${sectionWords[index]})` : section.label)).join(' · ') : '' },
         { label: 'Length', value: isPage && effectiveWords ? `about ${effectiveWords.toLocaleString('en-US')} words` : showLength ? (LENGTHS.find(option => option.key === length)?.label ?? String(length)) : '' },
         { label: 'Language', value: languageText },
       ].filter(field => field.value);
@@ -367,7 +370,7 @@ const BriefForm: React.FC<BriefFormProps> = ({ currentUser, defaultLanguage, dis
               <div className="flex flex-col gap-2">
                 <span className={labelClass}>Sections</span>
                 <p className={hintClass}>Remove, move or add sections. Sections marked "only if facts exist" are left out when your brief and website give nothing for them.</p>
-                <BriefSectionsEditor sections={sections} onChange={setSections} disabled={busy} />
+                <BriefSectionsEditor sections={sections} onChange={setSections} disabled={busy} totalWords={effectiveWords} />
               </div>
             </div>
           )}
