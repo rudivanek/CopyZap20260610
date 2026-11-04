@@ -217,6 +217,16 @@ export interface QuickBriefRecord {
    * without this.
    */
   draftOnly?: boolean;
+  /**
+   * "Start from a brief (2)": the answers and the website text the draft was
+   * written from. With draftOnly, the draft is checked against these instead of
+   * against itself, so a detail in neither ("at no extra cost", "in 30
+   * minutes") is listed for the user to check. It is listed, not taken out:
+   * the user edits the draft before using it.
+   */
+  claimSource?: string;
+  /** Where a number from the website was replaced by the user's answer (see answerConflicts.ts). */
+  answerNotes?: string[];
 }
 
 export interface QuickRunInput {
@@ -477,7 +487,7 @@ export async function scoreQuickVersions(
   // it states that they do not (see sourceClaims.ts). These replace the
   // scorer's "claims to verify", which listed every number, true or not.
   // It never throws: a version whose check fails keeps the scorer's notes.
-  const allowedForClaims = [formState.originalCopy || '', ...cleanUserFacts(formState.quickUserFacts)]
+  const allowedForClaims = [formState.quickClaimSource || formState.originalCopy || '', ...cleanUserFacts(formState.quickUserFacts)]
     .filter(Boolean)
     .join('\n\n');
   const claimsByVersion = Promise.all(
@@ -971,7 +981,9 @@ export async function runQuickPipeline(
   // back in, so their words are never edited.
   // Instruction facts count as user facts for the claim check, so a fact the
   // user wrote in their instructions is not flagged as "not in your original".
-  const allowedText = [fullCopy, ...allFacts].join('\n\n');
+  // A draft from Brief (2) is checked against what it was written from, not against itself.
+  const draftSource = input.briefRecord?.draftOnly ? (input.briefRecord.claimSource ?? '').trim() : '';
+  const allowedText = [draftSource || fullCopy, ...allFacts].join('\n\n');
   // Drop the strengthening prefixes ("over", "more than", "at least") and "+"
   // suffixes the writer added to numbers the source states plainly, before the
   // invented-detail cleanup: the cleanup takes out whole claims, but a prefix
@@ -993,6 +1005,12 @@ export async function runQuickPipeline(
   const claimsLeft = new Map<string, string[] | null>();
   await Promise.all(
     checked.map(async ({ item, text, claims }) => {
+      // A draft from Brief (2) keeps its words: what is in neither the answers nor
+      // the website is listed for the user to check, not taken out.
+      if (draftSource) {
+        claimsLeft.set(item.id, claims);
+        return;
+      }
       const cleaned = await removeInventedDetails(text, allowedText, user, sessionId, claims ?? []);
       if (cleaned.removed.length === 0) {
         claimsLeft.set(item.id, claims);
@@ -1044,7 +1062,12 @@ export async function runQuickPipeline(
     formState = { ...formState, quickInstructionsNote: instructionsNoteText };
   }
   // From here on the settings describe the whole page again.
-  formState = { ...formState, originalCopy: fullCopy, specialInstructions: '' };
+  formState = {
+    ...formState,
+    originalCopy: fullCopy,
+    specialInstructions: '',
+    ...(draftSource ? { quickClaimSource: draftSource } : {}),
+  };
 
   const original: GeneratedContentItem = {
     id: ORIGINAL_VERSION_ID,

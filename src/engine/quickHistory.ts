@@ -248,6 +248,9 @@ export function rowToQuickResult(row: Record<string, unknown> | null | undefined
             metaDescription: typeof quick.briefRecord.metaDescription === 'string' && quick.briefRecord.metaDescription ? quick.briefRecord.metaDescription : undefined,
             shapeNote: typeof quick.briefRecord.shapeNote === 'string' && quick.briefRecord.shapeNote ? quick.briefRecord.shapeNote : undefined,
             draftOnly: quick.briefRecord.draftOnly === true ? true : undefined,
+            answerNotes: Array.isArray(quick.briefRecord.answerNotes)
+              ? quick.briefRecord.answerNotes.filter((note): note is string => typeof note === 'string' && !!note)
+              : undefined,
           },
         }
       : {}),

@@ -46,6 +46,7 @@ __FACTS__
 
 How:
 - Put each fact where it helps the reader most, in the copy's own style: in a sentence, a list or the section it belongs to. Keep its numbers, names and conditions exactly as the original states them; check the original for the details.
+- When the copy states a different number or name for the same thing ("15 years" where the fact says "20 years"), replace it with the fact's. Never state both.
 - A list (a programme, a menu, services, places) keeps every item the original names.
 - Add nothing else: no fact, offer, number, promise or detail that is not in the copy, the original or the owner's facts.
 - Keep everything else as it is: the same language, wording, headings, order and call to action; testimonials word for word. Add only the words the facts need.
