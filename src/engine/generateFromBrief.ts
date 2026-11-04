@@ -15,7 +15,7 @@ export type BriefLength = 'short' | 'medium' | 'long';
 
 export type BriefPieceKey =
   | 'homepage' | 'landing_page' | 'about_page' | 'service_page'
-  | 'h1_headline' | 'usp' | 'slogan'
+  | 'h1_headline' | 'usp' | 'slogan' | 'hero_section'
   | 'email' | 'newsletter'
   | 'social_post' | 'ad' | 'product_description' | 'blog_post' | 'other';
 
@@ -37,6 +37,7 @@ export const BRIEF_PIECES: BriefPiece[] = [
   { key: 'service_page',        label: 'Service or product page',   group: 'page',  channel: 'web_page',    defaultLength: 'long' },
   { key: 'about_page',          label: 'About page',                group: 'page',  channel: 'web_page',    defaultLength: 'medium' },
   { key: 'blog_post',           label: 'Blog post',                 group: 'page',  channel: 'web_page',    defaultLength: 'long' },
+  { key: 'hero_section',        label: 'Hero section',              group: 'short', channel: 'short_text',  defaultLength: 'short' },
   { key: 'h1_headline',         label: 'H1 / headline',             group: 'short', channel: 'short_text',  defaultLength: 'short' },
   { key: 'usp',                 label: 'USP / value proposition',   group: 'short', channel: 'short_text',  defaultLength: 'short' },
   { key: 'slogan',              label: 'Slogan / tagline',          group: 'short', channel: 'short_text',  defaultLength: 'short' },
@@ -224,6 +225,10 @@ export interface Brief {
   spanishForm?: 'tú' | 'usted';
   /** Optional: the company's own experience, opinion or lesson, stated once in the body in its voice. */
   experience?: string;
+  /** Optional: what the customer has after buying (the main result). */
+  result?: string;
+  /** Optional: who customers compare the company with, and why they choose it. */
+  alternatives?: string;
   /** Optional: the country whose readers the copy is for; sets vocabulary, spelling, currency and dates. */
   country?: string;
   /** Optional: address the reader formally or informally, for any language that has both. */
@@ -257,6 +262,8 @@ const GOAL_NAMES: Record<GoalKey, string> = {
 function briefText(brief: Brief): string {
   const lines: string[] = [];
   lines.push(`What you are selling: ${brief.product}`);
+  if (brief.result && brief.result.trim()) lines.push(`What the customer gets (the main result): ${brief.result.trim()}`);
+  if (brief.alternatives && brief.alternatives.trim()) lines.push(`Who customers compare them with, and why they choose them: ${brief.alternatives.trim()}`);
   lines.push(`Who it is for: ${brief.audience}`);
   lines.push(`Goal: ${GOAL_NAMES[brief.goal] ?? brief.goal}`);
   lines.push(`What to write: ${briefPiece(brief.piece).label}`);
@@ -337,6 +344,23 @@ export async function generateFromBrief(brief: Brief, user: User, sessionId?: st
   const draft = (response.choices[0]?.message?.content ?? '').trim();
   if (!draft) throw new Error('No copy was written. Please try again.');
   return draft;
+}
+
+const SHAPE_NOTES: Partial<Record<BriefPieceKey, string>> = {
+  hero_section:
+    'This text is a hero section. Keep its shape: a # headline of under 10 words, a subline of one or two sentences, 3 short bullet points, then the call to action as one short line.',
+  usp: 'This text is a value proposition. Keep its shape: one main sentence of under 25 words, then 3 short bullet points.',
+  h1_headline: 'This text is one headline of under 12 words. Keep it one headline.',
+  slogan: 'This text is one slogan of under 8 words. Keep it one slogan.',
+};
+
+/**
+ * For short texts written from a brief: the shape the improve step must keep.
+ * Quick's own rule for short texts says "one statement, no list", which would
+ * strip a USP's bullets. Empty for pages and anything else.
+ */
+export function briefShapeNote(piece: BriefPieceKey): string {
+  return SHAPE_NOTES[piece] ?? '';
 }
 
 /** Cuts the website text to at most `maxWords` words, so the prompt stays small. */

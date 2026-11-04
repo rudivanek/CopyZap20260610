@@ -14,20 +14,25 @@ Reply with ONE JSON object and nothing else.
   "known": {
     "product": "the company and what it sells, if the request or website says it",
     "audience": "who the copy is for, if said",
+    "result": "what the customer has after buying, if said",
+    "alternatives": "who customers compare the company with, and why they choose it, if said",
     "differentiators": "what makes the company different, if said",
     "proof": "numbers, clients, results or years, if said",
     "experience": "the company's own experience, opinion or lesson learned, if said",
     "callToAction": "what the reader should do, if said"
   },
   "questions": [
-    { "key": "one of: product, audience, differentiators, proof, experience, callToAction", "question": "the question to ask", "choices": ["3 or 4 short answers to tap"] }
+    { "key": "one of: product, audience, result, alternatives, differentiators, proof, experience, callToAction", "question": "the question to ask", "choices": ["3 or 4 short answers to tap"] }
   ]
 }
 
 How to choose the questions:
 - Ask only about what is missing or too vague in "known". Never ask about something the request or the website already answers clearly.
 - Ask 3 to 6 questions, most important first. Never more than 6.
-- Unless already answered, always ask "experience" (their own experience, opinion or the lesson they have learned from their work — this is what makes copy theirs and not generic) and "proof" (numbers, clients, years, results).
+- Which questions matter depends on the piece:
+  - Blog posts and pages (homepage, landing page, service page, about page): unless already answered, always ask "experience" (their own experience, opinion or the lesson they have learned from their work — this is what makes copy theirs and not generic) and "proof" (numbers, clients, years, results). Ask "callToAction" when it is not clear.
+  - Hero section, USP, headline and slogan: the copy must say what only this company can claim. Unless already answered, always ask "result" (what the customer has after working with them), "audience" (as narrow as possible: one kind of client), "alternatives" (who customers compare them with, and why they choose them) and "differentiators" (what they do that others don't: a process, a guarantee, a speed, a specialty). Ask "proof" when none is given. Never ask "experience". Ask "callToAction" only for a hero section.
+  - Email, newsletter, social post and ad: ask "differentiators" (the offer or the news), "callToAction" and "proof". Never ask "experience".
 - Ask "product" when the company name or what it sells is not clear.
 - "differentiators" asks what makes the company different from other companies like it. Never ask instead what the copy should highlight, cover or include.
 - Do not ask about the goal; it is chosen separately.

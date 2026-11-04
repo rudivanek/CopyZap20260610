@@ -207,6 +207,8 @@ export interface QuickBriefRecord {
    * drops or weakens one loses points and lists it as left out.
    */
   lockedFacts?: string[];
+  /** Short texts: the shape the improve step must keep (see generateFromBrief.ts briefShapeNote). */
+  shapeNote?: string;
 }
 
 export interface QuickRunInput {
@@ -866,6 +868,9 @@ export async function runQuickPipeline(
     KEEP_TO_ORIGINAL_NOTE,
     userFactsWritingNote(allFacts),
     textKindWritingNote(quickTextKindOf(formState)) || `${QUICK_REWRITE_NOTE}\n\n${QUICK_HEADINGS_NOTE}`,
+    input.briefRecord?.shapeNote
+      ? `${input.briefRecord.shapeNote} This shape comes first: it replaces any rule above about giving back one statement without a heading or a list.`
+      : '',
     keepInstructions(keptParts),
     testimonialInstructions([...lock.zones, ...keptTestimonials], true),
     instructionsNote + (languageConflict ? `\n\nWrite in ${chosenLanguage} only. The user's request to write in ${instructionLanguage} is not followed: the language is the one chosen on the check screen.` : ''),
