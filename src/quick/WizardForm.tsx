@@ -33,9 +33,11 @@ interface WizardFormProps {
 
 type Answers = Record<Exclude<WizardFieldKey, 'goal'>, string>;
 
-const fieldClass =
-  'w-full min-h-[44px] px-3.5 py-2 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 ' +
+/** The field look without a width, for fields that set their own width. */
+const fieldBase =
+  'min-h-[44px] px-3.5 py-2 bg-white dark:bg-gray-900 border border-gray-400 dark:border-gray-600 ' +
   'text-gray-900 dark:text-gray-100 placeholder:text-gray-500 focus:outline-none focus:ring-2 focus:ring-primary-500';
+const fieldClass = `w-full ${fieldBase}`;
 const labelClass = 'font-semibold text-gray-900 dark:text-gray-100';
 const hintClass = 'text-sm text-gray-600 dark:text-gray-400';
 const chipClass = (active: boolean) =>
@@ -339,7 +341,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
               setTargetWords(suggestedWordsFor(key));
             }}
             disabled={busy}
-            className={`${fieldClass} w-auto`}
+            className={`${fieldBase} w-auto`}
           >
             {BRIEF_PIECES.map(item => (
               <option key={item.key} value={item.key}>{item.label}</option>
@@ -356,7 +358,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
                 value={targetWords ?? ''}
                 onChange={event => setTargetWords(event.target.value === '' ? null : Number(event.target.value))}
                 disabled={busy}
-                className={`${fieldClass} w-28`}
+                className={`${fieldBase} w-28`}
               />
               <span className={hintClass}>words</span>
             </label>
@@ -369,21 +371,20 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
             {missing.includes('topic') && <p className="text-sm text-status-critical">Fill this in first.</p>}
           </div>
         )}
+        {renderGoal('What should it do?')}
       </div>
 
       <div className="flex flex-col gap-5">
         <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">A few questions</span>
-        {questions.map(question =>
-          question.key === 'goal'
-            ? renderGoal(question.question)
-            : renderAnswer(question.key, question.question, question.choices)
-        )}
+        {questions
+          .filter(question => question.key !== 'goal')
+          .map(question => renderAnswer(question.key as keyof Answers, question.question, question.choices))}
       </div>
 
       <div className="flex flex-col gap-3">
         <span className={labelClass}>Language</span>
         <div className="flex flex-wrap gap-3">
-          <select aria-label="Language" value={language} onChange={event => setLanguage(event.target.value as Language)} disabled={busy} className={`${fieldClass} w-auto`}>
+          <select aria-label="Language" value={language} onChange={event => setLanguage(event.target.value as Language)} disabled={busy} className={`${fieldBase} w-auto`}>
             {QUICK_LANGUAGES.map(option => (
               <option key={option} value={option}>{option}</option>
             ))}
@@ -395,7 +396,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
             onChange={event => setCountry(event.target.value)}
             disabled={busy}
             placeholder="Country, e.g. Mexico"
-            className={`${fieldClass} w-48`}
+            className={`${fieldBase} w-48`}
           />
           {language !== 'English' && (
             <div className="flex gap-2">
@@ -423,7 +424,6 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         </summary>
         <div className="mt-3 flex flex-col gap-4">
           {otherFields.map(field => renderAnswer(field.key, field.label, []))}
-          {!askedKeys.includes('goal') && renderGoal('Goal')}
           <div className="flex flex-col gap-2">
             <span className={labelClass}>Tone</span>
             <div className="flex flex-wrap gap-2">

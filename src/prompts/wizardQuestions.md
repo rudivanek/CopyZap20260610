@@ -20,7 +20,7 @@ Reply with ONE JSON object and nothing else.
     "callToAction": "what the reader should do, if said"
   },
   "questions": [
-    { "key": "one of: product, audience, goal, differentiators, proof, experience, callToAction", "question": "the question to ask", "choices": ["3 or 4 short answers to tap"] }
+    { "key": "one of: product, audience, differentiators, proof, experience, callToAction", "question": "the question to ask", "choices": ["3 or 4 short answers to tap"] }
   ]
 }
 
@@ -29,11 +29,12 @@ How to choose the questions:
 - Ask 3 to 6 questions, most important first. Never more than 6.
 - Unless already answered, always ask "experience" (their own experience, opinion or the lesson they have learned from their work — this is what makes copy theirs and not generic) and "proof" (numbers, clients, years, results).
 - Ask "product" when the company name or what it sells is not clear.
+- "differentiators" asks what makes the company different from other companies like it. Never ask instead what the copy should highlight, cover or include.
+- Do not ask about the goal; it is chosen separately.
 - Each question is short, plain and specific to this request, not generic. Example for a web agency's blog post on choosing an agency: "From your experience, what is the biggest mistake companies make when choosing an agency?"
 - "choices" are short, typical answers for this kind of business, to tap instead of typing. For "proof" and "experience" they are typical examples the user may tap and then correct; they are suggestions, not facts.
-- For "goal", give choices from the goal list above, in plain words.
-
 Rules:
 - Write "question", "choices" and the values in "known" in the language of the request.
+- Address the user formally and in neutral wording: in Spanish use usted and neutral Latin American Spanish — never vosotros, vuestro, tenéis — unless the request itself is written that way; in German use Sie; in French use vous.
 - Put in "known" only what the request or the website actually says. Never invent facts about the company.
 - Use an empty string for anything you cannot tell.

@@ -129,7 +129,8 @@ export function parseWizardPlan(raw: string, defaultLanguage: Language = 'Englis
       const record = item as Record<string, unknown>;
       const key = match(record.key, FIELD_KEYS);
       const question = text(record.question, 200);
-      if (!key || !question || seen.has(key)) continue;
+      // The goal is always shown as its own choice, so it is never asked as a question.
+      if (!key || key === 'goal' || !question || seen.has(key)) continue;
       seen.add(key);
       const choices = Array.isArray(record.choices)
         ? record.choices.map(choice => text(choice, 120)).filter(Boolean).slice(0, 4)
