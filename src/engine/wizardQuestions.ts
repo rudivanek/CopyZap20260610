@@ -19,13 +19,17 @@ import {
 } from './generateFromBrief';
 import { QUICK_LANGUAGES, QUICK_TONES } from './inferQuickBrief';
 import wizardPrompt from '../prompts/wizardQuestions.md?raw';
+import followUpPrompt from '../prompts/wizardFollowUp.md?raw';
 
-export type WizardFieldKey = 'product' | 'audience' | 'goal' | 'differentiators' | 'proof' | 'experience' | 'callToAction';
+export type WizardFieldKey =
+  | 'product' | 'audience' | 'goal' | 'result' | 'alternatives' | 'differentiators' | 'proof' | 'experience' | 'callToAction';
 
 /** The answers the wizard can ask for, with the label shown when it does not ask. */
 export const WIZARD_FIELDS: { key: Exclude<WizardFieldKey, 'goal'>; label: string; placeholder: string }[] = [
   { key: 'product', label: 'Company and what it sells', placeholder: 'For example: Sharpen.Studio, website development' },
   { key: 'audience', label: 'Who it is for', placeholder: 'For example: small business owners' },
+  { key: 'result', label: 'What the customer gets', placeholder: 'For example: a brand ready to launch in 4 weeks' },
+  { key: 'alternatives', label: 'Who they compare you with, and why they pick you', placeholder: 'For example: freelancers; we include the strategy and the brand manual' },
   { key: 'differentiators', label: 'What makes you different', placeholder: 'For example: 20+ years, every site custom-made' },
   { key: 'proof', label: 'Proof or results', placeholder: 'For example: 200+ clients' },
   { key: 'experience', label: 'Your own experience or opinion', placeholder: 'For example: the biggest mistake is looking for the cheapest quote' },
@@ -61,7 +65,7 @@ export interface WizardPlan {
 const WIZARD_MODEL = 'claude-sonnet-4-6' as const;
 const WIZARD_MAX_TOKENS = 1500;
 const MAX_QUESTIONS = 6;
-const FIELD_KEYS: WizardFieldKey[] = ['product', 'audience', 'goal', 'differentiators', 'proof', 'experience', 'callToAction'];
+const FIELD_KEYS: WizardFieldKey[] = ['product', 'audience', 'goal', 'result', 'alternatives', 'differentiators', 'proof', 'experience', 'callToAction'];
 const GOAL_KEYS: GoalKey[] = ['convert', 'nurture', 'inform', 'educate', 'brand'];
 
 function text(value: unknown, max = 400): string {
@@ -75,7 +79,7 @@ function match<T extends string>(value: unknown, options: T[]): T | undefined {
 }
 
 function emptyKnown(): WizardPlan['known'] {
-  return { product: '', audience: '', differentiators: '', proof: '', experience: '', callToAction: '' };
+  return { product: '', audience: '', result: '', alternatives: '', differentiators: '', proof: '', experience: '', callToAction: '' };
 }
 
 /** The plan used when the request cannot be read: every field is asked. */
@@ -197,5 +201,63 @@ export async function getWizardPlan(
       throw new BriefNotAvailableError();
     }
     return fallbackWizardPlan(defaultLanguage);
+  }
+}
+
+const MAX_FOLLOW_UPS = 2;
+
+/**
+ * Reads the user's answers and asks one follow-up for each of at most two
+ * answers that are too general to make the copy specific ("satisfaction
+ * guarantee" -> "what exactly do you guarantee?"). Never throws: on any
+ * failure there are no follow-ups and the copy is written from the answers.
+ */
+export async function getWizardFollowUps(
+  pieceLabel: string,
+  answers: { key: WizardFieldKey; label: string; value: string }[],
+  user: User,
+  sessionId?: string,
+): Promise<WizardQuestion[]> {
+  const given = answers.filter(answer => answer.value.trim());
+  if (given.length === 0) return [];
+  const lines = [
+    `What is being written: ${pieceLabel}`,
+    '',
+    'The answers:',
+    ...given.map(answer => `- ${answer.key} (${answer.label}): ${answer.value.trim()}`),
+  ];
+  try {
+    const response = await makeApiRequestWithFallback(
+      WIZARD_MODEL,
+      [
+        { role: 'system', content: followUpPrompt },
+        { role: 'user', content: lines.join('\n') },
+      ],
+      0.2,
+      600,
+      { type: 'json_object' },
+      user.email,
+      'brief_wizard_followup',
+      sessionId,
+    );
+    const parsed = JSON.parse(cleanJsonResponse(response.choices[0]?.message?.content ?? ''));
+    const list = parsed && Array.isArray(parsed.followUps) ? parsed.followUps : [];
+    const keys = given.map(answer => answer.key);
+    const seen = new Set<WizardFieldKey>();
+    const followUps: WizardQuestion[] = [];
+    for (const item of list) {
+      if (!item || typeof item !== 'object') continue;
+      const key = match((item as Record<string, unknown>).key, keys);
+      const question = text((item as Record<string, unknown>).question, 200);
+      if (!key || !question || seen.has(key)) continue;
+      seen.add(key);
+      const rawChoices = (item as Record<string, unknown>).choices;
+      const choices = Array.isArray(rawChoices) ? rawChoices.map(choice => text(choice, 120)).filter(Boolean).slice(0, 3) : [];
+      followUps.push({ key, question, choices });
+      if (followUps.length >= MAX_FOLLOW_UPS) break;
+    }
+    return followUps;
+  } catch {
+    return [];
   }
 }

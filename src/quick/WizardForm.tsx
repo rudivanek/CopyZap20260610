@@ -9,6 +9,7 @@ import {
   BRIEF_MIN_WORDS,
   BRIEF_MAX_WORDS,
   briefPiece,
+  briefShapeNote,
   defaultSectionsFor,
   generateFromBrief,
   splitMetaDescription,
@@ -16,7 +17,7 @@ import {
   suggestSectionWords,
   trimSiteFacts,
 } from '../engine/generateFromBrief';
-import { getWizardPlan, WizardFieldKey, WizardFormality, WizardPlan, WizardQuestion, WIZARD_FIELDS } from '../engine/wizardQuestions';
+import { getWizardFollowUps, getWizardPlan, WizardFieldKey, WizardFormality, WizardPlan, WizardQuestion, WIZARD_FIELDS } from '../engine/wizardQuestions';
 import { fetchQuickPage } from '../engine/fetchQuickPage';
 import { QUICK_LANGUAGES, QUICK_TONES } from '../engine/inferQuickBrief';
 import type { QuickBriefRecord } from '../engine/runQuickPipeline';
@@ -63,7 +64,7 @@ function toggleChoice(current: string, choice: string): string {
 const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, disabled, onDraft, onUnavailable, onError, getSessionId }) => {
   const [request, setRequest] = useState('');
   const [website, setWebsite] = useState('');
-  const [stage, setStage] = useState<'idle' | 'reading' | 'thinking' | 'writing'>('idle');
+  const [stage, setStage] = useState<'idle' | 'reading' | 'thinking' | 'checking' | 'writing'>('idle');
   const [plan, setPlan] = useState<WizardPlan | null>(null);
   const [siteFacts, setSiteFacts] = useState<string | undefined>(undefined);
   const [siteNotice, setSiteNotice] = useState<string | null>(null);
@@ -77,7 +78,10 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
   const [language, setLanguage] = useState<Language>(defaultLanguage);
   const [country, setCountry] = useState('');
   const [formality, setFormality] = useState<WizardFormality>('formal');
-  const [answers, setAnswers] = useState<Answers>({ product: '', audience: '', differentiators: '', proof: '', experience: '', callToAction: '' });
+  const [answers, setAnswers] = useState<Answers>({ product: '', audience: '', result: '', alternatives: '', differentiators: '', proof: '', experience: '', callToAction: '' });
+  /** Follow-ups for answers that were too general: null until the answers were checked. */
+  const [followUps, setFollowUps] = useState<WizardQuestion[] | null>(null);
+  const [followAnswers, setFollowAnswers] = useState<Record<string, string>>({});
   const [questions, setQuestions] = useState<WizardQuestion[]>([]);
   const [missing, setMissing] = useState<string[]>([]);
   const [otherOpen, setOtherOpen] = useState(false);
@@ -101,6 +105,8 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
     }
     setMissing([]);
     setSiteNotice(null);
+    setFollowUps(null);
+    setFollowAnswers({});
     let id: string | undefined;
     try {
       id = await getSessionId(request.trim().slice(0, 60) || 'Brief (2)');
@@ -162,22 +168,47 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
       return;
     }
     setMissing([]);
+    // First click: check the answers for ones too general to make the copy
+    // specific, and ask one follow-up for each (at most two). The user can
+    // answer or leave them blank; the next click writes.
+    if (followUps === null) {
+      setStage('checking');
+      const found = await getWizardFollowUps(
+        briefPiece(piece).label,
+        WIZARD_FIELDS.map(field => ({ key: field.key, label: field.label, value: answers[field.key] })),
+        currentUser,
+        sessionId,
+      );
+      setFollowUps(found);
+      setStage('idle');
+      if (found.length > 0) return;
+    }
+    // The follow-up answers are added to the answer they belong to.
+    const a: Answers = { ...answers };
+    (followUps ?? []).forEach(item => {
+      const extra = (followAnswers[item.key] ?? '').trim();
+      if (!extra || item.key === 'goal') return;
+      const key = item.key as keyof Answers;
+      a[key] = a[key].trim() ? `${a[key].trim()} — ${extra}` : extra;
+    });
     setStage('writing');
     try {
       const sections = isPage ? defaultSectionsFor(piece) : [];
       const sectionWords = isPage ? suggestSectionWords(sections, words) : [];
       const hasFormality = language !== 'English';
       const brief: Brief = {
-        product: answers.product.trim(),
-        audience: answers.audience.trim(),
+        product: a.product.trim(),
+        audience: a.audience.trim(),
         goal,
         piece,
         tone,
-        differentiators: answers.differentiators.trim() || undefined,
-        callToAction: answers.callToAction.trim() || undefined,
+        differentiators: a.differentiators.trim() || undefined,
+        callToAction: a.callToAction.trim() || undefined,
         siteFacts,
-        proof: answers.proof.trim() || undefined,
-        experience: answers.experience.trim() || undefined,
+        proof: a.proof.trim() || undefined,
+        experience: a.experience.trim() || undefined,
+        result: a.result.trim() || undefined,
+        alternatives: a.alternatives.trim() || undefined,
         length: briefPiece(piece).defaultLength,
         sections: isPage ? sections.map((section, index) => ({ ...section, words: sectionWords[index] ?? null })) : undefined,
         targetWords: isPage && words ? words : undefined,
@@ -198,27 +229,32 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         { label: 'What you need', value: briefPiece(piece).label },
         { label: 'Your request', value: request.trim() },
         { label: 'Topic or title idea', value: isBlog ? topic.trim() : '' },
-        { label: 'What you are selling', value: answers.product.trim() },
-        { label: 'Who it is for', value: answers.audience.trim() },
+        { label: 'What you are selling', value: a.product.trim() },
+        { label: 'Who it is for', value: a.audience.trim() },
+        { label: 'What the customer gets', value: a.result.trim() },
+        { label: 'Who they compare you with', value: a.alternatives.trim() },
         { label: 'Goal', value: goalName(goal) },
         { label: 'Tone', value: String(tone) },
-        { label: 'What makes you different', value: answers.differentiators.trim() },
-        { label: 'Proof or results', value: answers.proof.trim() },
-        { label: 'Your experience', value: answers.experience.trim() },
-        { label: 'What the reader should do', value: answers.callToAction.trim() },
+        { label: 'What makes you different', value: a.differentiators.trim() },
+        { label: 'Proof or results', value: a.proof.trim() },
+        { label: 'Your experience', value: a.experience.trim() },
+        { label: 'What the reader should do', value: a.callToAction.trim() },
         { label: 'Length', value: isPage && words ? `about ${words.toLocaleString('en-US')} words` : '' },
         { label: 'Language', value: languageText },
         { label: 'Started from', value: 'Brief (2)' },
       ].filter(field => field.value);
       // These answers must survive the improve step word for word in meaning.
       const lockedFacts = [
-        answers.experience.trim() ? `The company's own experience or view: ${answers.experience.trim()}` : '',
-        answers.proof.trim() ? `Proof: ${answers.proof.trim()}` : '',
-        answers.differentiators.trim() ? `What makes the company different: ${answers.differentiators.trim()}` : '',
+        a.experience.trim() ? `The company's own experience or view: ${a.experience.trim()}` : '',
+        a.proof.trim() ? `Proof: ${a.proof.trim()}` : '',
+        a.differentiators.trim() ? `What makes the company different: ${a.differentiators.trim()}` : '',
+        a.result.trim() ? `What the customer gets: ${a.result.trim()}` : '',
       ].filter(Boolean);
+      const shapeNote = briefShapeNote(piece);
       onDraft(draft, goal, {
         fields,
         ...(lockedFacts.length > 0 ? { lockedFacts } : {}),
+        ...(shapeNote ? { shapeNote } : {}),
         website: website.trim() || undefined,
         websiteRead: website.trim() ? siteFacts !== undefined : undefined,
         draft,
@@ -444,6 +480,50 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         </div>
       </details>
 
+      {followUps && followUps.length > 0 && (
+        <div className="flex flex-col gap-4 border-2 border-primary-500 p-4">
+          <span className="text-lg font-semibold text-gray-900 dark:text-gray-100">
+            {followUps.length === 1 ? 'One more detail makes it much stronger' : 'Two more details make it much stronger'}
+          </span>
+          <p className={hintClass}>Some answers are what many companies say. A concrete detail makes the copy yours. Leave a box empty to skip it.</p>
+          {followUps.map(item => (
+            <div key={item.key} className="flex flex-col gap-2">
+              <label htmlFor={`wizard-follow-${item.key}`} className={labelClass}>{item.question}</label>
+              {item.choices.length > 0 && (
+                <div className="flex flex-wrap gap-2">
+                  {item.choices.map(choice => {
+                    const current = followAnswers[item.key] ?? '';
+                    const active = current.split(/\s*;\s*/).some(part => part.trim().toLowerCase() === choice.toLowerCase());
+                    return (
+                      <button
+                        key={choice}
+                        type="button"
+                        disabled={busy}
+                        onClick={() => setFollowAnswers(list => ({ ...list, [item.key]: toggleChoice(list[item.key] ?? '', choice) }))}
+                        className={chipClass(active)}
+                      >
+                        {choice}
+                      </button>
+                    );
+                  })}
+                </div>
+              )}
+              <textarea
+                id={`wizard-follow-${item.key}`}
+                rows={2}
+                value={followAnswers[item.key] ?? ''}
+                onChange={event => {
+                  const value = event.target.value;
+                  setFollowAnswers(list => ({ ...list, [item.key]: value }));
+                }}
+                disabled={busy}
+                className={fieldClass}
+              />
+            </div>
+          ))}
+        </div>
+      )}
+
       <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
         <button
           type="button"
@@ -451,7 +531,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
           disabled={busy}
           className="inline-flex items-center justify-center min-h-[48px] px-8 bg-primary-500 hover:bg-primary-400 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
         >
-          {stage === 'writing' ? 'Writing…' : 'Write it'}
+          {stage === 'checking' ? 'Checking your answers…' : stage === 'writing' ? 'Writing…' : 'Write it'}
         </button>
         <span className={hintClass}>CopyZap writes a draft from your answers, then scores and improves it.</span>
       </div>

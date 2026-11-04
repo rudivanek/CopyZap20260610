@@ -1,7 +1,31 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.81
-Last Updated: 2026-05-13T12:00:00Z
+Version: 1.82
+Last Updated: 2026-05-13T19:30:00Z
+
+---
+
+## Quick — "Start from a brief (2)" Wizard: Follow-Up Questions and Two New Fields (2026-05-13)
+
+**Feature:** The "Start from a brief (2)" Quick tab (admin-only) asks the user a few targeted questions after reading their short request and website, then writes the copy from the answers. This step adds two new question fields — what the customer gets ("result") and who they compare you with and why they pick you ("alternatives") — and a second, smaller model call that asks one follow-up question for each of at most two answers that are too general to make the copy specific. It is the second of three parts of the Prompt 4 change; the first part added the `hero_section` piece and the `result` / `alternatives` fields to the brief form and the generation prompt, and the third part (not yet applied) will wire the follow-up questions into the wizard screen.
+
+1. **Two new question fields in the wizard engine.** `src/engine/wizardQuestions.ts` — the file that reads the request and decides what to ask — now knows about two more fields. `WizardFieldKey` is now `'product' | 'audience' | 'goal' | 'result' | 'alternatives' | 'differentiators' | 'proof' | 'experience' | 'callToAction'` (the two new keys are `result` and `alternatives`). `WIZARD_FIELDS` — the list the screen uses to label and placeholder the fields it shows under "Already understood" — grew from six entries to eight, with `result` ("What the customer gets", placeholder "For example: a brand ready to launch in 4 weeks") and `alternatives` ("Who they compare you with, and why they pick you", placeholder "For example: freelancers; we include the strategy and the brand manual"). The `FIELD_KEYS` array and `emptyKnown()` helper include the new keys, so the plan's `known` object always has `result` and `alternatives` strings (empty when the request or website did not mention them). `parseWizardPlan` reads the new keys from the model's `known` object and accepts questions keyed `result` or `alternatives` (the goal filter still drops any `goal` question, since the goal is chosen separately).
+
+2. **The wizard form passes the two new answers into the brief.** `src/quick/WizardForm.tsx` initialises its `answers` state with `result: ''` and `alternatives: ''` alongside the existing six fields, so the new fields are present from the start. When the user clicks "Write it", the `Brief` object now carries `result: answers.result.trim() || undefined` and `alternatives: answers.alternatives.trim() || undefined` (the `Brief` interface and `briefText()` already accepted these from the first part of the change). The "fields" list shown in the saved-brief box gains two rows — "What the customer gets" and "Compared with" — so the saved brief records the new answers just like the others.
+
+3. **A second model call asks follow-up questions.** `src/engine/wizardQuestions.ts` gained a new exported function, `getWizardFollowUps(pieceLabel, answers, user, sessionId)`. It takes the piece label (e.g. "Homepage") and the answers the user gave, builds a prompt from `src/prompts/wizardFollowUp.md` (created in the first part), and makes one small model call through `makeApiRequestWithFallback` — `claude-sonnet-4-6`, temperature 0.2, 600 max tokens, `json_object` response, operation name `brief_wizard_followup`. The model returns `{ "followUps": [{ "key": "...", "question": "...", "choices": ["..."] }] }`, at most two follow-ups, each keyed to one of the fields the user already answered (so a follow-up is always about an answer that was too vague, never a brand-new field). The function parses the JSON, filters to keys the user actually answered, deduplicates by key, caps the choices at three, and returns a `WizardQuestion[]` of at most two items. On any failure (network, JSON parse, empty result) it returns an empty array — the copy is then written from the answers as given, never blocked.
+
+**Files touched:**
+- `src/engine/wizardQuestions.ts` — full rewrite. `WizardFieldKey` and `FIELD_KEYS` add `result` and `alternatives`; `WIZARD_FIELDS` adds two entries; `emptyKnown()` and `parseWizardPlan` handle the new keys; new `getWizardFollowUps()` function with its own `MAX_FOLLOW_UPS = 2` constant; new import of `followUpPrompt from '../prompts/wizardFollowUp.md?raw'`. The existing `getWizardPlan`, `parseWizardPlan`, and `fallbackWizardPlan` are unchanged in shape (only `emptyKnown` and the `FIELD_KEYS`/`WIZARD_FIELDS` lists changed).
+- `src/quick/WizardForm.tsx` — `answers` initial state includes `result` and `alternatives`; the `Brief` object built in `handleWrite` passes `result` and `alternatives`; the saved-brief `fields` array gains "What the customer gets" and "Compared with" rows.
+
+**What did not change:** `getWizardPlan` still makes one model call (`brief_wizard_questions`, temp 0.3, 1500 tokens) and returns the same `WizardPlan` shape — only the `known` object now has two more string fields. `fallbackWizardPlan` still returns a plan with no questions and an empty `known`. The locked-facts mechanism (experience / proof / differentiators passed through to the improve step) is unchanged. The shape-note mechanism (short texts keep their multi-part structure through the improve step) is unchanged. No database, migration, RLS policy, edge function, credit, scoring, price, or billing change. The follow-up function is not yet called from the screen — that wiring is the third part of the change.
+
+**Effect on existing data:** None. The wizard is admin-only and produces no saved data until the user writes a draft; the two new fields are simply two more optional answers that flow into the same `Brief` object the first part already accepts.
+
+**Verification:**
+- `npx tsc --noEmit -p tsconfig.app.json` reports no errors in `wizardQuestions.ts`, `WizardForm.tsx`, `generateFromBrief.ts`, `runQuickPipeline.ts`, `QuickPage.tsx`, `wizardFollowUp.md`, `missingFacts.ts`, or `keyFacts.ts` (the only typecheck errors are pre-existing ones in `App.tsx`, unrelated to this change).
+- `npm run build` passes (24.53s).
 
 ---
 
