@@ -246,6 +246,7 @@ export function rowToQuickResult(row: Record<string, unknown> | null | undefined
             draft: quick.briefRecord.draft,
             editedBeforeScoring: quick.briefRecord.editedBeforeScoring === true,
             metaDescription: typeof quick.briefRecord.metaDescription === 'string' && quick.briefRecord.metaDescription ? quick.briefRecord.metaDescription : undefined,
+            shapeNote: typeof quick.briefRecord.shapeNote === 'string' && quick.briefRecord.shapeNote ? quick.briefRecord.shapeNote : undefined,
           },
         }
       : {}),

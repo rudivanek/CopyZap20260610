@@ -941,6 +941,16 @@ const QuickResult: React.FC<QuickResultProps> = ({
             <div ref={copyRef}>
               <FormattedContent content={winner.content} className={copyText} colorScores={false} />
             </div>
+            {result.briefRecord?.shapeNote && (
+              <p className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
+                <span className="w-1 h-5 mt-0.5 shrink-0 bg-primary-500" aria-hidden="true" />
+                <span>
+                  For a short text, also compare it with{' '}
+                  <a href="#quick-original" className="underline">the draft written from your brief</a>. In our blind
+                  tests the draft was sometimes the better one: use whichever reads better to you.
+                </span>
+              </p>
+            )}
             {result.formState.quickInstructionsNote && (
               <p className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
                 <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-warning" aria-hidden="true" />
@@ -1433,7 +1443,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
             <article id="quick-original" className={`${paper} p-5 flex flex-col gap-3 scroll-mt-20`}>
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                 <span className="text-xs font-semibold text-gray-600">
-                  Your original <span className="font-normal tabular-nums">· {wordsLabel(original.content, original.generatedAt)}</span>
+                  {result.briefRecord ? 'Draft written from your brief' : 'Your original'}{' '}
+                  <span className="font-normal tabular-nums">· {wordsLabel(original.content, original.generatedAt)}</span>
                 </span>
                 <ScoreTag total={originalTotal} />
               </div>
@@ -1442,6 +1453,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
               )}
               {result.briefRecord && <BriefRecordBox brief={result.briefRecord} copyText={copyText} />}
               <FormattedContent content={original.content} className={copyText} colorScores={false} />
+              {result.briefRecord && <CopyButton content={original.content} className={`${paperButton} self-start`} />}
             </article>
           )}
 

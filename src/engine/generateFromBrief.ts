@@ -348,7 +348,7 @@ export async function generateFromBrief(brief: Brief, user: User, sessionId?: st
 
 const SHAPE_NOTES: Partial<Record<BriefPieceKey, string>> = {
   hero_section:
-    'This text is a hero section. Keep its shape: a # headline of under 10 words, a subline of one or two sentences, 3 short bullet points, then the call to action as one short line.',
+    'This text is a hero section. Keep its shape: a # headline of under 10 words, a subline of one or two sentences, 3 short bullet points, then the call to action as a button label of 2 to 5 words on its own last line.',
   usp: 'This text is a value proposition. Keep its shape: one main sentence of under 25 words, then 3 short bullet points.',
   h1_headline: 'This text is one headline of under 12 words. Keep it one headline.',
   slogan: 'This text is one slogan of under 8 words. Keep it one slogan.',
