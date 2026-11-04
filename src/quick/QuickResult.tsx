@@ -947,6 +947,12 @@ const QuickResult: React.FC<QuickResultProps> = ({
             <div ref={copyRef}>
               <FormattedContent content={winner.content} className={copyText} colorScores={false} />
             </div>
+            {(result.briefRecord?.answerNotes ?? []).map(note => (
+              <p key={note} className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
+                <span className="w-1 h-5 mt-0.5 shrink-0 bg-primary-500" aria-hidden="true" />
+                <span>{note}</span>
+              </p>
+            ))}
             {result.briefRecord?.shapeNote && !result.briefRecord?.draftOnly && (
               <p className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
                 <span className="w-1 h-5 mt-0.5 shrink-0 bg-primary-500" aria-hidden="true" />
