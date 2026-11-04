@@ -86,6 +86,8 @@ interface QuickResultProps {
   previousBest?: number | null;
   /** True when the "original" was written by CopyZap from a brief, not pasted by the user. */
   writtenFromBrief?: boolean;
+  /** A short text whose draft is the result: "Write 3 alternatives" runs it again with rewrites. Absent: not shown. */
+  onAlternatives?: () => void;
 }
 
 const card = 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700';
@@ -341,6 +343,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
   runAgain = null,
   previousBest = null,
   writtenFromBrief = false,
+  onAlternatives,
 }) => {
   // The result as it shows: the best version with the user's decisions about its claims applied.
   const shown = useMemo(() => resultWithReview(result), [result]);
@@ -941,7 +944,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
             <div ref={copyRef}>
               <FormattedContent content={winner.content} className={copyText} colorScores={false} />
             </div>
-            {result.briefRecord?.shapeNote && (
+            {result.briefRecord?.shapeNote && !result.briefRecord?.draftOnly && (
               <p className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
                 <span className="w-1 h-5 mt-0.5 shrink-0 bg-primary-500" aria-hidden="true" />
                 <span>
@@ -1163,7 +1166,19 @@ const QuickResult: React.FC<QuickResultProps> = ({
                       Claims you checked no longer cost points. Before: {runWinnerTotal} / 100.
                     </p>
                   )}
-                  {delta != null && originalTotal != null ? (
+                  {result.briefRecord?.draftOnly ? (
+                    <div className="flex flex-col gap-2">
+                      <p className="text-gray-600 dark:text-gray-400">
+                        A short text is written once, from your answers. In our blind tests the first draft read better
+                        than rewrites of it.
+                      </p>
+                      {onAlternatives && (
+                        <button type="button" onClick={onAlternatives} className={`${secondaryButton} self-start`}>
+                          Write 3 alternatives
+                        </button>
+                      )}
+                    </div>
+                  ) : delta != null && originalTotal != null ? (
                     <div className="flex flex-col gap-1">
                       <p className="font-semibold text-gray-900 dark:text-gray-100 tabular-nums">
                         {nearOriginal && 'About the same as your original'}
@@ -1443,17 +1458,23 @@ const QuickResult: React.FC<QuickResultProps> = ({
             <article id="quick-original" className={`${paper} p-5 flex flex-col gap-3 scroll-mt-20`}>
               <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
                 <span className="text-xs font-semibold text-gray-600">
-                  {result.briefRecord ? 'Draft written from your brief' : 'Your original'}{' '}
-                  <span className="font-normal tabular-nums">· {wordsLabel(original.content, original.generatedAt)}</span>
+                  {result.briefRecord?.draftOnly ? 'Your brief' : result.briefRecord ? 'Draft written from your brief' : 'Your original'}
+                  {!result.briefRecord?.draftOnly && (
+                    <span className="font-normal tabular-nums"> · {wordsLabel(original.content, original.generatedAt)}</span>
+                  )}
                 </span>
-                <ScoreTag total={originalTotal} />
+                {!result.briefRecord?.draftOnly && <ScoreTag total={originalTotal} />}
               </div>
-              {(writtenFromBrief || !!result.briefRecord) && (
+              {(writtenFromBrief || !!result.briefRecord) && !result.briefRecord?.draftOnly && (
                 <p className="text-xs text-gray-500 dark:text-gray-400">Written from your brief</p>
               )}
               {result.briefRecord && <BriefRecordBox brief={result.briefRecord} copyText={copyText} />}
-              <FormattedContent content={original.content} className={copyText} colorScores={false} />
-              {result.briefRecord && <CopyButton content={original.content} className={`${paperButton} self-start`} />}
+              {!result.briefRecord?.draftOnly && (
+                <FormattedContent content={original.content} className={copyText} colorScores={false} />
+              )}
+              {result.briefRecord && !result.briefRecord.draftOnly && (
+                <CopyButton content={original.content} className={`${paperButton} self-start`} />
+              )}
             </article>
           )}
 

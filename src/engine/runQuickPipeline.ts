@@ -209,6 +209,14 @@ export interface QuickBriefRecord {
   lockedFacts?: string[];
   /** Short texts: the shape the improve step must keep (see generateFromBrief.ts briefShapeNote). */
   shapeNote?: string;
+  /**
+   * Short texts from "Start from a brief (2)": the draft is the result. No
+   * versions are written; the draft is checked and scored as the one version.
+   * In blind tests (2026-11-04) the improve step made a hero worse (84 -> 78)
+   * while the scorer rated it better. "Write 3 alternatives" runs it again
+   * without this.
+   */
+  draftOnly?: boolean;
 }
 
 export interface QuickRunInput {
@@ -897,8 +905,24 @@ export async function runQuickPipeline(
   stopSessionWith(input.signal, sessionId);
   throwIfStopped(input.signal);
 
-  // 3 — write the versions
-  const written = await generateQuickVersions(formState, user, sessionId, onProgress);
+  // 3 — write the versions (or, for a short text from a brief, take the draft as the one version)
+  const written = input.briefRecord?.draftOnly
+    ? {
+        items: [
+          {
+            id: uuidv4(),
+            type: GeneratedContentItemType.Improved,
+            content: lock.lockedCopy,
+            sourceText: formState.originalCopy,
+            generatedAt: new Date().toISOString(),
+            sourceDisplayName: 'Draft written from your brief',
+            analysisMode: 'on_demand' as const,
+          } as GeneratedContentItem,
+        ],
+        failed: 0,
+        firstError: undefined as string | undefined,
+      }
+    : await generateQuickVersions(formState, user, sessionId, onProgress);
   throwIfStopped(input.signal);
   if (written.items.length === 0) {
     throw new QuickPipelineError(

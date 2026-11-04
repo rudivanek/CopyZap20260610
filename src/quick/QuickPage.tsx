@@ -782,7 +782,12 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             : undefined,
           source: fetchedFrom && fetchedUrl ? { url: fetchedUrl, host: fetchedFrom } : undefined,
           briefRecord: briefRecord
-            ? { ...briefRecord, editedBeforeScoring: copy.trim() !== briefRecord.draft.trim() }
+            ? {
+                ...briefRecord,
+                editedBeforeScoring: copy.trim() !== briefRecord.draft.trim(),
+                // New facts from "Make it stronger" can only go in through rewrites.
+                ...(briefRecord.draftOnly && answeredFacts.length > 0 ? { draftOnly: undefined } : {}),
+              }
             : undefined,
           goalKey,
           goalLabel: goalKey === 'custom' ? goalOther : undefined,
@@ -1131,6 +1136,19 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setPhase('confirm');
     window.setTimeout(() => document.getElementById('quick-facts-title')?.scrollIntoView({ block: 'start' }), 250);
   };
+
+  /**
+   * "Write 3 alternatives" under a short text whose draft is the result: the
+   * same draft and brief go back to the check screen, this time to be rewritten.
+   * Only for a run made here (not opened from History).
+   */
+  const alternativesOffer =
+    phase === 'result' && result?.briefRecord?.draftOnly && inputsFromRun.current
+      ? async () => {
+          setBriefRecord(current => (current ? { ...current, draftOnly: undefined } : current));
+          await handleRunAgainWithAnswers();
+        }
+      : undefined;
 
   /**
    * The offer under the score: shown for a run made here (not opened from
@@ -1588,6 +1606,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             runAgain={runAgainOffer}
             previousBest={previousBest}
             writtenFromBrief={writtenFromBrief}
+            onAlternatives={alternativesOffer}
           />
         </main>
       )}

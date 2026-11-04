@@ -255,7 +255,8 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
       onDraft(draft, goal, {
         fields,
         ...(lockedFacts.length > 0 ? { lockedFacts } : {}),
-        ...(shapeNote ? { shapeNote } : {}),
+        // A short text is written once: the draft is the result (see runQuickPipeline.ts draftOnly).
+        ...(shapeNote ? { shapeNote, draftOnly: true } : {}),
         website: website.trim() || undefined,
         websiteRead: website.trim() ? siteFacts !== undefined : undefined,
         draft,
