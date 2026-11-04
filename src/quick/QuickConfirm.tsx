@@ -78,6 +78,8 @@ interface QuickConfirmProps {
   /** How many versions the run writes: 1 (faster, cheaper) or 3 (to compare). */
   versions: 1 | 3;
   onVersionsChange: (versions: 1 | 3) => void;
+  /** The copy is a draft from "Start from a brief (2)" that is checked and scored as it is: no versions to choose. */
+  draftOnly?: boolean;
 }
 
 const CHOICES: { value: SectionChoice; label: string }[] = [
@@ -131,9 +133,10 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
   lastBest = null,
   versions,
   onVersionsChange,
+  draftOnly = false,
 }) => {
   const choiceOf = (section: PageSection): SectionChoice => choices[section.id] ?? 'improve';
-  const estimate = estimateRunCredits(usedWords, versions);
+  const estimate = estimateRunCredits(usedWords, versions, draftOnly);
   const estimateOne = estimateRunCredits(usedWords, 1);
   const estimateThree = estimateRunCredits(usedWords, 3);
   // Questions were found and the user has given no fact yet: one line next to Generate says it is worth answering.
@@ -464,6 +467,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
       </fieldset>
 
       <div className="flex flex-col gap-3">
+        {!draftOnly && (
         <div className="flex flex-col gap-2">
           <span className="font-semibold text-gray-900 dark:text-gray-100">How many versions?</span>
           <div className="flex flex-wrap gap-2">
@@ -492,6 +496,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
             In our tests the best of 3 scored only about 3 points more than a single version.
           </p>
         </div>
+        )}
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
@@ -518,9 +523,14 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
         ) : (
           <p className="text-gray-600 dark:text-gray-400">
             {unansweredFacts && 'You have not answered "Make it stronger" yet: a few real facts usually raise the score. '}
-            {versions === 1 ? 'Writes 1 version and scores it.' : `Writes ${versions} versions and scores them.`} Uses{' '}
+            {draftOnly
+              ? 'Checks your draft and scores it.'
+              : versions === 1
+                ? 'Writes 1 version and scores it.'
+                : `Writes ${versions} versions and scores them.`}{' '}
+            Uses{' '}
             {estimate.atLeast ? `at least ${estimate.credits}` : `about ${estimate.credits}`} credits and takes{' '}
-            {estimateRunTime(usedWords)}.
+            {estimateRunTime(usedWords, versions, draftOnly)}.
             {usedWords >= KEEP_TAB_OPEN_FROM_WORDS && ' Keep this tab open until it is done.'}
           </p>
         )}
