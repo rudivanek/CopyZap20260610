@@ -209,7 +209,12 @@ export function applyEdits(text: string, edits: unknown, details: string[] = [])
   }
   if (applied === 0) return text;
   // A sentence taken out can leave a double space or an empty line behind.
+  // It can also leave an empty bullet ("- ") or a sentence that now ends on a
+  // comma at the end of its paragraph (seen 2026-11-04: a hero's third bullet
+  // and a blog post's "…el servidor de alojamiento,"): both are tidied here.
   return result
+    .replace(/^[ \t]*(?:[-*•]|\d+[.)])[ \t]*(?:\*\*[ \t]*\*\*)?[ \t]*$\n?/gm, '')
+    .replace(/,[ \t]*$/gm, '.')
     .replace(/(\S)[ \t]{2,}(?=\S)/g, '$1 ')
     .replace(/ +([.,;:!?])/g, '$1')
     .replace(/\n{3,}/g, '\n\n')

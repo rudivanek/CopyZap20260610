@@ -249,6 +249,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         a.proof.trim() ? `Proof: ${a.proof.trim()}` : '',
         a.differentiators.trim() ? `What makes the company different: ${a.differentiators.trim()}` : '',
         a.result.trim() ? `What the customer gets: ${a.result.trim()}` : '',
+        a.alternatives.trim() ? `Why customers choose the company over others: ${a.alternatives.trim()}` : '',
       ].filter(Boolean);
       const shapeNote = briefShapeNote(piece);
       onDraft(draft, goal, {
