@@ -423,7 +423,9 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
             className={field + ' min-h-[88px] py-2.5 leading-relaxed resize-y'}
           />
           <p className="text-gray-600 dark:text-gray-400">
-            Say how it should sound or read. Facts go in Make it stronger above.
+            {factQuestions === undefined
+              ? 'Say how it should sound or read.'
+              : 'Say how it should sound or read. Facts go in Make it stronger above.'}
           </p>
           <p className="text-gray-600 dark:text-gray-400 tabular-nums" aria-live="polite">
             {instructions.length} / 500

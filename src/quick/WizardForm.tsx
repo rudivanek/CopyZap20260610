@@ -19,6 +19,7 @@ import {
 } from '../engine/generateFromBrief';
 import { getWizardFollowUps, getWizardPlan, WizardFieldKey, WizardFormality, WizardPlan, WizardQuestion, WIZARD_FIELDS } from '../engine/wizardQuestions';
 import { fetchQuickPage } from '../engine/fetchQuickPage';
+import { answerFixNote, applyAnswerNumbers } from '../engine/answerConflicts';
 import { QUICK_LANGUAGES, QUICK_TONES } from '../engine/inferQuickBrief';
 import type { QuickBriefRecord } from '../engine/runQuickPipeline';
 
@@ -219,7 +220,13 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         spanishForm: language === 'Spanish' ? (formality === 'formal' ? 'usted' : 'tú') : undefined,
       };
       const written = await generateFromBrief(brief, currentUser, sessionId);
-      const { draft, metaDescription } = isBlog ? splitMetaDescription(written) : { draft: written, metaDescription: undefined };
+      const split = isBlog ? splitMetaDescription(written) : { draft: written, metaDescription: undefined };
+      const metaDescription = split.metaDescription;
+      // A number from the website never replaces the user's own answer (see answerConflicts.ts).
+      const answerTexts = [a.proof, a.experience, a.differentiators, a.result, a.alternatives].map(text => text.trim()).filter(Boolean);
+      const checked = applyAnswerNumbers(split.draft, answerTexts, [a.product, siteFacts ?? '']);
+      const draft = checked.text;
+      const answerNotes = checked.fixes.map(answerFixNote);
       const languageText = [
         language,
         country.trim() ? `(${country.trim()})` : '',
@@ -252,8 +259,17 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         a.alternatives.trim() ? `Why customers choose the company over others: ${a.alternatives.trim()}` : '',
       ].filter(Boolean);
       const shapeNote = briefShapeNote(piece);
+      // What the draft may state: the answers and the website text. The run checks the
+      // draft against these, so a detail in neither is listed for the user to check.
+      const sourceLabels = ['Your request', 'Topic or title idea', 'What you are selling', 'Who it is for', 'What the customer gets', 'Who they compare you with', 'What makes you different', 'Proof or results', 'Your experience', 'What the reader should do'];
+      const claimSource = [
+        ...fields.filter(field => sourceLabels.includes(field.label)).map(field => `${field.label}: ${field.value}`),
+        siteFacts ?? '',
+      ].filter(Boolean).join('\n\n');
       onDraft(draft, goal, {
         fields,
+        claimSource,
+        ...(answerNotes.length > 0 ? { answerNotes } : {}),
         ...(lockedFacts.length > 0 ? { lockedFacts } : {}),
         // The draft is the result, for every kind of text (see runQuickPipeline.ts draftOnly):
         // in blind tests (2026-11-04) rewrites of it were no better. "Write alternatives" asks for them.

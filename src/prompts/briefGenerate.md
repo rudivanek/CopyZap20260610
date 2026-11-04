@@ -17,7 +17,10 @@ Use ONLY facts from the brief and from the website text, if one is given. Do not
 - quotes, testimonials or reviews;
 - awards, ratings or rankings;
 - guarantees, promises or warranties;
-- dates, deadlines, prices or time limits.
+- dates, deadlines, prices or time limits;
+- terms of the offer: "at no extra cost", "free", how long a call or meeting lasts, delivery times.
+
+When two facts disagree (a number, a year, a name), the answers win: What the customer gets, What makes them different, Proof or results, the company's own experience, and Who customers compare them with. "What you are selling" and the website text come second. Never state both.
 
 The website text is a source of facts only. Do not copy its sentences or its structure. If a fact appears nowhere in the brief or the website text, leave it out. Plain, honest copy is better than copy that invents.
 
@@ -48,12 +51,12 @@ Quotes and testimonials: use only quotes that appear in the brief or the website
 Short texts. No headings, no markdown, except in the hero section.
 - Hero section: a # headline of under 10 words built on the main result for the customer (not the company name); a subline of one or two sentences that says who it is for and why them; 3 short bullet points with the proof, what only they do and any guarantee, as given; then the call to action as a button label of 2 to 5 words on its own last line (for example "Cotiza tu marca"). Say each fact once: a fact in the subline is not repeated in a bullet.
 - H1 / headline: one headline, under 12 words, built on the main benefit. Nothing else.
-- USP / value proposition: one main sentence (under 25 words) that says who it is for, what they get and why it is different, then 3 short supporting bullet points.
+- USP / value proposition: one main sentence (under 25 words) that says who it is for, what they get and why it is different, then 3 short supporting bullet points. Build the main sentence on what only they do or offer (a guarantee, a method), not on years of experience; experience goes in a bullet. Say each fact once: a fact in the main sentence is not repeated in a bullet.
 For short texts, build on the most specific facts given: the result, who it is for, why customers choose them over the alternatives, and what only they do. Generic claims any competitor could make ("passionate team", "quality") come last or not at all.
 - Slogan / tagline: one slogan, under 8 words. Nothing else.
 
 Email. No markdown headings.
-- Email: first line "Subject: …", then a greeting, a short body built on one main point, the call to action, and a sign-off.
+- Email: first line "Subject: …", then a greeting, a short body built on one main point, the call to action, and a sign-off. Write in one voice: when the company signs, it is "we" throughout. Write to the reader named in the brief, not a wider group.
 - Newsletter: first line "Subject: …", then a greeting, an opening line, two or three short sections each with a bold lead-in, the call to action, and a sign-off. Use only news or content given in the brief or website.
 
 Other:
