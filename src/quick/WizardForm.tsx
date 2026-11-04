@@ -210,8 +210,15 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         { label: 'Language', value: languageText },
         { label: 'Started from', value: 'Brief (2)' },
       ].filter(field => field.value);
+      // These answers must survive the improve step word for word in meaning.
+      const lockedFacts = [
+        answers.experience.trim() ? `The company's own experience or view: ${answers.experience.trim()}` : '',
+        answers.proof.trim() ? `Proof: ${answers.proof.trim()}` : '',
+        answers.differentiators.trim() ? `What makes the company different: ${answers.differentiators.trim()}` : '',
+      ].filter(Boolean);
       onDraft(draft, goal, {
         fields,
+        ...(lockedFacts.length > 0 ? { lockedFacts } : {}),
         website: website.trim() || undefined,
         websiteRead: website.trim() ? siteFacts !== undefined : undefined,
         draft,

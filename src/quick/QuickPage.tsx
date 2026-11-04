@@ -20,7 +20,7 @@ import {
 import type { QuickBriefRecord } from '../engine/runQuickPipeline';
 import { fetchQuickPage, normalizeQuickUrl } from '../engine/fetchQuickPage';
 import { inferQuickBrief, QuickBrief } from '../engine/inferQuickBrief';
-import { asksForMissingFacts, findMissingFacts, MissingFactQuestion, missingInPlainWords } from '../engine/missingFacts';
+import { asksForMissingFacts, cleanUserFacts, findMissingFacts, MissingFactQuestion, missingInPlainWords } from '../engine/missingFacts';
 import { FactAnswers, factsFromAnswers, OTHER_FACT_KEY } from './factAnswers';
 import { chatFacts, CLOSING_QUESTION, EMPTY_FACT_CHAT, FactChat } from '../engine/factChat';
 import { readChatChoice, saveChatChoice } from './QuickFactChat';
@@ -714,8 +714,12 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     const usesParts = sections.length > 1;
     // Facts the user added under "Make it stronger", in the chat or in the fields. While the questions are
     // still loading only "anything else" counts.
-    const userFacts =
+    const answeredFacts =
       factQuestions === undefined ? [] : chatOn ? chatFacts(factChat) : factsFromAnswers(factQuestions ?? [], factAnswers);
+    // Answers locked in the brief come first, so they are always kept within the facts limit.
+    const userFacts = briefRecord?.lockedFacts?.length
+      ? cleanUserFacts([...briefRecord.lockedFacts, ...answeredFacts])
+      : answeredFacts;
 
     // If the instructions changed since they were last read (or were never
     // read), read them now. If the read finds facts the user has not seen yet,

@@ -200,6 +200,13 @@ export interface QuickBriefRecord {
   editedBeforeScoring: boolean;
   /** Blog posts: the meta description CopyZap wrote, kept apart from the copy. */
   metaDescription?: string;
+  /**
+   * Answers from the brief that every version must keep (the company's own
+   * experience, proof, what makes it different). Passed to the run as the
+   * user's facts, so the writer must use them as given and a version that
+   * drops or weakens one loses points and lists it as left out.
+   */
+  lockedFacts?: string[];
 }
 
 export interface QuickRunInput {
