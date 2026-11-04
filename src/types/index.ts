@@ -183,6 +183,8 @@ export interface FormData {
   quickGoalLabel?: string;
   // Quick: facts the user added on the check screen (what the copy was missing). The writer may use them; see engine/missingFacts.ts
   quickUserFacts?: string[];
+  // Quick, "Start from a brief (2)": the answers and website text a draft was written from. When set, claims are checked against it instead of the original (see engine/runQuickPipeline.ts draftSource).
+  quickClaimSource?: string;
   // Quick: free-text style/length/voice instructions the user typed on the check screen. The writer follows them below its own rules; the scorer never sees them.
   quickInstructions?: string;
   // Quick: facts the writer extracted from the instructions (e.g. "we have 500 clients"). Treated like quickUserFacts. Empty when none were found.
