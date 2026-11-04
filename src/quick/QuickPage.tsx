@@ -61,6 +61,7 @@ import { OriginalScore, scoreOriginal } from '../engine/originalScore';
 import { strengthenWeakCallToAction } from '../engine/ctaPass';
 import { useBriefModeAccess } from '../hooks/useBriefModeAccess';
 import BriefForm from './BriefForm';
+import WizardForm from './WizardForm';
 import { putBackLeftOutFacts } from '../engine/factRepairPass';
 
 interface QuickPageProps {
@@ -179,7 +180,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   // Only power users and admins are offered the Complete interface.
   const completeAccess = useCompleteAccess();
   const briefAccess = useBriefModeAccess(currentUser.id);
-  const [briefMode, setBriefMode] = useState<'improve' | 'brief'>('improve');
+  const [briefMode, setBriefMode] = useState<'improve' | 'brief' | 'wizard'>('improve');
   const [writtenFromBrief, setWrittenFromBrief] = useState(false);
   const [briefRecord, setBriefRecord] = useState<Omit<QuickBriefRecord, 'editedBeforeScoring'> | null>(null);
   const pendingBriefContinue = useRef<{ copy: string; goalKey: GoalKey } | null>(null);
@@ -1312,10 +1313,37 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               >
                 Start from a brief
               </button>
+              {isAdmin && (
+                <button
+                  type="button"
+                  role="tab"
+                  aria-selected={briefMode === 'wizard'}
+                  onClick={() => setBriefMode('wizard')}
+                  disabled={busy !== null}
+                  className={
+                    'flex-1 min-h-[48px] px-6 font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 ' +
+                    (briefMode === 'wizard'
+                      ? 'bg-primary-500 text-white'
+                      : 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800')
+                  }
+                >
+                  Start from a brief (2)
+                </button>
+              )}
             </div>
           )}
 
-          {briefMode === 'brief' && briefAccess.allowed ? (
+          {briefMode === 'wizard' && briefAccess.allowed && isAdmin ? (
+            <WizardForm
+              currentUser={currentUser}
+              defaultLanguage={brief?.language ?? 'English'}
+              disabled={busy !== null}
+              onDraft={handleBriefDraft}
+              onUnavailable={() => setError('This feature is not available on your account yet.')}
+              onError={message => setError(message)}
+              getSessionId={ensureSession}
+            />
+          ) : briefMode === 'brief' && briefAccess.allowed ? (
             <BriefForm
               currentUser={currentUser}
               defaultLanguage={brief?.language ?? 'English'}
