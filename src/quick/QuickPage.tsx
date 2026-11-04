@@ -381,8 +381,10 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
 
   // The questions belong to one copy, one goal and one kind of text: a change to any of them asks again.
   const factsKey = `${goalKey}\n${goalKey === 'custom' ? cleanQuickGoalLabel(goalOther) : ''}\n${brief?.kind ?? ''}\n${copy}`;
+  // A draft from "Start from a brief (2)": the wizard already asked its questions, so "Make it stronger" is not asked again.
+  const fromWizard = !!briefRecord?.fields?.some(field => field.label === 'Started from' && field.value === 'Brief (2)');
   // "Skip the questions" in the wait modal: no "Make it stronger" for this copy, goal and kind.
-  const factQuestions = !asksForMissingFacts(goalKey) || factsSkipped === factsKey
+  const factQuestions = !asksForMissingFacts(goalKey) || fromWizard || factsSkipped === factsKey
     ? undefined
     : facts?.key === factsKey
       ? facts.questions
@@ -545,7 +547,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const factsKind = brief?.kind;
   const factsKnown = facts?.key;
   useEffect(() => {
-    if (phase !== 'confirm' || !factsKind || !asksForMissingFacts(goalKey) || factsKnown === factsKey) return;
+    if (phase !== 'confirm' || !factsKind || !asksForMissingFacts(goalKey) || fromWizard || factsKnown === factsKey) return;
     const key = factsKey;
     // Asked again after a change: lock the screen until the new questions are there.
     // The first time on the check screen nothing is locked: there is nothing yet to type into.
@@ -565,7 +567,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       if (!isMounted.current) return;
       setFacts(current => (current?.key === key ? { key, questions } : current));
     });
-  }, [phase, factsKind, factsKnown, factsKey, goalKey, goalOther, copy, currentUser, sessionId]);
+  }, [phase, factsKind, factsKnown, factsKey, goalKey, goalOther, copy, currentUser, sessionId, fromWizard]);
 
   /**
    * The original's score, shown above "Make it stronger" on the check screen
@@ -1580,6 +1582,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           lastBest={lastBest && lastBest.key === runKey ? lastBest.best : null}
           versions={versionCount}
           onVersionsChange={setVersionCount}
+          draftOnly={!!briefRecord?.draftOnly}
           instructions={instructions}
           onInstructionsChange={value => {
             setInstructions(value);
@@ -1683,7 +1686,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           versions={versionCount}
           runTime={
             usedWords > 0
-              ? { label: estimateRunTime(usedWords), keepOpen: usedWords >= KEEP_TAB_OPEN_FROM_WORDS }
+              ? { label: estimateRunTime(usedWords, versionCount, !!briefRecord?.draftOnly), keepOpen: usedWords >= KEEP_TAB_OPEN_FROM_WORDS }
               : null
           }
           onStop={stopProcess}
