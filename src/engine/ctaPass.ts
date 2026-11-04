@@ -65,6 +65,25 @@ You also get the original the copy was written from. Use it only to know how the
 
 Return only the full copy, nothing else.`;
 
+/**
+ * True when the pass would run on this result: an action goal, not a short
+ * text, the best version's Persuasion at CTA_PASS_MAX_PERSUASION or lower, and
+ * long enough. Since 2026-11-04 the pass runs only when the user asks for it
+ * ("Strengthen the call to action" on the result): run automatically it added
+ * 1 to 2.5 minutes to about one run in five.
+ */
+export function ctaPassApplies(result: QuickRunResult): boolean {
+  const winnerId = result.scores?.winnerId;
+  const score = winnerId ? result.scores?.absoluteByVersion[winnerId] : undefined;
+  const winner = winnerId ? result.versions.find(version => version.id === winnerId) : undefined;
+  if (!winnerId || winnerId === ORIGINAL_VERSION_ID || !score || !winner) return false;
+  if (winner.sourceDisplayName === CTA_PASS_LABEL) return false;
+  if (!ACTION_GOALS.includes(result.goalKey)) return false;
+  if (quickTextKindOf(result.formState).key === 'short_text') return false;
+  if (score.persuasion > CTA_PASS_MAX_PERSUASION) return false;
+  return countWords(contentToText(winner.content)) >= CTA_PASS_MIN_WORDS;
+}
+
 export async function strengthenWeakCallToAction(
   result: QuickRunResult,
   user: User,

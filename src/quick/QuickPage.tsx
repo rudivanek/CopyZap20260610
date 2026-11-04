@@ -57,7 +57,7 @@ import { APP_VERSION } from '../lib/version';
 import { estimateRunTime, KEEP_TAB_OPEN_FROM_WORDS, useSessionCredits } from '../engine/quickCredits';
 import { InstructionReading, readInstructions } from '../engine/instructionFacts';
 import { OriginalScore, scoreOriginal } from '../engine/originalScore';
-import { strengthenWeakCallToAction } from '../engine/ctaPass';
+import { ctaPassApplies, strengthenWeakCallToAction } from '../engine/ctaPass';
 import { useBriefModeAccess } from '../hooks/useBriefModeAccess';
 import BriefForm from './BriefForm';
 import WizardForm from './WizardForm';
@@ -175,6 +175,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [saveState, setSaveState] = useState<'saving' | 'saved' | 'failed' | null>(null);
   // What the last "What should change?" request led to.
   const [changeNotice, setChangeNotice] = useState<{ tone: 'good' | 'neutral' | 'bad'; text: string } | null>(null);
+  /** "Strengthen the call to action" was tried on this result and found nothing better: the offer goes away. */
+  const [ctaTried, setCtaTried] = useState(false);
   const [searchParams, setSearchParams] = useSearchParams();
   // Only power users and admins are offered the Complete interface.
   const completeAccess = useCompleteAccess();
@@ -826,10 +828,10 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       // the best (engine/factRepairPass.ts). The wait modal stays on its last step meanwhile.
       const repaired = await putBackLeftOutFacts(firstRun, currentUser, undefined, signal);
       if (!alive.current) return;
-      // A weak call to action on the best version: one more pass on it, kept only when clearly better
-      // (engine/ctaPass.ts).
-      const run = await strengthenWeakCallToAction(repaired, currentUser, undefined, signal);
-      if (!alive.current) return;
+      // A weak call to action is no longer strengthened here: the result offers
+      // "Strengthen the call to action" instead (engine/ctaPass.ts ctaPassApplies).
+      const run = repaired;
+      setCtaTried(false);
       const seconds = Math.round((Date.now() - startedAt) / 1000);
       setRunSeconds(seconds);
       setResult(run);
@@ -901,6 +903,34 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     } catch (changeError) {
       if (!isMounted.current) return;
       setChangeNotice({ tone: 'bad', text: messageOf(changeError) });
+    } finally {
+      if (isMounted.current) setBusy(null);
+    }
+  };
+
+  /** "Strengthen the call to action": one pass on the best version, kept only when clearly better (engine/ctaPass.ts). */
+  const handleStrengthenCta = async () => {
+    if (!result || busy) return;
+    setChangeNotice(null);
+    setProgress({ stage: 'checking' });
+    setBusy('changing');
+    const { alive: isMounted, signal } = startProcess();
+    try {
+      const next = await strengthenWeakCallToAction(result, currentUser, setProgress, signal);
+      if (!isMounted.current) return;
+      if (next === result) {
+        setCtaTried(true);
+        setChangeNotice({ tone: 'neutral', text: 'No clearly stronger call to action was found, so the result stays as it was.' });
+      } else {
+        setResult(next);
+        setChangeNotice({ tone: 'good', text: 'Stronger call to action: it is now the best version.' });
+        playSuccessSound();
+        persist(next, runSeconds, savedId);
+      }
+      window.scrollTo(0, 0);
+    } catch (ctaError) {
+      if (!isMounted.current) return;
+      setChangeNotice({ tone: 'bad', text: messageOf(ctaError) });
     } finally {
       if (isMounted.current) setBusy(null);
     }
@@ -1611,6 +1641,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             previousBest={previousBest}
             writtenFromBrief={writtenFromBrief}
             onAlternatives={alternativesOffer}
+            onStrengthenCta={result && !ctaTried && ctaPassApplies(result) ? handleStrengthenCta : undefined}
           />
         </main>
       )}

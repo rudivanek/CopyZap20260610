@@ -88,6 +88,8 @@ interface QuickResultProps {
   writtenFromBrief?: boolean;
   /** A short text whose draft is the result: "Write 3 alternatives" runs it again with rewrites. Absent: not shown. */
   onAlternatives?: () => void;
+  /** "Strengthen the call to action": shown when the best version's call to action scores low. Absent: not shown. */
+  onStrengthenCta?: () => void;
 }
 
 const card = 'bg-white dark:bg-gray-900 border border-gray-200 dark:border-gray-700';
@@ -344,6 +346,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
   previousBest = null,
   writtenFromBrief = false,
   onAlternatives,
+  onStrengthenCta,
 }) => {
   // The result as it shows: the best version with the user's decisions about its claims applied.
   const shown = useMemo(() => resultWithReview(result), [result]);
@@ -1169,8 +1172,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
                   {result.briefRecord?.draftOnly ? (
                     <div className="flex flex-col gap-2">
                       <p className="text-gray-600 dark:text-gray-400">
-                        A short text is written once, from your answers. In our blind tests the first draft read better
-                        than rewrites of it.
+                        Written once, from your answers. In our blind tests the draft read as well as rewrites of it, or
+                        better.
                       </p>
                       {onAlternatives && (
                         <button type="button" onClick={onAlternatives} className={`${secondaryButton} self-start`}>
@@ -1241,6 +1244,17 @@ const QuickResult: React.FC<QuickResultProps> = ({
                     </div>
                   ))}
                 </div>
+                {onStrengthenCta && (
+                  <div className="flex flex-col gap-2">
+                    <p className="text-gray-600 dark:text-gray-400">
+                      The call to action scores low ({winnerScore.persuasion}/25 on Persuasion). One pass can strengthen how
+                      it asks the reader to act; it is kept only if it scores clearly higher.
+                    </p>
+                    <button type="button" onClick={onStrengthenCta} disabled={isRescoring} className={`${secondaryButton} self-start`}>
+                      Strengthen the call to action
+                    </button>
+                  </div>
+                )}
               </>
             ) : (
               <div className="flex flex-col gap-3">
