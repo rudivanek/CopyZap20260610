@@ -1174,7 +1174,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                       </p>
                       {onAlternatives && (
                         <button type="button" onClick={onAlternatives} className={`${secondaryButton} self-start`}>
-                          Write 3 alternatives
+                          Write alternatives
                         </button>
                       )}
                     </div>

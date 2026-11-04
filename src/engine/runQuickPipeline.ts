@@ -540,9 +540,13 @@ export async function scoreQuickVersions(
     const read = absoluteByVersion[id];
     return isUsableScore(read) ? read.total : null;
   };
+  // With one version there is no winner to choose, so one reading is enough
+  // (2026-10-14: of seven texts read three times, five came back identical).
+  const oneVersion = versions.filter(version => version.id !== ORIGINAL_VERSION_ID).length <= 1;
   const needsMoreReadings = (id: string): boolean => {
     const mine = firstTotal(id);
     if (mine == null) return true;
+    if (oneVersion) return false;
     return versions.some(other => {
       if (other.id === id) return false;
       const theirs = firstTotal(other.id);
@@ -788,7 +792,7 @@ export async function runQuickPipeline(
 
   // 1 — access, and enough credits for about what this run costs
   onProgress?.({ stage: 'checking' });
-  await assertQuickAccess(user, estimateRunCredits(countWords(input.copy)).credits);
+  await assertQuickAccess(user, estimateRunCredits(countWords(input.copy), input.variants ?? 3).credits);
 
   throwIfStopped(input.signal);
 

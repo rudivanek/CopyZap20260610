@@ -134,10 +134,11 @@ export function estimateRunTime(words: number): string {
 /** From this many words on, the screens also ask to keep the tab open: the run happens in this tab. */
 export const KEEP_TAB_OPEN_FROM_WORDS = 1000;
 
-export function estimateRunCredits(words: number): { credits: number; atLeast: boolean } {
-  if (words <= 250) return { credits: 55, atLeast: false };
-  if (words <= 500) return { credits: 70, atLeast: false };
-  if (words <= 1000) return { credits: 120, atLeast: false };
-  if (words <= 2000) return { credits: 160, atLeast: false };
-  return { credits: 180, atLeast: true };
+export function estimateRunCredits(words: number, versions = 3): { credits: number; atLeast: boolean } {
+  const three =
+    words <= 250 ? 55 : words <= 500 ? 70 : words <= 1000 ? 120 : words <= 2000 ? 160 : 180;
+  // One version: writing, checks and scoring of the other two are not done
+  // (measured 2026-11-04 on 153 runs: about 45% of a three-version run).
+  const credits = versions === 1 ? Math.max(20, Math.round((three * 0.45) / 5) * 5) : three;
+  return { credits, atLeast: words > 2000 };
 }

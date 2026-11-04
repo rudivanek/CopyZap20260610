@@ -1,6 +1,5 @@
 import React from 'react';
 import { Language, Tone } from '../types';
-import { QUICK_DEFAULT_VARIANTS } from '../engine/buildQuickFormState';
 import { QUICK_LANGUAGES, QUICK_TONES, QuickBrief } from '../engine/inferQuickBrief';
 import type { PageSection, SectionChoice } from '../engine/pageSections';
 import { TEXT_KIND_OTHER_MAX_CHARS, TEXT_KINDS, TextKindKey } from '../services/api/textKinds';
@@ -76,6 +75,9 @@ interface QuickConfirmProps {
    * your answers". Shown above "Make it stronger". Null otherwise.
    */
   lastBest?: number | null;
+  /** How many versions the run writes: 1 (faster, cheaper) or 3 (to compare). */
+  versions: 1 | 3;
+  onVersionsChange: (versions: 1 | 3) => void;
 }
 
 const CHOICES: { value: SectionChoice; label: string }[] = [
@@ -127,9 +129,13 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
   onInstructionFactRemove,
   instructionsNotice = null,
   lastBest = null,
+  versions,
+  onVersionsChange,
 }) => {
   const choiceOf = (section: PageSection): SectionChoice => choices[section.id] ?? 'improve';
-  const estimate = estimateRunCredits(usedWords);
+  const estimate = estimateRunCredits(usedWords, versions);
+  const estimateOne = estimateRunCredits(usedWords, 1);
+  const estimateThree = estimateRunCredits(usedWords, 3);
   // Questions were found and the user has given no fact yet: one line next to Generate says it is worth answering.
   const unansweredFacts = !!factQuestions && factQuestions.length > 0 && chatFacts(factChat.state).length === 0;
   const count = (value: SectionChoice) => sections.filter(section => choiceOf(section) === value).length;
@@ -458,6 +464,34 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
       </fieldset>
 
       <div className="flex flex-col gap-3">
+        <div className="flex flex-col gap-2">
+          <span className="font-semibold text-gray-900 dark:text-gray-100">How many versions?</span>
+          <div className="flex flex-wrap gap-2">
+            {([1, 3] as const).map(option => {
+              const active = versions === option;
+              const credits = option === 1 ? estimateOne.credits : estimateThree.credits;
+              return (
+                <button
+                  key={option}
+                  type="button"
+                  onClick={() => onVersionsChange(option)}
+                  aria-pressed={active}
+                  className={
+                    'min-h-[44px] px-4 border text-sm font-medium text-left focus:outline-none focus:ring-2 focus:ring-primary-500 ' +
+                    (active
+                      ? 'bg-primary-500 border-primary-500 text-white'
+                      : 'bg-white dark:bg-gray-900 border-gray-400 dark:border-gray-600 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800')
+                  }
+                >
+                  {option === 1 ? `1 version · faster · about ${credits} credits` : `3 versions to compare · about ${credits} credits`}
+                </button>
+              );
+            })}
+          </div>
+          <p className="text-sm text-gray-600 dark:text-gray-400">
+            In our tests the best of 3 scored only about 3 points more than a single version.
+          </p>
+        </div>
         <div className="flex flex-wrap items-center gap-3">
           <button
             type="button"
@@ -484,7 +518,7 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
         ) : (
           <p className="text-gray-600 dark:text-gray-400">
             {unansweredFacts && 'You have not answered "Make it stronger" yet: a few real facts usually raise the score. '}
-            Writes {QUICK_DEFAULT_VARIANTS} versions and scores them. Uses{' '}
+            {versions === 1 ? 'Writes 1 version and scores it.' : `Writes ${versions} versions and scores them.`} Uses{' '}
             {estimate.atLeast ? `at least ${estimate.credits}` : `about ${estimate.credits}`} credits and takes{' '}
             {estimateRunTime(usedWords)}.
             {usedWords >= KEEP_TAB_OPEN_FROM_WORDS && ' Keep this tab open until it is done.'}

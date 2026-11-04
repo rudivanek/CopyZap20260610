@@ -8,7 +8,6 @@ import { DEFAULT_GOAL_KEY, GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import { countWords } from '../utils/markdownUtils';
 import { playSuccessSound } from '../utils/soundEffects';
 import {
-  QUICK_DEFAULT_VARIANTS,
   QUICK_MAX_INPUT_WORDS,
   QUICK_MIN_WORDS,
   QUICK_GOAL_OTHER_MAX_CHARS,
@@ -233,6 +232,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   // "Your instructions" (see QuickConfirm.tsx): free-text notes for how the copy
   // should sound or read, written on the check screen before the run.
   const [instructions, setInstructions] = useState('');
+  /** Versions a run writes: 1 by default (2026-11-04: best of 3 was only about 3 points higher), 3 on request. */
+  const [versionCount, setVersionCount] = useState<1 | 3>(1);
   // The last read of the instructions (facts, length, person flag) plus the text
   // it was read from, so a change to the box is detected. Null when the box is
   // empty or has not been read since it last changed.
@@ -791,6 +792,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             : undefined,
           goalKey,
           goalLabel: goalKey === 'custom' ? goalOther : undefined,
+          variants: versionCount,
           sessionId: sessionId ?? undefined,
           signal,
           originalScore: origScoreNow ?? undefined,
@@ -1546,6 +1548,8 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
             },
           }}
           lastBest={lastBest && lastBest.key === runKey ? lastBest.best : null}
+          versions={versionCount}
+          onVersionsChange={setVersionCount}
           instructions={instructions}
           onInstructionsChange={value => {
             setInstructions(value);
@@ -1645,7 +1649,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
           kind={busy}
           elapsed={elapsed}
           progress={progress}
-          versions={QUICK_DEFAULT_VARIANTS}
+          versions={versionCount}
           runTime={
             usedWords > 0
               ? { label: estimateRunTime(usedWords), keepOpen: usedWords >= KEEP_TAB_OPEN_FROM_WORDS }
