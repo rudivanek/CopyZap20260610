@@ -222,6 +222,12 @@ export interface Brief {
   language: Language;
   /** For Spanish: address the reader as tú or usted. Undefined for other languages. */
   spanishForm?: 'tú' | 'usted';
+  /** Optional: the company's own experience, opinion or lesson, stated once in the body in its voice. */
+  experience?: string;
+  /** Optional: the country whose readers the copy is for; sets vocabulary, spelling, currency and dates. */
+  country?: string;
+  /** Optional: address the reader formally or informally, for any language that has both. */
+  formality?: 'formal' | 'informal';
 }
 
 export class BriefNotAvailableError extends Error {
@@ -260,6 +266,9 @@ function briefText(brief: Brief): string {
   if (brief.differentiators && brief.differentiators.trim()) lines.push(`What makes them different: ${brief.differentiators.trim()}`);
   if (brief.callToAction && brief.callToAction.trim()) lines.push(`What the reader should do: ${brief.callToAction.trim()}`);
   if (brief.proof && brief.proof.trim()) lines.push(`Proof or results: ${brief.proof.trim()}`);
+  if (brief.experience && brief.experience.trim()) {
+    lines.push(`The company's own experience or view (must appear once in the body, said by the company, with the same meaning — not softened, not turned into general advice): ${brief.experience.trim()}`);
+  }
   if (brief.mustInclude && brief.mustInclude.trim()) lines.push(`Must include: ${brief.mustInclude.trim()}`);
   if (brief.avoid && brief.avoid.trim()) lines.push(`Avoid: ${brief.avoid.trim()}`);
   const isPage = briefPiece(brief.piece).group === 'page';
@@ -277,10 +286,16 @@ function briefText(brief: Brief): string {
       lines.push(`${index + 1}. ${section.label}${words}${factsOnly}: ${option.note}`);
     });
   }
-  if (brief.language === 'Spanish') {
-    lines.push(`Language: Spanish, addressing the reader as ${brief.spanishForm ?? 'usted'}`);
+  const place = brief.country && brief.country.trim()
+    ? ` as written in ${brief.country.trim()} (use that country's vocabulary, spelling, currency and date formats)`
+    : '';
+  if (brief.formality) {
+    const form = brief.formality === 'formal' ? 'formally (for example usted, Sie, vous)' : 'informally (for example tú, du, tu)';
+    lines.push(`Language: ${brief.language}${place}, addressing the reader ${form} in every sentence`);
+  } else if (brief.language === 'Spanish') {
+    lines.push(`Language: Spanish${place}, addressing the reader as ${brief.spanishForm ?? 'usted'}`);
   } else {
-    lines.push(`Language: ${brief.language}`);
+    lines.push(`Language: ${brief.language}${place}`);
   }
   if (brief.siteFacts && brief.siteFacts.trim()) {
     lines.push('');
