@@ -196,7 +196,8 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
       if (token !== runToken.current) return;
       setPiece(next.piece);
       setSections(defaultSectionsFor(next.piece));
-      setSectionsOpen(false);
+      // Open, so the sections are seen before "Write it" (2026-11-05: closed, they were missed).
+      setSectionsOpen(true);
       setTopic(next.topic);
       setTargetWords(next.targetWords);
       setGoal(next.goal);

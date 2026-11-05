@@ -111,8 +111,9 @@ const ClaimChecklist: React.FC<ClaimChecklistProps> = ({ items, disabled, onKeep
       </div>
       <p className="text-gray-700">
         We couldn't find these in {sourceName}. Keep what's true, remove the rest, or say it in your own words. Each
-        open claim costs {CLAIM_POINTS} points (up to {CLAIM_MAX_POINTS}); once you've checked them, Re-score gives the
-        points back.
+        open claim costs {CLAIM_POINTS} points (up to {CLAIM_MAX_POINTS}). A claim you keep, remove or reword stops costing
+        points right away, and the copy you copy or export has your changes. After you remove or reword one, Re-score,
+        next to the score, scores the changed text.
       </p>
 
       <ol className="flex flex-col gap-3">
