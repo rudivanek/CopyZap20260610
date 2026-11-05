@@ -59,7 +59,6 @@ import { InstructionReading, readInstructions } from '../engine/instructionFacts
 import { OriginalScore, scoreOriginal } from '../engine/originalScore';
 import { ctaPassApplies, strengthenWeakCallToAction } from '../engine/ctaPass';
 import { useBriefModeAccess } from '../hooks/useBriefModeAccess';
-import BriefForm from './BriefForm';
 import WizardForm from './WizardForm';
 import { putBackLeftOutFacts } from '../engine/factRepairPass';
 
@@ -181,7 +180,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   // Only power users and admins are offered the Complete interface.
   const completeAccess = useCompleteAccess();
   const briefAccess = useBriefModeAccess(currentUser.id);
-  const [briefMode, setBriefMode] = useState<'improve' | 'brief' | 'wizard'>('improve');
+  const [briefMode, setBriefMode] = useState<'improve' | 'wizard'>('improve');
   const [writtenFromBrief, setWrittenFromBrief] = useState(false);
   const [briefRecord, setBriefRecord] = useState<Omit<QuickBriefRecord, 'editedBeforeScoring'> | null>(null);
   const pendingBriefContinue = useRef<{ copy: string; goalKey: GoalKey } | null>(null);
@@ -381,8 +380,11 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
 
   // The questions belong to one copy, one goal and one kind of text: a change to any of them asks again.
   const factsKey = `${goalKey}\n${goalKey === 'custom' ? cleanQuickGoalLabel(goalOther) : ''}\n${brief?.kind ?? ''}\n${copy}`;
-  // A draft from "Start from a brief (2)": the wizard already asked its questions, so "Make it stronger" is not asked again.
-  const fromWizard = !!briefRecord?.fields?.some(field => field.label === 'Started from' && field.value === 'Brief (2)');
+  // A draft from "Start from a brief" (the question form): it already asked its questions, so "Make it stronger" is not asked again.
+  // "Brief (2)" is what runs saved before 2026-11-05 carry.
+  const fromWizard = !!briefRecord?.fields?.some(
+    field => field.label === 'Started from' && (field.value === 'Brief (2)' || field.value === 'Questions')
+  );
   // "Skip the questions" in the wait modal: no "Make it stronger" for this copy, goal and kind.
   const factQuestions = !asksForMissingFacts(goalKey) || fromWizard || factsSkipped === factsKey
     ? undefined
@@ -1354,53 +1356,28 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
               >
                 Improve my copy
               </button>
+              {/* "Start from a brief" is the question form (WizardForm). The earlier
+                  one-page brief form (BriefForm) was retired on 2026-11-05. */}
               <button
                 type="button"
                 role="tab"
-                aria-selected={briefMode === 'brief'}
-                onClick={() => setBriefMode('brief')}
+                aria-selected={briefMode === 'wizard'}
+                onClick={() => setBriefMode('wizard')}
                 disabled={busy !== null}
                 className={
                   'flex-1 min-h-[48px] px-6 font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 ' +
-                  (briefMode === 'brief'
+                  (briefMode === 'wizard'
                     ? 'bg-primary-500 text-white'
                     : 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800')
                 }
               >
                 Start from a brief
               </button>
-              {isAdmin && (
-                <button
-                  type="button"
-                  role="tab"
-                  aria-selected={briefMode === 'wizard'}
-                  onClick={() => setBriefMode('wizard')}
-                  disabled={busy !== null}
-                  className={
-                    'flex-1 min-h-[48px] px-6 font-semibold focus:outline-none focus:ring-2 focus:ring-primary-500 ' +
-                    (briefMode === 'wizard'
-                      ? 'bg-primary-500 text-white'
-                      : 'bg-white dark:bg-gray-900 text-gray-900 dark:text-gray-100 hover:bg-gray-100 dark:hover:bg-gray-800')
-                  }
-                >
-                  Start from a brief (2)
-                </button>
-              )}
             </div>
           )}
 
-          {briefMode === 'wizard' && briefAccess.allowed && isAdmin ? (
+          {briefMode === 'wizard' && briefAccess.allowed ? (
             <WizardForm
-              currentUser={currentUser}
-              defaultLanguage={brief?.language ?? 'English'}
-              disabled={busy !== null}
-              onDraft={handleBriefDraft}
-              onUnavailable={() => setError('This feature is not available on your account yet.')}
-              onError={message => setError(message)}
-              getSessionId={ensureSession}
-            />
-          ) : briefMode === 'brief' && briefAccess.allowed ? (
-            <BriefForm
               currentUser={currentUser}
               defaultLanguage={brief?.language ?? 'English'}
               disabled={busy !== null}

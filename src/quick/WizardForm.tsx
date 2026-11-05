@@ -112,7 +112,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
     setFollowAnswers({});
     let id: string | undefined;
     try {
-      id = await getSessionId(request.trim().slice(0, 60) || 'Brief (2)');
+      id = await getSessionId(request.trim().slice(0, 60) || 'Brief');
     } catch {
       id = undefined;
     }
@@ -261,7 +261,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         { label: 'What the reader should do', value: a.callToAction.trim() },
         { label: 'Length', value: isPage && words ? `about ${words.toLocaleString('en-US')} words` : '' },
         { label: 'Language', value: languageText },
-        { label: 'Started from', value: 'Brief (2)' },
+        { label: 'Started from', value: 'Questions' },
       ].filter(field => field.value);
       // These answers must survive the improve step word for word in meaning.
       // Answers read from the website and left as they were are not locked: they are website facts.
