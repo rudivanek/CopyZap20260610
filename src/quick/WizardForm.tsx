@@ -1,10 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import QuickBusyModal from './QuickBusyModal';
+import BriefSectionsEditor from './BriefSectionsEditor';
 import { GoalKey, Language, Tone, User } from '../types';
 import { GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import {
   Brief,
   BriefNotAvailableError,
+  BriefSection,
   BriefPieceKey,
   BRIEF_PIECES,
   BRIEF_MIN_WORDS,
@@ -75,6 +77,10 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
   const [piece, setPiece] = useState<BriefPieceKey>('other');
   const [topic, setTopic] = useState('');
   const [targetWords, setTargetWords] = useState<number | null>(null);
+  // Pages and blog posts: the sections to write, as in the earlier brief form.
+  // They start as the suggested ones for the kind of text and can be changed.
+  const [sections, setSections] = useState<BriefSection[]>([]);
+  const [sectionsOpen, setSectionsOpen] = useState(false);
   const [goal, setGoal] = useState<GoalKey>('convert');
   const [tone, setTone] = useState<Tone>('Professional');
   const [language, setLanguage] = useState<Language>(defaultLanguage);
@@ -137,6 +143,11 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
       />
     );
   const isPage = briefPiece(piece).group === 'page';
+  // When every section has a word count, the length is their total.
+  const sectionWordsSum = sections.length > 0 && sections.every(section => section.words)
+    ? sections.reduce((sum, section) => sum + (section.words ?? 0), 0)
+    : null;
+  const pageWords = isPage ? sectionWordsSum ?? targetWords ?? suggestedWordsFor(piece) : null;
   const isBlog = piece === 'blog_post';
   const askedKeys = questions.map(question => question.key);
   const otherFields = WIZARD_FIELDS.filter(field => !askedKeys.includes(field.key));
@@ -184,6 +195,8 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
       const next = await getWizardPlan(request, facts ? trimSiteFacts(facts, 1500) : undefined, currentUser, defaultLanguage, id);
       if (token !== runToken.current) return;
       setPiece(next.piece);
+      setSections(defaultSectionsFor(next.piece));
+      setSectionsOpen(false);
       setTopic(next.topic);
       setTargetWords(next.targetWords);
       setGoal(next.goal);
@@ -219,7 +232,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
       if (empty.some(key => otherFields.some(field => field.key === key))) setOtherOpen(true);
       return;
     }
-    const words = isPage ? targetWords ?? suggestedWordsFor(piece) : null;
+    const words = pageWords;
     if (isPage && (!words || words < BRIEF_MIN_WORDS || words > BRIEF_MAX_WORDS)) {
       onError(`Set a length between ${BRIEF_MIN_WORDS} and ${BRIEF_MAX_WORDS} words.`);
       return;
@@ -259,8 +272,8 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
     );
     setStage('writing');
     try {
-      const sections = isPage ? defaultSectionsFor(piece) : [];
-      const sectionWords = isPage ? suggestSectionWords(sections, words) : [];
+      const chosen = isPage ? (sections.length > 0 ? sections : defaultSectionsFor(piece)) : [];
+      const sectionWords = isPage ? suggestSectionWords(chosen, words) : [];
       const hasFormality = language !== 'English';
       const brief: Brief = {
         product: a.product.trim(),
@@ -277,7 +290,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         alternatives: a.alternatives.trim() || undefined,
         fromWebsite: websiteKeys.length > 0 ? websiteKeys : undefined,
         length: briefPiece(piece).defaultLength,
-        sections: isPage ? sections.map((section, index) => ({ ...section, words: sectionWords[index] ?? null })) : undefined,
+        sections: isPage ? chosen.map((section, index) => ({ ...section, words: section.words ?? sectionWords[index] ?? null })) : undefined,
         targetWords: isPage && words ? words : undefined,
         topic: isBlog ? topic.trim() || undefined : undefined,
         language,
@@ -318,6 +331,12 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         { label: 'Your experience', value: a.experience.trim() },
         { label: 'What the reader should do', value: a.callToAction.trim() },
         { label: 'Length', value: isPage && words ? `about ${words.toLocaleString('en-US')} words` : '' },
+        {
+          label: 'Sections',
+          value: isPage
+            ? chosen.map((section, index) => (section.words ? `${section.label} (${section.words})` : sectionWords[index] ? `${section.label} (≈ ${sectionWords[index]})` : section.label)).join(' · ')
+            : '',
+        },
         { label: 'Language', value: languageText },
         { label: 'Started from', value: 'Questions' },
       ].filter(field => field.value);
@@ -478,6 +497,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
               const key = event.target.value as BriefPieceKey;
               setPiece(key);
               setTargetWords(suggestedWordsFor(key));
+              setSections(defaultSectionsFor(key));
             }}
             disabled={busy}
             className={`${fieldBase} w-auto`}
@@ -494,15 +514,35 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
                 min={BRIEF_MIN_WORDS}
                 max={BRIEF_MAX_WORDS}
                 step={50}
-                value={targetWords ?? ''}
+                value={sectionWordsSum ?? targetWords ?? ''}
                 onChange={event => setTargetWords(event.target.value === '' ? null : Number(event.target.value))}
-                disabled={busy}
+                disabled={busy || sectionWordsSum !== null}
                 className={`${fieldBase} w-28`}
               />
               <span className={hintClass}>words</span>
             </label>
           )}
         </div>
+        {isPage && (
+          <details
+            className="flex flex-col gap-3 border border-gray-200 dark:border-gray-700 p-3"
+            open={sectionsOpen}
+            onToggle={event => setSectionsOpen((event.target as HTMLDetailsElement).open)}
+          >
+            <summary className="cursor-pointer select-none font-semibold text-gray-900 dark:text-gray-100">
+              Sections (suggested) · <span className="font-normal">{sections.length} sections · about {(pageWords ?? 0).toLocaleString('en-US')} words</span>
+            </summary>
+            {sectionsOpen && (
+              <div className="mt-3 flex flex-col gap-2">
+                <p className={hintClass}>
+                  Remove, move or add sections. Sections marked "only if facts exist" are left out when your answers and website give nothing for them.
+                  {sectionWordsSum !== null ? ` Every section has a word count, so the length is their total: ${sectionWordsSum.toLocaleString('en-US')} words.` : ''}
+                </p>
+                <BriefSectionsEditor sections={sections} onChange={setSections} disabled={busy} totalWords={pageWords} />
+              </div>
+            )}
+          </details>
+        )}
         {isBlog && (
           <div className="flex flex-col gap-2">
             <label htmlFor="wizard-topic" className={labelClass}>Topic or title idea</label>
