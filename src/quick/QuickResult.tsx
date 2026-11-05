@@ -20,6 +20,7 @@ import type { QuickChangeParts } from '../engine/changeQuickVersion';
 import { prepareQuickEdit, QuickEditDraft, validateQuickEdit } from '../engine/editQuickVersion';
 import { exportQuickReport } from '../engine/exportQuickReport';
 import QuickAiCheck from './QuickAiCheck';
+import QuickActionBar, { nextStep } from './QuickActionBar';
 import { effectiveGates } from '../engine/gateRules';
 import { checkNumbers } from '../engine/numberCheck';
 import type { NumberCheck } from '../engine/numberCheck';
@@ -755,6 +756,69 @@ const QuickResult: React.FC<QuickResultProps> = ({
     onReview(left.decisions.length > 0 || left.score ? left : null);
   };
 
+  // The bar at the bottom: the recommended next step and the other actions.
+  const openAiCheck = () => {
+    setAiCheckOpen(true);
+    window.setTimeout(
+      () => document.getElementById('quick-ai-check')?.scrollIntoView({ behavior: 'smooth', block: 'start' }),
+      60
+    );
+  };
+  const step = nextStep({
+    isRescoring,
+    scored: winnerTotal != null && !!winnerScore,
+    openClaims,
+    scoreStale,
+    claimSource: result.briefRecord?.draftOnly ? 'your answers or your website' : 'your original',
+    ctaPersuasion: winnerScore ? winnerScore.persuasion : null,
+    runAgainMissing: runAgain && winnerTotal != null ? runAgain.missing : null,
+    originalHigher,
+    copied,
+    onScoreAgain: onRescore,
+    onCheckClaims: reviewClaims,
+    onRescore: () => setAskRescore(true),
+    onStrengthenCta,
+    onRunAgain: runAgain?.onClick,
+    onCopy: () => askFirst('copy'),
+  });
+  const moreItems = [
+    {
+      label: exportState === 'working' ? 'Building report…' : 'Export report',
+      tip: TIPS.exportReport,
+      onClick: () => askFirst('export'),
+      disabled: !scores || exportState === 'working',
+    },
+    {
+      label: 'Check with another AI',
+      tip: TIPS.checkWithAi,
+      onClick: openAiCheck,
+      disabled: !scores || !scores.winnerId || isRescoring,
+    },
+    ...(onAlternatives ? [{ label: 'Write alternatives', onClick: onAlternatives, disabled: isRescoring }] : []),
+    { label: 'Start over', tip: TIPS.startOver, onClick: onNew },
+  ];
+  const barNotice =
+    pendingAction && openClaims > 0 ? (
+      <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-2 text-gray-900 dark:text-gray-100">
+        <span className="w-1 h-5 shrink-0 bg-status-warning" aria-hidden="true" />
+        <span>
+          {openClaims === 1 ? '1 claim is' : `${openClaims} claims are`} not checked yet.{' '}
+          {pendingAction === 'copy' ? 'Copy' : 'Export'} anyway?
+        </span>
+        <button type="button" onClick={reviewClaims} className={secondaryButton}>
+          Review them
+        </button>
+        <button type="button" onClick={goAhead} className={secondaryButton}>
+          {pendingAction === 'copy' ? 'Copy anyway' : 'Export anyway'}
+        </button>
+      </div>
+    ) : exportState === 'failed' ? (
+      <p role="alert" className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
+        <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-critical" aria-hidden="true" />
+        <span>The report could not be built. Try again.</span>
+      </p>
+    ) : null;
+
   const hasChecks =
     flags.length > 0 ||
     isIncomplete ||
@@ -774,53 +838,63 @@ const QuickResult: React.FC<QuickResultProps> = ({
   const jumpSeparator = <span aria-hidden="true" className="shrink-0 text-xs text-gray-400">/</span>;
 
   return (
-    <div className="flex flex-col gap-6 pb-14">
-      {/* The same bar as at the bottom of the HTML report: across the whole
-          window, the original first, then every version in the order it was
-          made, then the rankings. */}
-      <nav
-        aria-label="Jump to"
-        className="fixed bottom-0 inset-x-0 z-40 bg-white dark:bg-gray-900 border-t border-gray-300 dark:border-gray-700"
-      >
-        <div className="px-6 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap">
-          <span className="shrink-0 text-xs font-semibold text-gray-600 dark:text-gray-400 pr-1">Jump to:</span>
-          <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className={jumpLink}>
-            Top
-          </button>
-          {jumpSeparator}
-          <button type="button" onClick={() => jumpTo('quick-original')} className={jumpLink}>
-            Your original
-          </button>
-          {result.versions
-            .filter(version => version.id !== ORIGINAL_VERSION_ID)
-            .map(version => (
-              <React.Fragment key={version.id}>
-                {jumpSeparator}
-                {/* The best version stands out in the accent colour; "(best)" says it in words too. */}
-                <button
-                  type="button"
-                  onClick={() => jumpToVersion(version.id)}
-                  className={version.id === winner.id ? jumpLinkBest : jumpLink}
-                >
-                  {version.id === winner.id ? (
-                    // Bold has to sit on a span: the app's own button style fixes a button's weight.
-                    <span className="font-bold">{version.sourceDisplayName || 'Version'}&nbsp;(best)</span>
-                  ) : (
-                    version.sourceDisplayName || 'Version'
-                  )}
+    <div className="flex flex-col gap-6 pb-44 sm:pb-36">
+      {/* The bar at the bottom of the screen: the recommended next step, the
+          other actions always in the same place, and under them "Jump to"
+          (the same links as at the bottom of the HTML report). */}
+      <QuickActionBar
+        step={step}
+        copied={copied}
+        onCopy={() => askFirst('copy')}
+        onEdit={openEditor}
+        editDisabled={!scores || !scores.winnerId || isRescoring || draft !== null}
+        onChange={goToChange}
+        changeDisabled={!scores || !scores.winnerId || isRescoring}
+        more={moreItems}
+        notice={barNotice}
+        jumpRow={
+          <nav aria-label="Jump to">
+              <div className="px-4 sm:px-6 flex items-center gap-1.5 overflow-x-auto whitespace-nowrap">
+                <span className="shrink-0 text-xs font-semibold text-gray-600 dark:text-gray-400 pr-1">Jump to:</span>
+                <button type="button" onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} className={jumpLink}>
+                  Top
                 </button>
-              </React.Fragment>
-            ))}
-          {hasRankings && (
-            <>
-              {jumpSeparator}
-              <button type="button" onClick={() => jumpTo('quick-rankings')} className={jumpLink}>
-                Rankings
-              </button>
-            </>
-          )}
-        </div>
-      </nav>
+                {jumpSeparator}
+                <button type="button" onClick={() => jumpTo('quick-original')} className={jumpLink}>
+                  Your original
+                </button>
+                {result.versions
+                  .filter(version => version.id !== ORIGINAL_VERSION_ID)
+                  .map(version => (
+                    <React.Fragment key={version.id}>
+                      {jumpSeparator}
+                      {/* The best version stands out in the accent colour; "(best)" says it in words too. */}
+                      <button
+                        type="button"
+                        onClick={() => jumpToVersion(version.id)}
+                        className={version.id === winner.id ? jumpLinkBest : jumpLink}
+                      >
+                        {version.id === winner.id ? (
+                          // Bold has to sit on a span: the app's own button style fixes a button's weight.
+                          <span className="font-bold">{version.sourceDisplayName || 'Version'}&nbsp;(best)</span>
+                        ) : (
+                          version.sourceDisplayName || 'Version'
+                        )}
+                      </button>
+                    </React.Fragment>
+                  ))}
+                {hasRankings && (
+                  <>
+                    {jumpSeparator}
+                    <button type="button" onClick={() => jumpTo('quick-rankings')} className={jumpLink}>
+                      Rankings
+                    </button>
+                  </>
+                )}
+              </div>
+            </nav>
+        }
+      />
 
       <div className="flex flex-col gap-1">
         <h1 className="text-gray-900 dark:text-white">{title || deriveQuickLabel(result.formState.originalCopy || '')}</h1>
@@ -885,84 +959,11 @@ const QuickResult: React.FC<QuickResultProps> = ({
         )}
       </div>
 
-      {/* What you can do with the result. Stays at the top of the screen while
-          the page scrolls, so the buttons are never out of reach on a long page.
-          The bar at the bottom is the counterpart: where you can go. */}
-      <div
-        role="toolbar"
-        aria-label="Actions"
-        className="sticky top-0 z-30 -mx-4 sm:-mx-6 px-4 sm:px-6 py-2 bg-gray-50 dark:bg-black border-b border-gray-300 dark:border-gray-700 flex flex-col gap-2"
-      >
-        <div className="flex items-center gap-2 overflow-x-auto whitespace-nowrap">
-          <button type="button" onClick={() => askFirst('copy')} data-tip={TIPS.copy} className={`${primaryButton} shrink-0`}>
-            {copied ? 'Copied' : 'Copy'}
-          </button>
-          <button
-            type="button"
-            onClick={() => askFirst('export')}
-            data-tip={TIPS.exportReport}
-            disabled={!scores || exportState === 'working'}
-            className={`${secondaryButton} shrink-0`}
-          >
-            {exportState === 'working' ? 'Building report…' : 'Export report'}
-          </button>
-          <button
-            type="button"
-            onClick={() => setAiCheckOpen(open => !open)}
-            data-tip={TIPS.checkWithAi}
-            aria-expanded={aiCheckOpen}
-            disabled={!scores || !scores.winnerId || isRescoring}
-            className={`${secondaryButton} shrink-0`}
-          >
-            Check with another AI
-          </button>
-          <button
-            type="button"
-            onClick={openEditor}
-            data-tip={TIPS.editMyself}
-            disabled={!scores || !scores.winnerId || isRescoring || draft !== null}
-            className={`${secondaryButton} shrink-0`}
-          >
-            Edit it myself
-          </button>
-          <button
-            type="button"
-            onClick={goToChange}
-            data-tip={TIPS.goToChange}
-            disabled={!scores || !scores.winnerId || isRescoring}
-            className={`${secondaryButton} shrink-0`}
-          >
-            Change it
-          </button>
-          <button type="button" onClick={onNew} data-tip={TIPS.startOver} className={`${secondaryButton} shrink-0`}>
-            Start over
-          </button>
-        </div>
-        {pendingAction && openClaims > 0 && (
-          <div role="alert" className="flex flex-wrap items-center gap-x-3 gap-y-2 text-gray-900 dark:text-gray-100">
-            <span className="w-1 h-5 shrink-0 bg-status-warning" aria-hidden="true" />
-            <span>
-              {openClaims === 1 ? '1 claim is' : `${openClaims} claims are`} not checked yet.{' '}
-              {pendingAction === 'copy' ? 'Copy' : 'Export'} anyway?
-            </span>
-            <button type="button" onClick={reviewClaims} className={secondaryButton}>
-              Review them
-            </button>
-            <button type="button" onClick={goAhead} className={secondaryButton}>
-              {pendingAction === 'copy' ? 'Copy anyway' : 'Export anyway'}
-            </button>
-          </div>
-        )}
-        {exportState === 'failed' && (
-          <p role="alert" className="flex items-start gap-2.5 text-gray-900 dark:text-gray-100">
-            <span className="w-1 h-5 mt-0.5 shrink-0 bg-status-critical" aria-hidden="true" />
-            <span>The report could not be built. Try again.</span>
-          </p>
-        )}
-        {aiCheckOpen && scores && (
+      {aiCheckOpen && scores && (
+        <div id="quick-ai-check" className="scroll-mt-4">
           <QuickAiCheck result={shown} best={winner} title={title} resultId={resultId} onClose={() => setAiCheckOpen(false)} />
-        )}
-      </div>
+        </div>
+      )}
 
       {/* One column on phones (best version, score, then the rest); two columns from 1024px. */}
       <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,1fr)_300px] lg:grid-rows-[auto_1fr] items-start gap-x-8 gap-y-5">
