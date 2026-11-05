@@ -28,7 +28,7 @@
  * whatever the copy's language, like the rest of Quick.
  */
 import { GeneratedContentItem } from '../types';
-import { buildAbsoluteSystemPrompt } from '../services/api/absoluteScoring';
+import { buildAbsoluteSystemPrompt, SPECIFICITY_NOTE } from '../services/api/absoluteScoring';
 import type { AbsoluteScoreBreakdown } from '../services/api/absoluteScoring';
 import { contentToText } from '../services/api/contentText';
 import { textKindLabel } from '../services/api/textKinds';
@@ -77,7 +77,8 @@ const DIMENSIONS: { key: 'clarity' | 'persuasion' | 'audience_fit' | 'structure'
 function rubricText(result: QuickRunResult): string {
   const kind = quickTextKindOf(result.formState);
   const context = buildQuickScoringContext(result.goalKey, kind, result.formState.quickGoalLabel);
-  const full = buildAbsoluteSystemPrompt(context.goalKey, context.goalLabel, kind);
+  // The specificity request asks the scorer for a JSON field: not for the other AI.
+  const full = buildAbsoluteSystemPrompt(context.goalKey, context.goalLabel, kind).replace(SPECIFICITY_NOTE, '');
   const marker = '\n\nReturn JSON only';
   const start = full.indexOf(marker);
   if (start < 0) return full.trim();
@@ -97,11 +98,44 @@ interface CheckText {
 
 const ORIGINAL_NAME = 'Your original';
 const BEST_NAME = "CopyZap's best version";
+/** A result from "Start from a brief" whose best version is the draft itself. */
+const DRAFT_NAME = "CopyZap's draft";
+
+/**
+ * A result from "Start from a brief" (2026-11-05): there is no copy of the
+ * user's to compare with. The "original" is CopyZap's own draft, so checking
+ * "is the best version better than the original?" asked the other AI to
+ * compare a text with itself. Such a result is checked as one text, against
+ * the brief it was written from.
+ */
+function fromBrief(result: QuickRunResult): boolean {
+  return !!result.briefRecord;
+}
+
+/** The brief as the other AI reads it, one field per line. Empty for other results. */
+function briefLines(result: QuickRunResult): string[] {
+  if (!fromBrief(result)) return [];
+  const skip = ['Started from'];
+  return (result.briefRecord?.fields ?? [])
+    .filter(field => field && field.value && !skip.includes(field.label))
+    .map(field => `  - ${plain(field.label)}: ${field.value.replace(/\s+/g, ' ').trim()}`);
+}
+
 
 function checkTexts(result: QuickRunResult, best: GeneratedContentItem): CheckText[] {
   const scores = result.scores?.absoluteByVersion ?? {};
   const original = result.versions.find(version => version.id === ORIGINAL_VERSION_ID);
   const texts: CheckText[] = [];
+  // From a brief: one text, the one Quick shows as best.
+  if (fromBrief(result)) {
+    const isDraft = !!original && contentToText(original.content).trim() === contentToText(best.content).trim();
+    return [{
+      name: isDraft ? DRAFT_NAME : BEST_NAME,
+      marker: isDraft ? 'DRAFT' : 'BEST VERSION',
+      text: contentToText(best.content).trim(),
+      score: scores[best.id],
+    }];
+  }
   if (original) {
     texts.push({
       name: ORIGINAL_NAME,
@@ -126,6 +160,13 @@ function contextLines(result: QuickRunResult): string[] {
   const kind = textKindLabel(quickTextKindOf(result.formState));
   if (kind) lines.push(`- **Kind of text:** ${kind}`);
   if (result.source?.url) lines.push(`- **Source page:** ${result.source.url}`);
+  const brief = briefLines(result);
+  if (brief.length > 0) {
+    lines.push(
+      '- **The brief the user gave CopyZap** (CopyZap wrote the copy from it; judge whether the copy does what it asks):',
+      ...brief
+    );
+  }
   const facts = result.formState.quickUserFacts ?? [];
   if (facts.length > 0) {
     lines.push(
@@ -203,7 +244,9 @@ function scoresSection(texts: CheckText[]): string {
       });
       const leftOutPenalty = s.left_out_penalty ?? 0;
       const claimsPenalty = s.claims_penalty ?? 0;
-      const hasPointsOff = leftOutPenalty > 0 || claimsPenalty > 0;
+      const briefPenalty = s.brief_penalty ?? 0;
+      const cap = s.specificity_cap ?? 0;
+      const hasPointsOff = leftOutPenalty > 0 || claimsPenalty > 0 || briefPenalty > 0 || cap > 0;
       const partsSum = s.clarity + s.persuasion + s.audience_fit + s.structure;
       const extraRows: string[] = [];
       if (hasPointsOff) {
@@ -217,6 +260,13 @@ function scoresSection(texts: CheckText[]): string {
           extraRows.push(
             `| Points off: claims not in your original | −${claimsPenalty} | ${claimsOpen} claim(s) CopyZap could not find in the original |`
           );
+        }
+        if (cap > 0) {
+          extraRows.push(`| Capped: mostly general claims | at most ${cap} | few concrete facts about this company |`);
+        }
+        if (briefPenalty > 0) {
+          const misses = (s.brief_misses ?? []).map(item => item.replace(/\|/g, '/')).join('; ');
+          extraRows.push(`| Points off: not what the brief asked for | −${briefPenalty} | ${misses} |`);
         }
       }
       return [
@@ -298,11 +348,9 @@ function summaryInstructions(texts: CheckText[]): string[] {
   const scored = texts.filter(t => t.score);
   const total = (t: CheckText) => {
     if (!t.score) return '–';
-    const leftOutPenalty = t.score.left_out_penalty ?? 0;
-    const claimsPenalty = t.score.claims_penalty ?? 0;
-    const pointsOff = leftOutPenalty + claimsPenalty;
+    const partsSum = t.score.clarity + t.score.persuasion + t.score.audience_fit + t.score.structure;
+    const pointsOff = partsSum - t.score.total;
     if (pointsOff > 0) {
-      const partsSum = t.score.clarity + t.score.persuasion + t.score.audience_fit + t.score.structure;
       return `${t.score.total} (${partsSum} before ${pointsOff} points off)`;
     }
     return String(t.score.total);
@@ -339,7 +387,7 @@ function summaryInstructions(texts: CheckText[]): string[] {
   ];
 }
 
-function answerFormat(texts: CheckText[], header: string[] = []): string {
+function answerFormat(texts: CheckText[], header: string[] = [], brief = false): string {
   const pair = texts.length > 1;
   return [
     'Answer in English. Keep it short and easy to read for a business owner, not a copywriter. Use exactly this structure and nothing else:',
@@ -360,6 +408,13 @@ function answerFormat(texts: CheckText[], header: string[] = []): string {
           'Then one line:',
         ]
       : []),
+    ...(brief
+      ? [
+          `**Does the copy do what the brief asks?** Yes, Mostly or No, in one plain sentence. Name anything the brief asks for that the copy misses or gets wrong, for example the form of address (usted or tú), the main offer, the differentiator or the requested action.`,
+          '',
+          'Then one line:',
+        ]
+      : []),
     `**Verdict: <Agree / Mostly agree / Partly agree / Disagree>.** followed by one or two plain sentences that say what that means for the user.`,
     ...verdictBands(pair),
     '',
@@ -367,20 +422,27 @@ function answerFormat(texts: CheckText[], header: string[] = []): string {
     '',
     ...tableInstructions(texts).map((line, i) => (i === 0 ? line.replace(/^Then one table/, 'Then the details: one table') : line)),
     '',
-    'Then, only if you find any of these in CopyZap\'s best version, a short section headed **Worth knowing:** with one line for each item: a fact it states that neither your original nor the facts the user supplied state (it may not be true; quote it); a fact from your original it leaves out; a sentence that is broken or incomplete (quote it). Leave the section out when there are none. These do not change your scores.',
+    brief
+      ? 'Then, only if you find any of these in the copy, a short section headed **Worth knowing:** with one line for each item: a fact it states that neither the brief nor the facts the user supplied state (it may not be true; quote it); a sentence that is broken or incomplete (quote it). Leave the section out when there are none. These do not change your scores.'
+      : 'Then, only if you find any of these in CopyZap\'s best version, a short section headed **Worth knowing:** with one line for each item: a fact it states that neither your original nor the facts the user supplied state (it may not be true; quote it); a fact from your original it leaves out; a sentence that is broken or incomplete (quote it). Leave the section out when there are none. These do not change your scores.',
     '',
-    "Do not add any other sections, introductions or summaries, and do not draw any other chart or image. Call the texts only by the names used here (\"Your original\", \"CopyZap's best version\"), never by letters.",
+    brief
+      ? `Do not add any other sections, introductions or summaries, and do not draw any other chart or image. Call the copy only "${texts[0]?.name ?? DRAFT_NAME}".`
+      : "Do not add any other sections, introductions or summaries, and do not draw any other chart or image. Call the texts only by the names used here (\"Your original\", \"CopyZap's best version\"), never by letters.",
   ].join('\n');
 }
 
 /** What step 1 asks for: one table per text, every text scored. */
-function stepOneAnswer(texts: CheckText[]): string {
+function stepOneAnswer(texts: CheckText[], brief = false): string {
   const several = texts.length > 1;
   return (
     `Answer in English with ${several ? `${texts.length} tables, one per text` : 'one table'}, using the text's name as its heading: ` +
     'Clarity, Persuasion, Audience fit, Structure (each 0–25) and Total (0–100), with one short reason per part that points to the actual copy. ' +
     (several ? 'Score every text; do not stop after the first one. ' : '') +
-    'Nothing else, except this last line, copied exactly as it is, on its own line at the very end of your answer: "**Step 1 of 2 done — this is only half the check.** Go back to CopyZap, click **Copy step 2: our scores**, and paste it here. Then I will tell you whether CopyZap\'s best version is better than your original and whether I agree with CopyZap\'s scores."'
+    'Nothing else, except this last line, copied exactly as it is, on its own line at the very end of your answer: "**Step 1 of 2 done — this is only half the check.** Go back to CopyZap, click **Copy step 2: our scores**, and paste it here. Then I will tell you ' +
+    (brief
+      ? 'whether the copy does what your brief asks and whether I agree with CopyZap\'s scores."'
+      : 'whether CopyZap\'s best version is better than your original and whether I agree with CopyZap\'s scores."')
   );
 }
 
@@ -392,6 +454,7 @@ export function buildAiCheckPrompt(
   label: AiCheckLabel = {}
 ): AiCheckPrompt {
   const texts = checkTexts(result, best);
+  const brief = fromBrief(result);
   const context = contextLines(result);
   const rubric = rubricText(result);
   const header = headerLines(result, best, label);
@@ -400,9 +463,8 @@ export function buildAiCheckPrompt(
     '# Independent check of a CopyZap score',
     '',
     'You are an independent, critical copy evaluator. CopyZap, an AI tool that scores and improves marketing copy, ' +
-      'scored the text' +
-      (texts.length > 1 ? 's' : '') +
-      " below. I want your honest, independent opinion on whether that scoring is fair. Do not be polite to CopyZap: if you disagree, say so and say why.",
+      (brief ? 'wrote the copy below from the user\'s brief and scored it.' : 'scored the text' + (texts.length > 1 ? 's' : '') + ' below.') +
+      " I want your honest, independent opinion on whether that scoring is fair. Do not be polite to CopyZap: if you disagree, say so and say why.",
   ].join('\n');
 
   const materials = [
@@ -435,7 +497,7 @@ export function buildAiCheckPrompt(
     '',
     NORMAL_SPREAD,
     '',
-    answerFormat(texts, header),
+    answerFormat(texts, header, brief),
     '',
     '---',
     '',
@@ -451,7 +513,7 @@ export function buildAiCheckPrompt(
     '',
     "This is step 1 of 2. **Only score the copy now.** I will send CopyZap's scores in a second message; do not guess them.",
     '',
-    stepOneAnswer(texts),
+    stepOneAnswer(texts, brief),
     '',
     '---',
     '',
@@ -462,7 +524,7 @@ export function buildAiCheckPrompt(
     // Repeated after the texts: on long pages GPT-4o scored the first text and
     // stopped (tested 2026-10-19), having lost the instruction above them.
     `**Now score ${texts.length > 1 ? `both texts, ${texts.map(t => `"${t.name}"`).join(' and then ')}` : `"${texts[0].name}"`}.** ` +
-      stepOneAnswer(texts),
+      stepOneAnswer(texts, brief),
   ].join('\n');
 
   const step2 = [
@@ -470,7 +532,7 @@ export function buildAiCheckPrompt(
     '',
     NORMAL_SPREAD,
     '',
-    answerFormat(texts, header),
+    answerFormat(texts, header, brief),
     '',
     '---',
     '',

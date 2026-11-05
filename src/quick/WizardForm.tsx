@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
+import QuickBusyModal from './QuickBusyModal';
 import { GoalKey, Language, Tone, User } from '../types';
 import { GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import {
@@ -90,6 +91,51 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
   const [otherOpen, setOtherOpen] = useState(false);
 
   const busy = stage !== 'idle' || disabled;
+
+  // While CopyZap reads, thinks or writes, the same modal as "Improve my copy"
+  // shows the steps, the time and Cancel. Cancel stops waiting: what comes back
+  // after it is ignored (the call itself cannot be taken back).
+  const runToken = useRef(0);
+  const [startedAt, setStartedAt] = useState(0);
+  const [elapsed, setElapsed] = useState(0);
+  useEffect(() => {
+    if (stage === 'idle') return;
+    const tick = () => setElapsed(Math.floor((Date.now() - startedAt) / 1000));
+    tick();
+    const timer = window.setInterval(tick, 1000);
+    return () => window.clearInterval(timer);
+  }, [stage, startedAt]);
+  const startRun = (): number => {
+    runToken.current += 1;
+    setStartedAt(Date.now());
+    setElapsed(0);
+    return runToken.current;
+  };
+  const stopRun = () => {
+    runToken.current += 1;
+    setStage('idle');
+  };
+  const hasWebsite = !!website.trim();
+  const modal =
+    stage === 'idle' ? null : stage === 'reading' || stage === 'thinking' ? (
+      <QuickBusyModal
+        kind="questions"
+        elapsed={elapsed}
+        versions={1}
+        onStop={stopRun}
+        steps={hasWebsite ? ['Reading your website', 'Choosing your questions'] : ['Choosing your questions']}
+        activeStep={hasWebsite && stage === 'thinking' ? 1 : 0}
+      />
+    ) : (
+      <QuickBusyModal
+        kind="drafting"
+        elapsed={elapsed}
+        versions={1}
+        onStop={stopRun}
+        steps={['Checking your answers', 'Writing your draft']}
+        activeStep={stage === 'checking' ? 0 : 1}
+      />
+    );
   const isPage = briefPiece(piece).group === 'page';
   const isBlog = piece === 'blog_post';
   const askedKeys = questions.map(question => question.key);
@@ -110,27 +156,33 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
     setSiteNotice(null);
     setFollowUps(null);
     setFollowAnswers({});
+    const token = startRun();
+    setStage(website.trim() ? 'reading' : 'thinking');
     let id: string | undefined;
     try {
       id = await getSessionId(request.trim().slice(0, 60) || 'Brief');
     } catch {
       id = undefined;
     }
+    if (token !== runToken.current) return;
     setSessionId(id);
     let facts: string | undefined;
     if (website.trim()) {
       setStage('reading');
       try {
         const page = await fetchQuickPage(website.trim(), currentUser, id);
+        if (token !== runToken.current) return;
         facts = trimSiteFacts(page.copy);
       } catch {
         setSiteNotice("We couldn't read that website, so the questions are based on your request only.");
       }
     }
+    if (token !== runToken.current) return;
     setSiteFacts(facts);
     setStage('thinking');
     try {
       const next = await getWizardPlan(request, facts ? trimSiteFacts(facts, 1500) : undefined, currentUser, defaultLanguage, id);
+      if (token !== runToken.current) return;
       setPiece(next.piece);
       setTopic(next.topic);
       setTargetWords(next.targetWords);
@@ -149,10 +201,11 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
       );
       setPlan(next);
     } catch (error) {
+      if (token !== runToken.current) return;
       if (error instanceof BriefNotAvailableError) onUnavailable();
       else onError('Something went wrong. Please try again.');
     } finally {
-      setStage('idle');
+      if (token === runToken.current) setStage('idle');
     }
   };
 
@@ -175,6 +228,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
     // First click: check the answers for ones too general to make the copy
     // specific, and ask one follow-up for each (at most two). The user can
     // answer or leave them blank; the next click writes.
+    const token = startRun();
     if (followUps === null) {
       setStage('checking');
       const found = await getWizardFollowUps(
@@ -183,9 +237,12 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         currentUser,
         sessionId,
       );
+      if (token !== runToken.current) return;
       setFollowUps(found);
-      setStage('idle');
-      if (found.length > 0) return;
+      if (found.length > 0) {
+        setStage('idle');
+        return;
+      }
     }
     // The follow-up answers are added to the answer they belong to.
     const a: Answers = { ...answers };
@@ -229,6 +286,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         spanishForm: language === 'Spanish' ? (formality === 'formal' ? 'usted' : 'tú') : undefined,
       };
       const written = await generateFromBrief(brief, currentUser, sessionId);
+      if (token !== runToken.current) return;
       const split = isBlog ? splitMetaDescription(written) : { draft: written, metaDescription: undefined };
       const metaDescription = split.metaDescription;
       // A number from the website never replaces the user's own answer (see answerConflicts.ts).
@@ -296,11 +354,12 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         ...(metaDescription ? { metaDescription } : {}),
       });
     } catch (error) {
+      if (token !== runToken.current) return;
       if (error instanceof BriefNotAvailableError) onUnavailable();
       else if (error instanceof Error && error.message) onError(error.message);
       else onError('Something went wrong. Please try again.');
     } finally {
-      setStage('idle');
+      if (token === runToken.current) setStage('idle');
     }
   };
 
@@ -352,6 +411,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
     const nextLabel = stage === 'reading' ? 'Reading your website…' : stage === 'thinking' ? 'Thinking of questions…' : 'Next';
     return (
       <div className="flex flex-col gap-6">
+        {modal}
         <div className="flex flex-col gap-2">
           <label htmlFor="wizard-request" className={labelClass}>What do you want written?</label>
           <textarea
@@ -401,6 +461,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
 
   return (
     <div className="flex flex-col gap-6">
+      {modal}
       <div className="flex flex-col gap-3 border border-gray-200 dark:border-gray-700 p-3">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <span className={labelClass}>What you're getting</span>

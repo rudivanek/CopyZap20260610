@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import type { QuickProgress, QuickStage } from '../engine/runQuickPipeline';
 
 /** The processes that show the modal. */
-export type QuickBusyKind = 'fetch' | 'reading' | 'running' | 'rescoring' | 'opening' | 'changing' | 'editing' | 'reviewing';
+export type QuickBusyKind = 'fetch' | 'reading' | 'running' | 'rescoring' | 'opening' | 'changing' | 'editing' | 'reviewing' | 'questions' | 'drafting';
 
 interface QuickBusyModalProps {
   kind: QuickBusyKind;
@@ -16,6 +16,9 @@ interface QuickBusyModalProps {
   runTime?: { label: string; keepOpen: boolean } | null;
   /** Stops the process. Called after the user has confirmed. */
   onStop: () => void;
+  /** Steps to show instead of a run's stages ("Start from a brief"), with the one in progress. */
+  steps?: string[];
+  activeStep?: number;
 }
 
 const STAGE_ORDER: QuickStage[] = ['checking', 'writing', 'scoring'];
@@ -29,6 +32,8 @@ const TEXT: Record<QuickBusyKind, { title: string; detail: string }> = {
   changing: { title: 'Changing your copy', detail: 'Rewriting the best version, then scoring it. About a minute; several minutes for a long page.' },
   editing: { title: 'Scoring your edit', detail: 'Nothing is rewritten. Your version is scored against your goal. About a minute.' },
   reviewing: { title: 'Scoring your changes', detail: 'Nothing is rewritten. The best version with your changes is scored against your goal. About 30 seconds.' },
+  questions: { title: 'Preparing your questions', detail: 'Reading what you asked for, and your website if you gave one, to choose the questions that make the copy yours. Under a minute.' },
+  drafting: { title: 'Writing your draft', detail: 'Writing the copy from your answers. About a minute; longer for a long page.' },
 };
 
 /** What the user is asked before a process is stopped. Opening a result uses no credits. */
@@ -41,6 +46,8 @@ const STOP_QUESTION: Record<QuickBusyKind, string> = {
   changing: 'Stop now? Your result stays as it is. Credits already used are not returned.',
   editing: 'Stop now? Your result stays as it is. Credits already used are not returned.',
   reviewing: 'Stop now? Your changes stay; the score stays as it was. Credits already used are not returned.',
+  questions: 'Stop now? What you typed stays. Credits already used are not returned.',
+  drafting: 'Stop now? Your answers stay. Credits already used are not returned.',
 };
 
 const stopButton =
@@ -58,7 +65,7 @@ function formatElapsed(seconds: number): string {
   return `${minutes}:${rest < 10 ? '0' : ''}${rest}`;
 }
 
-const QuickBusyModal: React.FC<QuickBusyModalProps> = ({ kind, elapsed, progress, versions, runTime = null, onStop }) => {
+const QuickBusyModal: React.FC<QuickBusyModalProps> = ({ kind, elapsed, progress, versions, runTime = null, onStop, steps, activeStep = 0 }) => {
   const { title } = TEXT[kind];
   // A run says how long it takes for this length, measured (see estimateRunTime).
   const detail =
@@ -102,7 +109,36 @@ const QuickBusyModal: React.FC<QuickBusyModalProps> = ({ kind, elapsed, progress
           <p className="text-gray-600 dark:text-gray-400">{detail}</p>
         </div>
 
-        {(kind === 'running' || kind === 'changing' || kind === 'editing') && (
+        {steps && steps.length > 0 && (
+          <div role="status" aria-live="polite">
+            <ol className="border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
+              {steps.map((step, index) => {
+                const state = index < activeStep ? 'done' : index === activeStep ? 'active' : 'waiting';
+                return (
+                  <li key={step} className="flex items-center gap-3 px-4 min-h-[48px]">
+                    <span
+                      aria-hidden="true"
+                      className={
+                        'w-1 h-5 shrink-0 ' +
+                        (state === 'done'
+                          ? 'bg-status-good'
+                          : state === 'active'
+                            ? 'bg-primary-500 animate-pulse'
+                            : 'bg-gray-300 dark:bg-gray-600')
+                      }
+                    />
+                    <span className={state === 'waiting' ? 'text-gray-500 dark:text-gray-400' : 'text-gray-900 dark:text-gray-100 font-medium'}>
+                      {step}
+                      {state === 'done' && <span className="sr-only"> (done)</span>}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </div>
+        )}
+
+        {!steps && (kind === 'running' || kind === 'changing' || kind === 'editing') && (
           <div role="status" aria-live="polite">
             <ol className="border border-gray-200 dark:border-gray-700 divide-y divide-gray-200 dark:divide-gray-700">
               {stages.map((stage, index) => {
