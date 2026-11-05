@@ -512,6 +512,10 @@ const QuickResult: React.FC<QuickResultProps> = ({
   // Mark each open claim in the copy, numbered as in the checklist. Done on the
   // rendered copy, so the copy itself stays as it is.
   const markKey = JSON.stringify(claimItems.map(item => (isOpen(item) ? item.claim : '')));
+  // A draft from Brief (2) is checked against the answers and the website, not against an original.
+  const claimMarkTitle = result.briefRecord?.draftOnly
+    ? 'Not in your answers or your website: check it under the copy'
+    : 'Not in your original: check it under the copy';
   useEffect(() => {
     const root = copyRef.current;
     if (!root) return;
@@ -535,7 +539,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
         range.setEnd(node, at + claim.length);
         const mark = document.createElement('mark');
         mark.dataset.claim = String(index + 1);
-        mark.title = 'Not in your original: check it under the copy';
+        mark.title = claimMarkTitle;
         mark.style.background = CLAIM_MARK_BACKGROUND;
         mark.style.borderBottom = `2px solid ${CLAIM_MARK_LINE}`;
         mark.style.color = 'inherit';
@@ -554,7 +558,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
         break;
       }
     });
-  }, [markKey, shownText]);
+  }, [markKey, shownText, claimMarkTitle]);
 
   if (!winner) return null;
   // The best version's name, as in the rankings and under Other versions: "Generated Copy 1".
@@ -980,6 +984,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
             onRemove={onRemoveClaim}
             onEdit={editClaim}
             onUndo={undoClaim}
+            sourceName={result.briefRecord?.draftOnly ? 'your answers or your website' : undefined}
           />
 
           {draft && (

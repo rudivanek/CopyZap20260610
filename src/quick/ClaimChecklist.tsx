@@ -36,6 +36,8 @@ interface ClaimChecklistProps {
   /** The sentence the claim stands in, rewritten. Empty takes the sentence out. */
   onEdit: (claim: string, sentence: string) => void;
   onUndo: (claim: string) => void;
+  /** Where the claims were looked for: "your original" by default; "your answers or your website" for a draft from Brief (2). */
+  sourceName?: string;
 }
 
 const smallButton =
@@ -65,7 +67,7 @@ const SentenceWithClaim: React.FC<{ sentence: string; claim: string }> = ({ sent
   );
 };
 
-const ClaimChecklist: React.FC<ClaimChecklistProps> = ({ items, disabled, onKeep, onRemove, onEdit, onUndo }) => {
+const ClaimChecklist: React.FC<ClaimChecklistProps> = ({ items, disabled, onKeep, onRemove, onEdit, onUndo, sourceName = 'your original' }) => {
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [removing, setRemoving] = useState<string | null>(null);
@@ -108,7 +110,7 @@ const ClaimChecklist: React.FC<ClaimChecklistProps> = ({ items, disabled, onKeep
         </span>
       </div>
       <p className="text-gray-700">
-        We couldn't find these in your original. Keep what's true, remove the rest, or say it in your own words. Each
+        We couldn't find these in {sourceName}. Keep what's true, remove the rest, or say it in your own words. Each
         open claim costs {CLAIM_POINTS} points (up to {CLAIM_MAX_POINTS}); once you've checked them, Re-score gives the
         points back.
       </p>

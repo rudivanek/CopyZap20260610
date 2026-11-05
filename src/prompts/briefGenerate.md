@@ -20,7 +20,7 @@ Use ONLY facts from the brief and from the website text, if one is given. Do not
 - dates, deadlines, prices or time limits;
 - terms of the offer: "at no extra cost", "free", how long a call or meeting lasts, delivery times.
 
-When two facts disagree (a number, a year, a name), the answers win: What the customer gets, What makes them different, Proof or results, the company's own experience, and Who customers compare them with. "What you are selling" and the website text come second. Never state both.
+When two facts disagree (a number, a year, a name), the answers win: What the customer gets, What makes them different, Proof or results, the company's own experience, and Who customers compare them with. "What you are selling", any line marked "read from their website", and the website text come second. Never state both.
 
 The website text is a source of facts only. Do not copy its sentences or its structure. If a fact appears nowhere in the brief or the website text, leave it out. Plain, honest copy is better than copy that invents.
 

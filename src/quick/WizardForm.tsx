@@ -81,6 +81,8 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
   const [formality, setFormality] = useState<WizardFormality>('formal');
   const [answers, setAnswers] = useState<Answers>({ product: '', audience: '', result: '', alternatives: '', differentiators: '', proof: '', experience: '', callToAction: '' });
   /** Follow-ups for answers that were too general: null until the answers were checked. */
+  /** The answers as read from the website, before the user changed anything. */
+  const [prefilled, setPrefilled] = useState<Answers | null>(null);
   const [followUps, setFollowUps] = useState<WizardQuestion[] | null>(null);
   const [followAnswers, setFollowAnswers] = useState<Record<string, string>>({});
   const [questions, setQuestions] = useState<WizardQuestion[]>([]);
@@ -138,6 +140,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
       setCountry(next.country);
       setFormality(next.formality ?? 'formal');
       setAnswers({ ...next.known });
+      setPrefilled({ ...next.known });
       // Nothing to ask (the request could not be read): ask for every answer, with the default labels.
       setQuestions(
         next.questions.length > 0
@@ -192,6 +195,11 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
       const key = item.key as keyof Answers;
       a[key] = a[key].trim() ? `${a[key].trim()} — ${extra}` : extra;
     });
+    // Answers that were read from the website, not asked, and left as they were:
+    // the user may never have seen them, so the brief marks them as website facts.
+    const websiteKeys: NonNullable<Brief['fromWebsite']> = (['proof', 'experience', 'differentiators', 'result', 'alternatives'] as const).filter(key =>
+      !askedKeys.includes(key) && !!prefilled && !!prefilled[key].trim() && a[key].trim() === prefilled[key].trim()
+    );
     setStage('writing');
     try {
       const sections = isPage ? defaultSectionsFor(piece) : [];
@@ -210,6 +218,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         experience: a.experience.trim() || undefined,
         result: a.result.trim() || undefined,
         alternatives: a.alternatives.trim() || undefined,
+        fromWebsite: websiteKeys.length > 0 ? websiteKeys : undefined,
         length: briefPiece(piece).defaultLength,
         sections: isPage ? sections.map((section, index) => ({ ...section, words: sectionWords[index] ?? null })) : undefined,
         targetWords: isPage && words ? words : undefined,
@@ -223,8 +232,12 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
       const split = isBlog ? splitMetaDescription(written) : { draft: written, metaDescription: undefined };
       const metaDescription = split.metaDescription;
       // A number from the website never replaces the user's own answer (see answerConflicts.ts).
-      const answerTexts = [a.proof, a.experience, a.differentiators, a.result, a.alternatives].map(text => text.trim()).filter(Boolean);
-      const checked = applyAnswerNumbers(split.draft, answerTexts, [a.product, siteFacts ?? '']);
+      // An answer that was filled in from the website and left as it was, under
+      // "Already understood", counts as website text, not as the user's answer.
+      const answerKeys = (['proof', 'experience', 'differentiators', 'result', 'alternatives'] as const);
+      const ownAnswers = answerKeys.filter(key => a[key].trim() && !websiteKeys.includes(key)).map(key => a[key].trim());
+      const websiteAnswers = answerKeys.filter(key => websiteKeys.includes(key)).map(key => a[key].trim());
+      const checked = applyAnswerNumbers(split.draft, ownAnswers, [a.product, ...websiteAnswers, siteFacts ?? '']);
       const draft = checked.text;
       const answerNotes = checked.fixes.map(answerFixNote);
       const languageText = [
@@ -251,12 +264,14 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         { label: 'Started from', value: 'Brief (2)' },
       ].filter(field => field.value);
       // These answers must survive the improve step word for word in meaning.
+      // Answers read from the website and left as they were are not locked: they are website facts.
+      const own = (key: NonNullable<Brief['fromWebsite']>[number]) => (websiteKeys.includes(key) ? '' : a[key].trim());
       const lockedFacts = [
-        a.experience.trim() ? `The company's own experience or view: ${a.experience.trim()}` : '',
-        a.proof.trim() ? `Proof: ${a.proof.trim()}` : '',
-        a.differentiators.trim() ? `What makes the company different: ${a.differentiators.trim()}` : '',
-        a.result.trim() ? `What the customer gets: ${a.result.trim()}` : '',
-        a.alternatives.trim() ? `Why customers choose the company over others: ${a.alternatives.trim()}` : '',
+        own('experience') ? `The company's own experience or view: ${own('experience')}` : '',
+        own('proof') ? `Proof: ${own('proof')}` : '',
+        own('differentiators') ? `What makes the company different: ${own('differentiators')}` : '',
+        own('result') ? `What the customer gets: ${own('result')}` : '',
+        own('alternatives') ? `Why customers choose the company over others: ${own('alternatives')}` : '',
       ].filter(Boolean);
       const shapeNote = briefShapeNote(piece);
       // What the draft may state: the answers and the website text. The run checks the

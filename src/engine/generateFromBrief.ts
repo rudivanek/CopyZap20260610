@@ -233,6 +233,12 @@ export interface Brief {
   country?: string;
   /** Optional: address the reader formally or informally, for any language that has both. */
   formality?: 'formal' | 'informal';
+  /**
+   * Optional: answers that were read from the website and not confirmed by the
+   * user (Brief (2), "Already understood" left as it was). They are marked in
+   * the brief, so the user's own answers win when the two disagree.
+   */
+  fromWebsite?: ('proof' | 'experience' | 'differentiators' | 'result' | 'alternatives')[];
 }
 
 export class BriefNotAvailableError extends Error {
@@ -261,20 +267,22 @@ const GOAL_NAMES: Record<GoalKey, string> = {
 
 function briefText(brief: Brief): string {
   const lines: string[] = [];
+  const read = (key: NonNullable<Brief['fromWebsite']>[number]) =>
+    brief.fromWebsite?.includes(key) ? ' (read from their website, not confirmed by them)' : '';
   lines.push(`What you are selling: ${brief.product}`);
-  if (brief.result && brief.result.trim()) lines.push(`What the customer gets (the main result): ${brief.result.trim()}`);
-  if (brief.alternatives && brief.alternatives.trim()) lines.push(`Who customers compare them with, and why they choose them: ${brief.alternatives.trim()}`);
+  if (brief.result && brief.result.trim()) lines.push(`What the customer gets (the main result)${read('result')}: ${brief.result.trim()}`);
+  if (brief.alternatives && brief.alternatives.trim()) lines.push(`Who customers compare them with, and why they choose them${read('alternatives')}: ${brief.alternatives.trim()}`);
   lines.push(`Who it is for: ${brief.audience}`);
   lines.push(`Goal: ${GOAL_NAMES[brief.goal] ?? brief.goal}`);
   lines.push(`What to write: ${briefPiece(brief.piece).label}`);
   if (brief.topic && brief.topic.trim()) lines.push(`Topic or title idea: ${brief.topic.trim()}`);
   if (brief.keyword && brief.keyword.trim()) lines.push(`Main keyword: ${brief.keyword.trim()}`);
   lines.push(`Tone: ${brief.tone}`);
-  if (brief.differentiators && brief.differentiators.trim()) lines.push(`What makes them different: ${brief.differentiators.trim()}`);
+  if (brief.differentiators && brief.differentiators.trim()) lines.push(`What makes them different${read('differentiators')}: ${brief.differentiators.trim()}`);
   if (brief.callToAction && brief.callToAction.trim()) lines.push(`What the reader should do: ${brief.callToAction.trim()}`);
-  if (brief.proof && brief.proof.trim()) lines.push(`Proof or results: ${brief.proof.trim()}`);
+  if (brief.proof && brief.proof.trim()) lines.push(`Proof or results${read('proof')}: ${brief.proof.trim()}`);
   if (brief.experience && brief.experience.trim()) {
-    lines.push(`The company's own experience or view (must appear once in the body, said by the company, with the same meaning — not softened, not turned into general advice): ${brief.experience.trim()}`);
+    lines.push(`The company's own experience or view${read('experience')} (must appear once in the body, said by the company, with the same meaning — not softened, not turned into general advice): ${brief.experience.trim()}`);
   }
   if (brief.mustInclude && brief.mustInclude.trim()) lines.push(`Must include: ${brief.mustInclude.trim()}`);
   if (brief.avoid && brief.avoid.trim()) lines.push(`Avoid: ${brief.avoid.trim()}`);
