@@ -689,7 +689,10 @@ const QuickResult: React.FC<QuickResultProps> = ({
       a.version.id === winner.id ? -1 : b.version.id === winner.id ? 1 : (b.score?.total ?? 0) - (a.score?.total ?? 0)
     );
   const unranked = generated.map(rankingOf).filter(item => !item.score || item.setAside);
-  const baseline = original ? rankingOf(original) : null;
+  const draftOnly = !!result.briefRecord?.draftOnly;
+  // When the only scored version is the brief draft, the original is the same text:
+  // do not list it as a separate baseline row.
+  const baseline = original && !draftOnly ? rankingOf(original) : null;
   // The table shows whenever there are scores, also when no version could be ranked.
   const hasRankings = !!scores && ranked.length + unranked.length > 0;
   const judgedAs = [
@@ -861,7 +864,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                 </button>
                 {jumpSeparator}
                 <button type="button" onClick={() => jumpTo('quick-original')} className={jumpLink}>
-                  Your original
+                  {draftOnly ? 'Your brief' : 'Your original'}
                 </button>
                 {result.versions
                   .filter(version => version.id !== ORIGINAL_VERSION_ID)
@@ -1378,7 +1381,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
                     </li>
                   );
                 })}
-                {originalTotal != null && (
+                {originalTotal != null && !draftOnly && (
                   <li className="border-t border-gray-200 dark:border-gray-700 mt-1 pt-1">
                     <button
                       type="button"

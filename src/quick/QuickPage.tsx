@@ -134,10 +134,12 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const location = useLocation();
   const isHistoryRoute = location.pathname === '/history';
   const { isAdmin, isLoading: isAdminLoading } = useIsAdmin(currentUser);
-  // Brief-aware scoring (specificity cap + brief-fit penalty) is on for admins only for now.
+  // Brief-aware scoring (specificity cap + brief-fit penalty) is on for everyone in Quick.
+  // It is switched off again when Quick closes, so other parts of the app score as before.
   useEffect(() => {
-    setBriefAwareScoring(isAdmin);
-  }, [isAdmin]);
+    setBriefAwareScoring(true);
+    return () => setBriefAwareScoring(false);
+  }, []);
   const [phase, setPhase] = useState<Phase>(isHistoryRoute ? 'history' : 'start');
   // When an admin opens /history?user=<id>, the history of that user is shown
   // instead of the admin's own. Cleared once the admin starts their own work
@@ -870,7 +872,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setBusy('rescoring');
     const { alive: isMounted, signal } = startProcess();
     try {
-      const scores = await scoreQuickVersions(result.formState, result.versions, result.goalKey, currentUser, undefined, undefined, signal);
+      const scores = await scoreQuickVersions(result.formState, result.versions, result.goalKey, currentUser, undefined, undefined, signal, {
+        skipOriginal: !!result.briefRecord?.draftOnly,
+      });
       if (!isMounted.current) return;
       const rescored: QuickRunResult = {
         ...result,

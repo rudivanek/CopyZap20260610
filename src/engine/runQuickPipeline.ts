@@ -454,7 +454,14 @@ export async function scoreQuickVersions(
    */
   keepScores?: Pick<QuickScores, 'absoluteByVersion' | 'winnerId'> | null,
   /** Set when the user can stop the process: after a stop, no further scoring call is started. */
-  signal?: AbortSignal
+  signal?: AbortSignal,
+  /**
+   * A draft from a brief is the result itself: the "original" is the same
+   * text. Then the original is not scored or compared a second time (it cost
+   * about a third more credits for the same reading, 2026-11-05); it gets the
+   * draft's structural check, so the rules that read it work as before.
+   */
+  options?: { skipOriginal?: boolean }
 ): Promise<QuickScores> {
   throwIfStopped(signal);
   onProgress?.({ stage: 'scoring' });
@@ -462,22 +469,43 @@ export async function scoreQuickVersions(
   // The gate compares each version with the whole original, testimonials included.
   const targetWords = countWords(formState.originalCopy || '') || calculateTargetWordCount({ ...formState }).target;
 
-  const unified = await generateUnifiedComparison(
-    formState.originalCopy,
-    versions,
-    user,
-    formState.sessionId,
-    undefined,
-    formState.model,
-    undefined,
-    [],
-    buildQuickScoringContext(goalKey, quickTextKindOf(formState), formState.quickGoalLabel),
-    QUICK_SECTION,
-    'new',
-    targetWords,
-    // Quick keeps earlier scores itself (keepScores, below) and "Score again" must read afresh.
-    false
-  );
+  const compare = (list: GeneratedContentItem[]) =>
+    generateUnifiedComparison(
+      formState.originalCopy,
+      list,
+      user,
+      formState.sessionId,
+      undefined,
+      formState.model,
+      undefined,
+      [],
+      buildQuickScoringContext(goalKey, quickTextKindOf(formState), formState.quickGoalLabel),
+      QUICK_SECTION,
+      'new',
+      targetWords,
+      // Quick keeps earlier scores itself (keepScores, below) and "Score again" must read afresh.
+      false
+    );
+  const withoutOriginal = versions.filter(version => version.id !== ORIGINAL_VERSION_ID);
+  const skipOriginal = !!options?.skipOriginal && withoutOriginal.length === 1 && withoutOriginal.length < versions.length;
+  let unified: Awaited<ReturnType<typeof generateUnifiedComparison>>;
+  let originalSkipped = false;
+  if (skipOriginal) {
+    try {
+      unified = await compare(withoutOriginal);
+      originalSkipped = true;
+    } catch {
+      // A comparison of one version that fails is tried once more the way it always ran.
+      throwIfStopped(signal);
+      unified = await compare(versions);
+    }
+  } else {
+    unified = await compare(versions);
+  }
+  if (originalSkipped && unified.gateByVersion) {
+    const draftGate = unified.gateByVersion[withoutOriginal[0].id];
+    if (draftGate) unified.gateByVersion[ORIGINAL_VERSION_ID] = draftGate;
+  }
 
   const comparisonResult = unified.comparisonResult;
   const rows = comparisonResult.rows as ScoredRow[];
@@ -533,7 +561,7 @@ export async function scoreQuickVersions(
   // Brief-aware scoring: the five brief-fit checks run in parallel with the
   // scoring above (see briefFit.ts). Each failed check costs points taken from
   // the four parts' sum; the specificity cap (absoluteScoring.ts) and this
-  // penalty do not add up: the lower of the two totals counts. Admins only.
+  // penalty do not add up: the lower of the two totals counts.
   const briefFitByVersion = (async (): Promise<Record<string, BriefFit | null>> => {
     const briefText = isBriefAwareScoring() && formState.quickBriefText ? formState.quickBriefText : '';
     if (!briefText) return {};
@@ -560,7 +588,10 @@ export async function scoreQuickVersions(
   throwIfStopped(signal);
   const kind = quickTextKindOf(formState);
   const context = buildQuickScoringContext(goalKey, kind, formState.quickGoalLabel);
-  const fresh = versions.filter(version => !isUsableScore(keepScores?.absoluteByVersion[version.id]));
+  const fresh = versions.filter(
+    version =>
+      !(originalSkipped && version.id === ORIGINAL_VERSION_ID) && !isUsableScore(keepScores?.absoluteByVersion[version.id])
+  );
   const unscoredIds: string[] = [];
   const firstTotal = (id: string): number | null => {
     const kept = keepScores?.absoluteByVersion[id];
@@ -707,7 +738,7 @@ export async function scoreQuickVersions(
   // Brief-aware scoring: the failed checks cost points (see briefFit.ts), taken
   // from the total after the left-out and claims penalties. The specificity cap
   // (already in the score) and this penalty do not add up: the lower of the two
-  // totals counts. Admins only.
+  // totals counts.
   const briefFits = await briefFitByVersion;
   for (const version of scoredFresh) {
     const score = absoluteByVersion[version.id];
@@ -1139,7 +1170,9 @@ export async function runQuickPipeline(
       readBefore && readBefore.text.trim() === fullCopy && isCompleteScore(readBefore.score)
         ? { absoluteByVersion: { [ORIGINAL_VERSION_ID]: readBefore.score }, winnerId: null }
         : undefined;
-    scores = await scoreQuickVersions(formState, versions, input.goalKey, user, onProgress, keepOriginal, input.signal);
+    scores = await scoreQuickVersions(formState, versions, input.goalKey, user, onProgress, keepOriginal, input.signal, {
+      skipOriginal: !!input.briefRecord?.draftOnly,
+    });
   } catch (error) {
     scoringError = errorMessage(error);
   }

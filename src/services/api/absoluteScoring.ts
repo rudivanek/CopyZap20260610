@@ -51,7 +51,7 @@ export interface AbsoluteScoreBreakdown {
   brief_note?: string;
 }
 
-// Brief-aware scoring (admins only for now). When on, the scorer also rates
+// Brief-aware scoring (on for everyone in Quick; see QuickPage.tsx). When on, the scorer also rates
 // specificity (1–5) and a separate brief-fit check takes points off (see
 // briefFit.ts). The cap and the penalty do not add up: the lower total counts.
 let briefAwareScoring = false;
