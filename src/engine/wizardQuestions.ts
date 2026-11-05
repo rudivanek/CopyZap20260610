@@ -47,7 +47,7 @@ export type WizardFormality = 'formal' | 'informal';
 export interface WizardPlan {
   piece: BriefPieceKey;
   topic: string;
-  /** Pages only: the length in words. Null for anything that is not a page. */
+  /** The length in words. Pages always have one; emails and other longer pieces only when the request says one; null otherwise. */
   targetWords: number | null;
   language: Language;
   /** Set when the request is in a language the engine cannot write yet. */
@@ -99,8 +99,14 @@ export function fallbackWizardPlan(language: Language = 'English'): WizardPlan {
 }
 
 function wordsFor(piece: BriefPieceKey, value: unknown): number | null {
-  if (briefPiece(piece).group !== 'page') return null;
+  const group = briefPiece(piece).group;
   const number = typeof value === 'number' ? value : Number(text(value).replace(/[^\d]/g, ''));
+  // Emails and other longer pieces keep a length the request names ("unas 120
+  // palabras"); without one the writer uses the piece's usual length.
+  if (group === 'email' || group === 'other') {
+    return Number.isFinite(number) && number > 0 ? Math.min(BRIEF_MAX_WORDS, Math.max(30, Math.round(number / 10) * 10)) : null;
+  }
+  if (group !== 'page') return null;
   if (!Number.isFinite(number) || number <= 0) return suggestedWordsFor(piece);
   return Math.min(BRIEF_MAX_WORDS, Math.max(BRIEF_MIN_WORDS, Math.round(number / 10) * 10));
 }

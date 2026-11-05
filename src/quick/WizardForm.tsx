@@ -292,7 +292,11 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         fromWebsite: websiteKeys.length > 0 ? websiteKeys : undefined,
         length: briefPiece(piece).defaultLength,
         sections: isPage ? chosen.map((section, index) => ({ ...section, words: section.words ?? sectionWords[index] ?? null })) : undefined,
-        targetWords: isPage && words ? words : undefined,
+        targetWords: isPage
+          ? words || undefined
+          : ['email', 'other'].includes(briefPiece(piece).group)
+            ? targetWords || undefined
+            : undefined,
         topic: isBlog ? topic.trim() || undefined : undefined,
         language,
         country: country.trim() || undefined,
@@ -331,7 +335,14 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         { label: 'Proof or results', value: a.proof.trim() },
         { label: 'Your experience', value: a.experience.trim() },
         { label: 'What the reader should do', value: a.callToAction.trim() },
-        { label: 'Length', value: isPage && words ? `about ${words.toLocaleString('en-US')} words` : '' },
+        {
+          label: 'Length',
+          value: isPage && words
+            ? `about ${words.toLocaleString('en-US')} words`
+            : !isPage && targetWords && ['email', 'other'].includes(briefPiece(piece).group)
+              ? `about ${targetWords.toLocaleString('en-US')} words`
+              : '',
+        },
         {
           label: 'Sections',
           value: isPage

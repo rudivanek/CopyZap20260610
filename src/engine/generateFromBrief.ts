@@ -287,7 +287,11 @@ function briefText(brief: Brief): string {
   if (brief.mustInclude && brief.mustInclude.trim()) lines.push(`Must include: ${brief.mustInclude.trim()}`);
   if (brief.avoid && brief.avoid.trim()) lines.push(`Avoid: ${brief.avoid.trim()}`);
   const isPage = briefPiece(brief.piece).group === 'page';
-  if (isPage && brief.targetWords) {
+  // Pages, emails and the other longer pieces keep the length the user asked
+  // for (2026-11-05: an email asked at "about 120 words" came back at 223,
+  // because only "Length: medium" reached the writer).
+  const takesTarget = isPage || ['email', 'other'].includes(briefPiece(brief.piece).group);
+  if (takesTarget && brief.targetWords) {
     lines.push(`Target length: about ${brief.targetWords} words`);
   } else {
     lines.push(`Length: ${brief.length}`);
