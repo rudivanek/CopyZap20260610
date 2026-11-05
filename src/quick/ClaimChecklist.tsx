@@ -38,6 +38,14 @@ interface ClaimChecklistProps {
   onUndo: (claim: string) => void;
   /** Where the claims were looked for: "your original" by default; "your answers or your website" for a draft from Brief (2). */
   sourceName?: string;
+  /**
+   * Every claim is decided and at least one decision changed the text: the
+   * score is for the text before. Asked here, where the user made the change
+   * (2026-11-05: the Re-score button next to the score was easy to miss).
+   */
+  offerRescore?: boolean;
+  /** Scores the changed text. */
+  onRescore?: () => void;
 }
 
 const smallButton =
@@ -67,7 +75,7 @@ const SentenceWithClaim: React.FC<{ sentence: string; claim: string }> = ({ sent
   );
 };
 
-const ClaimChecklist: React.FC<ClaimChecklistProps> = ({ items, disabled, onKeep, onRemove, onEdit, onUndo, sourceName = 'your original' }) => {
+const ClaimChecklist: React.FC<ClaimChecklistProps> = ({ items, disabled, onKeep, onRemove, onEdit, onUndo, sourceName = 'your original', offerRescore = false, onRescore }) => {
   const [editing, setEditing] = useState<string | null>(null);
   const [draft, setDraft] = useState('');
   const [removing, setRemoving] = useState<string | null>(null);
@@ -217,6 +225,24 @@ const ClaimChecklist: React.FC<ClaimChecklistProps> = ({ items, disabled, onKeep
           );
         })}
       </ol>
+
+      {offerRescore && onRescore && (
+        <div className="flex flex-col gap-3 border border-primary-500 p-4">
+          <p className="font-semibold text-gray-900">Your copy changed. Score it again with your changes?</p>
+          <p className="text-gray-700">
+            The score shown is for the text before your changes. Re-scoring makes it match what you publish: {RESCORE_CREDITS_RANGE} credits,
+            more for long copy, about {RESCORE_SECONDS_ESTIMATE} seconds. Your text stays exactly as it is.
+          </p>
+          <button
+            type="button"
+            onClick={onRescore}
+            disabled={disabled}
+            className="self-start inline-flex items-center justify-center min-h-[44px] px-5 bg-primary-500 hover:bg-primary-400 text-white font-semibold disabled:opacity-50 disabled:cursor-not-allowed focus:outline-none focus:ring-2 focus:ring-primary-500 focus:ring-offset-2"
+          >
+            Re-score now
+          </button>
+        </div>
+      )}
 
       <p className="text-sm text-gray-600">
         Read the full copy once before you publish. We flag what we can't verify; you know your business best.

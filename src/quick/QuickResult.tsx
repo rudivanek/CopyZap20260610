@@ -1021,6 +1021,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
             onEdit={editClaim}
             onUndo={undoClaim}
             sourceName={result.briefRecord?.draftOnly ? 'your answers or your website' : undefined}
+            offerRescore={scoreStale && openClaims === 0}
+            onRescore={onRescoreReview}
           />
 
           {draft && (
