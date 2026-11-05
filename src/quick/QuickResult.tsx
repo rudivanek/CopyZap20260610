@@ -42,6 +42,8 @@ import ClaimChecklist, { CLAIM_MARK_BACKGROUND, CLAIM_MARK_LINE, ClaimItem, isOp
 import { QUICK_SCORE_MARGIN } from '../engine/runQuickPipeline';
 import type { QuickRunResult } from '../engine/runQuickPipeline';
 import BriefRecordBox from './BriefRecordBox';
+import { BRIEF_FIT_LABELS } from '../engine/briefFit';
+import type { BriefFitMiss } from '../engine/briefFit';
 import type { ClaimReview } from '../engine/claimReview';
 import SquareCheck from './SquareCheck';
 import { CHANGE_TIPS, TIPS } from './tips';
@@ -220,7 +222,41 @@ const LeftOutNotes: React.FC<{ facts: string[]; penalty?: number }> = ({ facts, 
     </div>
   ) : null;
 
-/** Numbers a version adds or leaves out, each with the sentence it stands in. */
+/** Brief-aware scoring: the specificity cap and the brief-fit penalty, shown so the score explains itself. Admins only for now. */
+const BriefNotes: React.FC<{ score: AbsoluteScoreBreakdown | undefined }> = ({ score }) => {
+  if (!score) return null;
+  const cap = score.specificity_cap;
+  const misses = (score.brief_misses ?? []) as BriefFitMiss[];
+  const penalty = score.brief_penalty;
+  if (!cap && misses.length === 0) return null;
+  return (
+    <div className="flex flex-col gap-1">
+      {cap ? (
+        <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
+          <span className="w-1 h-4 bg-status-warning" aria-hidden="true" />
+          Mostly general claims, not your specifics — capped at {cap}
+        </p>
+      ) : null}
+      {misses.length > 0 && penalty ? (
+        <div>
+          <p className="flex items-center gap-2 text-xs font-semibold text-gray-900 dark:text-gray-100">
+            <span className="w-1 h-4 bg-status-warning" aria-hidden="true" />
+            Not what your brief asked for
+            <span className="font-normal text-gray-600 dark:text-gray-400">(−{penalty} points)</span>
+          </p>
+          <ul className="mt-1 list-disc pl-5 text-gray-900 dark:text-gray-100">
+            {misses.map((miss, index) => (
+              <li key={index} className="break-words">{BRIEF_FIT_LABELS[miss]}</li>
+            ))}
+          </ul>
+          {score.brief_note ? (
+            <p className="mt-1 text-xs text-gray-600 dark:text-gray-400">{score.brief_note}</p>
+          ) : null}
+        </div>
+      ) : null}
+    </div>
+  );
+};
 const NumberNotes: React.FC<{ check: NumberCheck }> = ({ check }) => (
   <>
     {[
@@ -1424,6 +1460,7 @@ const QuickResult: React.FC<QuickResultProps> = ({
               </ul>
               )}
               <LeftOutNotes facts={leftOutNotes} penalty={winnerScore?.left_out_penalty} />
+              <BriefNotes score={winnerScore} />
               <UpgradeNotes items={upgradeNotes} />
               <NumberNotes check={numberNotes} />
               {claimItems.length > 0 ? (
@@ -1620,6 +1657,8 @@ const QuickResult: React.FC<QuickResultProps> = ({
                       {item.score.audience_fit}/25 · Structure {item.score.structure}/25
                       {item.score.left_out_penalty ? ` · Left-out facts −${item.score.left_out_penalty}` : ''}
                       {item.score.claims_penalty ? ` · Claims to check −${item.score.claims_penalty}` : ''}
+                      {item.score.specificity_cap ? ` · Specificity cap ${item.score.specificity_cap}` : ''}
+                      {item.score.brief_penalty ? ` · Brief fit −${item.score.brief_penalty}` : ''}
                     </p>
                   )}
                   {(item.quotes.length > 0 ||

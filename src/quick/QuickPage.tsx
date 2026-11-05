@@ -61,6 +61,7 @@ import { ctaPassApplies, strengthenWeakCallToAction } from '../engine/ctaPass';
 import { useBriefModeAccess } from '../hooks/useBriefModeAccess';
 import WizardForm from './WizardForm';
 import { putBackLeftOutFacts } from '../engine/factRepairPass';
+import { setBriefAwareScoring } from '../services/api/absoluteScoring';
 
 interface QuickPageProps {
   currentUser: User;
@@ -133,6 +134,10 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const location = useLocation();
   const isHistoryRoute = location.pathname === '/history';
   const { isAdmin, isLoading: isAdminLoading } = useIsAdmin(currentUser);
+  // Brief-aware scoring (specificity cap + brief-fit penalty) is on for admins only for now.
+  useEffect(() => {
+    setBriefAwareScoring(isAdmin);
+  }, [isAdmin]);
   const [phase, setPhase] = useState<Phase>(isHistoryRoute ? 'history' : 'start');
   // When an admin opens /history?user=<id>, the history of that user is shown
   // instead of the admin's own. Cleared once the admin starts their own work

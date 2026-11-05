@@ -39,7 +39,32 @@ export interface AbsoluteScoreBreakdown {
   claims_open?: number;
   /** Quick: points already taken off `total` for them. */
   claims_penalty?: number;
+  /** Quick (brief-aware): how specific the copy is, 1–5 (see briefFit.ts). */
+  specificity?: number;
+  /** Quick (brief-aware): the score the specificity caps `total` at, when below the sum. */
+  specificity_cap?: number;
+  /** Quick (brief-aware): the brief checks this version fails (see briefFit.ts). */
+  brief_misses?: string[];
+  /** Quick (brief-aware): points taken off `total` for the brief checks it fails. */
+  brief_penalty?: number;
+  /** Quick (brief-aware): one sentence on the biggest gap, from the check. */
+  brief_note?: string;
 }
+
+// Brief-aware scoring (admins only for now). When on, the scorer also rates
+// specificity (1–5) and a separate brief-fit check takes points off (see
+// briefFit.ts). The cap and the penalty do not add up: the lower total counts.
+let briefAwareScoring = false;
+export function setBriefAwareScoring(on: boolean): void {
+  briefAwareScoring = !!on;
+}
+export function isBriefAwareScoring(): boolean {
+  return briefAwareScoring;
+}
+const SPECIFICITY_NOTE = `
+
+ADDITIONAL — SPECIFICITY: Also return a "specificity" field, an integer from 1 to 5, where 1 is entirely generic copy (no concrete details, could apply to any business) and 5 is highly specific (named offers, exact numbers, particular audience cues drawn from the brief). Generic copy that says nothing only the client could say must not score above the middle of the scale.`;
+const SPECIFICITY_CAPS: { 1: number; 2: number } = { 1: 50, 2: 62 };
 
 const ABSOLUTE_SCORE_SYSTEM_PROMPT = `You are a professional copy evaluator. Score the following copy on four dimensions, each from 0-25. Evaluate in complete isolation — do not compare to any other version. Apply the same fixed standard regardless of copy type, industry, length, or subject matter.
 
@@ -98,7 +123,7 @@ function buildGoalSystemPrompt(goalKey?: GoalKey, goalLabel?: string): string {
  * the text is what it was before kinds existed.
  */
 export function buildAbsoluteSystemPrompt(goalKey?: GoalKey, goalLabel?: string, kind?: TextKindChoice | null): string {
-  return buildGoalSystemPrompt(goalKey, goalLabel) + textKindScoringGuidance(kind);
+  return buildGoalSystemPrompt(goalKey, goalLabel) + textKindScoringGuidance(kind) + (briefAwareScoring ? SPECIFICITY_NOTE : '');
 }
 
 export async function generateAbsoluteScore(
@@ -164,7 +189,10 @@ export async function generateAbsoluteScore(
     // Total is defined as the sum of the four 0–25 dimensions, so it always matches the
     // sub-score breakdown shown in reports (previously used the model's independently
     // returned total, which could drift ±1–2 from the actual sum).
-    const total = clamp(clarity + persuasion + audience_fit + structure, 100);
+    const sum = clamp(clarity + persuasion + audience_fit + structure, 100);
+    const specificity = briefAwareScoring ? clamp(Number(parsed.specificity) || 0, 5) : 0;
+    const cap = specificity === 1 ? SPECIFICITY_CAPS[1] : specificity === 2 ? SPECIFICITY_CAPS[2] : 0;
+    const total = cap > 0 && cap < sum ? cap : sum;
 
     return {
       clarity,
@@ -172,6 +200,8 @@ export async function generateAbsoluteScore(
       audience_fit,
       structure,
       total,
+      ...(briefAwareScoring ? { specificity } : {}),
+      ...(briefAwareScoring && cap > 0 && cap < sum ? { specificity_cap: cap } : {}),
       clarity_note:      String(parsed.clarity_note      || ''),
       persuasion_note:   String(parsed.persuasion_note   || ''),
       audience_fit_note: String(parsed.audience_fit_note || ''),
@@ -209,7 +239,7 @@ function scoreKey(content: unknown, goalKey?: GoalKey, goalLabel?: string, kind?
   const goal = goalKey === 'custom' ? `custom:${(goalLabel || '').trim()}` : goalKey || '';
   // A kind that adds no note to the scorer gives the key it had before kinds existed.
   const kindId = textKindId(kind);
-  return JSON.stringify(kindId ? [goal, text, kindId] : [goal, text]);
+  return JSON.stringify(kindId ? [goal, text, kindId] : [goal, text]) + (briefAwareScoring ? ' brief-aware' : '');
 }
 
 /** The score this text was given before for this goal and kind, if any. */

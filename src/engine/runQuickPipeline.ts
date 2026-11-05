@@ -13,7 +13,7 @@ import { FormState, GeneratedContentItem, GeneratedContentItemType, GoalKey, Use
 import { generateCopy } from '../services/api/copyGeneration';
 import { generateUnifiedComparison } from '../services/api/unifiedComparison';
 import type { ComparisonResult } from '../services/api/comprehensiveScoring';
-import { generateAbsoluteScore, isCompleteScore } from '../services/api/absoluteScoring';
+import { generateAbsoluteScore, isCompleteScore, isBriefAwareScoring } from '../services/api/absoluteScoring';
 import type { AbsoluteScoreBreakdown } from '../services/api/absoluteScoring';
 import { calculateTargetWordCount } from '../services/api/utils';
 import { checkUserAccess } from '../services/supabaseClient';
@@ -38,6 +38,7 @@ import { cleanUserFacts, userFactsWritingNote } from './missingFacts';
 import { claimsPenalty, distinctClaims, findUnsupportedClaims, rememberClaims, shareClaims, standsIn } from './sourceClaims';
 import { findLeftOutFacts, leftOutPenalty, listKeyFacts } from './keyFacts';
 import type { ClaimReview } from './claimReview';
+import { BriefFit, briefFitPenalty, briefFitText, checkBriefFit } from './briefFit';
 import { effectiveGates } from './gateRules';
 import { stopSessionWith, throwIfStopped } from './quickStop';
 import { ORIGINAL_OPTION_LABEL, ORIGINAL_VERSION_ID, pickWinner } from './pickWinner';
@@ -529,6 +530,23 @@ export async function scoreQuickVersions(
     return found;
   })().catch(() => ({}));
 
+  // Brief-aware scoring: the five brief-fit checks run in parallel with the
+  // scoring above (see briefFit.ts). Each failed check costs points taken from
+  // the four parts' sum; the specificity cap (absoluteScoring.ts) and this
+  // penalty do not add up: the lower of the two totals counts. Admins only.
+  const briefFitByVersion = (async (): Promise<Record<string, BriefFit | null>> => {
+    const briefText = isBriefAwareScoring() && formState.quickBriefText ? formState.quickBriefText : '';
+    if (!briefText) return {};
+    const found: Record<string, BriefFit | null> = {};
+    await Promise.all(
+      scoredFresh.map(async version => {
+        const fit = await checkBriefFit(contentToText(version.content), briefText, user, formState.sessionId);
+        if (fit) found[version.id] = fit;
+      })
+    );
+    return found;
+  })().catch((): Record<string, BriefFit | null> => ({}));
+
   // One reading of the scorer is not exact: the same text can come back up to
   // three points apart. A reading only matters where it could change the
   // outcome, so a version is read again (QUICK_SCORE_SAMPLES readings in all,
@@ -680,6 +698,32 @@ export async function scoreQuickVersions(
       total: Math.max(1, score.total - penalty),
       claims_open: open,
       claims_penalty: penalty,
+    };
+    absoluteByVersion[version.id] = adjusted;
+    const row = rows.find(item => item.versionId === version.id);
+    if (row) row.absoluteTotal = adjusted.total;
+  }
+
+  // Brief-aware scoring: the failed checks cost points (see briefFit.ts), taken
+  // from the total after the left-out and claims penalties. The specificity cap
+  // (already in the score) and this penalty do not add up: the lower of the two
+  // totals counts. Admins only.
+  const briefFits = await briefFitByVersion;
+  for (const version of scoredFresh) {
+    const score = absoluteByVersion[version.id];
+    const fit = briefFits[version.id];
+    if (!isUsableScore(score) || !fit) continue;
+    const penalty = briefFitPenalty(fit.misses);
+    if (penalty <= 0) continue;
+    const capped = score.specificity_cap && score.specificity_cap < score.total ? score.specificity_cap : score.total;
+    const taken = Math.max(1, capped - penalty);
+    const total = taken < capped ? taken : capped;
+    const adjusted: AbsoluteScoreBreakdown = {
+      ...score,
+      total,
+      brief_misses: fit.misses,
+      brief_penalty: penalty,
+      brief_note: fit.note || undefined,
     };
     absoluteByVersion[version.id] = adjusted;
     const row = rows.find(item => item.versionId === version.id);
@@ -1062,11 +1106,13 @@ export async function runQuickPipeline(
     formState = { ...formState, quickInstructionsNote: instructionsNoteText };
   }
   // From here on the settings describe the whole page again.
+  const briefForFit = isBriefAwareScoring() && input.briefRecord ? briefFitText(input.briefRecord.fields) : '';
   formState = {
     ...formState,
     originalCopy: fullCopy,
     specialInstructions: '',
     ...(draftSource ? { quickClaimSource: draftSource } : {}),
+    ...(briefForFit ? { quickBriefText: briefForFit } : {}),
   };
 
   const original: GeneratedContentItem = {
