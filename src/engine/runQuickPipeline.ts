@@ -715,9 +715,13 @@ export async function scoreQuickVersions(
     if (!isUsableScore(score) || !fit) continue;
     const penalty = briefFitPenalty(fit.misses);
     if (penalty <= 0) continue;
-    const capped = score.specificity_cap && score.specificity_cap < score.total ? score.specificity_cap : score.total;
-    const taken = Math.max(1, capped - penalty);
-    const total = taken < capped ? taken : capped;
+    // Tested formula (2026-11-05): the cap and the penalty do not add up.
+    // From the four parts' sum, take the lower of the capped sum and the sum
+    // minus the penalty; then take off again what left-out facts and claims cost.
+    const parts = score.clarity + score.persuasion + score.audience_fit + score.structure;
+    const capped = Math.min(parts, score.specificity_cap ?? parts);
+    const takenBefore = Math.max(0, capped - score.total);
+    const total = Math.max(1, Math.min(capped, parts - penalty) - takenBefore);
     const adjusted: AbsoluteScoreBreakdown = {
       ...score,
       total,

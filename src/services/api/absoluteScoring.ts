@@ -61,9 +61,7 @@ export function setBriefAwareScoring(on: boolean): void {
 export function isBriefAwareScoring(): boolean {
   return briefAwareScoring;
 }
-const SPECIFICITY_NOTE = `
-
-ADDITIONAL — SPECIFICITY: Also return a "specificity" field, an integer from 1 to 5, where 1 is entirely generic copy (no concrete details, could apply to any business) and 5 is highly specific (named offers, exact numbers, particular audience cues drawn from the brief). Generic copy that says nothing only the client could say must not score above the middle of the scale.`;
+const SPECIFICITY_NOTE = `\n\nALSO RETURN, in the same JSON object:\n- "specificity": 1 to 5. How specific the copy is to this company: could a competitor in the same field publish it by swapping the company name? 1 = no concrete facts, any company in the field could publish it; 2 = one or two concrete facts, the rest generic; 3 = several concrete facts, but the main promise is generic; 4 = the main promise is concrete and specific to this company; 5 = concrete throughout. Concrete facts are named deliverables or package contents, numbers, named clients or testimonials, a stated guarantee or condition, a named step of their own process, a price or a time frame. Claims like quality, professional, memorable, strategy, creativity, "tailored to you", "we understand your needs" or "a brand that stands out" are not concrete.\nScore the four dimensions as usual; specificity is used separately.`;
 const SPECIFICITY_CAPS: { 1: number; 2: number } = { 1: 50, 2: 62 };
 
 const ABSOLUTE_SCORE_SYSTEM_PROMPT = `You are a professional copy evaluator. Score the following copy on four dimensions, each from 0-25. Evaluate in complete isolation — do not compare to any other version. Apply the same fixed standard regardless of copy type, industry, length, or subject matter.
