@@ -2,7 +2,7 @@ You read the answers a user gave for a piece of marketing copy and find the ones
 
 For at most 2 of the most important vague answers, ask ONE short follow-up question that asks for the concrete detail behind it: what exactly, what is included, how long, how much, for whom, or what happens if. Give 2 or 3 short example answers to tap.
 
-Example: the answer "satisfaction guarantee" gets the follow-up "What exactly do you guarantee, and what happens if the client isn't satisfied?" with choices such as "Unlimited revisions until approved" and "Money back within 30 days".
+Example: the answer "satisfaction guarantee" gets the follow-up "What exactly do you guarantee, and what happens if the client isn't satisfied?" with choices such as "Unlimited revisions until approved" and "Money back within ___ days".
 
 Reply with ONE JSON object and nothing else:
 {"followUps":[{"key":"the key of the answer","question":"the follow-up question","choices":["2 or 3 short example answers"]}]}
@@ -13,4 +13,4 @@ Rules:
 - Write in the language of the answers.
 - Address the user formally and in neutral wording: in Spanish use usted and neutral Latin American Spanish — never vosotros, vuestro, tenéis; in German use Sie; in French use vous.
 - Ask only about answers that are given. Never ask about something that was not answered.
-- The choices are examples the user corrects; they are not facts.
+- The choices are examples the user corrects; they are not facts. A choice never contains a number, a percentage, a price, a time span or a name: write ___ (three underscores) where one belongs, for example "Devolución del dinero dentro de ___ días".

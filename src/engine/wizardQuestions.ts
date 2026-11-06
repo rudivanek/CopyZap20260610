@@ -210,6 +210,32 @@ export async function getWizardPlan(
   }
 }
 
+/** The blank a suggested answer leaves for the user's own figure or name ("Más de ___ clientes"). */
+export const ANSWER_BLANK = '___';
+
+const NO_DATA_WORD = /\b(no|not|none|sin|ningun[oa]?|nada|keine?n?|pas|aucune?|nessun[oa]?|sem|nenhum[a]?|n\/a)\b/i;
+const DATA_WORD = /\b(data|datos?|dati|dados|figures?|numbers?|números?|numeros?|cifras?|stats?|estadísticas?|zahlen|chiffres?|yet|aún|aun|todavía|todavia|noch|encore|ancora|ainda)\b/i;
+
+/**
+ * One answer as the writer may use it: parts still holding the blank, and
+ * parts that only say there is no such fact ("no data", "aún no tengo
+ * cifras"), are left out. Added 2026-11-05: chips suggested figures the user
+ * never gave, and a "no data" answer was taken as a cue to add statistics.
+ */
+export function usableAnswer(value: string): string {
+  return value
+    .split(/\s*;\s*/)
+    .map(part => part.trim())
+    .filter(part => {
+      if (!part || part.includes(ANSWER_BLANK)) return false;
+      const words = part.split(/\s+/).length;
+      const bare = part.replace(/[.!¡¿?]/g, '').trim();
+      if (/^(no|none|n\/a|-+|nada|ninguno|ninguna|sin datos|keine|aucun|nessuno|nenhum)$/i.test(bare)) return false;
+      return !(words <= 6 && NO_DATA_WORD.test(part) && DATA_WORD.test(part));
+    })
+    .join('; ');
+}
+
 const MAX_FOLLOW_UPS = 2;
 
 /**

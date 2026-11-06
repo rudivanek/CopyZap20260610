@@ -3,7 +3,7 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useCompleteAccess } from '../hooks/useCompleteAccess';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { adminGetUsers } from '../services/supabaseClient';
-import { GoalKey, User } from '../types';
+import { GoalKey, Tone, User } from '../types';
 import { DEFAULT_GOAL_KEY, GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import { countWords } from '../utils/markdownUtils';
 import { playSuccessSound } from '../utils/soundEffects';
@@ -24,7 +24,7 @@ import { FactAnswers, factsFromAnswers, OTHER_FACT_KEY } from './factAnswers';
 import { chatFacts, CLOSING_QUESTION, EMPTY_FACT_CHAT, FactChat } from '../engine/factChat';
 import { readChatChoice, saveChatChoice } from './QuickFactChat';
 import { FACT_FIELDS_OFF } from './QuickMissingFacts';
-import { getTextKind } from '../services/api/textKinds';
+import { getTextKind, TextKindKey } from '../services/api/textKinds';
 import { adminLoadQuickResult, loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
 import type { ViewingUser } from './QuickHistory';
 import { changeQuickVersion, QuickChangeOutcome, QuickChangeParts, validateQuickChange } from '../engine/changeQuickVersion';
@@ -191,6 +191,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [writtenFromBrief, setWrittenFromBrief] = useState(false);
   const [briefRecord, setBriefRecord] = useState<Omit<QuickBriefRecord, 'editedBeforeScoring'> | null>(null);
   const pendingBriefContinue = useRef<{ copy: string; goalKey: GoalKey } | null>(null);
+  const briefChosen = useRef<{ tone: Tone; kind: TextKindKey } | null>(null);
   const openAtStart = useRef(searchParams.get('r'));
   // Read live from the URL so navigating to a different user's history
   // re-runs the lookup. searchParams updates on every navigation.
@@ -649,8 +650,10 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     const { alive: isMounted } = startProcess();
     try {
       const id = await ensureSession(copy);
-      const understood = await inferQuickBrief(copy, currentUser, id);
+      const read = await inferQuickBrief(copy, currentUser, id);
       if (!isMounted.current) return;
+      const chosen = briefChosen.current;
+      const understood = chosen ? { ...read, tone: chosen.tone, kind: chosen.kind, kindOther: '' } : read;
       // Copy fetched from a web address is a web page, whatever the reading step made of it.
       setBrief(fetchedFrom && fetchedUrl ? { ...understood, kind: 'web_page', kindOther: '' } : understood);
       setBriefCopy(copy);
@@ -1273,12 +1276,13 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [copy, goalKey]);
 
-  const handleBriefDraft = (draft: string, goalKey: GoalKey, record: Omit<QuickBriefRecord, 'editedBeforeScoring'>) => {
+  const handleBriefDraft = (draft: string, goalKey: GoalKey, record: Omit<QuickBriefRecord, 'editedBeforeScoring'>, chosen: { tone: Tone; kind: TextKindKey }) => {
     setBriefMode('improve');
     setCopy(draft);
     setGoalKey(goalKey);
     setWrittenFromBrief(true);
     setBriefRecord(record);
+    briefChosen.current = chosen;
     pendingBriefContinue.current = { copy: draft, goalKey };
   };
 

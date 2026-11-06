@@ -189,7 +189,11 @@ export async function generateAbsoluteScore(
     // returned total, which could drift ±1–2 from the actual sum).
     const sum = clamp(clarity + persuasion + audience_fit + structure, 100);
     const specificity = briefAwareScoring ? clamp(Number(parsed.specificity) || 0, 5) : 0;
-    const cap = specificity === 1 ? SPECIFICITY_CAPS[1] : specificity === 2 ? SPECIFICITY_CAPS[2] : 0;
+    // A blog post teaches: advice that holds for the whole field is what it is for, so
+    // "few concrete facts about this company" does not cap it (2026-11-05: an honest post,
+    // with no figures given, was capped at 62).
+    const capped = kind?.key !== 'blog_post';
+    const cap = !capped ? 0 : specificity === 1 ? SPECIFICITY_CAPS[1] : specificity === 2 ? SPECIFICITY_CAPS[2] : 0;
     const total = cap > 0 && cap < sum ? cap : sum;
 
     return {

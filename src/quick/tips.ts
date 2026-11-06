@@ -23,6 +23,7 @@ export const GOAL_TIPS: Record<string, string> = {
 /** The kinds of text on the check screen, by key (see services/api/textKinds.ts). */
 export const KIND_TIPS: Record<string, string> = {
   web_page: 'A page or part of a website, usually with headings and several parts. Judged as a page: structure and a clear next step count.',
+  blog_post: 'A blog post or article that teaches. Judged on how useful the advice is and how it is organized, not as a sales page.',
   short_text:
     'One or two sentences that stand alone: a value proposition, headline or slogan. Judged as a statement, not as a page: no call to action expected.',
   email: 'An email or a newsletter. The subject line, greeting and sign-off are kept; a text link is a complete call to action.',

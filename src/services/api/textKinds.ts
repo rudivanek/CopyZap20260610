@@ -19,7 +19,7 @@
  * handling: no model call, no cost.
  */
 
-export type TextKindKey = 'web_page' | 'short_text' | 'email' | 'social_post' | 'ad' | 'other';
+export type TextKindKey = 'web_page' | 'blog_post' | 'short_text' | 'email' | 'social_post' | 'ad' | 'other';
 
 export interface TextKind {
   key: TextKindKey;
@@ -49,6 +49,18 @@ export const TEXT_KINDS: TextKind[] = [
     scoring: '',
     writing: '',
     noun: '',
+  },
+  {
+    // Added 2026-11-05: a blog post written from a brief was judged as a web page and
+    // capped for "few concrete facts about this company" (54 for an honest post).
+    key: 'blog_post',
+    label: 'Blog post / article',
+    hint: 'a blog post or article that teaches or explains: a title, an introduction and several sections of advice, often a meta description',
+    scoring:
+      'The copy is a blog post or article written to teach the reader, not a sales page. Judge Persuasion by how useful, convincing and practical the advice is and whether the end leads the reader to a clear next step; do not expect an offer, urgency, proof of results or a call to action throughout. Advice that holds for the whole field is normal here and is not a fault; facts about the company are not expected inside the advice. A "Meta description:" first line is a normal part. Judge Structure by a clear title, an introduction that says what the reader will learn, sections in a logical order and a conclusion.',
+    writing:
+      'This text is a blog post or article that teaches. Keep it an article: keep the title, the section headings and the meta description line if there is one. Do not turn it into a sales page.',
+    noun: 'a blog post or article, not a sales page',
   },
   {
     key: 'short_text',

@@ -161,6 +161,10 @@ export function goalLine(goalKey: GoalKey, goalLabel?: string): string {
  */
 const KIND_GUIDANCE: Record<TextKindKey, { max: number; line: string }> = {
   web_page: { max: 3, line: 'It is a web page: any of the gaps below can matter.' },
+  blog_post: {
+    max: 2,
+    line: 'It is a blog post or article that teaches: ask only for the company\'s own experience or view, or an example from its work. Never ask for a price, an offer, a guarantee or a deadline.',
+  },
   email: {
     max: 3,
     line: 'It is an email or newsletter: ask mainly about the offer, a real reason to act now and what happens after the reader replies or clicks. Do not ask what is included in a service or for credentials.',
@@ -193,6 +197,7 @@ export function exampleLanguage(language?: string | null): string {
 /** For the goals other than Convert: only the kind of text and how many questions it has room for. */
 const KIND_NAMES: Record<TextKindKey, string> = {
   web_page: 'a web page',
+  blog_post: 'a blog post or article',
   email: 'an email or newsletter',
   ad: 'an ad',
   social_post: 'a social media post',

@@ -21,8 +21,9 @@ import {
   suggestSectionWords,
   trimSiteFacts,
 } from '../engine/generateFromBrief';
-import { getWizardFollowUps, getWizardPlan, WizardFieldKey, WizardFormality, WizardPlan, WizardQuestion, WIZARD_FIELDS } from '../engine/wizardQuestions';
+import { getWizardFollowUps, getWizardPlan, WizardFieldKey, WizardFormality, WizardPlan, WizardQuestion, WIZARD_FIELDS, ANSWER_BLANK, usableAnswer } from '../engine/wizardQuestions';
 import { fetchQuickPage } from '../engine/fetchQuickPage';
+import type { TextKindKey } from '../services/api/textKinds';
 import { answerFixNote, applyAnswerNumbers } from '../engine/answerConflicts';
 import { QUICK_LANGUAGES, QUICK_TONES } from '../engine/inferQuickBrief';
 import type { QuickBriefRecord } from '../engine/runQuickPipeline';
@@ -31,7 +32,7 @@ interface WizardFormProps {
   currentUser: User;
   defaultLanguage: Language;
   disabled: boolean;
-  onDraft: (draft: string, goalKey: GoalKey, record: Omit<QuickBriefRecord, 'editedBeforeScoring'>) => void;
+  onDraft: (draft: string, goalKey: GoalKey, record: Omit<QuickBriefRecord, 'editedBeforeScoring'>, chosen: { tone: Tone; kind: TextKindKey }) => void;
   onUnavailable: () => void;
   onError: (message: string) => void;
   getSessionId: (label: string) => Promise<string>;
@@ -56,6 +57,8 @@ const goalName = (key: GoalKey) => {
   const option = GOAL_OPTIONS.find(item => item.key === key);
   return key === 'custom' ? 'Other' : (option?.label.split(' — ')[0] ?? String(key));
 };
+
+const CLEANED_KEYS: (keyof Answers)[] = ['product', 'audience', 'result', 'alternatives', 'differentiators', 'proof', 'experience', 'callToAction'];
 
 /** Tapping a choice adds it to the answer; tapping it again takes it out. */
 function toggleChoice(current: string, choice: string): string {
@@ -240,6 +243,9 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
       return;
     }
     setMissing([]);
+    // The answers may hold chips that left a blank ("___") where a figure or
+    // name was never given: those parts are left out before the run, so the
+    // writer does not fill them in. (2026-11-05: the chips suggested figures.)
     // First click: check the answers for ones too general to make the copy
     // specific, and ask one follow-up for each (at most two). The user can
     // answer or leave them blank; the next click writes.
@@ -248,7 +254,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
       setStage('checking');
       const found = await getWizardFollowUps(
         briefPiece(piece).label,
-        WIZARD_FIELDS.map(field => ({ key: field.key, label: field.label, value: answers[field.key] })),
+        WIZARD_FIELDS.map(field => ({ key: field.key, label: field.label, value: usableAnswer(answers[field.key]) })),
         currentUser,
         sessionId,
       );
@@ -262,10 +268,15 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
     // The follow-up answers are added to the answer they belong to.
     const a: Answers = { ...answers };
     (followUps ?? []).forEach(item => {
-      const extra = (followAnswers[item.key] ?? '').trim();
+      const extra = usableAnswer((followAnswers[item.key] ?? '').trim());
       if (!extra || item.key === 'goal') return;
       const key = item.key as keyof Answers;
       a[key] = a[key].trim() ? `${a[key].trim()} — ${extra}` : extra;
+    });
+    // Answers cleaned of any chip that left a blank, so the writer does not
+    // invent the figure or name the blank stood for.
+    CLEANED_KEYS.forEach(key => {
+      a[key] = usableAnswer(a[key]);
     });
     // Answers that were read from the website, not asked, and left as they were:
     // the user may never have seen them, so the brief marks them as website facts.
@@ -391,7 +402,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         websiteRead: website.trim() ? siteFacts !== undefined : undefined,
         draft,
         ...(metaDescription ? { metaDescription } : {}),
-      });
+      }, { tone, kind: briefPiece(piece).channel });
     } catch (error) {
       if (token !== runToken.current) return;
       if (error instanceof BriefNotAvailableError) onUnavailable();
@@ -429,6 +440,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
           className={fieldClass}
         />
         {missing.includes(key) && <p className="text-sm text-status-critical">Fill this in first.</p>}
+        {answers[key].includes(ANSWER_BLANK) && <p className="text-sm text-status-warning">A choice left a blank (___) where your own figure or name goes. CopyZap will write without it, or edit the box above.</p>}
       </div>
     );
   };

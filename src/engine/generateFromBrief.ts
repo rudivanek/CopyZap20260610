@@ -36,7 +36,7 @@ export const BRIEF_PIECES: BriefPiece[] = [
   { key: 'landing_page',        label: 'Landing page',              group: 'page',  channel: 'web_page',    defaultLength: 'long' },
   { key: 'service_page',        label: 'Service or product page',   group: 'page',  channel: 'web_page',    defaultLength: 'long' },
   { key: 'about_page',          label: 'About page',                group: 'page',  channel: 'web_page',    defaultLength: 'medium' },
-  { key: 'blog_post',           label: 'Blog post',                 group: 'page',  channel: 'web_page',    defaultLength: 'long' },
+  { key: 'blog_post',           label: 'Blog post',                 group: 'page',  channel: 'blog_post',   defaultLength: 'long' },
   { key: 'hero_section',        label: 'Hero section',              group: 'short', channel: 'short_text',  defaultLength: 'short' },
   { key: 'h1_headline',         label: 'H1 / headline',             group: 'short', channel: 'short_text',  defaultLength: 'short' },
   { key: 'usp',                 label: 'USP / value proposition',   group: 'short', channel: 'short_text',  defaultLength: 'short' },
@@ -327,6 +327,14 @@ function briefText(brief: Brief): string {
 }
 
 /**
+ * Today's date for the writer, as "November 5, 2026". Without it the writer
+ * dated a post "en 2024" on 2026-11-05.
+ */
+function todayForWriter(): string {
+  return new Date().toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
+}
+
+/**
  * Writes one finished piece of copy from the brief. Throws BriefNotAvailableError
  * when the account is not allowed to use brief mode; throws Error on any other
  * failure.
@@ -337,7 +345,7 @@ export async function generateFromBrief(brief: Brief, user: User, sessionId?: st
     response = await makeApiRequestWithFallback(
       BRIEF_MODEL,
       [
-        { role: 'system', content: briefPrompt },
+        { role: 'system', content: briefPrompt.replace('{{TODAY}}', todayForWriter()) },
         { role: 'user', content: briefText(brief) },
       ],
       0.7,

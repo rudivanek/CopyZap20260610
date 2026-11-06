@@ -260,10 +260,10 @@ const QuickConfirm: React.FC<QuickConfirmProps> = ({
           </div>
         </div>
 
-        {/* The kind of text: six square choices in two columns, like the goals on the start form. */}
+        {/* The kind of text: seven square choices in two columns, like the goals on the start form. */}
         <fieldset aria-describedby="quick-kind-note" className="m-0 p-0 border-0 flex flex-col gap-1">
           <legend className={'p-0 mb-1 ' + label}>Kind of text</legend>
-          <div className="grid grid-cols-1 sm:grid-flow-col sm:grid-rows-3 sm:auto-cols-fr gap-x-8">
+          <div className="grid grid-cols-1 sm:grid-flow-col sm:grid-rows-4 sm:auto-cols-fr gap-x-8">
             {TEXT_KINDS.map(kind => (
               <SquareRadio
                 key={kind.key}
