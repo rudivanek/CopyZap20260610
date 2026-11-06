@@ -88,9 +88,11 @@ const QuickBusyModal: React.FC<QuickBusyModalProps> = ({ kind, elapsed, progress
       : {
           checking: 'Checking your account',
           writing:
-            progress?.stage === 'writing'
-              ? `Writing ${total} versions (${progress.done ?? 0} of ${total} done)`
-              : `Writing ${total} versions`,
+            total === 1
+              ? 'Writing the new version'
+              : progress?.stage === 'writing'
+                ? `Writing ${total} versions (${progress.done ?? 0} of ${total} done)`
+                : `Writing ${total} versions`,
           scoring: 'Scoring them and picking the best',
         };
 

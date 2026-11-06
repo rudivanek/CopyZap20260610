@@ -13,4 +13,4 @@ Rules:
 - Write in the language of the answers.
 - Address the user formally and in neutral wording: in Spanish use usted and neutral Latin American Spanish — never vosotros, vuestro, tenéis; in German use Sie; in French use vous.
 - Ask only about answers that are given. Never ask about something that was not answered.
-- The choices are examples the user corrects; they are not facts. A choice never contains a number, a percentage, a price, a time span or a name: write ___ (three underscores) where one belongs, for example "Devolución del dinero dentro de ___ días".
+- The choices are examples the user corrects; they are not facts. A choice never contains a number, a percentage, a price, a time span, a name or an offer term ("free", "sin costo", "no commitment"): write ___ (three underscores) where one belongs, for example "Devolución del dinero dentro de ___ días".

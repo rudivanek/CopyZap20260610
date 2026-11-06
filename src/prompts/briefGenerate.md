@@ -37,7 +37,7 @@ If the brief lists words or points to include, use them. If it lists words or po
 
 **WHAT TO WRITE — follow the structure for the piece named in the brief**
 
-Pages. Write the page itself, never a description of it. Use markdown: # for the one main heading, ## for each section heading. Short paragraphs, bullet lists where they help scanning.
+Pages. Write the page itself, never a description of it. The very first line of your answer is "Meta description: " followed by one sentence of at most 155 characters that says what the page offers and to whom; then an empty line; then the page. Use markdown: # for the one main heading, ## for each section heading. Short paragraphs, bullet lists where they help scanning.
 
 When the brief lists "Sections, in this order", write exactly those sections, in that order, following the note given for each. The first section (Hero, or Title and intro) uses the # heading; every other section gets its own ## heading. A section marked "only if facts exist" is left out entirely, heading included, when neither the brief nor the website gives anything for it. Do not add sections that are not listed. When a section shows a word count, keep to it.
 
@@ -47,7 +47,7 @@ When no sections are listed, use these:
 - Service or product page: # what it is and who it is for; ## What you get (bullets); ## How it works; ## Proof (only if given); ## call to action.
 - About page: # a heading about the people or the mission; the story in short paragraphs using only given facts; ## How we work; ## call to action.
 
-Blog post. A blog post is written to teach the reader, not to sell to them. The very first line of your answer is "Meta description: " followed by one sentence of at most 155 characters that says what the reader will learn (with the main keyword when one is given); then an empty line; then the post. Use the topic or title idea from the brief for the # title. The company appears only in the final call to action section (and, if it truly helps, once as a short aside) — never as a sales pitch inside the advice. When the brief gives the company's own experience or view, say it once in the body, as the company speaking (for example "In our experience at …"), with the same meaning. When it gives none, write the advice without "we", "our experience" or any claim about what the company has seen or done. Prefer concrete situations, examples, checklists and questions to ask over general statements. Do not invent statistics, studies, survey results or prices; if a number would help, describe the point without one.
+Blog post. A blog post is written to teach the reader, not to sell to them. The very first line of your answer is "Meta description: " followed by one sentence of at most 155 characters that says what the reader will learn (with the main keyword when one is given); then an empty line; then the post. Use the topic or title idea from the brief as the # title, word for word, when it reads as a title (a full phrase such as "Por qué WordPress seguirá siendo importante en el futuro"); write your own title only when it gives a bare topic (such as "WordPress"). The company appears only in the final call to action section (and, if it truly helps, once as a short aside) — never as a sales pitch inside the advice. When the brief gives the company's own experience or view, say it once in the body, as the company speaking (for example "In our experience at …"), with the same meaning. When it gives none, write the advice without "we", "our experience" or any claim about what the company has seen or done. Prefer concrete situations, examples, checklists and questions to ask over general statements. Do not invent statistics, studies, survey results or prices; if a number would help, describe the point without one.
 
 Company name: if the brief or the website text gives the company's name, use it naturally — in the hero subline or the first section, and in the final call to action. Never invent a name.
 
@@ -72,7 +72,7 @@ Other:
 
 **LENGTH**
 
-Pages: write about the "Target length" given in the brief, spread over the sections; a section's own word count comes first. Without a target length: Short about 150 to 300 words, Medium about 400 to 700, Long about 800 to 1,200.
+Pages: write about the "Target length" given in the brief, spread over the sections (the meta description line does not count); a section's own word count comes first. Without a target length: Short about 150 to 300 words, Medium about 400 to 700, Long about 800 to 1,200.
 Emails follow the length in the brief: when it gives a "Target length", write about that many words, at most 15% more; otherwise Short about 80 to 150 words, Medium about 150 to 300, Long about 350 to 600.
 Short texts, social posts, ads and product descriptions ignore the length and follow their structure above.
 

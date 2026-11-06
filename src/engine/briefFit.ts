@@ -120,9 +120,14 @@ export async function checkBriefFit(
     // brief that names no action cannot be missed on it: the check read a goal
     // such as "convert" as an action now and then (2026-11-05).
     const namesAction = /^[-*\s]*(What the reader should do|Call to action|Action)\s*:/im.test(asked);
+    const isArticle = /^[-*\s]*What you need\s*:\s*Blog post/im.test(asked);
     const misses = found
       .filter(miss => !(miss === 'address_slip' && found.includes('address')))
-      .filter(miss => miss !== 'action' || namesAction);
+      .filter(miss => miss !== 'action' || namesAction)
+      // A blog post keeps the company out of the advice (briefGenerate.md), so it
+      // is never marked down for leaving out the offer or what makes them different
+      // (2026-11-06: an honest WordPress post lost 8 points for it).
+      .filter(miss => !isArticle || (miss !== 'offer' && miss !== 'differentiator'));
     return { misses, note: typeof parsed.note === 'string' ? parsed.note.trim() : '' };
   } catch {
     return null;

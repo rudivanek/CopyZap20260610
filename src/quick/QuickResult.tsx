@@ -583,11 +583,20 @@ const QuickResult: React.FC<QuickResultProps> = ({
         mark.style.padding = '0 2px';
         mark.style.cursor = 'pointer';
         range.surroundContents(mark);
+        // A small "check N" tag, not a bare number: a bare number read as a
+        // footnote with no source list (2026-11-06). It is only on screen: Copy
+        // and Export use the copy itself, without it.
         const sup = document.createElement('sup');
-        sup.textContent = String(index + 1);
-        sup.style.fontSize = '11px';
+        sup.textContent = `check ${index + 1}`;
+        sup.setAttribute('aria-label', `Claim ${index + 1} to check`);
+        sup.style.fontSize = '10px';
         sup.style.fontWeight = '700';
-        sup.style.marginLeft = '2px';
+        sup.style.marginLeft = '3px';
+        sup.style.padding = '0 4px';
+        sup.style.borderRadius = '3px';
+        sup.style.background = CLAIM_MARK_LINE;
+        sup.style.color = '#ffffff';
+        sup.style.whiteSpace = 'nowrap';
         mark.appendChild(sup);
         mark.addEventListener('click', () =>
           document.getElementById(`quick-claim-${index + 1}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' })

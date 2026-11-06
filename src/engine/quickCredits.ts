@@ -148,7 +148,9 @@ export function estimateRunCredits(words: number, versions = 3, draftOnly = fals
   // One version: writing, checks and scoring of the other two are not done.
   // Measured 2026-11-04: one version of an 836-word page used 35 credits (about 30%
   // of the three-version estimate); a draft from a brief, 900 words, 26 credits.
-  const factor = draftOnly ? 0.25 : versions === 1 ? 0.35 : 1;
+  // Since the draft is scored once (2026-11-05), scoring a draft used 12 credits
+  // (806-word blog post) and 17 (704-word homepage) on 2026-11-06.
+  const factor = draftOnly ? 0.15 : versions === 1 ? 0.35 : 1;
   const credits = factor === 1 ? three : Math.max(15, Math.round((three * factor) / 5) * 5);
   return { credits, atLeast: words > 2000 };
 }

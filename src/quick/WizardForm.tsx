@@ -318,7 +318,8 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
       };
       const written = await generateFromBrief(brief, currentUser, sessionId);
       if (token !== runToken.current) return;
-      const split = isBlog ? splitMetaDescription(written) : { draft: written, metaDescription: undefined };
+      // Pages and blog posts start with a meta description line (2026-11-06: pages too).
+      const split = isPage ? splitMetaDescription(written) : { draft: written, metaDescription: undefined };
       const metaDescription = split.metaDescription;
       // A number from the website never replaces the user's own answer (see answerConflicts.ts).
       // An answer that was filled in from the website and left as it was, under
