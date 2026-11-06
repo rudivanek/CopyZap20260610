@@ -776,7 +776,9 @@ export async function scoreQuickVersions(
     const checked = claimResults.find(entry => entry.id === row.versionId)?.claims;
     if (!checked) continue;
     row.verificationFlags = [
-      ...checked.map(claim => `${CLAIM_NOTE_PREFIX} ${claim}`),
+      // The same claims as the checklist and the score count (2026-11-06: 9 on the
+      // screen, 10 in the ranking and the report, one listed twice).
+      ...distinctClaims(checked).map(claim => `${CLAIM_NOTE_PREFIX} ${claim}`),
       ...notes.filter(note => !CLAIM_NOTE.test(note)),
     ];
   }

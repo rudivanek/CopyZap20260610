@@ -393,6 +393,23 @@ export function trimSiteFacts(text: string, maxWords = 2500): string {
  * A blog post starts with a line "Meta description: …". The line is taken off
  * the draft (so it is not scored or rewritten as body copy) and returned on its own.
  */
+/**
+ * A blog post keeps the title the user typed: when the topic of at least four
+ * words stands in the request as typed, it replaces the first # heading. The
+ * writer was told to keep it and still added to it (2026-11-06: "…en el
+ * futuro" came back as "…en el futuro de su negocio en línea").
+ */
+export function keepGivenTitle(draft: string, title: string | undefined, request: string): string {
+  const given = (title || '').trim().replace(/[.:;]+$/, '');
+  if (given.split(/\s+/).length < 4) return draft;
+  if (!request.toLowerCase().includes(given.toLowerCase())) return draft;
+  const lines = draft.split('\n');
+  const index = lines.findIndex(line => /^#\s+\S/.test(line));
+  if (index === -1) return draft;
+  lines[index] = `# ${given}`;
+  return lines.join('\n');
+}
+
 export function splitMetaDescription(text: string): { draft: string; metaDescription?: string } {
   const lines = (text || '').replace(/\r\n?/g, '\n').split('\n');
   const index = lines.findIndex(line => line.trim() !== '');

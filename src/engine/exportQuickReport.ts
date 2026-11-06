@@ -49,8 +49,12 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
   const winnerId = scores.winnerId;
   // Read the structural check the way the screen does (see gateRules.ts).
   const gates = effectiveGates(scores.gateByVersion, result.versions);
+  // A draft from a brief has no original of the user's: the report shows the draft
+  // alone, not an "Original copy" at +0 (2026-11-06).
+  const draftOnly = !!result.briefRecord?.draftOnly;
   const inReport = (versionId: string): boolean => {
-    if (versionId === ORIGINAL_VERSION_ID || versionId === winnerId) return true;
+    if (versionId === ORIGINAL_VERSION_ID) return !draftOnly || versionId === winnerId;
+    if (versionId === winnerId) return true;
     const gate = gates[versionId];
     const setAside = gate ? !gate.valid : false;
     return !setAside && scores.absoluteByVersion[versionId] !== undefined;
@@ -85,7 +89,17 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
   }
 
   const extraRows: [string, string][] = [];
+  // A draft from a brief: the report shows the brief it was written from, not
+  // the draft again under "Original copy".
+  if (draftOnly) {
+    for (const field of result.briefRecord?.fields ?? []) {
+      if (field.value && field.value.trim()) extraRows.push([field.label, field.value.trim()]);
+    }
+    if (result.briefRecord?.website) extraRows.push(['Website', result.briefRecord.website]);
+  }
   if (result.source?.url) extraRows.push(['Source', result.source.url]);
+  // The meta description written with a page or blog post (shown above the copy on screen).
+  if (result.briefRecord?.metaDescription) extraRows.push(['Meta description', result.briefRecord.metaDescription]);
   if (result.testimonials.count > 0) {
     extraRows.push(['Testimonials', `${result.testimonials.count} kept word for word`]);
   }
@@ -104,6 +118,7 @@ export function buildQuickReportInput(result: QuickRunResult, title?: string): Q
     formState: {
       ...result.formState,
       projectDescription: (title || deriveQuickLabel(result.formState.originalCopy || '')).trim() || 'CopyZap report',
+      ...(draftOnly ? { originalCopy: '' } : {}),
     },
     cards: result.versions.filter(version => inReport(version.id)),
     comparisonResult,

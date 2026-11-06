@@ -73,6 +73,7 @@ const FIELDS: [string, BriefFitMiss][] = [
 const BRIEF_FIT_PROMPT = `You check a piece of marketing copy against the client's brief it was written for. Do not score its quality. Reply with the JSON object only: no reasoning, no text before or after it. Answer six questions with true or false:
 "address_form_matches": the copy addresses the reader mostly in the form the brief sets (usted or tú, formal or informal). false only when most of it uses the other form. true when the brief sets none.
 "address_form_no_slips": no word in the copy uses the other form, the subject and sign-off included. true when the brief sets none, or when "address_form_matches" is false.
+For both: words in quotation marks, and FAQ questions written the way the reader would ask them ("¿Tienen oficinas en la CDMX?", "¿Pueden empezar con un solo servicio?"), are someone else's words, not the copy addressing the reader: they never count.
 "main_offer_present": what the brief says the client gets is clearly in the copy.
 "differentiator_present": the brief's main differentiator is clearly in the copy.
 "requested_action_present": the copy asks for the action the brief names (wording may differ). true when the brief names no specific action (a goal such as "convert" is not an action).

@@ -16,6 +16,7 @@ import {
   briefShapeNote,
   defaultSectionsFor,
   generateFromBrief,
+  keepGivenTitle,
   splitMetaDescription,
   suggestedWordsFor,
   suggestSectionWords,
@@ -327,7 +328,8 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
       const answerKeys = (['proof', 'experience', 'differentiators', 'result', 'alternatives'] as const);
       const ownAnswers = answerKeys.filter(key => a[key].trim() && !websiteKeys.includes(key)).map(key => a[key].trim());
       const websiteAnswers = answerKeys.filter(key => websiteKeys.includes(key)).map(key => a[key].trim());
-      const checked = applyAnswerNumbers(split.draft, ownAnswers, [a.product, ...websiteAnswers, siteFacts ?? '']);
+      const titled = isBlog ? keepGivenTitle(split.draft, topic, request) : split.draft;
+      const checked = applyAnswerNumbers(titled, ownAnswers, [a.product, ...websiteAnswers, siteFacts ?? '']);
       const draft = checked.text;
       const answerNotes = checked.fixes.map(answerFixNote);
       const languageText = [
