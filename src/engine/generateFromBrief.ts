@@ -70,7 +70,7 @@ export interface BriefSectionOption {
 export const BRIEF_SECTION_OPTIONS: BriefSectionOption[] = [
   { key: 'hero', label: 'Hero', factsOnly: false, note: 'the # main headline (the main benefit, not the company name), a one- or two-sentence subline, then the call to action as a short line' },
   { key: 'benefits', label: 'Benefits', factsOnly: false, note: '3 to 6 benefits, as many as the facts support, each a short bold lead-in plus one or two sentences' },
-  { key: 'how_it_works', label: 'How it works', factsOnly: false, note: 'the real steps from the brief or website, in their order and number; if none are given, 3 or 4 simple steps' },
+  { key: 'how_it_works', label: 'How it works', factsOnly: false, note: 'only the real steps from the brief or website, in their order and number; when none are given, say only what happens next (for example: send a message or call, and the company replies) — never make up a process' },
   { key: 'services', label: 'Services', factsOnly: false, note: 'each service named in the brief or website, with one or two sentences; only services that are given' },
   { key: 'what_you_get', label: 'What you get', factsOnly: false, note: 'a bullet list of what the customer gets, only as given' },
   { key: 'offer', label: 'The offer', factsOnly: false, note: 'exactly what is offered and on what terms, only as given' },

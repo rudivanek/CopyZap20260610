@@ -35,6 +35,7 @@ import {
 import { textKindWritingNote } from '../services/api/textKinds';
 import { KEEP_TO_ORIGINAL_NOTE, QUICK_REWRITE_NOTE } from './keepToOriginal';
 import { cleanUserFacts, userFactsWritingNote } from './missingFacts';
+import { withRiskyPhrases } from './riskyPhrases';
 import { claimsPenalty, distinctClaims, findUnsupportedClaims, rememberClaims, shareClaims, standsIn } from './sourceClaims';
 import { findLeftOutFacts, leftOutPenalty, listKeyFacts } from './keyFacts';
 import type { ClaimReview } from './claimReview';
@@ -1077,7 +1078,8 @@ export async function runQuickPipeline(
     await Promise.all(
       written.items.map(async item => {
         const text = contentToText(item.content);
-        return { item, text, claims: await findUnsupportedClaims(text, allowedText, user, sessionId) };
+        // Promise words (offer terms, guarantees, scarcity) are always listed, also when the check misses them (see riskyPhrases.ts).
+        return { item, text, claims: withRiskyPhrases(text, allowedText, await findUnsupportedClaims(text, allowedText, user, sessionId)) };
       })
     )
   );

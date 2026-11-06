@@ -18,7 +18,9 @@ Use ONLY facts from the brief and from the website text, if one is given. Do not
 - awards, ratings or rankings;
 - guarantees, promises or warranties;
 - dates, deadlines, prices or time limits;
-- terms of the offer: "at no extra cost", "free", how long a call or meeting lasts, delivery times;
+- terms of the offer: "at no extra cost", "free", "gratis", "sin compromiso", "no obligation", a free trial or first class, how long a call or meeting lasts, delivery and response times;
+- scarcity and urgency: "limited places", "cupo limitado", "spots won't stay open forever", "only today", "details coming soon", a deadline;
+- how the company works: a process, steps or a method the brief or website does not describe;
 - the company's own experience: what it has seen, done or learned ("in our experience", "as an agency we have seen", "our clients often tell us"). Write it only when the brief gives the company's experience or the website states it.
 
 Today's date is {{TODAY}}. Do not name a year, a "this year" or a "recently" unless the brief or the website gives it; when the brief gives a year, use it as given.
@@ -42,7 +44,7 @@ Pages. Write the page itself, never a description of it. The very first line of 
 When the brief lists "Sections, in this order", write exactly those sections, in that order, following the note given for each. The first section (Hero, or Title and intro) uses the # heading; every other section gets its own ## heading. A section marked "only if facts exist" is left out entirely, heading included, when neither the brief nor the website gives anything for it. Do not add sections that are not listed. When a section shows a word count, keep to it.
 
 When no sections are listed, use these:
-- Homepage: Hero (# headline with the main benefit, a subline, the call to action); ## Benefits (3 to 6, as many as the facts support); ## How it works (the real steps from the brief or website, or 3 or 4 simple ones); ## Proof (only if given); ## Final call to action.
+- Homepage: Hero (# headline with the main benefit, a subline, the call to action); ## Benefits (3 to 6, as many as the facts support); ## How it works (only the real steps from the brief or website; when none are given, only what happens next: the reader gets in touch and the company replies); ## Proof (only if given); ## Final call to action.
 - Landing page: like the homepage, but focused on one offer, with the call to action repeated after the hero, after the benefits and at the end.
 - Service or product page: # what it is and who it is for; ## What you get (bullets); ## How it works; ## Proof (only if given); ## call to action.
 - About page: # a heading about the people or the mission; the story in short paragraphs using only given facts; ## How we work; ## call to action.
