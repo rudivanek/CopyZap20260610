@@ -1,7 +1,32 @@
 # PimpMyCopy / CopyZap — Feature Documentation
 
-Version: 1.82
-Last Updated: 2026-05-13T19:30:00Z
+Version: 1.83
+Last Updated: 2026-11-06T01:45:00Z
+
+---
+
+## Quick — Skip Claims Made Only of the Source's Own Words, and the Subject of an Article Is Not a Claim (2026-11-06)
+
+**Feature:** Two refinements to the unsupported-claim check in the Quick pipeline, both aimed at drafts written from a brief (mode 2), whose "original" is the user's own answers and website rather than a pasted original. First, the claim-check prompt now tells the model not to list the subject of an article itself — what an article is about or the things it compares, named without saying anything about the business — so a sentence such as "templates and custom-built sites" is no longer flagged as a claim about the business. Second, a new `madeOfSourceWords` helper lets the engine skip, for brief-drafted copy only, any claim made entirely of words that already appear in the source (the answers + website), with a minimum of three words and a lenient plural-"s" match. This stops true facts the user themselves wrote — e.g. "15 years and 200+ projects across Mexico, Latin America, the US and Europe" — from being listed as unsupported, while still catching over-reaches built from the page's own words (e.g. "Dorset Bakery has everything your table needs").
+
+1. **Prompt: the subject of a piece is not a business fact.** In `src/engine/sourceClaims.ts`, the `SYSTEM_PROMPT` line that begins "nor general truths about the trade..." now continues with a new instruction: "Do not list the subject of the piece itself: what an article is about or the things it compares (\"templates and custom-built sites\"), named without saying anything about the business." The rest of the line ("In an article that teaches...") is unchanged. This steers the model away from listing the topic of a how-to or comparison article as if it were a claim about the business.
+
+2. **New `madeOfSourceWords` helper.** `src/engine/sourceClaims.ts` gained an exported `madeOfSourceWords(claim, source)` function and an `OWN_WORDS_MIN = 3` constant. The function normalises both texts with the existing `normaliseForMatch` (letters and digits only, lowercase, number words as digits), splits the claim into words, returns false when fewer than three words remain, builds a `Set` of the source's normalised words, and returns true only when every claim word is present in the set either as-is, with an added trailing "s", or with its own trailing "s" removed. So "full-service CPA firm" passes when the source contains those exact words, "15 years and 200 projects across Mexico Latin America the US and Europe" passes when the answers or website contain them, but a claim using a word the source does not have stays listed.
+
+3. **`findUnsupportedClaims` takes an `ownWords` option.** The signature grew an optional `options?: { ownWords?: boolean }` parameter after `sessionId`. Inside the dedup loop, after `seen.add(key)`, a new line `if (options?.ownWords && madeOfSourceWords(claim, allowed)) continue;` skips the claim before it is pushed into `unsupported`. The default (no options) behaves exactly as before, so every existing caller that does not pass `ownWords` is unaffected.
+
+4. **The Quick pipeline passes `ownWords` for brief drafts only.** In `src/engine/runQuickPipeline.ts`, both `findUnsupportedClaims` call sites that run on brief-drafted text now pass an `ownWords` flag:
+   - The written-version check passes `{ ownWords: !!formState.quickClaimSource }`, which is set true only after a brief run sets `quickClaimSource` to the brief's claim source.
+   - The first-claim check inside the brief-draft branch passes `{ ownWords: !!draftSource }`, where `draftSource` is the brief's `claimSource` string (empty for non-brief runs).
+   The other call site — the re-check after invented-detail cleanup (`const again = await findUnsupportedClaims(...)`) — is left unchanged, as instructed, so a claim removed and re-added by the cleanup is still re-evaluated normally.
+
+**Files touched:** `src/engine/sourceClaims.ts` (prompt line, new `madeOfSourceWords` + `OWN_WORDS_MIN`, `ownWords` option, skip line), `src/engine/runQuickPipeline.ts` (two `ownWords` arguments).
+
+**What did not change:** The claim check for pasted-original and fetched-page runs is unchanged — `ownWords` is false there, so `madeOfSourceWords` is never called. The cleanup pass (`removeInventedDetails`), the risky-phrase pass (`withRiskyPhrases`), scoring, brief fit, history, exports, credits, and billing are all untouched. No database, migration, RLS policy, or edge function changed.
+
+**Effect on existing data:** None. No saved result is rewritten; the change only affects which claims future brief-drafted runs list.
+
+**Verification:** `npm run build` passes (23.95s).
 
 ---
 

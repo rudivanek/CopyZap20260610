@@ -528,7 +528,9 @@ export async function scoreQuickVersions(
         return {
           id: version.id,
           text,
-          claims: await findUnsupportedClaims(text, allowedForClaims, user, formState.sessionId),
+          claims: await findUnsupportedClaims(text, allowedForClaims, user, formState.sessionId, {
+            ownWords: !!formState.quickClaimSource,
+          }),
         };
       })
   ).then(shareClaims);
@@ -1079,7 +1081,7 @@ export async function runQuickPipeline(
       written.items.map(async item => {
         const text = contentToText(item.content);
         // Promise words (offer terms, guarantees, scarcity) are always listed, also when the check misses them (see riskyPhrases.ts).
-        return { item, text, claims: withRiskyPhrases(text, allowedText, await findUnsupportedClaims(text, allowedText, user, sessionId)) };
+        return { item, text, claims: withRiskyPhrases(text, allowedText, await findUnsupportedClaims(text, allowedText, user, sessionId, { ownWords: !!draftSource })) };
       })
     )
   );

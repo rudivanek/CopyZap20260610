@@ -103,7 +103,7 @@ const SYSTEM_PROMPT = `You compare a rewritten piece of marketing copy with the 
 
 You may get only part of the rewrite. Go through that part sentence by sentence and list every statement of fact about the business: what it offers or sells, how its product is made or what it is made of, how it works with customers, its team and their experience, its prices or how it prices, offers, discounts, limits and deadlines, guarantees and promises, policies, results it gets, its customers and how many there are, how often they come back, its reputation or popularity, awards, credentials, memberships and accreditations, the places it serves, dates, and stories about its past work. List every one, also the ones you think are supported. A sentence often holds several facts: list each one by itself. "We install and repair fixtures so they work right — no drips, no callbacks" holds two: the service, and the promise of no drips and no callbacks. Promises about results and timing ("no callbacks", "done right the first time", "open again by morning", "never a surprise bill") are facts too.
 
-Do not list wording that states no fact about the business: the framing of the reader's situation, how the reader will feel, invitations and calls to action ("Claim your free consultation", "Ready to plan your event?"), general persuasion ("Make sure it's worth remembering") and words that only set the mood ("exciting", "we'd love to", "worth celebrating", "it means everything"). Also do not list how carefully or how well the business says it does a service the original already names, in general words ("cleanly", "efficiently", "with precision", "properly sealed", "built to last", "with attention to detail", "we explain what we find in plain language"), nor general truths about the trade ("clean parts last longer"). In an article that teaches about a subject (a technology, a kind of product, a field), what is generally known about that subject — what it is, what it can do, how it works — is not a fact about the business either, even when the business works with that subject: "WordPress is open source", "WordPress lets you build anything from a store to a news portal" and "a site needs regular backups" are about WordPress and websites, not about an agency that builds WordPress sites. Do not list them. A number, a statistic, a date, a ranking ("one of the largest in the world"), a study or a named product about that subject is always listed. List such a sentence only for what it adds that a customer could hold the business to: a concrete promise, guarantee, result, number, name or place ("no callbacks", "passed city inspection", "the same problem won't return in three months"). Credentials and standards ("licensed", "certified", "meets code") and the results of past jobs ("passed inspection", "the restaurant opened on time") are always facts, however the sentence is worded. So are words that say it always works or always happens ("every time", "always", "never fails", "without exception"). Ignore lines like [[TESTIMONIALS-1]] or [[KEEP-1]].
+Do not list wording that states no fact about the business: the framing of the reader's situation, how the reader will feel, invitations and calls to action ("Claim your free consultation", "Ready to plan your event?"), general persuasion ("Make sure it's worth remembering") and words that only set the mood ("exciting", "we'd love to", "worth celebrating", "it means everything"). Also do not list how carefully or how well the business says it does a service the original already names, in general words ("cleanly", "efficiently", "with precision", "properly sealed", "built to last", "with attention to detail", "we explain what we find in plain language"), nor general truths about the trade ("clean parts last longer"). Do not list the subject of the piece itself: what an article is about or the things it compares ("templates and custom-built sites"), named without saying anything about the business. In an article that teaches about a subject (a technology, a kind of product, a field), what is generally known about that subject — what it is, what it can do, how it works — is not a fact about the business either, even when the business works with that subject: "WordPress is open source", "WordPress lets you build anything from a store to a news portal" and "a site needs regular backups" are about WordPress and websites, not about an agency that builds WordPress sites. Do not list them. A number, a statistic, a date, a ranking ("one of the largest in the world"), a study or a named product about that subject is always listed. List such a sentence only for what it adds that a customer could hold the business to: a concrete promise, guarantee, result, number, name or place ("no callbacks", "passed city inspection", "the same problem won't return in three months"). Credentials and standards ("licensed", "certified", "meets code") and the results of past jobs ("passed inspection", "the restaurant opened on time") are always facts, however the sentence is worded. So are words that say it always works or always happens ("every time", "always", "never fails", "without exception"). Ignore lines like [[TESTIMONIALS-1]] or [[KEEP-1]].
 Do list words a reader could rely on as a fact about the business, such as "authentic", "trusted", "affordable", "experienced", "seasoned", "carefully sourced" or "flexible". The test: if a customer could ask "is that true?", it is a fact.
 
 For each statement give:
@@ -161,6 +161,28 @@ export function normaliseForMatch(text: string): string {
     .split(' ')
     .map(word => NUMBER_WORDS[word] ?? word)
     .join(' ');
+}
+
+/**
+ * True when every word of the claim is a word of the source (letters and
+ * digits, see normaliseForMatch; a plural "s" either way is allowed), and the
+ * claim has at least OWN_WORDS_MIN words. Used only for a draft written from a
+ * brief (findUnsupportedClaims, ownWords), whose source is the user's own answers
+ * and website. Added 2026-11-06: "15 years and 200+ projects across Mexico,
+ * Latin America, the US and Europe" was listed although the answers and the
+ * website say exactly that. Measured on the 110 claims stored on drafts from a
+ * brief: 7 pass this test, 6 of them true facts ("full-service CPA firm",
+ * "más de 14 años…") and one over-reach made of the page's own words
+ * ("Dorset Bakery has everything your table needs"); every other claim stays.
+ */
+const OWN_WORDS_MIN = 3;
+export function madeOfSourceWords(claim: string, source: string): boolean {
+  const words = normaliseForMatch(claim).split(' ').filter(Boolean);
+  if (words.length < OWN_WORDS_MIN) return false;
+  const known = new Set(normaliseForMatch(source).split(' '));
+  return words.every(
+    word => known.has(word) || known.has(`${word}s`) || (word.endsWith('s') && known.has(word.slice(0, -1)))
+  );
 }
 
 /** True when the words stand in the text (letters and digits only, see normaliseForMatch). */
@@ -328,7 +350,9 @@ export async function findUnsupportedClaims(
   text: string,
   allowed: string,
   user: User,
-  sessionId?: string
+  sessionId?: string,
+  /** A draft from a brief: a claim made only of words of the source is not listed (see madeOfSourceWords). */
+  options?: { ownWords?: boolean }
 ): Promise<string[] | null> {
   if (!text.trim() || !allowed.trim()) return null;
   const known = memory.get(memoryKey(text, allowed));
@@ -353,6 +377,7 @@ export async function findUnsupportedClaims(
     const key = normaliseForMatch(claim);
     if (seen.has(key)) continue;
     seen.add(key);
+    if (options?.ownWords && madeOfSourceWords(claim, allowed)) continue;
     unsupported.push(claim);
   }
   // Only a complete check is remembered: a failed part may hide claims.
