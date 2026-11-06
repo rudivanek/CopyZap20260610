@@ -341,8 +341,8 @@ function todayForWriter(): string {
  */
 export async function generateFromBrief(brief: Brief, user: User, sessionId?: string): Promise<string> {
   let response;
-  try {
-    response = await makeApiRequestWithFallback(
+  const write = () =>
+    makeApiRequestWithFallback(
       BRIEF_MODEL,
       [
         { role: 'system', content: briefPrompt.replace('{{TODAY}}', todayForWriter()) },
@@ -355,6 +355,15 @@ export async function generateFromBrief(brief: Brief, user: User, sessionId?: st
       'brief_generate',
       sessionId,
     );
+  try {
+    try {
+      response = await write();
+    } catch (error) {
+      // The connection dropped ("Failed to fetch", seen 2026-11-06 after about 53
+      // seconds; the retry by hand worked and nothing was charged): try once more.
+      if (!(error instanceof TypeError)) throw error;
+      response = await write();
+    }
   } catch (error) {
     if (error instanceof Error && error.message.includes('BRIEF_MODE_NOT_AVAILABLE')) {
       throw new BriefNotAvailableError();

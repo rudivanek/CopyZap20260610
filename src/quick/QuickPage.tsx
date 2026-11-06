@@ -3,7 +3,7 @@ import { Link, useLocation, useSearchParams } from 'react-router-dom';
 import { useCompleteAccess } from '../hooks/useCompleteAccess';
 import { useIsAdmin } from '../hooks/useIsAdmin';
 import { adminGetUsers } from '../services/supabaseClient';
-import { GoalKey, Tone, User } from '../types';
+import { GoalKey, User } from '../types';
 import { DEFAULT_GOAL_KEY, GOAL_OPTIONS } from '../utils/scoringContextStorage';
 import { countWords } from '../utils/markdownUtils';
 import { playSuccessSound } from '../utils/soundEffects';
@@ -24,7 +24,7 @@ import { FactAnswers, factsFromAnswers, OTHER_FACT_KEY } from './factAnswers';
 import { chatFacts, CLOSING_QUESTION, EMPTY_FACT_CHAT, FactChat } from '../engine/factChat';
 import { readChatChoice, saveChatChoice } from './QuickFactChat';
 import { FACT_FIELDS_OFF } from './QuickMissingFacts';
-import { getTextKind, TextKindKey } from '../services/api/textKinds';
+import { getTextKind } from '../services/api/textKinds';
 import { adminLoadQuickResult, loadQuickResult, saveQuickResult, updateQuickResult } from '../engine/quickHistory';
 import type { ViewingUser } from './QuickHistory';
 import { changeQuickVersion, QuickChangeOutcome, QuickChangeParts, validateQuickChange } from '../engine/changeQuickVersion';
@@ -59,7 +59,7 @@ import { InstructionReading, readInstructions } from '../engine/instructionFacts
 import { OriginalScore, scoreOriginal } from '../engine/originalScore';
 import { ctaPassApplies, strengthenWeakCallToAction } from '../engine/ctaPass';
 import { useBriefModeAccess } from '../hooks/useBriefModeAccess';
-import WizardForm from './WizardForm';
+import WizardForm, { BriefChoices } from './WizardForm';
 import { putBackLeftOutFacts } from '../engine/factRepairPass';
 import { setBriefAwareScoring } from '../services/api/absoluteScoring';
 
@@ -193,7 +193,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const pendingBriefContinue = useRef<{ copy: string; goalKey: GoalKey } | null>(null);
   // The tone and kind chosen in "Start from a brief", with the draft they belong to:
   // they are used only for that draft, never for copy pasted later in the session.
-  const briefChosen = useRef<{ copy: string; tone: Tone; kind: TextKindKey } | null>(null);
+  const briefChosen = useRef<({ copy: string } & BriefChoices) | null>(null);
   const openAtStart = useRef(searchParams.get('r'));
   // Read live from the URL so navigating to a different user's history
   // re-runs the lookup. searchParams updates on every navigation.
@@ -655,7 +655,16 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       const read = await inferQuickBrief(copy, currentUser, id);
       if (!isMounted.current) return;
       const chosen = briefChosen.current && briefChosen.current.copy === copy ? briefChosen.current : null;
-      const understood = chosen ? { ...read, tone: chosen.tone, kind: chosen.kind, kindOther: '' } : read;
+      const understood = chosen
+        ? {
+            ...read,
+            tone: chosen.tone,
+            kind: chosen.kind,
+            kindOther: '',
+            product: chosen.product || read.product,
+            audience: chosen.audience || read.audience,
+          }
+        : read;
       // Copy fetched from a web address is a web page, whatever the reading step made of it.
       setBrief(fetchedFrom && fetchedUrl ? { ...understood, kind: 'web_page', kindOther: '' } : understood);
       setBriefCopy(copy);
@@ -1278,7 +1287,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [copy, goalKey]);
 
-  const handleBriefDraft = (draft: string, goalKey: GoalKey, record: Omit<QuickBriefRecord, 'editedBeforeScoring'>, chosen: { tone: Tone; kind: TextKindKey }) => {
+  const handleBriefDraft = (draft: string, goalKey: GoalKey, record: Omit<QuickBriefRecord, 'editedBeforeScoring'>, chosen: BriefChoices) => {
     setBriefMode('improve');
     setCopy(draft);
     setGoalKey(goalKey);

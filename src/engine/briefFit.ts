@@ -122,17 +122,47 @@ export async function checkBriefFit(
     // such as "convert" as an action now and then (2026-11-05).
     const namesAction = /^[-*\s]*(What the reader should do|Call to action|Action)\s*:/im.test(asked);
     const isArticle = /^[-*\s]*What you need\s*:\s*Blog post/im.test(asked);
+    const note = typeof parsed.note === 'string' ? parsed.note.trim() : '';
+    const slipInQuestion = slipIsQuestionOrQuote(note, copy);
     const misses = found
       .filter(miss => !(miss === 'address_slip' && found.includes('address')))
+      // A "slip" the check found in a FAQ question or a quote is not one (see slipIsQuestionOrQuote).
+      .filter(miss => !(miss === 'address_slip' && slipInQuestion))
       .filter(miss => miss !== 'action' || namesAction)
       // A blog post keeps the company out of the advice (briefGenerate.md), so it
       // is never marked down for leaving out the offer or what makes them different
       // (2026-11-06: an honest WordPress post lost 8 points for it).
       .filter(miss => !isArticle || (miss !== 'offer' && miss !== 'differentiator'));
-    return { misses, note: typeof parsed.note === 'string' ? parsed.note.trim() : '' };
+    return { misses, note: slipInQuestion && misses.length === 0 ? '' : note };
   } catch {
     return null;
   }
+}
+
+/**
+ * True when the words the check quotes as a slip into the other form stand in a
+ * line that is a question on its own (a FAQ question, written as the reader
+ * asks it: "¿Tengo que contratar todos los servicios?") or inside quotation
+ * marks in the copy. The check was told so and still counted them
+ * (2026-11-06: "¿Tengo que…?", first person, and a quoted "¿Por qué no usas…?").
+ */
+export function slipIsQuestionOrQuote(note: string, copy: string): boolean {
+  const quoted = Array.from(note.matchAll(/[\u2018\u201C'"]([^\u2018\u2019\u201C\u201D'"]{2,})[\u2019\u201D'"]/g)).map(match => match[1].trim().replace(/[.…]+$/, ''));
+  if (quoted.length === 0) return false;
+  const lines = copy.split('\n').map(line => line.trim().replace(/^[#>*\-\d.\s]+/, '').replace(/\*+/g, '').trim());
+  return quoted.some(words => {
+    const needle = words.replace(/^¿/, '').slice(0, 40).toLowerCase();
+    if (!needle) return false;
+    return lines.some(line => {
+      const at = line.toLowerCase().indexOf(needle);
+      if (at < 0) return false;
+      if (/^¿[^?]*\?$/.test(line)) return true;
+      const before = line.slice(0, at);
+      const opens = (before.match(/["\u201C\u00AB]/g) || []).length;
+      const closes = (before.match(/[\u201D\u00BB]/g) || []).length;
+      return opens > closes || ((before.match(/"/g) || []).length % 2 === 1);
+    });
+  });
 }
 
 /** Points the failed checks cost, up to BRIEF_FIT_MAX_POINTS. */

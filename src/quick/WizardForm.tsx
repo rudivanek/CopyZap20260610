@@ -29,11 +29,23 @@ import { answerFixNote, applyAnswerNumbers } from '../engine/answerConflicts';
 import { QUICK_LANGUAGES, QUICK_TONES } from '../engine/inferQuickBrief';
 import type { QuickBriefRecord } from '../engine/runQuickPipeline';
 
+/**
+ * What was chosen and answered here, kept on the check screen instead of being
+ * guessed again from the draft (2026-11-06: "Selling" and "For" were read again
+ * from the draft, broader than the answers).
+ */
+export interface BriefChoices {
+  tone: Tone;
+  kind: TextKindKey;
+  product: string;
+  audience: string;
+}
+
 interface WizardFormProps {
   currentUser: User;
   defaultLanguage: Language;
   disabled: boolean;
-  onDraft: (draft: string, goalKey: GoalKey, record: Omit<QuickBriefRecord, 'editedBeforeScoring'>, chosen: { tone: Tone; kind: TextKindKey }) => void;
+  onDraft: (draft: string, goalKey: GoalKey, record: Omit<QuickBriefRecord, 'editedBeforeScoring'>, chosen: BriefChoices) => void;
   onUnavailable: () => void;
   onError: (message: string) => void;
   getSessionId: (label: string) => Promise<string>;
@@ -406,7 +418,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         websiteRead: website.trim() ? siteFacts !== undefined : undefined,
         draft,
         ...(metaDescription ? { metaDescription } : {}),
-      }, { tone, kind: briefPiece(piece).channel });
+      }, { tone, kind: briefPiece(piece).channel, product: a.product.trim(), audience: a.audience.trim() });
     } catch (error) {
       if (token !== runToken.current) return;
       if (error instanceof BriefNotAvailableError) onUnavailable();

@@ -3425,7 +3425,8 @@ ${previewPercent ? `<div style="background:#000000;color:#ffffff;text-align:cent
 
         // Rankings table — single Absolute quality score column.
         htmlContent += '<div class="rank">\n';
-        htmlContent += `<div class="rank-row head"><div class="pos">#</div><div class="nm">${t.versionLabel}</div><div class="dl">${t.deltaLabel}</div><div class="tot">${anyAbs ? t.qualityTotalLabel : t.totalLabel}</div></div>\n`;
+        // No "vs. Original" heading when there is no original to compare with (a draft written from a brief).
+        htmlContent += `<div class="rank-row head"><div class="pos">#</div><div class="nm">${t.versionLabel}</div><div class="dl">${originalRow ? t.deltaLabel : ''}</div><div class="tot">${anyAbs ? t.qualityTotalLabel : t.totalLabel}</div></div>\n`;
 
         sortedRows.forEach((row, idx) => {
           const matchedCard = contentCards.find(c => c.id === row.versionId)
