@@ -58,7 +58,7 @@ const goalName = (key: GoalKey) => {
   return key === 'custom' ? 'Other' : (option?.label.split(' — ')[0] ?? String(key));
 };
 
-const CLEANED_KEYS: (keyof Answers)[] = ['product', 'audience', 'result', 'alternatives', 'differentiators', 'proof', 'experience', 'callToAction'];
+const CLEANED_KEYS: (keyof Answers)[] = ['result', 'alternatives', 'differentiators', 'proof', 'experience', 'callToAction'];
 
 /** Tapping a choice adds it to the answer; tapping it again takes it out. */
 function toggleChoice(current: string, choice: string): string {
@@ -254,7 +254,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
       setStage('checking');
       const found = await getWizardFollowUps(
         briefPiece(piece).label,
-        WIZARD_FIELDS.map(field => ({ key: field.key, label: field.label, value: usableAnswer(answers[field.key]) })),
+        WIZARD_FIELDS.map(field => ({ key: field.key, label: field.label, value: CLEANED_KEYS.includes(field.key) ? usableAnswer(answers[field.key]) : answers[field.key] })),
         currentUser,
         sessionId,
       );
@@ -265,18 +265,19 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         return;
       }
     }
-    // The follow-up answers are added to the answer they belong to.
+    // Answers cleaned of any chip that left a blank, and of "no data" answers,
+    // BEFORE the follow-up answers are added: cleaned after, an answer such as
+    // "Más de ___ clientes — 200" was dropped whole, the follow-up "200" with it.
     const a: Answers = { ...answers };
+    CLEANED_KEYS.forEach(key => {
+      a[key] = usableAnswer(a[key]);
+    });
+    // The follow-up answers are added to the answer they belong to.
     (followUps ?? []).forEach(item => {
       const extra = usableAnswer((followAnswers[item.key] ?? '').trim());
       if (!extra || item.key === 'goal') return;
       const key = item.key as keyof Answers;
       a[key] = a[key].trim() ? `${a[key].trim()} — ${extra}` : extra;
-    });
-    // Answers cleaned of any chip that left a blank, so the writer does not
-    // invent the figure or name the blank stood for.
-    CLEANED_KEYS.forEach(key => {
-      a[key] = usableAnswer(a[key]);
     });
     // Answers that were read from the website, not asked, and left as they were:
     // the user may never have seen them, so the brief marks them as website facts.

@@ -191,7 +191,9 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
   const [writtenFromBrief, setWrittenFromBrief] = useState(false);
   const [briefRecord, setBriefRecord] = useState<Omit<QuickBriefRecord, 'editedBeforeScoring'> | null>(null);
   const pendingBriefContinue = useRef<{ copy: string; goalKey: GoalKey } | null>(null);
-  const briefChosen = useRef<{ tone: Tone; kind: TextKindKey } | null>(null);
+  // The tone and kind chosen in "Start from a brief", with the draft they belong to:
+  // they are used only for that draft, never for copy pasted later in the session.
+  const briefChosen = useRef<{ copy: string; tone: Tone; kind: TextKindKey } | null>(null);
   const openAtStart = useRef(searchParams.get('r'));
   // Read live from the URL so navigating to a different user's history
   // re-runs the lookup. searchParams updates on every navigation.
@@ -652,7 +654,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
       const id = await ensureSession(copy);
       const read = await inferQuickBrief(copy, currentUser, id);
       if (!isMounted.current) return;
-      const chosen = briefChosen.current;
+      const chosen = briefChosen.current && briefChosen.current.copy === copy ? briefChosen.current : null;
       const understood = chosen ? { ...read, tone: chosen.tone, kind: chosen.kind, kindOther: '' } : read;
       // Copy fetched from a web address is a web page, whatever the reading step made of it.
       setBrief(fetchedFrom && fetchedUrl ? { ...understood, kind: 'web_page', kindOther: '' } : understood);
@@ -1282,7 +1284,7 @@ const QuickPage: React.FC<QuickPageProps> = ({ currentUser, onLogout }) => {
     setGoalKey(goalKey);
     setWrittenFromBrief(true);
     setBriefRecord(record);
-    briefChosen.current = chosen;
+    briefChosen.current = { copy: draft, ...chosen };
     pendingBriefContinue.current = { copy: draft, goalKey };
   };
 
