@@ -12,6 +12,7 @@ import {
   BRIEF_MIN_WORDS,
   BRIEF_MAX_WORDS,
   briefPiece,
+  briefSectionOption,
   briefShapeNote,
   defaultSectionsFor,
   generateFromBrief,
@@ -346,7 +347,14 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         {
           label: 'Sections',
           value: isPage
-            ? chosen.map((section, index) => (section.words ? `${section.label} (${section.words})` : sectionWords[index] ? `${section.label} (≈ ${sectionWords[index]})` : section.label)).join(' · ')
+            ? chosen
+                .map((section, index) => {
+                  const label = section.words ? `${section.label} (${section.words})` : sectionWords[index] ? `${section.label} (≈ ${sectionWords[index]})` : section.label;
+                  // The brief check may not mark the draft down for leaving such a section out
+                  // (2026-11-05: Selected work and Testimonials, rightly left out, cost 6 points).
+                  return briefSectionOption(section.key).factsOnly ? `${label}, only if facts exist` : label;
+                })
+                .join(' · ')
             : '',
         },
         { label: 'Language', value: languageText },
@@ -681,7 +689,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         >
           {stage === 'checking' ? 'Checking your answers…' : stage === 'writing' ? 'Writing…' : 'Write it'}
         </button>
-        <span className={hintClass}>CopyZap writes a draft from your answers, then scores and improves it.</span>
+        <span className={hintClass}>Writing the draft uses about 10 credits for up to 1,000 words. Scoring it, on the next screen, uses about 15 to 20 more.</span>
       </div>
     </div>
   );

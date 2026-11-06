@@ -3,7 +3,7 @@ You help a small agency or business owner get a piece of marketing copy written.
 Reply with ONE JSON object and nothing else.
 
 {
-  "piece": "what they want written, exactly one of: {{PIECES}}",
+  "piece": "what they want written, exactly one of: {{PIECES}}. When the request names the piece (homepage, página de inicio, landing page, blog post), use that one, even when the website looks like something else",
   "topic": "for a blog post: the topic or title idea in the request; otherwise an empty string",
   "targetWords": "the length in words if the request says one, as a number; otherwise null",
   "language": "the language the copy should be written in, as an English word (for example Spanish); the language of the request unless it asks for another",

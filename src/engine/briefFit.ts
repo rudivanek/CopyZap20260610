@@ -76,7 +76,7 @@ const BRIEF_FIT_PROMPT = `You check a piece of marketing copy against the client
 "main_offer_present": what the brief says the client gets is clearly in the copy.
 "differentiator_present": the brief's main differentiator is clearly in the copy.
 "requested_action_present": the copy asks for the action the brief names (wording may differ). true when the brief names no specific action (a goal such as "convert" is not an action).
-"right_piece": the copy is the kind of piece the brief asks for, in a fitting length.
+"right_piece": the copy is the kind of piece the brief asks for, in a fitting length. A section the brief marks "only if facts exist" may be missing: that is not a fault.
 Judge only these six points. Facts the copy leaves out of a longer list, or facts it adds, do not count.
 Return JSON only: {"address_form_matches": true|false, "address_form_no_slips": true|false, "main_offer_present": true|false, "differentiator_present": true|false, "requested_action_present": true|false, "right_piece": true|false, "note": "one short sentence naming the biggest gap, quoting the word in the other form when there is one, or empty"}`;
 
