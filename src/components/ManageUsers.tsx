@@ -8,6 +8,7 @@ import EditUserModal from './EditUserModal';
 import AddUserModal from './AddUserModal';
 import { adminGetUsers, adminDeleteUser } from '../services/supabaseClient';
 import { listPowerUsers, setPowerUser } from '../services/powerUser';
+import { listEmailFlags, setEmailsEnabled } from '../services/userEmails';
 import { toast } from 'react-hot-toast';
 import PublicFooter from './PublicFooter';
 
@@ -65,6 +66,25 @@ const ManageUsers: React.FC = () => {
       setChangingPowerFor(null);
     }
   };
+  // Emails on: the user can be chosen in Send emails. Off: hidden there (for
+  // example after the user replied "unsubscribe").
+  const [emailFlags, setEmailFlags] = useState<Record<string, boolean>>({});
+  const [emailFlagsLoaded, setEmailFlagsLoaded] = useState(false);
+  const [changingEmailsFor, setChangingEmailsFor] = useState<string | null>(null);
+
+  const handleToggleEmails = async (user: ManageUser) => {
+    const next = !(emailFlags[user.id] !== false);
+    setChangingEmailsFor(user.id);
+    try {
+      await setEmailsEnabled(user.id, next);
+      setEmailFlags(flags => ({ ...flags, [user.id]: next }));
+      toast.success(next ? `Emails on for ${user.email}` : `Emails off for ${user.email}`);
+    } catch (err: any) {
+      toast.error(`Could not change the setting: ${err.message}`);
+    } finally {
+      setChangingEmailsFor(null);
+    }
+  };
   const [error, setError] = useState<string | null>(null);
   const [sortField, setSortField] = useState<'name' | 'email' | 'created_at' | 'cost_usd' | 'total_records' | 'last_sign_in_at' | 'prepaid_balance' | 'prepaid_next_expiry' | null>(null);
   const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
@@ -101,6 +121,14 @@ const ManageUsers: React.FC = () => {
       } catch (flagError: any) {
         setPowerFlagsLoaded(false);
         toast.error(`Could not load the power-user settings: ${flagError.message}`);
+      }
+
+      try {
+        setEmailFlags(await listEmailFlags());
+        setEmailFlagsLoaded(true);
+      } catch (flagError: any) {
+        setEmailFlagsLoaded(false);
+        toast.error(`Could not load the email settings: ${flagError.message}`);
       }
     } catch (err: any) {
       console.error('Error fetching users:', err);
@@ -499,6 +527,9 @@ const ManageUsers: React.FC = () => {
                     <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
                       Power user
                     </th>
+                    <th className="px-3 py-3 text-left text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky top-0 z-20 bg-gray-50 dark:bg-gray-800">
+                      Emails
+                    </th>
                     <th className="px-3 py-3 text-right text-xs font-medium text-gray-500 dark:text-gray-400 uppercase tracking-wider sticky right-0 top-0 z-30 bg-gray-50 dark:bg-gray-800 shadow-[-12px_0_12px_-12px_rgba(0,0,0,0.2)] dark:shadow-[-12px_0_12px_-12px_rgba(0,0,0,0.5)]">
                       Actions
                     </th>
@@ -572,6 +603,21 @@ const ManageUsers: React.FC = () => {
                           />
                           <span className="text-xs text-gray-500 dark:text-gray-400">
                             {!powerFlagsLoaded ? 'Not loaded' : powerFlags[user.id] === true ? 'Advanced' : 'Standard'}
+                          </span>
+                        </label>
+                      </td>
+                      <td className="px-3 py-2 whitespace-nowrap">
+                        <label className="inline-flex items-center gap-2 text-sm text-gray-900 dark:text-white">
+                          <input
+                            type="checkbox"
+                            checked={emailFlags[user.id] !== false}
+                            disabled={!emailFlagsLoaded || changingEmailsFor === user.id}
+                            onChange={() => handleToggleEmails(user)}
+                            aria-label={`Emails: ${user.email}`}
+                            className="h-4 w-4"
+                          />
+                          <span className="text-xs text-gray-500 dark:text-gray-400">
+                            {!emailFlagsLoaded ? 'Not loaded' : emailFlags[user.id] !== false ? 'On' : 'Off'}
                           </span>
                         </label>
                       </td>

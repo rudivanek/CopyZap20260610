@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { Link, useNavigate, useSearchParams, useLocation } from 'react-router-dom';
 import NavSidebar from './NavSidebar';
-import { BarChart3, FileText, Settings, DollarSign, Users, RefreshCw, Calendar, Zap, Eye, Trash2, CreditCard as Edit, ArrowRight, User, AlertCircle, Filter, Download, Lightbulb, Activity, ChevronDown, ChevronRight, Star, Search, X, Palette } from 'lucide-react';
+import { BarChart3, FileText, Settings, DollarSign, Users, RefreshCw, Calendar, Zap, Eye, Trash2, CreditCard as Edit, ArrowRight, User, AlertCircle, Filter, Download, Lightbulb, Activity, ChevronDown, ChevronRight, Star, Search, X, Palette, Mail } from 'lucide-react';
 import { retryFailedTracking, getTrackingQueueStatus } from '../services/api/tokenTracking';
 import { useAuth } from '../hooks/useAuth';
 import { useIsAdmin } from '../hooks/useIsAdmin';
@@ -1081,6 +1081,15 @@ const Dashboard: React.FC<{ userId: string; onLogout: () => void }> = ({ userId,
                   title="Manage Users"
                 >
                   <Users size={16} />
+                </Link>
+
+                <Link
+                  to="/admin/send-emails"
+                  className="bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-lg text-sm flex items-center transition-colors shadow-md hover:shadow-lg"
+                  title="Send emails to users"
+                >
+                  <Mail size={16} className="mr-2" />
+                  <span className="hidden sm:inline">Send emails</span>
                 </Link>
 
                 <Link

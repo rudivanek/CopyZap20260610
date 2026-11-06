@@ -41,6 +41,7 @@ const BuyCreditsPage = lazy(() => import('./quick/BuyCreditsPage'));
 const ReportBrandingPage = lazy(() => import('./quick/ReportBrandingPage'));
 // Lazy loaded - Admin components
 const ManageUsers = lazy(() => import('./components/ManageUsers'));
+const SendEmails = lazy(() => import('./components/SendEmails'));
 const ManagePrefills = lazy(() => import('./components/ManagePrefills'));
 const ManageSpecialInstructions = lazy(() => import('./components/ManageSpecialInstructions'));
 const ManageCustomers = lazy(() => import('./components/ManageCustomers'));
@@ -863,6 +864,20 @@ const AppRouter: React.FC = () => {
               <AuthenticatedRoute>
                 <Suspense fallback={<AppSpinner />}>
                   <ReportThemeEditor />
+                </Suspense>
+              </AuthenticatedRoute>
+            ) : (
+              <Navigate to="/login" replace />
+            )
+          }
+        />
+        <Route
+          path="/admin/send-emails"
+          element={
+            currentUser ? (
+              <AuthenticatedRoute>
+                <Suspense fallback={<AppSpinner />}>
+                  <SendEmails />
                 </Suspense>
               </AuthenticatedRoute>
             ) : (

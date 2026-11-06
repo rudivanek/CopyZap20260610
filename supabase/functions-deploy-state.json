@@ -80,6 +80,10 @@
     "submit-help-feedback": {
       "hasChanged": false,
       "hash": "2363a54223c62fb91df4a5bd5c6546ede2e8e1e4e6add427f3d35884b1b6e80b"
+    },
+    "admin-send-emails": {
+      "hasChanged": false,
+      "hash": "239979d04d90928ade3a41cf8cf5c52bef258651f88fcf61b2d4145b2f6b0fc89219bd5a5eadb748b85e60232a3b31d671befa18011d8c837f30575c6db084ec"
     }
   }
 }
