@@ -269,6 +269,7 @@ const WizardForm: React.FC<WizardFormProps> = ({ currentUser, defaultLanguage, d
         briefPiece(piece).label,
         WIZARD_FIELDS.map(field => ({ key: field.key, label: field.label, value: CLEANED_KEYS.includes(field.key) ? usableAnswer(answers[field.key]) : answers[field.key] })),
         currentUser,
+        language,
         sessionId,
       );
       if (token !== runToken.current) return;

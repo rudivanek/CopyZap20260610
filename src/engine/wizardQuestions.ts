@@ -248,12 +248,18 @@ export async function getWizardFollowUps(
   pieceLabel: string,
   answers: { key: WizardFieldKey; label: string; value: string }[],
   user: User,
+  /** The language of the copy, as set in the form: the questions and choices are asked in it. */
+  language: Language,
   sessionId?: string,
 ): Promise<WizardQuestion[]> {
   const given = answers.filter(answer => answer.value.trim());
   if (given.length === 0) return [];
+  // The language is named, not left to the answers: answers read from a website
+  // can be in another language than the copy (2026-11-05 and 2026-11-06: an
+  // English newsletter got its follow-up question and choices in Spanish).
   const lines = [
     `What is being written: ${pieceLabel}`,
+    `Write in: ${language}`,
     '',
     'The answers:',
     ...given.map(answer => `- ${answer.key} (${answer.label}): ${answer.value.trim()}`),
