@@ -21,6 +21,7 @@ import type { AbsoluteScoreBreakdown } from '../services/api/absoluteScoring';
 import type { GateResult } from '../utils/structuralGate';
 import { deriveQuickLabel } from './buildQuickFormState';
 import { ORIGINAL_VERSION_ID } from './pickWinner';
+import { confirmedScore, reviewScore } from './claimReview';
 import type { QuickRunResult } from './runQuickPipeline';
 
 const TABLE = 'pmc_saved_outputs';
@@ -90,13 +91,24 @@ function cleanTitle(title: string): string {
 function toRow(result: QuickRunResult, runSeconds: number | null) {
   const { copyResult, ...inputs } = result.formState;
   const scores = result.scores;
-  const winnerScore = scores?.winnerId ? scores.absoluteByVersion[scores.winnerId]?.total ?? null : null;
-  const originalScore = scores?.absoluteByVersion[ORIGINAL_VERSION_ID]?.total ?? null;
+  // The score History shows is the one the result screen shows (QuickResult.tsx):
+  // after "Re-score" the score of the text as it is now; otherwise the run's, without
+  // the points for claims the user confirmed, removed or edited away. (2026-11-06:
+  // History kept the run's 74 after a re-score to 80.)
+  const winnerId = scores?.winnerId ?? null;
+  const winnerScore = winnerId
+    ? (reviewScore(result, winnerId) ?? confirmedScore(result, winnerId) ?? scores?.absoluteByVersion[winnerId])?.total ?? null
+    : null;
+  // A draft from a brief has no original of its own: the stored "original" is the draft
+  // read once, without the claim and brief checks, so it is not shown as "Original".
+  const originalScore = result.briefRecord?.draftOnly
+    ? null
+    : scores?.absoluteByVersion[ORIGINAL_VERSION_ID]?.total ?? null;
 
   const quick: QuickExtras = {
     version: 1,
     goalKey: result.goalKey,
-    winnerId: scores?.winnerId ?? null,
+    winnerId,
     winnerScore,
     originalScore,
     scored: !!scores,
