@@ -28,7 +28,7 @@ const json = (body: unknown, status = 200) =>
   });
 
 const FROM = 'CopyZap <hi@copyzap.app>';
-const REPLY_TO = ['hi@copyzap.app', 'rfv@datago.net'];
+const REPLY_TO = ['hi@copyzap.app'];
 const FOOTER = [
   '—',
   'CopyZap · copyzap.app',

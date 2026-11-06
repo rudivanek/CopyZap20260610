@@ -166,7 +166,7 @@ const SendEmails: React.FC = () => {
                 Send emails to users
               </h1>
               <p className="text-gray-600 dark:text-gray-400 mt-1">
-                From hi@copyzap.app. Replies go to hi@copyzap.app and rfv@datago.net. Each user gets their own email.
+                From hi@copyzap.app. Replies go to hi@copyzap.app. Each user gets their own email.
               </p>
             </div>
           </div>
